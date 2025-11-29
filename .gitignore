@@ -72,13 +72,3 @@ yarn-error.log
 # Environment variables
 .env
 .env.local
-
-# Temporary files
-temp.json
-temp2.json
-temp3.json
-launch_data.json
-launch_data2.json
-launch_data3.json
-trending.json
-api_response.json
