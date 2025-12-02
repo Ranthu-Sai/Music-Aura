@@ -1,13 +1,14 @@
 import Context from "./Context";
-import { useEffect, useState, useMemo, useCallback } from "react";
+import { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import TrackPlayer, { Event, useTrackPlayerEvents, RepeatMode } from "react-native-track-player";
 import { getRecommendedSongs } from "../Api/Recommended";
+import { getYTLyricsSongData } from "../Api/Songs";
 import { AddSongsToQueue, SetRepeatMode } from "../MusicPlayerFunctions";
 import FormatArtist from "../Utils/FormatArtists";
 import { Repeats } from "../Utils/Repeats";
-import { SetQueueSongs } from "../LocalStorage/storeQueue";
+// import { SetQueueSongs } from "../LocalStorage/storeQueue";
 import { EachSongMenuModal } from "../Component/Global/EachSongMenuModal";
-import { GetFontSizeValue, GetTheme, GetLastSong, SetLastSong } from "../LocalStorage/AppSettings";
+import { GetFontSizeValue, GetTheme, SetLastSong } from "../LocalStorage/AppSettings";
 
 
 const events = [
@@ -81,10 +82,12 @@ const ContextState = (props)=>{
     });
     const [fontSize, setFontSize] = useState('Medium');
     const [theme, setTheme] = useState('Default');
+    const hasSetupRef = useRef(false);
 
     const currentThemeColors = useMemo(() => themes[theme] || themes.Dark, [theme]);
 
     const [Queue, setQueue] = useState([]);
+    const lyricsCacheRef = useRef({});
     const updateTrack = useCallback(async () => {
         const tracks = await TrackPlayer.getQueue();
         // await SetQueueSongs(tracks)
@@ -95,34 +98,39 @@ const ContextState = (props)=>{
             setQueue(tracks)
         }
     }, [Queue]);
+    const recommendedProcessedRef = useRef(new Set());
     async function AddRecommendedSongs(index,id){
+        // Avoid repeated fetch/add for the same track id
+        if (!id || recommendedProcessedRef.current.has(id)) { return; }
         const tracks = await TrackPlayer.getQueue();
-        const totalTracks = tracks.length - 1
+        const totalTracks = tracks.length - 1;
+        // Trigger only near end of current queue
         if (index >= totalTracks - 2){
-           try {
-               const songs = await getRecommendedSongs(id)
-               if (songs?.data?.length !== 0){
-                   const existingIds = tracks.map(t => t.id);
-                   const ForMusicPlayer = songs.data.filter(song => !existingIds.includes(song.id)).map((e)=> {
-                       return {
-                           url:e.downloadUrl[3].url,
-                           title:e.name.toString().replaceAll("&quot;","\"").replaceAll("&amp;","and").replaceAll("&#039;","'").replaceAll("&trade;","™"),
-                           artist:FormatArtist(e?.artists?.primary).toString().replaceAll("&quot;","\"").replaceAll("&amp;","and").replaceAll("&#039;","'").replaceAll("&trade;","™"),
-                           artwork:e.image[2].url,
-                           duration:e.duration,
-                           id:e.id,
-                           language:e.language,
-                       }
-                   })
-                   if (ForMusicPlayer.length > 0) {
-                       await AddSongsToQueue(ForMusicPlayer)
-                   }
-               }
-           } catch (e) {
-               // Error adding recommended songs
-           } finally {
-               await updateTrack()
-           }
+            try {
+                const songs = await getRecommendedSongs(id);
+                if (songs?.data?.length){
+                    const existingIds = tracks.map(t => t.id);
+                    const ForMusicPlayer = songs.data
+                        .filter(song => song.id && !existingIds.includes(song.id))
+                        .map((e)=> ({
+                            url: e.downloadUrl?.[3]?.url || e.downloadUrl?.[0]?.url,
+                            title: e.name?.toString() ?? "",
+                            artist: FormatArtist(e?.artists?.primary)?.toString() ?? "",
+                            artwork: e.image?.[2]?.url || e.image?.[2]?.link || e.image?.[0]?.url || '',
+                            duration: e.duration,
+                            id: e.id,
+                            language: e.language,
+                        }));
+                    if (ForMusicPlayer.length > 0) {
+                        await AddSongsToQueue(ForMusicPlayer);
+                        recommendedProcessedRef.current.add(id);
+                    }
+                }
+            } catch (e) {
+                // silent
+            } finally {
+                await updateTrack();
+            }
         }
     }
 
@@ -134,22 +142,34 @@ const ContextState = (props)=>{
             setCurrentPlaying(event.track)
             if (event.track?.id ){
                 AddRecommendedSongs(event.index,event.track?.id)
+                // Prefetch lyrics for faster first open, prefer track language
+                const cacheKey = event.track.id || `${event.track.artist}-${event.track.title}`
+                if (!lyricsCacheRef.current[cacheKey]) {
+                    getYTLyricsSongData(event.track.artist, event.track.title, event.track.language)
+                        .then((Lyrics) => {
+                            if (Lyrics?.success) {
+                                lyricsCacheRef.current[cacheKey] = Lyrics.data
+                            } else {
+                                lyricsCacheRef.current[cacheKey] = { lyrics: "No Lyrics Found \nOpps... O_o" }
+                            }
+                        })
+                        .catch(() => {
+                            lyricsCacheRef.current[cacheKey] = { lyrics: "No Lyrics Found \nOpps... O_o" }
+                        })
+                }
             }
         }
     });
     const InitialSetup = useCallback(async () => {
-        try {
-            await TrackPlayer.setupPlayer()
-        } catch (error) {
-            // Player already initialized
+        // Only perform player setup once; subsequent calls just sync queue/state
+        if (!hasSetupRef.current) {
+            try { await TrackPlayer.setupPlayer(); } catch (_) {}
+            try { await SetRepeatMode(RepeatMode.Queue); } catch (_) {}
+            hasSetupRef.current = true;
         }
-        await SetRepeatMode(RepeatMode.Queue)
-        await updateTrack()
-        const song = await getCurrentSong()
-        if (song) {
-            setIndex(1)
-        }
-        // await updateTrack()
+        await updateTrack();
+        const song = await getCurrentSong();
+        if (song) { setIndex(0); }
     }, [updateTrack, getCurrentSong, setIndex]);
     const getCurrentSong = useCallback(async () => {
         const song = await TrackPlayer.getActiveTrack()
@@ -168,11 +188,13 @@ const ContextState = (props)=>{
         setTheme(data);
     }
     useEffect(() => {
-        InitialSetup()
-        loadFontSize()
-        loadTheme()
-    }, [InitialSetup]);
-    return <Context.Provider value={{currentPlaying,  Repeat, setRepeat, updateTrack, Index, setIndex, QueueIndex, setQueueIndex, setVisible, Queue, fontSize, setFontSize, theme, setTheme, currentThemeColors}}>
+        InitialSetup();
+        loadFontSize();
+        loadTheme();
+        // Deliberately empty dependency array so setup is not re-run on queue updates
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+    return <Context.Provider value={{currentPlaying,  Repeat, setRepeat, updateTrack, Index, setIndex, QueueIndex, setQueueIndex, setVisible, Queue, fontSize, setFontSize, theme, setTheme, currentThemeColors, lyricsCacheRef}}>
         {props.children}
          <EachSongMenuModal setVisible={setVisible} Visible={Visible}/>
     </Context.Provider>

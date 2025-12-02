@@ -1,6 +1,6 @@
 import { Dimensions, ImageBackground, View } from "react-native";
 import FastImage from "react-native-fast-image";
-import React, { useState } from "react";
+import React, { useContext, useRef, useState } from "react";
 import LinearGradient from "react-native-linear-gradient";
 import { Heading } from "../Global/Heading";
 import { SmallText } from "../Global/SmallText";
@@ -15,10 +15,12 @@ import { ProgressBar } from "./ProgressBar";
 import { GetLyricsButton } from "./GetLyricsButton";
 import QueueBottomSheet from "./QueueBottomSheet";
 import { getYTLyricsSongData } from "../../Api/Songs";
+import { GetLanguageValue } from "../../LocalStorage/Languages";
 import { ShowLyrics } from "./ShowLyrics";
 import { useActiveTrack } from "react-native-track-player";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { PlayNextSong, PlayPreviousSong } from "../../MusicPlayerFunctions";
+import Context from "../../Context/Context";
 
 export const FullScreenMusic = ({color, Index, setIndex}) => {
   const pan = Gesture.Pan();
@@ -33,31 +35,40 @@ export const FullScreenMusic = ({color, Index, setIndex}) => {
   })
   const width = Dimensions.get("window").width
   const currentPlaying = useActiveTrack()
+  const { lyricsCacheRef } = useContext(Context)
   const [ShowDailog, setShowDailog] = useState(false);
   const [Lyric, setLyric] = useState({});
   const [Loading, setLoading] = useState(false);
 
   async function GetLyrics() {
     setShowDailog(true)
-   try {
+    const cacheKey = currentPlaying?.id || `${currentPlaying?.artist}-${currentPlaying?.title}`
+    const cached = lyricsCacheRef?.current?.[cacheKey]
+    if (cached) {
+      setLyric(cached)
+      setLoading(false)
+      return
+    }
+    try {
       setLoading(true)
-      let Lyrics;
-      Lyrics = await getYTLyricsSongData(currentPlaying.artist, currentPlaying.title)
-     if (Lyrics.success){
-       setLyric(Lyrics.data)
-     } else {
-       setLyric({
-        lyrics:"No Lyrics Found \nOpps... O_o",
-       })
-     }
-   } catch (e) {
-     console.log(e);
-     setLyric({
-       lyrics:"No Lyrics Found \nOpps... O_o",
-     })
-   } finally {
-     setLoading(false)
-   }
+      const preferredLanguage = await GetLanguageValue()
+      const Lyrics = await getYTLyricsSongData(currentPlaying.artist, currentPlaying.title, preferredLanguage || currentPlaying?.language)
+      if (Lyrics.success){
+        if (lyricsCacheRef?.current) lyricsCacheRef.current[cacheKey] = Lyrics.data
+        setLyric(Lyrics.data)
+      } else {
+        const fallback = { lyrics:"No Lyrics Found \nOpps... O_o" }
+        if (lyricsCacheRef?.current) lyricsCacheRef.current[cacheKey] = fallback
+        setLyric(fallback)
+      }
+    } catch (e) {
+      console.log(e);
+      const fallback = { lyrics:"No Lyrics Found \nOpps... O_o" }
+      if (lyricsCacheRef?.current) lyricsCacheRef.current[cacheKey] = fallback
+      setLyric(fallback)
+    } finally {
+      setLoading(false)
+    }
   }
   return (
    <Animated.View entering={FadeInDown.delay(200)} style={{backgroundColor:"rgb(0,0,0)",flex:1}}>

@@ -81,8 +81,8 @@ android {
         applicationId "com.melody"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 2
-        versionName "1.1.0"
+        versionCode 3
+        versionName "1.1.1"
         multiDexEnabled true
     }
     signingConfigs {
@@ -135,13 +135,21 @@ android {
         }
     }
 
-    // Enable ABI splits
+    // Disable ABI splits to produce a single universal APK only
     splits {
         abi {
-            enable true
-            reset()
-            include 'armeabi-v7a', 'arm64-v8a', 'x86', 'x86_64'
-            universalApk true  // If true, also generate a universal APK
+            enable false
+        }
+    }
+
+    // Rename output APKs to desired naming convention
+    applicationVariants.all { variant ->
+        variant.outputs.each { output ->
+            if (variant.buildType.name == "release") {
+                output.outputFileName = "music_aura_universal_release.apk"
+            } else if (variant.buildType.name == "debug") {
+                output.outputFileName = "music_aura_universal_debug.apk"
+            }
         }
     }
 }

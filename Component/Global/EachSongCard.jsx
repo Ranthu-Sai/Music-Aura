@@ -2,18 +2,17 @@ import { Dimensions, Pressable,View } from "react-native";
 import { PlainText } from "./PlainText";
 import { SmallText } from "./SmallText";
 import FastImage from "react-native-fast-image";
-import { AddPlaylist, getIndexQuality, PlayOneSong } from "../../MusicPlayerFunctions";
+import { PlaySongWithRelated } from "../../MusicPlayerFunctions";
 import { memo, useContext, useState, useCallback } from "react";
 import Context from "../../Context/Context";
 import { useActiveTrack, usePlaybackState } from "react-native-track-player";
 import FormatTitleAndArtist from "../../Utils/FormatTitleAndArtist";
-import FormatArtist from "../../Utils/FormatArtists";
 import { EachSongMenuButton } from "../MusicPlayer/EachSongMenuButton";
 
 
 export const EachSongCard = memo(function EachSongCard({title,artist,image,id,url,duration,language,artistID,isLibraryLiked, width, titleandartistwidth, isFromPlaylist, Data, index}) {
   const width1 = Dimensions.get("window").width;
-  const {updateTrack, setVisible} = useContext(Context)
+  const {updateTrack, setVisible, lyricsCacheRef} = useContext(Context)
   const currentPlaying = useActiveTrack()
   const playerState = usePlaybackState()
   const [isLoading, setIsLoading] = useState(false);
@@ -22,64 +21,13 @@ export const EachSongCard = memo(function EachSongCard({title,artist,image,id,ur
     if (isLoading) return;
     setIsLoading(true);
     try {
-      if (isFromPlaylist){
-        const ForMusicPlayer = []
-        const quality = await getIndexQuality()
-        Data?.data?.songs?.map((e,i)=>{
-          if (i >= index){
-            ForMusicPlayer.push({
-              url:e?.downloadUrl[quality].url,
-              title:FormatTitleAndArtist(e?.name),
-              artist:FormatTitleAndArtist(FormatArtist(e?.artists?.primary)),
-              artwork:e?.image[2]?.url,
-              image:e?.image[2]?.url,
-              duration:e?.duration,
-              id:e?.id,
-              language:e?.language,
-              downloadUrl:e?.downloadUrl,
-            })
-          }
-        })
-        await AddPlaylist(ForMusicPlayer)
-      } else if (isLibraryLiked){
-        const Final = []
-        Data?.map((e,i)=>{
-          if (i >= index) {
-            Final.push({
-              url:e.url,
-              title:e?.title,
-              artist:e?.artist,
-              artwork:e?.artwork,
-              duration:e?.duration,
-              id:e?.id,
-              language:e?.language,
-              artistID:e?.primary_artists_id,
-              downloadUrl:e?.downloadUrl,
-            })
-          }
-        })
-        await AddPlaylist(Final)
-      } else {
-        const quality = await getIndexQuality()
-        const song  = {
-          url: typeof url === 'string' ? url : url[quality].url,
-          title:FormatTitleAndArtist(title),
-          artist:FormatTitleAndArtist(artist),
-          artwork:image,
-          duration,
-          id,
-          language,
-          artistID:artistID,
-          image:image,
-          downloadUrl:url,
-        }
-        PlayOneSong(song)
-      }
+      if (lyricsCacheRef?.current) { lyricsCacheRef.current = {}; }
+      await PlaySongWithRelated(id, image)
       updateTrack()
     } finally {
       setIsLoading(false);
     }
-  }, [isLoading, isFromPlaylist, Data, index, isLibraryLiked, url, title, artist, image, duration, id, language, artistID, updateTrack]);
+  }, [isLoading, id, image, updateTrack, lyricsCacheRef]);
 
   return (
     <>
@@ -95,7 +43,6 @@ export const EachSongCard = memo(function EachSongCard({title,artist,image,id,ur
           flexDirection:'row',
           gap:8,
           alignItems:"center",
-          maxHeight:50,
           elevation:10,
           marginBottom:4,
           flex:1,

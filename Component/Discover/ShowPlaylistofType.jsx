@@ -33,6 +33,9 @@ export default function ShowPlaylistofType({route}) {
   }, []);
 
   const width = Dimensions.get("window").width
+  const H_PADDING = 13
+  const CARD_GAP = 12
+  const cardWidth = (width - (H_PADDING * 2) - CARD_GAP) / 2
   return (
     <>
       <PaddingConatiner>
@@ -40,26 +43,34 @@ export default function ShowPlaylistofType({route}) {
       </PaddingConatiner>
       {Loading && <LoadingComponent loading={true}/>}
       {!Loading && <>
-        {Data?.data?.results?.length !== 0 && <FlatList showsVerticalScrollIndicator={false} numColumns={2} keyExtractor={(item, index) => item?.id?.toString() ?? String(index)} contentContainerStyle={{
-          paddingBottom:100,
-          alignItems:"flex-start",
-        }} data={Data?.data?.results} renderItem={(item)=>{
-          return <EachPlaylistCard
-            name={item.item.name}
-            follower={"Total " + item.item.songCount + " Songs"}
-            
-            image={item.item.image[2].link}
-            id={item.item.id}
-            MainContainerStyle = {{
-              width:width * 0.45,
-              marginHorizontal:10,
-            }}
-            ImageStyle={{
-              height:"70%",
-            }}
-          />
-        }
-        }/>}
+        {Data?.data?.results?.length !== 0 && <FlatList
+          showsVerticalScrollIndicator={false}
+          numColumns={2}
+          keyExtractor={(item, index) => item?.id?.toString() ?? String(index)}
+          contentContainerStyle={{
+            paddingBottom:100,
+            paddingHorizontal:H_PADDING,
+          }}
+          columnWrapperStyle={{
+            justifyContent:'space-between',
+            marginBottom: CARD_GAP,
+          }}
+          data={Data?.data?.results}
+          renderItem={(item)=>{
+            return <EachPlaylistCard
+              name={item.item.name}
+              follower={"Total " + item.item.songCount + " Songs"}
+              image={item.item.image[2].link}
+              id={item.item.id}
+              MainContainerStyle={{
+                width: cardWidth,
+              }}
+              ImageStyle={{
+                aspectRatio: 1,
+              }}
+            />
+          }}
+        />}
         {Data?.data?.results?.length === 0 && <View style={{
           height:400,
           alignItems:"center",

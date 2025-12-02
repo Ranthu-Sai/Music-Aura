@@ -25,6 +25,12 @@ export const Album = ({route}) => {
       let data = await getAlbumData(id)
       // Add 1 second delay to ensure correct song results
       await new Promise(resolve => setTimeout(resolve, 1000));
+      // Block podcasts by name/type heuristics
+      const albumName = (data?.data?.name || '').toLowerCase();
+      const albumType = (data?.data?.type || '').toLowerCase();
+      if (albumType.includes('podcast') || albumType.includes('show') || albumName.includes('podcast') || albumName.includes('episode')) {
+        data = { data: { name: data?.data?.name || 'Unavailable', image: data?.data?.image || [], year: data?.data?.year || '', songs: [] } };
+      }
       // Check if songs are sample or empty
       if (!data.data.songs || data.data.songs.length === 0 || data.data.songs.some(song => song.name.toLowerCase().includes('sample') || song.name.toLowerCase().includes('trailer'))) {
         // Try fetching as song
@@ -54,8 +60,9 @@ export const Album = ({route}) => {
         <LoadingComponent loading={Loading}/>}
       {!Loading &&  <>
         {(() => {
-          const filteredSongs = Data?.data?.songs?.filter(song => song.downloadUrl && song.downloadUrl.length > 0 && !song.name.toLowerCase().includes('trailer') && !song.name.toLowerCase().includes('sample')) || [];
-          return filteredSongs.length > 0 ? <Animated.ScrollView scrollEventThrottle={16} ref={AnimatedRef} contentContainerStyle={{
+          // Allow songs without downloadUrl; only filter out trailers/samples
+          const playableSongs = Data?.data?.songs?.filter(song => !song.name?.toLowerCase()?.includes('trailer') && !song.name?.toLowerCase()?.includes('sample')) || [];
+          return playableSongs.length > 0 ? <Animated.ScrollView scrollEventThrottle={16} ref={AnimatedRef} contentContainerStyle={{
             paddingBottom:80,
             backgroundColor:"#101010",
           }}>
@@ -66,7 +73,7 @@ export const Album = ({route}) => {
               backgroundColor:"#101010",
               gap:7,
             }}>
-              {filteredSongs.map((e,i)=><EachSongCard isFromPlaylist={true} Data={Data} index={i} artist={FormatArtist(e?.artists?.primary)} language={e?.language} playlist={true} artistID={e?.primary_artists_id} key={i} duration={e?.duration} image={e?.image[2]?.url} id={e?.id} width={"100%"} title={e?.name}  url={e?.downloadUrl} style={{
+              {playableSongs.map((e,i)=><EachSongCard isFromPlaylist={true} Data={Data} index={i} artist={FormatArtist(e?.artists?.primary)} language={e?.language} playlist={true} artistID={e?.primary_artists_id} key={i} duration={e?.duration} image={e?.image?.[2]?.url} id={e?.id} width={"100%"} title={e?.name}  url={e?.downloadUrl || []} style={{
                 marginBottom:15,
               }}/>)}
             </View>}

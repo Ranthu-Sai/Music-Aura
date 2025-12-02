@@ -6,7 +6,6 @@ import FontAwesome5 from "react-native-vector-icons/FontAwesome5";
 import FastImage from "react-native-fast-image";
 import { memo, useState } from "react";
 import { useNavigation, useTheme } from "@react-navigation/native";
-import LinearGradient from "react-native-linear-gradient";
 
 export const EachPlaylistCard = memo(function EachPlaylistCard ({image, name, follower, id, MainContainerStyle, ImageStyle}){
   const theme = useTheme()
@@ -22,11 +21,11 @@ export const EachPlaylistCard = memo(function EachPlaylistCard ({image, name, fo
         uri: imageUri,
         priority: 'high',
       }} onError={() => setImageUri('https://via.placeholder.com/150x150/cccccc/000000?text=No+Image')} style={{
-        height:150,
         width:"100%",
+        aspectRatio:1,
         borderRadius:8,
         ...ImageStyle,
-      }} resizeMode="cover"/>
+      }} resizeMode="contain"/>
       <SpaceBetween style={{
         height:50,
       }}>

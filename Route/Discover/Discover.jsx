@@ -13,7 +13,7 @@ export const Discover = () => {
   return (
    <MainWrapper>
     <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{paddingBottom:100}}>
-      <RouteHeading bottomText={"Discover music"} showSearch={true}/>
+      <RouteHeading bottomText={"Discover music"} showSearch={false}/>
       <View style={{
         flexDirection:"row",
         gap:10,

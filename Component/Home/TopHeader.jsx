@@ -29,13 +29,7 @@ export const TopHeader = memo(({showHeader}) => {
             <View style={{flex:1}}>
               <Heading text={`Music Aura`} />
             </View>
-            <Pressable style={{
-              padding:5,
-              backgroundColor:"rgba(0,0,0,0)",
-              borderRadius:10,
-            }} onPress={()=>{
-              navigation.navigate("Search")
-            }}><Feather name={"search"} size={width * 0.055} color={theme.colors.text}/></Pressable>
+            {/* Search icon removed as requested */}
             <Pressable onPress={()=>{
               navigation.navigate("Settings")
             }} style={{

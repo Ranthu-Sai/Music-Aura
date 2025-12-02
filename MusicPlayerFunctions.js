@@ -1,6 +1,8 @@
 import TrackPlayer from "react-native-track-player";
 //import { setRepeatMode } from "react-native-track-player/lib/trackPlayer";
 import { GetPlaybackQuality } from "./LocalStorage/AppSettings";
+import { getSongData } from "./Api/Songs";
+import { getRecommendedSongs } from "./Api/Recommended";
 
 async function PlayOneSong(song){
   if (!song.url.startsWith('http')) {
@@ -128,3 +130,82 @@ async function getIndexQuality(){
 }
 
 export {PlayOneSong, PlaySong, PauseSong, SetProgressSong, PlayNextSong, AddPlaylist, PlayPreviousSong, AddSongsToQueue, SkipToTrack,SetRepeatMode, getIndexQuality}
+
+// Build a fresh queue from a song id + related songs, then play
+export async function PlaySongWithRelated(id, fallbackImage) {
+  try {
+    const [songData, quality, related] = await Promise.all([
+      getSongData(id),
+      getIndexQuality(),
+      getRecommendedSongs(id).catch(() => ({ data: [] })),
+    ]);
+    const songObj = songData?.data?.[0];
+    if (!songObj) throw new Error('Song not found');
+    const mainSong = {
+      url: songObj.downloadUrl?.[quality]?.url || songObj.downloadUrl?.[0]?.url,
+      title: songObj.name,
+      artist: (songObj.artists?.primary || []).map(a => a.name).join(', '),
+      artwork: songObj.image?.[2]?.url || fallbackImage,
+      duration: songObj.duration,
+      id: songObj.id,
+      language: songObj.language,
+      artistID: songObj.primary_artists_id,
+      image: songObj.image?.[2]?.url || fallbackImage,
+      downloadUrl: songObj.downloadUrl,
+    };
+    const recs = Array.isArray(related?.data) ? related.data : [];
+    const queue = [mainSong];
+    const seen = new Set([mainSong.id]);
+    for (const e of recs) {
+      try {
+        const rid = e.id || e?.more_info?.id || e?.songid;
+        if (!rid || seen.has(rid)) {
+          continue;
+        }
+        const rimg = e?.image?.[2]?.url || e?.image?.[2]?.link || e?.image?.[0]?.url || fallbackImage;
+        const rdl = e?.downloadUrl || e?.more_info?.downloadUrl;
+        if (!Array.isArray(rdl) || !rdl[quality]) {
+          continue;
+        }
+        queue.push({
+          url: rdl[quality].url,
+          title: e?.name || e?.title || "",
+          artist: (e?.artists?.primary || []).map(a => a.name).join(', '),
+          artwork: rimg,
+          duration: e?.duration,
+          id: rid,
+          language: e?.language,
+          artistID: e?.primary_artists_id,
+          image: rimg,
+          downloadUrl: rdl,
+        });
+        seen.add(rid);
+      } catch (_) {
+        // skip malformed
+      }
+    }
+    await AddPlaylist(queue);
+  } catch (e) {
+    // fallback to just attempting to play id if related or details failed
+    try {
+      const songData = await getSongData(id);
+      const quality = await getIndexQuality();
+      const songObj = songData?.data?.[0];
+      if (!songObj) return;
+      await PlayOneSong({
+        url: songObj.downloadUrl?.[quality]?.url || songObj.downloadUrl?.[0]?.url,
+        title: songObj.name,
+        artist: (songObj.artists?.primary || []).map(a => a.name).join(', '),
+        artwork: songObj.image?.[2]?.url || fallbackImage,
+        duration: songObj.duration,
+        id: songObj.id,
+        language: songObj.language,
+        artistID: songObj.primary_artists_id,
+        image: songObj.image?.[2]?.url || fallbackImage,
+        downloadUrl: songObj.downloadUrl,
+      });
+    } catch (_) {
+      // give up silently
+    }
+  }
+}

@@ -3,16 +3,15 @@ import { PlainText } from "./PlainText";
 import { SmallText } from "./SmallText";
 import FastImage from "react-native-fast-image";
 import { memo, useContext, useState, useCallback } from "react";
-import { PlayOneSong, getIndexQuality } from "../../MusicPlayerFunctions";
+import { PlaySongWithRelated } from "../../MusicPlayerFunctions";
 import Context from "../../Context/Context";
 import FormatTitleAndArtist from "../../Utils/FormatTitleAndArtist";
-import FormatArtist from "../../Utils/FormatArtists";
-import { getSongData } from "../../Api/Songs";
+// import FormatArtist from "../../Utils/FormatArtists";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 import { useActiveTrack, usePlaybackState } from "react-native-track-player";
 
 export const EachTrendingSongCard = memo(function EachTrendingSongCard({image, name, artists, id}) {
-  const { updateTrack } = useContext(Context);
+  const { updateTrack, lyricsCacheRef } = useContext(Context);
   const [isLoading, setIsLoading] = useState(false);
   const [imageUri, setImageUri] = useState(image || 'https://via.placeholder.com/150x150/cccccc/000000?text=No+Image')
   const currentPlaying = useActiveTrack();
@@ -30,30 +29,15 @@ export const EachTrendingSongCard = memo(function EachTrendingSongCard({image, n
     }
     setIsLoading(true);
     try {
-      // Fetch full song data from playback API
-      const songData = await getSongData(id);
-      const quality = await getIndexQuality();
-      const songObj = songData.data[0]; // API returns array
-      const song = {
-        url: songObj.downloadUrl[quality].url,
-        title: FormatTitleAndArtist(songObj.name),
-        artist: FormatTitleAndArtist(FormatArtist(songObj.artists?.primary)),
-        artwork: songObj.image[2]?.url || image,
-        duration: songObj.duration,
-        id: songObj.id,
-        language: songObj.language,
-        artistID: songObj.primary_artists_id,
-        image: songObj.image[2]?.url || image,
-        downloadUrl: songObj.downloadUrl,
-      };
-      await PlayOneSong(song);
-      updateTrack();
+      if (lyricsCacheRef?.current) { lyricsCacheRef.current = {}; }
+      await PlaySongWithRelated(id, image);
+      await updateTrack();
     } catch (error) {
       console.error('Error playing song:', error);
     } finally {
       setIsLoading(false);
     }
-  }, [isLoading, id, image, updateTrack]);
+  }, [isLoading, id, image, updateTrack, lyricsCacheRef]);
 
   const getIconName = () => {
     if (isCurrentSong) {
@@ -65,7 +49,6 @@ export const EachTrendingSongCard = memo(function EachTrendingSongCard({image, n
   return (
     <Pressable onPress={PlaySong} disabled={isLoading} style={{
       borderRadius: 8,
-      height: 208,
       width: 150,
       backgroundColor: "rgba(55,55,79,0)",
       overflow: "hidden",
@@ -91,9 +74,8 @@ export const EachTrendingSongCard = memo(function EachTrendingSongCard({image, n
       </FastImage>
       <View style={{
         padding: 8,
-        height: 80,
       }}>
-        <PlainText text={formattedName} numberOfLine={5} />
+        <PlainText text={formattedName} numberOfLine={2} />
         <SmallText text={artistsNames} maxLine={1} />
       </View>
     </Pressable>

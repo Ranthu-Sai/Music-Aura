@@ -144,7 +144,7 @@ async function getLyricsSongData(id){
   throw new Error('All lyrics API instances failed');
 }
 
-async function getYTLyricsSongData(artist, title){
+async function getYTLyricsSongData(artist, title, preferredLanguage){
   const apis = [
     {
       url: `https://lyrica-teal.vercel.app/lyrics/?artist=${encodeURIComponent(artist)}&song=${encodeURIComponent(title)}&tamps=true&pass=false&sequence=3,2`,
@@ -215,7 +215,13 @@ async function getYTLyricsSongData(artist, title){
           const searchResponse = await axios.request(searchConfig);
           const songs = searchResponse.data?.data?.results;
           if (songs && songs.length > 0) {
-            const songId = songs[0].id;
+            let selected = songs[0];
+            if (preferredLanguage) {
+              const langLower = preferredLanguage.toLowerCase();
+              const match = songs.find(s => (s.language || '').toLowerCase() === langLower);
+              if (match) { selected = match; }
+            }
+            const songId = selected.id;
             // Get lyrics
             const lyricsConfig = {
               method: 'get',

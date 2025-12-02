@@ -75,17 +75,7 @@ export const AboutProject = () => {
             }} title={""} icon={<Entypo name={"bug"} size={40}/>} color={"rgb(98,38,38)"} subTitle={'You can always request me new features or report a bug in any of my social media handles or you can mail me at :\nsaiyadav4719@gmail.com\n\nEven you can raise an issue in Github'} url={""}/>
           </View>
           <Spacer/>
-          <View style={{
-            alignItems: 'center',
-            paddingVertical: 20,
-            backgroundColor: 'rgba(0,0,0,0.1)',
-            borderRadius: 10,
-            marginHorizontal: 10,
-            borderWidth: 1,
-            borderColor: 'rgba(255,255,255,0.2)',
-          }}>
-            <Heading text={"v1.0.0"} nospace={true} style={{color: 'rgb(255,255,255)', fontSize: 24}}/>
-          </View>
+          {/* Version info removed as requested; shown in Settings now */}
         </View>
       </ScrollView>
     </MainWrapper>

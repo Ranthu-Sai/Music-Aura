@@ -16,35 +16,102 @@ import Context from "../../Context/Context";
 
 export const EachSongMenuModal = ({Visible, setVisible}) => {
   const {updateTrack} = useContext(Context)
+  function isMp3Link(link, mime) {
+    return (mime && mime.includes('audio/mpeg')) || (link || '').toLowerCase().includes('.mp3');
+  }
+
+  async function resolveDownloadUrl() {
+    try {
+      // Visible.url can be an array of qualities (saavn) or a videoId/string (YT)
+      if (typeof Visible.url === 'string') {
+        // If not a direct http link, resolve via Piped
+        if (!Visible.url.startsWith('http')) {
+          const response = await fetch(`https://pipedapi.in.projectsegfau.lt/streams/${Visible.url}`);
+          const data = await response.json();
+          const audioStreams = data?.audioStreams || [];
+          // Prefer mp3/mpeg stream, else highest bitrate
+          const mp3 = audioStreams.find(s => (s.mimeType || '').includes('audio/mpeg') || (s.url || '').includes('.mp3'));
+          const best = mp3 || audioStreams.sort((a,b)=> (b.bitrate||0) - (a.bitrate||0))[0];
+          return { url: best?.url, isMp3: !!mp3 };
+        }
+        return { url: Visible.url, isMp3: isMp3Link(Visible.url) };
+      }
+      // Find an mp3 link in the array if available, otherwise pick highest index
+      if (Array.isArray(Visible.url)) {
+        const mp3Item = Visible.url.find(it => isMp3Link(it?.url));
+        if (mp3Item?.url) return { url: mp3Item.url, isMp3: true };
+        // default to 320kbps index when present else last
+        const candidate = Visible.url[4]?.url || Visible.url[Visible.url.length - 1]?.url;
+        return { url: candidate, isMp3: isMp3Link(candidate) };
+      }
+    } catch (e) {
+      // fallthrough
+    }
+    return { url: null, isMp3: false };
+  }
+
   async function actualDownload () {
     let dirs = ReactNativeBlobUtil.fs.dirs
     const path = await GetDownloadPath()
+    const { url: downloadLink, isMp3 } = await resolveDownloadUrl();
+    if (!downloadLink) {
+      ToastAndroid.showWithGravity(
+        `Unable to resolve download link`,
+        ToastAndroid.SHORT,
+        ToastAndroid.CENTER,
+      );
+      setVisible({visible: false})
+      return;
+    }
     ToastAndroid.showWithGravity(
       `Download Started`,
       ToastAndroid.SHORT,
       ToastAndroid.CENTER,
     );
+    // Decide extension and mime
+    const deriveExt = () => {
+      const lower = (downloadLink || '').toLowerCase();
+      if (isMp3 || lower.includes('.mp3')) return 'mp3';
+      if (lower.includes('.m4a')) return 'm4a';
+      if (lower.includes('.webm')) return 'webm';
+      return 'mp3';
+    }
+    const ext = deriveExt();
+    const mime = ext === 'mp3' ? 'audio/mpeg' : ext === 'm4a' ? 'audio/mp4' : ext === 'webm' ? 'audio/webm' : 'audio/*';
+
+    const baseDir = (path === "Downloads") ? dirs.LegacyDownloadDir : dirs.LegacyMusicDir;
+    const finalPath = `${baseDir}/Music Aura/${FormatTitleAndArtist(Visible.title)}.${ext}`;
+
+    // Ensure parent directory exists for DownloadManager path
+    try {
+      const parent = finalPath.substring(0, finalPath.lastIndexOf('/'))
+      const exists = await ReactNativeBlobUtil.fs.isDir(parent)
+      if (!exists) await ReactNativeBlobUtil.fs.mkdir(parent)
+    } catch (_) {}
+
     ReactNativeBlobUtil
       .config({
         addAndroidDownloads:{
           useDownloadManager:true,
-          path:(path === "Downloads") ? dirs.LegacyDownloadDir + `/Music Aura/${FormatTitleAndArtist(Visible.title)}.m4a` : dirs.LegacyMusicDir + `/Music Aura/${FormatTitleAndArtist(Visible.title)}.m4a`,
+          path: finalPath,
           notification:true,
           title:`${FormatTitleAndArtist(Visible.title)}`,
+          mime,
         },
         fileCache: true,
       })
-      .fetch('GET', Visible.url[4].url, {
-      })
-      .then((res) => {
-        console.log('The file saved to ', res.path())
+      .fetch('GET', downloadLink, {})
+      .then(() => {
         ToastAndroid.showWithGravity(
-          "Download successfully Completed",
+          ext === 'mp3' ? "Download successfully Completed" : `Saved as .${ext}`,
           ToastAndroid.SHORT,
           ToastAndroid.CENTER,
         );
       })
-    setVisible({visible: false})
+      .catch(() => {
+        ToastAndroid.showWithGravity("Download failed", ToastAndroid.SHORT, ToastAndroid.CENTER)
+      })
+      .finally(() => setVisible({visible: false}))
   }
 
   const getPermission = async () => {

@@ -14,6 +14,7 @@ import {
 } from "../../LocalStorage/AppSettings";
 import { useEffect, useState, useContext } from "react";
 import { SmallText } from "../../Component/Global/SmallText";
+import DeviceInfo from "react-native-device-info";
 import Context from "../../Context/Context";
 
 export const SettingsPage = ({navigation}) => {
@@ -159,6 +160,14 @@ export const SettingsPage = ({navigation}) => {
            <EachDropDownWithLabel data={DownloadPath} text={"Download Path"} placeholder={Download} OnChange={SetDownLoad}/>
            <EachDropDownWithLabel data={Themes} text={"App Theme"} placeholder={Theme} OnChange={handleSetTheme}/>
            <SmallText text={"*Note: If you change font size, change name or select languages please restart the app to see the effect"}/>
+           <View style={{
+             backgroundColor: currentThemeColors.background,
+             padding:20,
+             borderRadius:10,
+             marginTop:10,
+           }}>
+             <PlainText text={`Version: ${DeviceInfo.getVersion()} (${DeviceInfo.getBuildNumber()})`} />
+           </View>
          </ScrollView>
        </PaddingConatiner>
     </MainWrapper>

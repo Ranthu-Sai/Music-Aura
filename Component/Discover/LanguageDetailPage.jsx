@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { getHomePageData } from "../../Api/HomePage";
 import { MainWrapper } from "../../Layout/MainWrapper";
 import { LoadingComponent } from "../Global/Loading";
@@ -11,6 +11,9 @@ import { HorizontalScrollSongs } from "../Global/HorizontalScrollSongs";
 import { EachAlbumCard } from "../Global/EachAlbumCard";
 import { RenderTopCharts } from "../Home/RenderTopCharts";
 import { Spacer } from "../Global/Spacer";
+import { View } from "react-native";
+
+const HorizontalSeparator = () => <View style={{width:12}}/>;
 
 export const LanguageDetailPage = ({route}) => {
   const [Loading, setLoading] = useState(true);
@@ -19,7 +22,7 @@ export const LanguageDetailPage = ({route}) => {
   function capitalizeFirstLetter(string) {
     return string.charAt(0).toUpperCase() + string.slice(1);
   }
-  async function fetchHomePageData(){
+  const fetchHomePageData = useCallback(async () => {
     try {
       setLoading(true)
       const data = await getHomePageData(language)
@@ -29,10 +32,10 @@ export const LanguageDetailPage = ({route}) => {
     } finally {
       setLoading(false)
     }
-  }
+  }, [language])
   useEffect(() => {
     fetchHomePageData()
-  }, []);
+  }, [fetchHomePageData]);
   return (
     <MainWrapper>
       <LoadingComponent loading={Loading}/>
@@ -46,35 +49,77 @@ export const LanguageDetailPage = ({route}) => {
               <Heading nospace={true} text={capitalizeFirstLetter(language)}/>
               <Heading text={"Recommended"}/>
             </PaddingConatiner>
-            <FlatList horizontal={true} showsHorizontalScrollIndicator={false} contentContainerStyle={{
-              paddingLeft:13,
-              gap:10,
-            }} data={Data?.data?.playlists ?? []} keyExtractor={(item, index) => item?.id?.toString() ?? `playlist-${index}`} renderItem={(item,i)=><EachPlaylistCard name={item.item.title} follower={item.item.subtitle} image={item.item.image[2].link} id={item.item.id}/>}/>
+            <FlatList
+              horizontal={true}
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{
+                paddingLeft:13,
+                paddingRight:13,
+              }}
+              ItemSeparatorComponent={HorizontalSeparator}
+              data={Data?.data?.playlists ?? []}
+              keyExtractor={(item, index) => item?.id?.toString() ?? `playlist-${index}`}
+              renderItem={(item,i)=>(
+                <EachPlaylistCard name={item.item.title} follower={item.item.subtitle} image={item.item.image[2].link} id={item.item.id}/>
+              )}
+            />
             <PaddingConatiner>
               <HorizontalScrollSongs id={Data.data.charts[4].id}/>
               <Heading text={"Trending Albums"}/>
             </PaddingConatiner>
-            <FlatList horizontal={true} showsHorizontalScrollIndicator={false} contentContainerStyle={{
-              paddingLeft:13,
-            }} data={Data?.data?.trending?.albums ?? []} keyExtractor={(item,index) => item?.id?.toString() ?? `trending-album-${index}`} renderItem={(item)=><EachAlbumCard image={item.item.image[2].link} artists={item.item.artists} name={item.item.name} id={item.item.id}/>}/>
+            <FlatList
+              horizontal={true}
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{
+                paddingLeft:13,
+                paddingRight:13,
+              }}
+              ItemSeparatorComponent={HorizontalSeparator}
+              data={Data?.data?.trending?.albums ?? []}
+              keyExtractor={(item,index) => item?.id?.toString() ?? `trending-album-${index}`}
+              renderItem={(item)=>(
+                <EachAlbumCard image={item.item.image[2].link} artists={item.item.artists} name={item.item.name} id={item.item.id}/>
+              )}
+            />
             <PaddingConatiner>
               <HorizontalScrollSongs id={Data?.data?.charts[1]?.id}/>
             </PaddingConatiner>
             <PaddingConatiner>
               <Heading text={"Top Charts"}/>
             </PaddingConatiner>
-            <FlatList horizontal={true} showsHorizontalScrollIndicator={false} contentContainerStyle={{
-              paddingLeft:13,
-            }}  data={[1]} renderItem={()=><RenderTopCharts playlist={Data.data.charts.filter((e)=>e.type === 'playlist')}/>}/>
+            <FlatList
+              horizontal={true}
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{
+                paddingLeft:13,
+                paddingRight:13,
+              }}
+              ItemSeparatorComponent={HorizontalSeparator}
+              data={[1]}
+              renderItem={()=>(
+                <RenderTopCharts playlist={Data.data.charts.filter((e)=>e.type === 'playlist')}/>
+              )}
+            />
             <PaddingConatiner>
               <HorizontalScrollSongs id={Data?.data?.charts[3]?.id}/>
             </PaddingConatiner>
             <PaddingConatiner>
               <Heading text={"Recommended Albums"}/>
             </PaddingConatiner>
-            <FlatList horizontal={true} showsHorizontalScrollIndicator={false} contentContainerStyle={{
-              paddingLeft:13,
-            }} data={Data?.data?.albums ?? []} keyExtractor={(item, index) => item?.id?.toString() ?? `album-${index}`} renderItem={(item)=><EachAlbumCard image={item?.item?.image[2]?.link ?? ""} artists={item.item.artists} name={item.item.name} id={item.item.id}/>}/>
+            <FlatList
+              horizontal={true}
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{
+                paddingLeft:13,
+                paddingRight:13,
+              }}
+              ItemSeparatorComponent={HorizontalSeparator}
+              data={Data?.data?.albums ?? []}
+              keyExtractor={(item, index) => item?.id?.toString() ?? `album-${index}`}
+              renderItem={(item)=>(
+                <EachAlbumCard image={item?.item?.image[2]?.link ?? ""} artists={item.item.artists} name={item.item.name} id={item.item.id}/>
+              )}
+            />
             <PaddingConatiner>
               <HorizontalScrollSongs id={Data?.data?.charts[2]?.id}/>
             </PaddingConatiner>

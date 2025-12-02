@@ -4,14 +4,40 @@ import { SmallText } from "./SmallText";
 import FastImage from "react-native-fast-image";
 import { memo, useState } from "react";
 import { useNavigation } from "@react-navigation/native";
+import FormatTitleAndArtist from "../../Utils/FormatTitleAndArtist";
 
+function resolveImageUri(image) {
+  if (!image) { return null; }
+  if (typeof image === 'string') { return image; }
+  if (Array.isArray(image)) {
+    // Prefer middle sizes, then others
+    const prefer = [2, 3, 1, 0];
+    for (let idx of prefer) {
+      const it = image[idx];
+      if (!it) { continue; }
+      const url = (typeof it === 'string') ? it : (it.url || it.link);
+      if (url) { return url; }
+    }
+    // Fallback: any first valid url/link
+    for (let it of image) {
+      const url = (typeof it === 'string') ? it : (it?.url || it?.link);
+      if (url) { return url; }
+    }
+    return null;
+  }
+  if (typeof image === 'object') {
+    return image.url || image.link || null;
+  }
+  return null;
+}
 
 export const EachAlbumCard = memo(function EachAlbumCard({image,name,artists,id,mainContainerStyle,Search}) {
   const navigation = useNavigation()
-  const [imageUri, setImageUri] = useState(image || 'https://via.placeholder.com/150x150/cccccc/000000?text=No+Image')
+  const initialUri = resolveImageUri(image) || 'https://via.placeholder.com/150x150/cccccc/000000?text=No+Image'
+  const [imageUri, setImageUri] = useState(initialUri)
   let artistsNames = ""
   if (!Search){
-    if (artists.length > 3){
+    if (Array.isArray(artists) && artists.length > 3){
       for (let i = 0; i < 3; i++){
         if ( i === 2){
           artistsNames += artists[i].name
@@ -21,8 +47,8 @@ export const EachAlbumCard = memo(function EachAlbumCard({image,name,artists,id,
         }
       }
       artistsNames += " ..."
-    } else {
-      artists.map((e,i)=>{
+    } else if (Array.isArray(artists)) {
+      artists.forEach((e,i)=>{
         if (i === artists.length - 1){
           artistsNames += e.name
         } else {
@@ -33,21 +59,23 @@ export const EachAlbumCard = memo(function EachAlbumCard({image,name,artists,id,
     }
   }
   function formattedText (text){
-    if (text.length >= 45){
-      return text.slice(0,45) + "..."
+    const decoded = FormatTitleAndArtist(text || "");
+    if (decoded.length >= 45){
+      return decoded.slice(0,45) + "...";
     }
-    else {
-      return text
-    }
+    return decoded;
   }
   return (
     <Pressable onPress={()=>{
-      if (id.includes('playlist')) {
+      const nameLower = (name || "").toLowerCase();
+      // Block navigation for obvious podcast/show entries
+      if (nameLower.includes('podcast') || nameLower.includes('episode')) { return; }
+      if ((id || "").includes('playlist')) {
         navigation.navigate("Playlist", {id, image, name, follower: ""})
       } else {
         navigation.navigate("Album", {id})
       }
-    }} style={{
+    }} android_ripple={{ color: 'rgba(0,0,0,0)' }} style={{
       borderRadius:8,
       height:210,
       width:150,
