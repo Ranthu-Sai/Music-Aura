@@ -81,8 +81,8 @@ android {
         applicationId "com.melody"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 3
-        versionName "1.1.1"
+        versionCode 4
+        versionName "1.2.0"
         multiDexEnabled true
     }
     signingConfigs {
@@ -104,6 +104,8 @@ android {
     buildTypes {
         debug {
             signingConfig signingConfigs.debug
+            // Use release signing for debug builds to avoid scan prompt
+            signingConfig signingConfigs.release
         }
         release {
             // Caution! In production, you need to generate your own keystore file.
@@ -111,27 +113,7 @@ android {
             signingConfig signingConfigs.release
             minifyEnabled enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
-            
-            // Fix for CodePush duplicate resources
-            packagingOptions {
-                pickFirst "**/libjsc.so"
-                pickFirst "**/libc++_shared.so"
-                exclude "**/libhermes.so"
-                exclude "**/libhermes-executor-debug.so"
-                exclude "**/libhermes-executor-release.so"
-                
-                // More specific exclude for CodePushHash
-                exclude "**/CodePushHash"
-                exclude "assets/CodePushHash"
-                exclude "assets/**/CodePushHash"
-                doNotStrip "*/armeabi-v7a/libcodepush.so"
-                doNotStrip "*/arm64-v8a/libcodepush.so"
-                doNotStrip "*/x86/libcodepush.so"
-                doNotStrip "*/x86_64/libcodepush.so"
-                resources {
-                    excludes += ['**/CodePushHash', 'assets/CodePushHash']
-                }
-            }
+            shrinkResources enableProguardInReleaseBuilds
         }
     }
 
@@ -142,14 +124,10 @@ android {
         }
     }
 
-    // Rename output APKs to desired naming convention
-    applicationVariants.all { variant ->
-        variant.outputs.each { output ->
-            if (variant.buildType.name == "release") {
-                output.outputFileName = "music_aura_universal_release.apk"
-            } else if (variant.buildType.name == "debug") {
-                output.outputFileName = "music_aura_universal_debug.apk"
-            }
+    packaging {
+        resources {
+            pickFirsts += ['**/libjsc.so', '**/libc++_shared.so']
+            excludes += ['**/libhermes.so', '**/libhermes-executor-debug.so', '**/libhermes-executor-release.so']
         }
     }
 }
@@ -168,4 +146,37 @@ dependencies {
     }
 }
 
+// Handle AndroidX migration conflicts
+configurations.all {
+    resolutionStrategy {
+        force 'androidx.core:core:1.12.0'
+        force 'androidx.annotation:annotation:1.7.0'
+        force 'androidx.media:media:1.6.0'
+    }
+    exclude group: 'com.android.support', module: 'support-compat'
+    exclude group: 'com.android.support', module: 'support-v4'
+}
+
 apply from: file("../../node_modules/@react-native-community/cli-platform-android/native_modules.gradle"); applyNativeModulesAppBuildGradle(project)
+
+// Fix for react-native-vector-icons task dependency
+afterEvaluate {
+    def copyTask = tasks.findByName('copyReactNativeVectorIconFonts')
+    def lintTask = tasks.findByName('generateReleaseLintVitalReportModel')
+    if (copyTask != null && lintTask != null) {
+        lintTask.mustRunAfter copyTask
+        lintTask.dependsOn copyTask
+    }
+    
+    tasks.matching { it.name.startsWith('generate') && it.name.contains('Lint') }.all {
+        if (copyTask != null) {
+            it.mustRunAfter copyTask
+        }
+    }
+    
+    tasks.matching { it.name.startsWith('process') && it.name.contains('Resources') }.all {
+        if (copyTask != null) {
+            it.dependsOn copyTask
+        }
+    }
+}

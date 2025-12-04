@@ -28,8 +28,7 @@ export const LanguageDetailPage = ({route}) => {
       const data = await getHomePageData(language)
       setData(data)
     } catch (e) {
-      console.log(e);
-    } finally {
+        } finally {
       setLoading(false)
     }
   }, [language])
@@ -129,3 +128,4 @@ export const LanguageDetailPage = ({route}) => {
     </MainWrapper>
   );
 };
+

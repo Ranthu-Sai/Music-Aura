@@ -1,5 +1,5 @@
 /* eslint-disable keyword-spacing */
-import React, { useState } from 'react'
+import React, { useState, useRef } from 'react'
 import { Dimensions, FlatList, View } from 'react-native'
 import { LoadingComponent } from '../Global/Loading'
 import { EachPlaylistCard } from '../Global/EachPlaylistCard'
@@ -9,11 +9,18 @@ import { getSearchPlaylistData } from '../../Api/Playlist'
 
 export default function PlaylistDisplay({data, limit, Searchtext}) {
   const Data = data
+  const flatListRef = useRef(null);
 
   const width = Dimensions.get("window").width
   return (
      <>
-      {Data?.data?.results?.length !== 0 && <FlatList showsVerticalScrollIndicator={false} numColumns={2} scrollEnabled={false} keyExtractor={(item, index) => `${item?.id}_${index}`} contentContainerStyle={{
+      {Data?.data?.results?.length !== 0 && <FlatList 
+        ref={flatListRef}
+        showsVerticalScrollIndicator={false} 
+        numColumns={2} 
+        scrollEnabled={true}
+        keyExtractor={(item, index) => `${item?.id}_${index}`} 
+        contentContainerStyle={{
          paddingBottom:220,
         alignItems:"flex-start",
       }} data={Data?.data?.results ?? []} renderItem={(item)=>{

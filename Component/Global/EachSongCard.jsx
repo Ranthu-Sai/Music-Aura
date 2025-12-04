@@ -22,12 +22,13 @@ export const EachSongCard = memo(function EachSongCard({title,artist,image,id,ur
     setIsLoading(true);
     try {
       if (lyricsCacheRef?.current) { lyricsCacheRef.current = {}; }
-      await PlaySongWithRelated(id, image)
+      // Pass full song info for YouTube support
+      await PlaySongWithRelated(id, image, { title, artist, url, duration, language })
       updateTrack()
     } finally {
       setIsLoading(false);
     }
-  }, [isLoading, id, image, updateTrack, lyricsCacheRef]);
+  }, [isLoading, id, image, title, artist, url, duration, language, updateTrack, lyricsCacheRef]);
 
   return (
     <>
@@ -50,7 +51,9 @@ export const EachSongCard = memo(function EachSongCard({title,artist,image,id,ur
         }}>
           <FastImage source={((id === currentPlaying?.id ?? "") && playerState.state === "playing") ? require("../../Images/playing.gif") : ((id === currentPlaying?.id ?? "") && playerState.state !== "playing" ) ? require("../../Images/songPaused.gif") : {
             uri: image || 'https://via.placeholder.com/40x40/cccccc/000000?text=No+Img',
-          }} style={{
+          }} 
+          resizeMode={FastImage.resizeMode.contain}
+          style={{
             height:40,
             width:40,
             borderRadius:8,

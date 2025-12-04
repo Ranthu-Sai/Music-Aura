@@ -21,8 +21,7 @@ export default function ShowPlaylistofType({route}) {
           const fetchdata = await getSearchPlaylistData(Searchtext,1,limit)
           setData(fetchdata)
         } catch (e) {
-          console.log(e);
-        } finally {
+                } finally {
           setLoading(false)
         }
       }
@@ -83,3 +82,4 @@ export default function ShowPlaylistofType({route}) {
     </>
   )
 }
+

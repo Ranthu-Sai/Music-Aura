@@ -61,6 +61,7 @@ export const MinimizedMusic = memo(({setIndex, color}) => {
               source={{
                 uri: currentPlaying?.artwork ?? "https://htmlcolorcodes.com/assets/images/colors/gray-color-solid-background-1920x1080.png",
               }}
+              resizeMode={FastImage.resizeMode.contain}
               style={{
                 height: (size *  0.1) - 30,
                 width: (size *  0.1) - 30,

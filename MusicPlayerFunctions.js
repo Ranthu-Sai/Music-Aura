@@ -5,50 +5,232 @@ import { getSongData } from "./Api/Songs";
 import { getRecommendedSongs } from "./Api/Recommended";
 
 async function PlayOneSong(song){
-  if (!song.url.startsWith('http')) {
-    // Assume it's videoId, fetch audio URL from Piped
-    try {
-      const response = await fetch(`https://pipedapi.in.projectsegfau.lt/streams/${song.url}`, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-        }
-      });
-      const data = await response.json();
-      const audioStreams = data.audioStreams;
-      if (audioStreams && audioStreams.length > 0) {
-        // Select the highest bitrate audio stream
-        const bestStream = audioStreams.sort((a, b) => b.bitrate - a.bitrate)[0];
-        song.url = bestStream.url;
-      } else {
-        throw new Error('No audio stream found');
-      }
-    } catch (error) {
-      return; // Don't play
-    }
+  
+  if (!song.url) {
+      alert('Cannot play: Song URL is missing');
+    return;
   }
+  
+  if (!song.url.startsWith('http')) {
+      // Assume it's videoId, fetch audio URL from Invidious
+    const instances = [
+      'https://yt.omada.cafe',
+      'https://yewtu.be',
+      'https://inv.nadeko.net',
+      'https://invidious.nerdvpn.de',
+      'https://inv.perditum.com',
+    ];
+    
+    let audioUrl = null;
+    for (let instance of instances) {
+      try {
+              const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 15000);
+        
+        const response = await fetch(`${instance}/api/v1/videos/${song.url}`, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+          },
+          signal: controller.signal,
+        });
+        
+        clearTimeout(timeoutId);
+        
+              
+        if (!response.ok) {
+                  continue;
+        }
+        
+        const data = await response.json();
+              
+        // STRATEGY 1: Request video with local=true to get Invidious-proxied URLs
+        // This forces Invidious to proxy the stream through its server, bypassing Google blocking
+              const proxiedResponse = await fetch(`${instance}/api/v1/videos/${song.url}?local=true`, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+          },
+          signal: controller.signal,
+        });
+        
+        if (proxiedResponse.ok) {
+          const proxiedData = await proxiedResponse.json();
+                  
+          // Try formatStreams from proxied request
+          if (proxiedData.formatStreams && proxiedData.formatStreams.length > 0) {
+                      const audioOrLowQuality = proxiedData.formatStreams.filter(f => 
+              f.resolution === '360p' || f.resolution === '240p' || f.quality === 'small'
+            );
+            
+            if (audioOrLowQuality.length > 0) {
+              audioUrl = audioOrLowQuality[0].url;
+                        } else {
+              audioUrl = proxiedData.formatStreams[0].url;
+                        }
+          }
+          
+          // Try adaptiveFormats from proxied request
+          if (!audioUrl && proxiedData.adaptiveFormats && proxiedData.adaptiveFormats.length > 0) {
+                      const audioFormats = proxiedData.adaptiveFormats.filter(f => f.type && f.type.includes('audio'));
+            
+            if (audioFormats.length > 0) {
+              let bestAudio = audioFormats.find(f => f.type && (f.type.includes('mp4') || f.type.includes('m4a')));
+              if (!bestAudio) {
+                bestAudio = audioFormats.sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0))[0];
+              }
+              audioUrl = bestAudio.url;
+                        }
+          }
+        }
+        
+        // STRATEGY 2: Use formatStreams from original request (may not be proxied)
+        if (!audioUrl && data.formatStreams && data.formatStreams.length > 0) {
+                  const audioOrLowQuality = data.formatStreams.filter(f => 
+            f.resolution === '360p' || f.resolution === '240p' || f.quality === 'small'
+          );
+          
+          if (audioOrLowQuality.length > 0) {
+            audioUrl = audioOrLowQuality[0].url;
+                    } else {
+            audioUrl = data.formatStreams[0].url;
+                    }
+        }
+        
+        // STRATEGY 3: Direct adaptiveFormats (last resort)
+        if (!audioUrl && data.adaptiveFormats && data.adaptiveFormats.length > 0) {
+                  const audioFormats = data.adaptiveFormats.filter(f => f.type && f.type.includes('audio'));
+          
+          if (audioFormats.length > 0) {
+            let bestAudio = audioFormats.find(f => f.type && (f.type.includes('mp4') || f.type.includes('m4a')));
+            if (!bestAudio) {
+              bestAudio = audioFormats.sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0))[0];
+            }
+            audioUrl = bestAudio.url;          }
+        }
+        
+        if (audioUrl) {
+                          song.url = audioUrl;
+          break;
+        } else {
+                }
+      } catch (error) {
+                    if (error.stack) {        }
+        continue;
+      }
+    }
+    
+    if (!song.url.startsWith('http')) {
+          console.error('Tried instances:', instances.join(', '));
+      alert('Unable to play this song. YouTube stream unavailable from all servers.');
+      return; // Don't play
+    } else {
+        }
+  } else {
+    }  
+  // Add headers for Google Video URLs
+  // Note: Google Video CDN is very restrictive and may still fail
+  // This is a limitation of using unofficial APIs
+  const trackToAdd = {
+    ...song,
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.6099.230 Mobile Safari/537.36',
+      'Accept': '*/*',
+      'Accept-Language': 'en-US,en;q=0.9',
+      'Sec-Fetch-Dest': 'empty',
+      'Sec-Fetch-Mode': 'cors',
+      'Sec-Fetch-Site': 'cross-site',
+    }
+  };
+  
   await TrackPlayer.reset();
-  await TrackPlayer.add([song]);
+  await TrackPlayer.add([trackToAdd]);
   await TrackPlayer.play();
 }
 async function AddPlaylist (songs){
-  const processedSongs = await Promise.all(songs.map(async (song) => {
+  if (!songs || !Array.isArray(songs)) {
+      return;
+  }
+  
+  // Filter out null/undefined songs and songs without required properties
+  const validSongs = songs.filter(song => song && song.id && song.url);
+  
+  if (validSongs.length === 0) {
+      return;
+  }
+  
+  const instances = [
+    'https://yt.omada.cafe',
+    'https://yewtu.be',
+    'https://inv.nadeko.net',
+    'https://invidious.nerdvpn.de',
+    'https://inv.perditum.com',
+  ];
+  
+  const processedSongs = await Promise.all(validSongs.map(async (song) => {
     if (!song.url.startsWith('http')) {
-      try {
-        const response = await fetch(`https://pipedapi.in.projectsegfau.lt/streams/${song.url}`, {
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+      for (let instance of instances) {
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 15000);
+          
+          const response = await fetch(`${instance}/api/v1/videos/${song.url}`, {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+            },
+            signal: controller.signal,
+          });
+          
+          clearTimeout(timeoutId);
+          const data = await response.json();
+          
+          let audioUrl = null;
+          // STRATEGY 1: formatStreams (proxied)
+          if (data.formatStreams && data.formatStreams.length > 0) {
+            const lowQuality = data.formatStreams.filter(f => 
+              f.resolution === '360p' || f.resolution === '240p'
+            );
+            audioUrl = lowQuality.length > 0 ? lowQuality[0].url : data.formatStreams[0].url;
           }
-        });
-        const data = await response.json();
-        const audioStreams = data.audioStreams;
-        if (audioStreams && audioStreams.length > 0) {
-          const bestStream = audioStreams.sort((a, b) => b.bitrate - a.bitrate)[0];
-          return { ...song, url: bestStream.url };
-        } else {
-          return song;
+          
+          // STRATEGY 2: Invidious proxy with &local=true
+          if (!audioUrl && data.adaptiveFormats && data.adaptiveFormats.length > 0) {
+            const audioFormats = data.adaptiveFormats.filter(f => f.type && f.type.includes('audio'));
+            if (audioFormats.length > 0) {
+              let bestAudio = audioFormats.find(f => f.type && (f.type.includes('mp4') || f.type.includes('m4a')));
+              if (!bestAudio) {
+                bestAudio = audioFormats.sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0))[0];
+              }
+              const baseUrl = bestAudio.url.split('?')[0];
+              const params = new URLSearchParams(bestAudio.url.split('?')[1] || '');
+              params.set('local', 'true');
+              audioUrl = `${baseUrl}?${params.toString()}`;
+            }
+          }
+          
+          // STRATEGY 3: Direct adaptiveFormats (fallback)
+          if (!audioUrl && data.adaptiveFormats && data.adaptiveFormats.length > 0) {
+            const audioFormats = data.adaptiveFormats.filter(f => f.type && f.type.includes('audio'));
+            if (audioFormats.length > 0) {
+              let bestAudio = audioFormats.find(f => f.type && (f.type.includes('mp4') || f.type.includes('m4a')));
+              if (!bestAudio) {
+                bestAudio = audioFormats.sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0))[0];
+              }
+              audioUrl = bestAudio.url;
+            }
+          }
+          
+          if (audioUrl) {
+            return { 
+              ...song, 
+              url: audioUrl,
+              headers: {
+                'User-Agent': 'Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 Mobile Safari/537.36',
+                'Accept': '*/*',
+              }
+            };
+          }
+        } catch (error) {
+          continue;
         }
-      } catch (error) {
-        return song;
       }
     }
     return song;
@@ -59,24 +241,108 @@ async function AddPlaylist (songs){
 }
 
 async function AddSongsToQueue(songs){
-  const processedSongs = await Promise.all(songs.map(async (song) => {
+  if (!songs || !Array.isArray(songs)) {
+      return;
+  }
+  
+  // Filter out null/undefined songs and songs without required properties
+  const validSongs = songs.filter(song => song && song.id && song.url);
+  
+  if (validSongs.length === 0) {
+      return;
+  }
+  
+  const instances = [
+    'https://yt.omada.cafe',
+    'https://yewtu.be',
+    'https://inv.nadeko.net',
+    'https://invidious.nerdvpn.de',
+    'https://inv.perditum.com',
+  ];
+  
+  const processedSongs = await Promise.all(validSongs.map(async (song) => {
     if (!song.url.startsWith('http')) {
-      try {
-        const response = await fetch(`https://pipedapi.in.projectsegfau.lt/streams/${song.url}`, {
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+      for (let instance of instances) {
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 15000);
+          
+          let audioUrl = null;
+          // STRATEGY 1: Request with &local=true for proxied streams
+          try {
+            const proxiedResponse = await fetch(`${instance}/api/v1/videos/${song.url}?local=true`, {
+              headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+              },
+              signal: controller.signal,
+            });
+            
+            clearTimeout(timeoutId);
+            
+            if (proxiedResponse.ok) {
+              const proxiedData = await proxiedResponse.json();
+              
+              if (proxiedData.formatStreams && proxiedData.formatStreams.length > 0) {
+                const lowQuality = proxiedData.formatStreams.filter(f => 
+                  f.resolution === '360p' || f.resolution === '240p'
+                );
+                audioUrl = lowQuality.length > 0 ? lowQuality[0].url : proxiedData.formatStreams[0].url;
+              } else if (proxiedData.adaptiveFormats && proxiedData.adaptiveFormats.length > 0) {
+                const audioFormats = proxiedData.adaptiveFormats.filter(f => f.type && f.type.includes('audio'));
+                if (audioFormats.length > 0) {
+                  let bestAudio = audioFormats.find(f => f.type && (f.type.includes('mp4') || f.type.includes('m4a')));
+                  if (!bestAudio) {
+                    bestAudio = audioFormats.sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0))[0];
+                  }
+                  audioUrl = bestAudio.url;
+                }
+              }
+            }
+          } catch (proxyError) {
+            // Proxy failed, try fallback
           }
-        });
-        const data = await response.json();
-        const audioStreams = data.audioStreams;
-        if (audioStreams && audioStreams.length > 0) {
-          const bestStream = audioStreams.sort((a, b) => b.bitrate - a.bitrate)[0];
-          return { ...song, url: bestStream.url };
-        } else {
-          return song;
+          
+          // STRATEGY 2: Fallback to non-proxied
+          if (!audioUrl) {
+            const response = await fetch(`${instance}/api/v1/videos/${song.url}`, {
+              headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+              },
+              signal: controller.signal,
+            });
+            
+            const data = await response.json();
+            
+            if (data.formatStreams && data.formatStreams.length > 0) {
+              const lowQuality = data.formatStreams.filter(f => 
+                f.resolution === '360p' || f.resolution === '240p'
+              );
+              audioUrl = lowQuality.length > 0 ? lowQuality[0].url : data.formatStreams[0].url;
+            } else if (data.adaptiveFormats && data.adaptiveFormats.length > 0) {
+              const audioFormats = data.adaptiveFormats.filter(f => f.type && f.type.includes('audio'));
+              if (audioFormats.length > 0) {
+                let bestAudio = audioFormats.find(f => f.type && (f.type.includes('mp4') || f.type.includes('m4a')));
+                if (!bestAudio) {
+                  bestAudio = audioFormats.sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0))[0];
+                }
+                audioUrl = bestAudio.url;
+              }
+            }
+          }
+          
+          if (audioUrl) {
+            return { 
+              ...song, 
+              url: audioUrl,
+              headers: {
+                'User-Agent': 'Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 Mobile Safari/537.36',
+                'Accept': '*/*',
+              }
+            };
+          }
+        } catch (error) {
+          continue;
         }
-      } catch (error) {
-        return song;
       }
     }
     return song;
@@ -132,7 +398,26 @@ async function getIndexQuality(){
 export {PlayOneSong, PlaySong, PauseSong, SetProgressSong, PlayNextSong, AddPlaylist, PlayPreviousSong, AddSongsToQueue, SkipToTrack,SetRepeatMode, getIndexQuality}
 
 // Build a fresh queue from a song id + related songs, then play
-export async function PlaySongWithRelated(id, fallbackImage) {
+export async function PlaySongWithRelated(id, fallbackImage, songInfo = null) {
+  
+  // Check if this is a YouTube video ID (11 chars, alphanumeric with - and _)
+  const isYouTubeId = /^[a-zA-Z0-9_-]{11}$/.test(id);
+  
+  if (isYouTubeId) {    // For YouTube, play directly without fetching related (Invidious doesn't provide good related)
+    await PlayOneSong({
+      url: songInfo?.url || id, // Use provided URL or fallback to ID
+      title: songInfo?.title || 'Loading...',
+      artist: songInfo?.artist || 'YouTube',
+      artwork: fallbackImage || `https://img.youtube.com/vi/${id}/maxresdefault.jpg`,
+      duration: songInfo?.duration || 0,
+      id: id,
+      language: songInfo?.language || 'en',
+      image: fallbackImage || `https://img.youtube.com/vi/${id}/maxresdefault.jpg`,
+    });
+    return;
+  }
+  
+  // JioSaavn song handling (original code)
   try {
     const [songData, quality, related] = await Promise.all([
       getSongData(id),
@@ -209,3 +494,6 @@ export async function PlaySongWithRelated(id, fallbackImage) {
     }
   }
 }
+
+
+

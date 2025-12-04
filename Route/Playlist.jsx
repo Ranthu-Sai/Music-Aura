@@ -4,7 +4,7 @@ import { PlaylistTopHeader } from "../Component/Playlist/PlaylistTopHeader";
 import { PlaylistDetails } from "../Component/Playlist/PlaylistDetails";
 import { View } from "react-native";
 import { EachSongCard } from "../Component/Global/EachSongCard";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { getPlaylistData } from "../Api/Playlist";
 import { LoadingComponent } from "../Component/Global/Loading";
 import { useTheme } from "@react-navigation/native";
@@ -15,20 +15,22 @@ import FormatArtist from "../Utils/FormatArtists";
 export const Playlist = ({route}) => {
   const theme = useTheme();
   const AnimatedRef = useAnimatedRef()
+  const scrollViewRef = useRef(null);
   const [Loading, setLoading] = useState(true)
   const [Data, setData] = useState({});
   // const [Links, setLinks] = useState([]);
   const {id, image, name, follower} = route.params
+  
   async function fetchPlaylistData(){
     try {
       setLoading(true)
-      let data = {}
+          let data = {}
       data = await getPlaylistData(id)
-      console.log(data);
+              if (data?.data?.songs?.length > 0) {
+            }
       setData(data)
     } catch (e) {
-      console.log(e);
-    } finally {
+        } finally {
       setLoading(false)
     }
   }
@@ -39,7 +41,13 @@ export const Playlist = ({route}) => {
 
   return (
     <MainWrapper>
-       <Animated.ScrollView scrollEventThrottle={16} ref={AnimatedRef} contentContainerStyle={{
+       <Animated.ScrollView 
+        scrollEventThrottle={16} 
+        ref={(ref) => {
+          AnimatedRef.current = ref;
+          scrollViewRef.current = ref;
+        }}
+        contentContainerStyle={{
         paddingBottom:80,
          backgroundColor:"#101010",
       }}>
@@ -68,3 +76,4 @@ export const Playlist = ({route}) => {
     </MainWrapper>
   );
 };
+

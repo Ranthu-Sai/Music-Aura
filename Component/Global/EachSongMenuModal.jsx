@@ -131,8 +131,7 @@ export const EachSongMenuModal = ({Visible, setVisible}) => {
         if (granted === PermissionsAndroid.RESULTS.GRANTED) {
           actualDownload();
         } else {
-          console.log("please grant permission");
-        }
+                }
       } catch (err) {
         console.log("display error",err)    }
     }
@@ -236,3 +235,4 @@ function EachModalButton({icon,text,Onpress}){
     <PlainText text={text} style={{color:"white", paddingRight:0}}/>
   </Pressable>
 }
+

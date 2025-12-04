@@ -71,9 +71,9 @@ export const EachAlbumCard = memo(function EachAlbumCard({image,name,artists,id,
       // Block navigation for obvious podcast/show entries
       if (nameLower.includes('podcast') || nameLower.includes('episode')) { return; }
       if ((id || "").includes('playlist')) {
-        navigation.navigate("Playlist", {id, image, name, follower: ""})
+        navigation.navigate("Playlist", {id, image: imageUri, name, follower: ""})
       } else {
-        navigation.navigate("Album", {id})
+        navigation.navigate("Album", {id, image: imageUri})
       }
     }} android_ripple={{ color: 'rgba(0,0,0,0)' }} style={{
       borderRadius:8,

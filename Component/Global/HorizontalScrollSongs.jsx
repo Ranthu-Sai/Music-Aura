@@ -18,8 +18,7 @@ export const HorizontalScrollSongs = ({id}) => {
       const data = await getPlaylistData(id)
       setData(data)
     } catch (e) {
-      console.log(e);
-    } finally {
+        } finally {
       setLoading(false)
     }
   }
@@ -57,3 +56,4 @@ export const HorizontalScrollSongs = ({id}) => {
     </>
   );
 };
+

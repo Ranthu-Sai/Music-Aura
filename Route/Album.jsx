@@ -18,11 +18,14 @@ export const Album = ({route}) => {
   const AnimatedRef = useAnimatedRef()
   const [Loading, setLoading] = useState(true)
   const [Data, setData] = useState({});
-  const {id} = route.params
+  const {id, image: passedImage} = route.params
+  const [headerImage, setHeaderImage] = useState(passedImage || "");
+  
   async function fetchAlbumData(){
     try {
       setLoading(true)
-      let data = await getAlbumData(id)
+          let data = await getAlbumData(id)
+              
       // Add 1 second delay to ensure correct song results
       await new Promise(resolve => setTimeout(resolve, 1000));
       // Block podcasts by name/type heuristics
@@ -43,7 +46,17 @@ export const Album = ({route}) => {
           songs: [song],
         } }
       }
+          if (data?.data?.songs?.length > 0) {
+            }
       setData(data)
+      
+      // Update header image with the actual album image from API
+      if (data?.data?.image) {
+        const apiImage = Array.isArray(data.data.image) ? data.data.image[2]?.url : data.data.image;
+        if (apiImage) {
+          setHeaderImage(apiImage);
+        }
+      }
     } catch (e) {
       // Error fetching album data
     } finally {
@@ -66,7 +79,7 @@ export const Album = ({route}) => {
             paddingBottom:80,
             backgroundColor:"#101010",
           }}>
-            <PlaylistTopHeader AnimatedRef={AnimatedRef} url={Array.isArray(Data?.data?.image) ? Data?.data?.image[2]?.url : Data?.data?.image ?? ""} />
+            <PlaylistTopHeader AnimatedRef={AnimatedRef} url={headerImage} />
             <AlbumDetails name={Data?.data?.name ?? ""} liked={false} releaseData={Data?.data?.year ?? ""}  Data={Data}/>
             {<View style={{
               paddingHorizontal:10,
@@ -90,3 +103,4 @@ export const Album = ({route}) => {
     </MainWrapper>
   );
 };
+

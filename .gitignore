@@ -65,10 +65,30 @@ yarn-error.log
 # testing
 /coverage
 
-# VS Code
+# VS Code & IDE files
 .vscode/
+.fetch-client/
 .history/
+.idea/
+.qodo/
+.bundle/
 
 # Environment variables
 .env
 .env.local
+
+# Test and debug files
+*.ps1
+*.py
+test_*.js
+temp_*
+instances.json
+
+# Development documentation
+PLAYBACK_PROXY_FIX.md
+YOUTUBE_MUSIC_FIX.md
+YOUTUBE_MUSIC_INNERTUBE.md
+
+# Build scripts (optional - remove if you want to keep them)
+build-release.bat
+build-release.sh

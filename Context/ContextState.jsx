@@ -1,20 +1,22 @@
 import Context from "./Context";
 import { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import TrackPlayer, { Event, useTrackPlayerEvents, RepeatMode } from "react-native-track-player";
-import { getRecommendedSongs } from "../Api/Recommended";
+import { getRecommendedSongs, getYTMusicRecommendedSongs } from "../Api/Recommended";
 import { getYTLyricsSongData } from "../Api/Songs";
 import { AddSongsToQueue, SetRepeatMode } from "../MusicPlayerFunctions";
 import FormatArtist from "../Utils/FormatArtists";
 import { Repeats } from "../Utils/Repeats";
+import { GetLanguageValue } from "../LocalStorage/Languages";
 // import { SetQueueSongs } from "../LocalStorage/storeQueue";
 import { EachSongMenuModal } from "../Component/Global/EachSongMenuModal";
-import { GetFontSizeValue, GetTheme, SetLastSong } from "../LocalStorage/AppSettings";
+import { GetFontSizeValue, GetTheme, SetLastSong, GetLastSong } from "../LocalStorage/AppSettings";
 
 
 const events = [
     Event.PlaybackActiveTrackChanged,
     Event.PlaybackError,
     Event.PlaybackState,
+    Event.RemoteDuck, // Audio focus interruptions
 ];
 const themes = {
     Default: {
@@ -83,94 +85,216 @@ const ContextState = (props)=>{
     const [fontSize, setFontSize] = useState('Medium');
     const [theme, setTheme] = useState('Default');
     const hasSetupRef = useRef(false);
+    const wasPlayingBeforeInterruption = useRef(false); // Track if we were playing before interruption
 
     const currentThemeColors = useMemo(() => themes[theme] || themes.Dark, [theme]);
 
     const [Queue, setQueue] = useState([]);
     const lyricsCacheRef = useRef({});
     const updateTrack = useCallback(async () => {
-        const tracks = await TrackPlayer.getQueue();
-        // await SetQueueSongs(tracks)
-        // console.log(tracks);
-        const ids = tracks.map((e)=>e.id)
-        const queuesId = Queue.map((e)=>e.id)
-        if (JSON.stringify(ids) !== JSON.stringify(queuesId)){
-            setQueue(tracks)
+        try {
+            const tracks = await TrackPlayer.getQueue();
+            // await SetQueueSongs(tracks)
+            //             const ids = tracks.filter(e => e && e.id).map((e)=>e.id)
+            const queuesId = Queue.filter(e => e && e.id).map((e)=>e.id)
+            if (JSON.stringify(ids) !== JSON.stringify(queuesId)){
+                setQueue(tracks)
+            }
+        } catch (error) {
+            // Error silently handled
         }
     }, [Queue]);
     const recommendedProcessedRef = useRef(new Set());
-    async function AddRecommendedSongs(index,id){
-        // Avoid repeated fetch/add for the same track id
-        if (!id || recommendedProcessedRef.current.has(id)) { return; }
+    const MIN_QUEUE_SIZE = 50; // Initial target, but will keep growing
+    
+    // Helper to detect if a song ID is from YouTube Music (11 chars alphanumeric)
+    const isYouTubeId = (id) => {
+        return id && typeof id === 'string' && /^[A-Za-z0-9_-]{11}$/.test(id);
+    };
+    
+    async function AddRecommendedSongs(index, id, forceAdd = false){
+        // Avoid repeated fetch/add for the same track id (unless forced)
+        if (!id || (!forceAdd && recommendedProcessedRef.current.has(id))) { 
+            return 0; // Return count of songs added
+        }
         const tracks = await TrackPlayer.getQueue();
         const totalTracks = tracks.length - 1;
-        // Trigger only near end of current queue
-        if (index >= totalTracks - 2){
+        
+        // Always allow adding songs when forced, or when near end, or when queue is small
+        const shouldAddSongs = forceAdd || index >= totalTracks - 2 || tracks.length < MIN_QUEUE_SIZE;
+        
+        const isYT = isYouTubeId(id);
+        
+        if (shouldAddSongs){
             try {
-                const songs = await getRecommendedSongs(id);
-                if (songs?.data?.length){
-                    const existingIds = tracks.map(t => t.id);
-                    const ForMusicPlayer = songs.data
-                        .filter(song => song.id && !existingIds.includes(song.id))
+                // Get user's preferred language for filtering
+                const preferredLanguage = await GetLanguageValue();
+                
+                // Use appropriate API based on source
+                const songs = isYT 
+                    ? await getYTMusicRecommendedSongs(id)
+                    : await getRecommendedSongs(id);
+                
+                const songData = songs?.data?.results || songs?.data;
+                
+                if (songData?.length){
+                    const existingIds = tracks.filter(t => t && t.id).map(t => t.id);
+                    const ForMusicPlayer = songData
+                        .filter(song => {
+                            if (!song || !song.id || existingIds.includes(song.id)) return false;
+                            
+                            // If user has selected a language, only include songs in that language
+                            // For YouTube Music, skip language filtering as it doesn't have reliable language tags
+                            if (preferredLanguage && !isYT) {
+                                const songLanguage = song.language?.toLowerCase() || '';
+                                const userLanguage = preferredLanguage.toLowerCase();
+                                
+                                // Allow if languages match or song language is unknown/empty
+                                if (songLanguage && songLanguage !== userLanguage) {
+                                    return false;
+                                }
+                            }
+                            
+                            return true;
+                        })
                         .map((e)=> ({
-                            url: e.downloadUrl?.[3]?.url || e.downloadUrl?.[0]?.url,
+                            url: e.downloadUrl?.[3]?.url || e.downloadUrl?.[0]?.url || e.id,
                             title: e.name?.toString() ?? "",
                             artist: FormatArtist(e?.artists?.primary)?.toString() ?? "",
                             artwork: e.image?.[2]?.url || e.image?.[2]?.link || e.image?.[0]?.url || '',
                             duration: e.duration,
                             id: e.id,
-                            language: e.language,
-                        }));
+                            language: e.language || 'en',
+                        }))
+                        .filter(song => song.id && song.url); // Final safety check
                     if (ForMusicPlayer.length > 0) {
+                        // Add 1 second delay before adding songs to queue
+                        await new Promise(resolve => setTimeout(resolve, 1000));
+                        
                         await AddSongsToQueue(ForMusicPlayer);
-                        recommendedProcessedRef.current.add(id);
+                        if (!forceAdd) {
+                            recommendedProcessedRef.current.add(id);
+                        }
+                        const newTotal = (await TrackPlayer.getQueue()).length;
+                        await updateTrack();
+                        return ForMusicPlayer.length;
                     }
                 }
             } catch (e) {
-                // silent
-            } finally {
-                await updateTrack();
+                // Error silently handled
             }
         }
+        return 0;
     }
 
-    useTrackPlayerEvents(events, (event) => {
+    useTrackPlayerEvents(events, async (event) => {
         if (event.type === Event.PlaybackError) {
             console.warn('An error occured while playing the current track.');
         }
+        
+        // Handle audio focus interruptions from other apps
+        if (event.type === Event.RemoteDuck) {
+            if (event.paused) {
+                // Another app is playing audio - pause our music
+                const playbackState = await TrackPlayer.getPlaybackState();
+                if (playbackState.state === 'playing') {
+                    wasPlayingBeforeInterruption.current = true;
+                    await TrackPlayer.pause();
+                }
+            } else if (event.permanent) {
+                // Permanent interruption (e.g., phone call) - pause
+                wasPlayingBeforeInterruption.current = false;
+                await TrackPlayer.pause();
+            } else {
+                // Temporary interruption ended - resume if we were playing
+                if (wasPlayingBeforeInterruption.current) {
+                    await TrackPlayer.setVolume(1.0); // Restore full volume
+                    await TrackPlayer.play();
+                    wasPlayingBeforeInterruption.current = false;
+                }
+            }
+        }
+        
         if (event.type === Event.PlaybackActiveTrackChanged) {
             setCurrentPlaying(event.track)
-            if (event.track?.id ){
-                AddRecommendedSongs(event.index,event.track?.id)
+            if (event?.track?.id ){
+                // Save the current track so it can be restored on app restart
+                SetLastSong(event.track).catch(() => {});
+                
+                // Continuously add recommended songs - unlimited queue growth
+                AddRecommendedSongs(event.index, event.track.id).catch(err => {
+                    // Error silently handled
+                });
+                
                 // Prefetch lyrics for faster first open, prefer track language
-                const cacheKey = event.track.id || `${event.track.artist}-${event.track.title}`
-                if (!lyricsCacheRef.current[cacheKey]) {
-                    getYTLyricsSongData(event.track.artist, event.track.title, event.track.language)
+                const cacheKey = event.track.id || `${event.track?.artist || 'unknown'}-${event.track?.title || 'unknown'}`
+                if (lyricsCacheRef?.current && !lyricsCacheRef.current[cacheKey]) {
+                    getYTLyricsSongData(
+                        event.track?.artist || 'unknown', 
+                        event.track?.title || 'unknown', 
+                        event.track?.language || 'en'
+                    )
                         .then((Lyrics) => {
-                            if (Lyrics?.success) {
+                            if (Lyrics?.success && lyricsCacheRef?.current) {
                                 lyricsCacheRef.current[cacheKey] = Lyrics.data
-                            } else {
+                            } else if (lyricsCacheRef?.current) {
                                 lyricsCacheRef.current[cacheKey] = { lyrics: "No Lyrics Found \nOpps... O_o" }
                             }
                         })
                         .catch(() => {
-                            lyricsCacheRef.current[cacheKey] = { lyrics: "No Lyrics Found \nOpps... O_o" }
+                            if (lyricsCacheRef?.current) {
+                                lyricsCacheRef.current[cacheKey] = { lyrics: "No Lyrics Found \nOpps... O_o" }
+                            }
                         })
                 }
             }
         }
     });
     const InitialSetup = useCallback(async () => {
-        // Only perform player setup once; subsequent calls just sync queue/state
-        if (!hasSetupRef.current) {
-            try { await TrackPlayer.setupPlayer(); } catch (_) {}
-            try { await SetRepeatMode(RepeatMode.Queue); } catch (_) {}
-            hasSetupRef.current = true;
+        try {
+            // Only perform player setup once; subsequent calls just sync queue/state
+            if (!hasSetupRef.current) {
+                try { await TrackPlayer.setupPlayer(); } catch (_) {}
+                try { await SetRepeatMode(RepeatMode.Queue); } catch (_) {}
+                hasSetupRef.current = true;
+            }
+            await updateTrack();
+            
+            // Try to restore last played song
+            let song = await TrackPlayer.getActiveTrack();
+            
+            // If no active track, try to restore from saved last song
+            if (!song || !song.id) {
+                const lastSong = await GetLastSong();
+                if (lastSong && lastSong.id) {
+                    try {
+                        // Add the last song to the queue and set it as current
+                        await TrackPlayer.reset();
+                        await TrackPlayer.add([lastSong]);
+                        song = lastSong;
+                        setCurrentPlaying(lastSong);
+                        setIndex(0);
+                    } catch (e) {
+                        // Error restoring last song
+                    }
+                }
+            } else {
+                // Update current playing if there's already an active track
+                setCurrentPlaying(song);
+            }
+            
+            if (song && song.id) { 
+                setIndex(0);
+                // Auto-fill queue to minimum size on startup
+                const tracks = await TrackPlayer.getQueue();
+                if (tracks.length < MIN_QUEUE_SIZE) {
+                    await AddRecommendedSongs(0, song.id);
+                }
+            }
+        } catch (error) {
+            // Error silently handled
         }
-        await updateTrack();
-        const song = await getCurrentSong();
-        if (song) { setIndex(0); }
-    }, [updateTrack, getCurrentSong, setIndex]);
+    }, [updateTrack, setIndex]);
     const getCurrentSong = useCallback(async () => {
         const song = await TrackPlayer.getActiveTrack()
         setCurrentPlaying(song)
@@ -187,6 +311,54 @@ const ContextState = (props)=>{
         const data = await GetTheme();
         setTheme(data);
     }
+    
+    // Function to ensure queue has minimum songs
+    const ensureMinimumQueue = useCallback(async () => {
+        try {
+            let tracks = await TrackPlayer.getQueue();
+            const currentTrack = await TrackPlayer.getActiveTrack();            
+            if (tracks.length >= MIN_QUEUE_SIZE) {
+                return;
+            }
+            
+            if (!currentTrack?.id) {
+                return;
+            }        // Keep trying songs until we reach MIN_QUEUE_SIZE or run out of unique songs
+        let trackIndex = 0;
+        let consecutiveFailures = 0;
+        const maxConsecutiveFailures = 10; // Stop if 10 songs in a row give no new recommendations
+        
+            while (tracks.length < MIN_QUEUE_SIZE && consecutiveFailures < maxConsecutiveFailures) {
+                if (trackIndex >= tracks.length) {
+                    break;
+                }
+                
+                const seedTrack = tracks[trackIndex];
+                
+                // Safety check for undefined track
+                if (!seedTrack || !seedTrack.id) {
+                    trackIndex++;
+                    consecutiveFailures++;
+                    continue;
+                }            const addedCount = await AddRecommendedSongs(0, seedTrack.id, true);
+            
+            if (addedCount > 0) {
+                consecutiveFailures = 0; // Reset on success
+            } else {
+                consecutiveFailures++;
+            }
+            
+            // Refresh tracks
+            tracks = await TrackPlayer.getQueue();
+            trackIndex++;
+        }
+        
+        const finalTracks = await TrackPlayer.getQueue();
+      } catch (error) {
+            // Error ignored
+        }
+    }, []);
+    
     useEffect(() => {
         InitialSetup();
         loadFontSize();
@@ -194,10 +366,12 @@ const ContextState = (props)=>{
         // Deliberately empty dependency array so setup is not re-run on queue updates
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
-    return <Context.Provider value={{currentPlaying,  Repeat, setRepeat, updateTrack, Index, setIndex, QueueIndex, setQueueIndex, setVisible, Queue, fontSize, setFontSize, theme, setTheme, currentThemeColors, lyricsCacheRef}}>
+    return <Context.Provider value={{currentPlaying,  Repeat, setRepeat, updateTrack, Index, setIndex, QueueIndex, setQueueIndex, setVisible, Queue, fontSize, setFontSize, theme, setTheme, currentThemeColors, lyricsCacheRef, ensureMinimumQueue}}>
         {props.children}
          <EachSongMenuModal setVisible={setVisible} Visible={Visible}/>
     </Context.Provider>
 }
 
 export default  ContextState
+
+

@@ -31,6 +31,11 @@ export default function SongDisplay({data, limit, Searchtext, loadMore, hasMore}
     const image = Array.isArray(song?.image) ? (song?.image[2]?.url || song?.image[1]?.url || song?.image[0]?.url || "") : (typeof song?.image === 'string' ? song?.image : "");
     const artistID = isSaavn ? song?.primaryArtistsId : song?.artistID;
     const url = isSaavn ? song?.downloadUrl : song?.url;
+    
+    // Debug logging for YouTube Music songs
+    if (song?.source === 'ytmusic') {
+        }
+    
     return <EachSongCard  artistID={artistID} language={song?.language} duration={song?.duration} image={image} id={song?.id} width={width * 0.95} title={title} artist={artist} url={url} style={{
         marginBottom:13,
     }}/>
@@ -63,3 +68,4 @@ export default function SongDisplay({data, limit, Searchtext, loadMore, hasMore}
      </View>
   )
 }
+

@@ -1,9 +1,10 @@
-import { Dimensions, ImageBackground, View } from "react-native";
+import { Dimensions, ImageBackground, View, TouchableOpacity, Modal, Pressable } from "react-native";
 import FastImage from "react-native-fast-image";
 import React, { useContext, useRef, useState } from "react";
 import LinearGradient from "react-native-linear-gradient";
 import { Heading } from "../Global/Heading";
 import { SmallText } from "../Global/SmallText";
+import { PlainText } from "../Global/PlainText";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { PlayPauseButton } from "./PlayPauseButton";
 import { Spacer } from "../Global/Spacer";
@@ -14,13 +15,16 @@ import { LikeSongButton } from "./LikeSongButton";
 import { ProgressBar } from "./ProgressBar";
 import { GetLyricsButton } from "./GetLyricsButton";
 import QueueBottomSheet from "./QueueBottomSheet";
-import { getYTLyricsSongData } from "../../Api/Songs";
+import { getYTLyricsSongData, getSongData } from "../../Api/Songs";
 import { GetLanguageValue } from "../../LocalStorage/Languages";
 import { ShowLyrics } from "./ShowLyrics";
 import { useActiveTrack } from "react-native-track-player";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { PlayNextSong, PlayPreviousSong } from "../../MusicPlayerFunctions";
 import Context from "../../Context/Context";
+import AntDesign from "react-native-vector-icons/AntDesign";
+import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
+import { useNavigation } from "@react-navigation/native";
 
 export const FullScreenMusic = ({color, Index, setIndex}) => {
   const pan = Gesture.Pan();
@@ -36,9 +40,117 @@ export const FullScreenMusic = ({color, Index, setIndex}) => {
   const width = Dimensions.get("window").width
   const currentPlaying = useActiveTrack()
   const { lyricsCacheRef } = useContext(Context)
+  const navigation = useNavigation()
   const [ShowDailog, setShowDailog] = useState(false);
   const [Lyric, setLyric] = useState({});
   const [Loading, setLoading] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
+
+  async function handleGoToAlbum() {
+    try {
+      setShowMenu(false);
+      if (!currentPlaying?.id) {
+        return;
+      }
+      
+      // Check if it's a YouTube video (11 char ID)
+      const isYouTube = /^[a-zA-Z0-9_-]{11}$/.test(currentPlaying.id);
+      
+      if (isYouTube) {
+        try {
+          // Use YouTube Music InnerTube API to get song details
+          const response = await fetch('https://music.youtube.com/youtubei/v1/next?key=AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+              'Origin': 'https://music.youtube.com',
+            },
+            body: JSON.stringify({
+              context: {
+                client: {
+                  clientName: 'WEB_REMIX',
+                  clientVersion: '1.20241204.01.00',
+                  hl: 'en',
+                  gl: 'US',
+                },
+              },
+              videoId: currentPlaying.id,
+            }),
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            
+            // Try to find album browse ID in the response
+            let albumId = null;
+            let albumTitle = null;
+            
+            // Check in tabs -> tab renderer -> content
+            const tabs = data?.contents?.singleColumnMusicWatchNextResultsRenderer?.tabbedRenderer?.watchNextTabbedResultsRenderer?.tabs;
+            
+            if (tabs) {
+              for (const tab of tabs) {
+                const content = tab?.tabRenderer?.content?.musicQueueRenderer?.content?.playlistPanelRenderer?.contents;
+                if (content && content[0]) {
+                  const runs = content[0]?.playlistPanelVideoRenderer?.longBylineText?.runs;
+                  if (runs) {
+                    for (const run of runs) {
+                      if (run?.navigationEndpoint?.browseEndpoint?.browseId?.startsWith('MPREb_')) {
+                        albumId = run.navigationEndpoint.browseEndpoint.browseId;
+                        albumTitle = run.text;
+                        break;
+                      }
+                    }
+                  }
+                  if (albumId) break;
+                }
+              }
+            }
+            
+            if (albumId) {
+              setIndex(0); // Close full player
+              
+              if (navigation && typeof navigation.navigate === 'function') {
+                navigation.navigate('Album', { 
+                  id: albumId, 
+                  image: currentPlaying.artwork 
+                });
+              }
+              return;
+            }
+          }
+        } catch (ytError) {
+          // Error silently handled
+        }
+        return;
+      }
+      
+      // For JioSaavn songs, fetch song data to get album info
+      const songData = await getSongData(currentPlaying.id);
+      const song = songData?.data?.[0];
+      
+      if (!song) {
+        return;
+      }
+      
+      if (song?.album_id || song?.albumid || song?.album?.id) {
+        const albumId = song.album_id || song.albumid || song.album?.id;
+        const albumImage = song?.album?.image?.[2]?.url || song?.image?.[2]?.url || currentPlaying.artwork;
+        
+        setIndex(0); // Close full player
+        
+        if (navigation && typeof navigation.navigate === 'function') {
+          navigation.navigate('Album', { 
+            id: albumId, 
+            image: albumImage 
+          });
+        }
+      }
+    } catch (error) {
+      // Error silently handled
+    }
+  }
 
   async function GetLyrics() {
     setShowDailog(true)
@@ -52,19 +164,23 @@ export const FullScreenMusic = ({color, Index, setIndex}) => {
     try {
       setLoading(true)
       const preferredLanguage = await GetLanguageValue()
-      const Lyrics = await getYTLyricsSongData(currentPlaying.artist, currentPlaying.title, preferredLanguage || currentPlaying?.language)
+      
+      // Use preferred language first, then fall back to track language
+      // This ensures user's language choice is respected over auto-detected language
+      const languageToUse = preferredLanguage || currentPlaying?.language || 'en';
+      
+      const Lyrics = await getYTLyricsSongData(currentPlaying.artist, currentPlaying.title, languageToUse)
       if (Lyrics.success){
-        if (lyricsCacheRef?.current) lyricsCacheRef.current[cacheKey] = Lyrics.data
+        if (lyricsCacheRef?.current) {lyricsCacheRef.current[cacheKey] = Lyrics.data}
         setLyric(Lyrics.data)
       } else {
         const fallback = { lyrics:"No Lyrics Found \nOpps... O_o" }
-        if (lyricsCacheRef?.current) lyricsCacheRef.current[cacheKey] = fallback
+        if (lyricsCacheRef?.current) {lyricsCacheRef.current[cacheKey] = fallback}
         setLyric(fallback)
       }
     } catch (e) {
-      console.log(e);
       const fallback = { lyrics:"No Lyrics Found \nOpps... O_o" }
-      if (lyricsCacheRef?.current) lyricsCacheRef.current[cacheKey] = fallback
+      if (lyricsCacheRef?.current) {lyricsCacheRef.current[cacheKey] = fallback}
       setLyric(fallback)
     } finally {
       setLoading(false)
@@ -83,17 +199,80 @@ export const FullScreenMusic = ({color, Index, setIndex}) => {
             marginTop:5,
             height:60,
             alignItems:"center",
-            justifyContent:"flex-end",
+            justifyContent:"space-between",
             flexDirection:"row",
           }}>
+            <TouchableOpacity 
+              onPress={() => setShowMenu(true)}
+              style={{
+                padding: 8,
+                justifyContent: 'center',
+                alignItems: 'center',
+              }}
+            >
+              <MaterialCommunityIcons name="dots-vertical" size={24} color="white" />
+            </TouchableOpacity>
             <GetLyricsButton onPress={GetLyrics} />
+            <TouchableOpacity 
+              onPress={() => setIndex(0)}
+              style={{
+                padding: 8,
+                justifyContent: 'center',
+                alignItems: 'center',
+              }}
+            >
+              <AntDesign name="close" size={24} color="white" />
+            </TouchableOpacity>
           </View>
+          
+          {/* Three Dots Menu Modal */}
+          <Modal
+            visible={showMenu}
+            transparent
+            animationType="fade"
+            onRequestClose={() => setShowMenu(false)}
+          >
+            <Pressable 
+              style={{
+                flex: 1,
+                backgroundColor: 'rgba(0,0,0,0.5)',
+                justifyContent: 'flex-start',
+                paddingTop: 60,
+                paddingLeft: 10,
+              }}
+              onPress={() => setShowMenu(false)}
+            >
+              <View style={{
+                backgroundColor: '#1a1a1a',
+                borderRadius: 10,
+                width: 200,
+                padding: 10,
+              }}>
+                <TouchableOpacity
+                  onPress={() => {
+                    handleGoToAlbum().catch(err => {
+                                        });
+                  }}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    padding: 12,
+                    gap: 10,
+                  }}
+                >
+                  <MaterialCommunityIcons name="album" size={20} color="white" />
+                  <PlainText text="Go to Album" />
+                </TouchableOpacity>
+              </View>
+            </Pressable>
+          </Modal>
            <Spacer height={20}/>
            <GestureDetector gesture={pan}>
              <FastImage
                source={{
                  uri: currentPlaying?.artwork ?? "https://htmlcolorcodes.com/assets/images/colors/gray-color-solid-background-1920x1080.png",
                }}
+               resizeMode={FastImage.resizeMode.contain}
                style={{
                  height: width * 0.9,
                  width: width * 0.9,
@@ -126,3 +305,4 @@ export const FullScreenMusic = ({color, Index, setIndex}) => {
    </Animated.View>
   );
 };
+
