@@ -17,7 +17,6 @@
       android:allowBackup="false"
       android:theme="@style/AppTheme"
       android:usesCleartextTraffic="true"
-      android:extractNativeLibs="false"
       android:networkSecurityConfig="@xml/network_security_config"
       tools:targetApi="23">
       <activity
