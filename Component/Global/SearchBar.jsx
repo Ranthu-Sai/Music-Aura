@@ -1,12 +1,26 @@
 import { Dimensions, Pressable, TextInput, View } from "react-native";
 import { useTheme } from "@react-navigation/native";
 import Entypo from "react-native-vector-icons/Entypo";
-import { useState } from "react";
+import Ionicons from "react-native-vector-icons/Ionicons";
+import { useState, useEffect } from "react";
 
-export const SearchBar = ({onChange, navigation}) => {
+export const SearchBar = ({onChange, onSubmit, navigation, value}) => {
   const width = Dimensions.get("window").width
   const theme = useTheme()
   const [searchText, setSearchText] = useState("")
+  
+  useEffect(() => {
+    if (value !== undefined && value !== searchText) {
+      setSearchText(value);
+    }
+  }, [value]);
+  
+  const handleSubmit = () => {
+    if (searchText.trim() && onSubmit) {
+      onSubmit(searchText.trim());
+    }
+  };
+  
   return (
     <View style={{
       flexDirection:"row",
@@ -25,23 +39,48 @@ export const SearchBar = ({onChange, navigation}) => {
         flexDirection:"row",
         alignItems:"center",
       }}>
-        <TextInput cursorColor={"rgb(255,255,255)"} placeholder={"Type to search..."} style={{
-          color:"white",
-          fontSize:25,
-          fontFamily:"roboto",
-          flex:1,
-        }} value={searchText} onChangeText={(text)=>{
-          setSearchText(text)
-          onChange(text)
-        }} autoFocus={true}/>
+        <TextInput 
+          cursorColor={"rgb(255,255,255)"} 
+          placeholder={"Type to search..."} 
+          placeholderTextColor={"rgba(255,255,255,0.5)"} 
+          style={{
+            color:"white",
+            fontSize:25,
+            fontFamily:"roboto",
+            flex:1,
+            paddingVertical:8,
+          }} 
+          value={searchText} 
+          onChangeText={(text)=>{
+            setSearchText(text)
+            onChange(text)
+          }} 
+          onSubmitEditing={handleSubmit}
+          returnKeyType="search"
+          autoFocus={true}
+        />
         {searchText.length > 0 && (
           <Pressable onPress={()=>{
             setSearchText("")
             onChange("")
           }} style={{
-            padding:5,
+            padding:8,
+            marginRight:4,
           }}>
-            <Entypo name={"circle-with-cross"} size={width * 0.045} color={"white"}/>
+            <Entypo name={"circle-with-cross"} size={width * 0.065} color={"rgba(255,255,255,0.7)"}/>
+          </Pressable>
+        )}
+        {searchText.trim().length > 0 && (
+          <Pressable 
+            onPress={handleSubmit}
+            style={{
+              padding:8,
+              backgroundColor:"rgba(255,255,255,0.15)",
+              borderRadius:8,
+              marginLeft:4,
+            }}
+          >
+            <Ionicons name={"search"} size={width * 0.065} color={"white"}/>
           </Pressable>
         )}
       </View>

@@ -26,6 +26,27 @@ export const LanguageDetailPage = ({route}) => {
     try {
       setLoading(true)
       const data = await getHomePageData(language)
+      
+      // Filter albums by selected language
+      if (data?.data?.albums && language) {
+        const languageLower = language.toLowerCase();
+        data.data.albums = data.data.albums.filter(album => {
+          const albumLanguage = (album?.language || '').toLowerCase();
+          // Keep only albums that match the selected language
+          return albumLanguage === languageLower || !albumLanguage || albumLanguage === 'unknown';
+        });
+      }
+      
+      // Filter trending albums by selected language
+      if (data?.data?.trending?.albums && language) {
+        const languageLower = language.toLowerCase();
+        data.data.trending.albums = data.data.trending.albums.filter(album => {
+          const albumLanguage = (album?.language || '').toLowerCase();
+          // Keep only albums that match the selected language
+          return albumLanguage === languageLower || !albumLanguage || albumLanguage === 'unknown';
+        });
+      }
+      
       setData(data)
     } catch (e) {
         } finally {

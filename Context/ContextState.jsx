@@ -95,7 +95,7 @@ const ContextState = (props)=>{
         try {
             const tracks = await TrackPlayer.getQueue();
             // await SetQueueSongs(tracks)
-            //             const ids = tracks.filter(e => e && e.id).map((e)=>e.id)
+            const ids = tracks.filter(e => e && e.id).map((e)=>e.id)
             const queuesId = Queue.filter(e => e && e.id).map((e)=>e.id)
             if (JSON.stringify(ids) !== JSON.stringify(queuesId)){
                 setQueue(tracks)
@@ -258,22 +258,27 @@ const ContextState = (props)=>{
                 try { await SetRepeatMode(RepeatMode.Queue); } catch (_) {}
                 hasSetupRef.current = true;
             }
-            await updateTrack();
             
-            // Try to restore last played song
-            let song = await TrackPlayer.getActiveTrack();
+            // Try to get current track from TrackPlayer
+            let song = null;
+            try {
+                song = await TrackPlayer.getActiveTrack();
+            } catch (_) {}
             
             // If no active track, try to restore from saved last song
             if (!song || !song.id) {
                 const lastSong = await GetLastSong();
                 if (lastSong && lastSong.id) {
                     try {
-                        // Add the last song to the queue and set it as current
+                        // Reset player and add the last song
                         await TrackPlayer.reset();
                         await TrackPlayer.add([lastSong]);
                         song = lastSong;
                         setCurrentPlaying(lastSong);
                         setIndex(0);
+                        
+                        // Auto-fill queue with recommended songs
+                        await AddRecommendedSongs(0, song.id, true);
                     } catch (e) {
                         // Error restoring last song
                     }
@@ -283,12 +288,15 @@ const ContextState = (props)=>{
                 setCurrentPlaying(song);
             }
             
-            if (song && song.id) { 
+            // Always update track list after setup
+            await updateTrack();
+
+            if (song && song.id) {
                 setIndex(0);
                 // Auto-fill queue to minimum size on startup
                 const tracks = await TrackPlayer.getQueue();
                 if (tracks.length < MIN_QUEUE_SIZE) {
-                    await AddRecommendedSongs(0, song.id);
+                    await AddRecommendedSongs(0, song.id, true);
                 }
             }
         } catch (error) {

@@ -148,12 +148,12 @@ export const SettingsPage = ({navigation}) => {
     <MainWrapper>
        <PaddingConatiner>
          <Heading text={"SETTINGS"}/>
-         <ScrollView>
-           <EachSettingsButton text={"Change Name"} OnPress={()=>{
-             navigation.navigate("ChangeName")
-           }}/>
+         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
            <EachSettingsButton text={"Select Languages"} OnPress={()=>{
              navigation.navigate("SelectLanguages")
+           }}/>
+           <EachSettingsButton text={"Clear Cache"} OnPress={()=>{
+             navigation.navigate("ClearCache")
            }}/>
            <EachDropDownWithLabel data={FontSize} text={"Font size"} placeholder={Font} OnChange={SetFont}/>
            <EachDropDownWithLabel data={PlaybackQuality} text={"Playback quality"} placeholder={Playback} OnChange={SetPlayBack}/>
@@ -165,6 +165,7 @@ export const SettingsPage = ({navigation}) => {
              padding:20,
              borderRadius:10,
              marginTop:10,
+             marginBottom: 20,
            }}>
              <PlainText text={`Version: ${DeviceInfo.getVersion()} (${DeviceInfo.getBuildNumber()})`} />
            </View>

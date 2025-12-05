@@ -77,8 +77,8 @@ export const EachAlbumCard = memo(function EachAlbumCard({image,name,artists,id,
       }
     }} android_ripple={{ color: 'rgba(0,0,0,0)' }} style={{
       borderRadius:8,
-      height:210,
-      width:150,
+      height:250,
+      width:180,
       backgroundColor:"rgba(55,55,79,0)",
       overflow:"hidden",
       ...mainContainerStyle,
@@ -87,7 +87,7 @@ export const EachAlbumCard = memo(function EachAlbumCard({image,name,artists,id,
         uri: imageUri,
         priority: 'high',
       }} onError={() => setImageUri('https://via.placeholder.com/150x150/cccccc/000000?text=No+Image')} style={{
-        height:150,
+        height:180,
         width:'100%',
         borderRadius:8,
       }} resizeMode="contain" />

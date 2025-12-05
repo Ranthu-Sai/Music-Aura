@@ -176,72 +176,17 @@ async function getYTSearchSongData(searchText,page,limit){
         }
 
         if (songs.length > 0) {
-                  return { data: { results: songs } };
+          return { data: { results: songs } };
         }
       }
     }
   } catch (error) {
-    }
-
-  // STRATEGY 2: Fallback to Invidious (regular YouTube videos)
-  const urls = [
-    'https://yt.omada.cafe',
-    'https://yewtu.be',
-    'https://inv.nadeko.net',
-    'https://invidious.nerdvpn.de',
-    'https://inv.perditum.com',
-    'https://y.com.sb',
-  ];
-
-  for (let baseUrl of urls) {
-    try {
-      let config = {
-        method: 'get',
-        maxBodyLength: Infinity,
-        url: `${baseUrl}/api/v1/search?q=${encodeURIComponent(searchText)}&type=video`,
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-        },
-        timeout: 15000,
-      };
-      const response = await axios.request(config);
-
-      if (!response.data || !Array.isArray(response.data) || response.data.length === 0) {
-        continue;
-      }
-
-      // Transform to Saavn-like structure - keep it simple, return actual results
-      const transformedResults = response.data
-        .filter(item => item.type === 'video' && item.videoId && item.lengthSeconds > 30)
-        .slice(0, limit)
-        .map(song => {
-          const thumbnails = song.videoThumbnails || [];
-          const highQualityThumb = thumbnails.find(t => t?.quality === 'maxres' || t?.quality === 'maxresdefault')?.url ||
-                                   thumbnails.find(t => t?.width >= 1280)?.url ||
-                                   thumbnails[thumbnails.length - 1]?.url ||
-                                   `https://img.youtube.com/vi/${song.videoId}/maxresdefault.jpg`;
-          
-          return {
-            id: song.videoId,
-            name: song.title,
-            title: song.title,
-            image: [{ url: highQualityThumb }, { url: highQualityThumb }, { url: highQualityThumb }],
-            artist: song.author || 'Unknown',
-            artists: { primary: [{ name: song.author || 'Unknown' }] },
-            url: song.videoId,
-            downloadUrl: song.videoId,
-            duration: song.lengthSeconds || 0,
-            language: 'en',
-          };
-        });
-
-      if (transformedResults.length > 0) {
-              return { data: { results: transformedResults } };
-      }
-    } catch (e) {          continue;
-    }
+    // YouTube Music API failed
   }
-  throw new Error('All YouTube API instances failed');
+
+  // Return empty results instead of falling back to regular YouTube videos
+  // This ensures YT Music only shows actual music content
+  return { data: { results: [] } };
 }
 
 async function getYTSearchAlbumData(searchText,page,limit){
@@ -527,7 +472,23 @@ async function getYTLyricsSongData(artist, title, preferredLanguage){
 
   const apis = [
     {
-      url: `https://lyrica-teal.vercel.app/lyrics/?artist=${encodeURIComponent(artist)}&song=${encodeURIComponent(title)}&tamps=true&pass=false&sequence=3,2`,
+      url: `https://term30.onrender.com/lyrics/?artist=${encodeURIComponent(artist)}&song=${encodeURIComponent(title)}&tamps=true&pass=false&sequence=1,2,3,4,5,6`,
+      timeout: 5000,
+      transform: async (data) => {
+        if (data.data && data.data.lyrics) {
+                  return {
+            success: true,
+            data: {
+              lyrics: data.data.lyrics,
+              timed_lyrics: data.data.timed_lyrics,
+            },
+          };
+        }
+        return null;
+      },
+    },
+    {
+      url: `https://lyrica-teal.vercel.app/lyrics/?artist=${encodeURIComponent(artist)}&song=${encodeURIComponent(title)}&tamps=true&pass=false&sequence=2,4,6,1,3,5`,
       timeout: 5000,
       transform: async (data) => {
         if (data.data && data.data.lyrics) {

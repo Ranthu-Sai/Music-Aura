@@ -54,8 +54,8 @@ export const EachSongCard = memo(function EachSongCard({title,artist,image,id,ur
           }} 
           resizeMode={FastImage.resizeMode.contain}
           style={{
-            height:40,
-            width:40,
+            height:60,
+            width:60,
             borderRadius:8,
           }}/>
           <View style={{

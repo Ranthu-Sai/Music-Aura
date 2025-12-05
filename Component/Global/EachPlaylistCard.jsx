@@ -13,8 +13,8 @@ export const EachPlaylistCard = memo(function EachPlaylistCard ({image, name, fo
   const [imageUri, setImageUri] = useState(image || 'https://via.placeholder.com/150x150/cccccc/000000?text=No+Image')
   return (
     <Pressable onPress={()=>{ navigation.navigate("Playlist" , {id,image,name,follower})}} style={{
-      width:150,
-      height:200,
+      width:180,
+      height:240,
       ...MainContainerStyle,
     }}>
       <FastImage source={{

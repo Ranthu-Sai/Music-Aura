@@ -4,7 +4,30 @@ import { GetPlaybackQuality } from "./LocalStorage/AppSettings";
 import { getSongData } from "./Api/Songs";
 import { getRecommendedSongs } from "./Api/Recommended";
 
+let playerInitialized = false;
+
+async function ensurePlayerInitialized() {
+  if (!playerInitialized) {
+    try {
+      await TrackPlayer.setupPlayer({
+        waitForBuffer: true,
+        autoHandleInterruptions: true,
+      });
+      playerInitialized = true;
+    } catch (error) {
+      if (error.message?.includes('already been initialized')) {
+        playerInitialized = true;
+      } else {
+        console.warn('Failed to initialize TrackPlayer:', error);
+        throw error;
+      }
+    }
+  }
+}
+
 async function PlayOneSong(song){
+  
+  await ensurePlayerInitialized();
   
   if (!song.url) {
       alert('Cannot play: Song URL is missing');
@@ -15,9 +38,6 @@ async function PlayOneSong(song){
       // Assume it's videoId, fetch audio URL from Invidious
     const instances = [
       'https://yt.omada.cafe',
-      'https://yewtu.be',
-      'https://inv.nadeko.net',
-      'https://invidious.nerdvpn.de',
       'https://inv.perditum.com',
     ];
     
@@ -29,7 +49,14 @@ async function PlayOneSong(song){
         
         const response = await fetch(`${instance}/api/v1/videos/${song.url}`, {
           headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+            'Accept': 'application/json, text/plain, */*',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache',
+            'Sec-Fetch-Dest': 'empty',
+            'Sec-Fetch-Mode': 'cors',
+            'Sec-Fetch-Site': 'cross-site',
           },
           signal: controller.signal,
         });
@@ -47,7 +74,14 @@ async function PlayOneSong(song){
         // This forces Invidious to proxy the stream through its server, bypassing Google blocking
               const proxiedResponse = await fetch(`${instance}/api/v1/videos/${song.url}?local=true`, {
           headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+            'Accept': 'application/json, text/plain, */*',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache',
+            'Sec-Fetch-Dest': 'empty',
+            'Sec-Fetch-Mode': 'cors',
+            'Sec-Fetch-Site': 'cross-site',
           },
           signal: controller.signal,
         });
@@ -57,11 +91,9 @@ async function PlayOneSong(song){
                   
           // Try formatStreams from proxied request
           if (proxiedData.formatStreams && proxiedData.formatStreams.length > 0) {
-                      const audioOrLowQuality = proxiedData.formatStreams.filter(f => 
+                      const audioOrLowQuality = proxiedData.formatStreams.filter(f =>
               f.resolution === '360p' || f.resolution === '240p' || f.quality === 'small'
-            );
-            
-            if (audioOrLowQuality.length > 0) {
+            );            if (audioOrLowQuality.length > 0) {
               audioUrl = audioOrLowQuality[0].url;
                         } else {
               audioUrl = proxiedData.formatStreams[0].url;
@@ -84,7 +116,7 @@ async function PlayOneSong(song){
         
         // STRATEGY 2: Use formatStreams from original request (may not be proxied)
         if (!audioUrl && data.formatStreams && data.formatStreams.length > 0) {
-                  const audioOrLowQuality = data.formatStreams.filter(f => 
+          const audioOrLowQuality = data.formatStreams.filter(f =>
             f.resolution === '360p' || f.resolution === '240p' || f.quality === 'small'
           );
           
@@ -119,26 +151,26 @@ async function PlayOneSong(song){
     }
     
     if (!song.url.startsWith('http')) {
-          console.error('Tried instances:', instances.join(', '));
+      console.error('Tried instances:', instances.join(', '));
       alert('Unable to play this song. YouTube stream unavailable from all servers.');
       return; // Don't play
     } else {
-        }
+    }
   } else {
-    }  
+  }
   // Add headers for Google Video URLs
   // Note: Google Video CDN is very restrictive and may still fail
   // This is a limitation of using unofficial APIs
   const trackToAdd = {
     ...song,
     headers: {
-      'User-Agent': 'Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.6099.230 Mobile Safari/537.36',
+      'User-Agent': 'Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 Mobile Safari/537.36',
       'Accept': '*/*',
       'Accept-Language': 'en-US,en;q=0.9',
       'Sec-Fetch-Dest': 'empty',
       'Sec-Fetch-Mode': 'cors',
       'Sec-Fetch-Site': 'cross-site',
-    }
+    },
   };
   
   await TrackPlayer.reset();
@@ -146,6 +178,8 @@ async function PlayOneSong(song){
   await TrackPlayer.play();
 }
 async function AddPlaylist (songs){
+  await ensurePlayerInitialized();
+  
   if (!songs || !Array.isArray(songs)) {
       return;
   }
@@ -159,9 +193,6 @@ async function AddPlaylist (songs){
   
   const instances = [
     'https://yt.omada.cafe',
-    'https://yewtu.be',
-    'https://inv.nadeko.net',
-    'https://invidious.nerdvpn.de',
     'https://inv.perditum.com',
   ];
   
@@ -174,7 +205,14 @@ async function AddPlaylist (songs){
           
           const response = await fetch(`${instance}/api/v1/videos/${song.url}`, {
             headers: {
-              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+              'Accept': 'application/json, text/plain, */*',
+              'Accept-Language': 'en-US,en;q=0.9',
+              'Cache-Control': 'no-cache',
+              'Pragma': 'no-cache',
+              'Sec-Fetch-Dest': 'empty',
+              'Sec-Fetch-Mode': 'cors',
+              'Sec-Fetch-Site': 'cross-site',
             },
             signal: controller.signal,
           });
@@ -185,7 +223,7 @@ async function AddPlaylist (songs){
           let audioUrl = null;
           // STRATEGY 1: formatStreams (proxied)
           if (data.formatStreams && data.formatStreams.length > 0) {
-            const lowQuality = data.formatStreams.filter(f => 
+            const lowQuality = data.formatStreams.filter(f =>
               f.resolution === '360p' || f.resolution === '240p'
             );
             audioUrl = lowQuality.length > 0 ? lowQuality[0].url : data.formatStreams[0].url;
@@ -219,13 +257,13 @@ async function AddPlaylist (songs){
           }
           
           if (audioUrl) {
-            return { 
-              ...song, 
+            return {
+              ...song,
               url: audioUrl,
               headers: {
                 'User-Agent': 'Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 Mobile Safari/537.36',
                 'Accept': '*/*',
-              }
+              },
             };
           }
         } catch (error) {
@@ -241,6 +279,8 @@ async function AddPlaylist (songs){
 }
 
 async function AddSongsToQueue(songs){
+  await ensurePlayerInitialized();
+  
   if (!songs || !Array.isArray(songs)) {
       return;
   }
@@ -254,9 +294,6 @@ async function AddSongsToQueue(songs){
   
   const instances = [
     'https://yt.omada.cafe',
-    'https://yewtu.be',
-    'https://inv.nadeko.net',
-    'https://invidious.nerdvpn.de',
     'https://inv.perditum.com',
   ];
   
@@ -272,7 +309,14 @@ async function AddSongsToQueue(songs){
           try {
             const proxiedResponse = await fetch(`${instance}/api/v1/videos/${song.url}?local=true`, {
               headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+                'Accept': 'application/json, text/plain, */*',
+                'Accept-Language': 'en-US,en;q=0.9',
+                'Cache-Control': 'no-cache',
+                'Pragma': 'no-cache',
+                'Sec-Fetch-Dest': 'empty',
+                'Sec-Fetch-Mode': 'cors',
+                'Sec-Fetch-Site': 'cross-site',
               },
               signal: controller.signal,
             });
@@ -283,7 +327,7 @@ async function AddSongsToQueue(songs){
               const proxiedData = await proxiedResponse.json();
               
               if (proxiedData.formatStreams && proxiedData.formatStreams.length > 0) {
-                const lowQuality = proxiedData.formatStreams.filter(f => 
+                const lowQuality = proxiedData.formatStreams.filter(f =>
                   f.resolution === '360p' || f.resolution === '240p'
                 );
                 audioUrl = lowQuality.length > 0 ? lowQuality[0].url : proxiedData.formatStreams[0].url;
@@ -306,7 +350,14 @@ async function AddSongsToQueue(songs){
           if (!audioUrl) {
             const response = await fetch(`${instance}/api/v1/videos/${song.url}`, {
               headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+                'Accept': 'application/json, text/plain, */*',
+                'Accept-Language': 'en-US,en;q=0.9',
+                'Cache-Control': 'no-cache',
+                'Pragma': 'no-cache',
+                'Sec-Fetch-Dest': 'empty',
+                'Sec-Fetch-Mode': 'cors',
+                'Sec-Fetch-Site': 'cross-site',
               },
               signal: controller.signal,
             });
@@ -314,7 +365,7 @@ async function AddSongsToQueue(songs){
             const data = await response.json();
             
             if (data.formatStreams && data.formatStreams.length > 0) {
-              const lowQuality = data.formatStreams.filter(f => 
+              const lowQuality = data.formatStreams.filter(f =>
                 f.resolution === '360p' || f.resolution === '240p'
               );
               audioUrl = lowQuality.length > 0 ? lowQuality[0].url : data.formatStreams[0].url;
@@ -331,13 +382,13 @@ async function AddSongsToQueue(songs){
           }
           
           if (audioUrl) {
-            return { 
-              ...song, 
+            return {
+              ...song,
               url: audioUrl,
               headers: {
                 'User-Agent': 'Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 Mobile Safari/537.36',
                 'Accept': '*/*',
-              }
+              },
             };
           }
         } catch (error) {
@@ -350,30 +401,37 @@ async function AddSongsToQueue(songs){
   await TrackPlayer.add(processedSongs);
 }
 async function PlaySong(){
+  await ensurePlayerInitialized();
   await TrackPlayer.play();
 }
 async function PauseSong(){
+  await ensurePlayerInitialized();
   await TrackPlayer.pause();
 }
 
 async function SetProgressSong(value){
+  await ensurePlayerInitialized();
   await TrackPlayer.seekTo(value);
 }
 
 async function PlayNextSong(){
+  await ensurePlayerInitialized();
   await TrackPlayer.skipToNext();
   PlaySong()
 }
 
 async function PlayPreviousSong(){
+  await ensurePlayerInitialized();
   await TrackPlayer.skipToPrevious();
   PlaySong()
 }
 async function SkipToTrack(trackIndex){
+  await ensurePlayerInitialized();
   await TrackPlayer.skip(trackIndex);
   await PlaySong()
 }
 async function SetRepeatMode(mode){
+  await ensurePlayerInitialized();
   await TrackPlayer.setRepeatMode(mode)
 }
 
@@ -399,6 +457,7 @@ export {PlayOneSong, PlaySong, PauseSong, SetProgressSong, PlayNextSong, AddPlay
 
 // Build a fresh queue from a song id + related songs, then play
 export async function PlaySongWithRelated(id, fallbackImage, songInfo = null) {
+  await ensurePlayerInitialized();
   
   // Check if this is a YouTube video ID (11 chars, alphanumeric with - and _)
   const isYouTubeId = /^[a-zA-Z0-9_-]{11}$/.test(id);
@@ -425,7 +484,9 @@ export async function PlaySongWithRelated(id, fallbackImage, songInfo = null) {
       getRecommendedSongs(id).catch(() => ({ data: [] })),
     ]);
     const songObj = songData?.data?.[0];
-    if (!songObj) throw new Error('Song not found');
+    if (!songObj) {
+      throw new Error('Song not found');
+    }
     const mainSong = {
       url: songObj.downloadUrl?.[quality]?.url || songObj.downloadUrl?.[0]?.url,
       title: songObj.name,
@@ -476,7 +537,9 @@ export async function PlaySongWithRelated(id, fallbackImage, songInfo = null) {
       const songData = await getSongData(id);
       const quality = await getIndexQuality();
       const songObj = songData?.data?.[0];
-      if (!songObj) return;
+      if (!songObj) {
+        return;
+      }
       await PlayOneSong({
         url: songObj.downloadUrl?.[quality]?.url || songObj.downloadUrl?.[0]?.url,
         title: songObj.name,

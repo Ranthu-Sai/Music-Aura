@@ -1,15 +1,25 @@
 /* eslint-disable keyword-spacing */
-import React, { useState } from 'react'
-import { Dimensions, FlatList, View, TouchableOpacity, Text } from 'react-native'
+import React, { useState, useRef, useEffect } from 'react'
+import { Dimensions, FlatList, View, TouchableOpacity, Text, Animated } from 'react-native'
 import { EachSongCard } from '../Global/EachSongCard'
 import { getSearchSongData } from '../../Api/Songs'
 import { LoadingComponent } from '../Global/Loading'
 import { PlainText } from '../Global/PlainText'
 import { SmallText } from '../Global/SmallText'
 
-export default function SongDisplay({data, limit, Searchtext, loadMore, hasMore}) {
+export default function SongDisplay({data, limit, Searchtext, loadMore, hasMore, loadingMore}) {
   const Data = data
   const width = Dimensions.get("window").width
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    fadeAnim.setValue(0);
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
+  }, [Data, fadeAnim]);
 
   function FormatArtist(data){
     let artist = ""
@@ -42,21 +52,24 @@ export default function SongDisplay({data, limit, Searchtext, loadMore, hasMore}
   }
 
   return (
-     <View>
-      {Data?.data?.results?.length !== 0 && <FlatList showsVerticalScrollIndicator={false} scrollEnabled={true} keyExtractor={(item, index) => `${item?.id}_${index}`} contentContainerStyle={{
-        paddingBottom:300,
-      }} data={Data?.data?.results ?? []} renderItem={renderSongItem}/>}
-      {hasMore && (
-        <TouchableOpacity onPress={loadMore} style={{
-          alignSelf: 'center',
-          padding: 10,
-          backgroundColor: '#007bff',
-          borderRadius: 5,
-          marginTop: 10,
-        }}>
-          <Text style={{color: 'white', fontSize: 16}}>Load More</Text>
-        </TouchableOpacity>
-      )}
+     <Animated.View style={{ opacity: fadeAnim }}>
+      {Data?.data?.results?.length !== 0 && <FlatList 
+        showsVerticalScrollIndicator={false} 
+        scrollEnabled={true} 
+        keyExtractor={(item, index) => `${item?.id}_${index}`} 
+        contentContainerStyle={{
+          paddingBottom:300,
+        }} 
+        data={Data?.data?.results ?? []} 
+        renderItem={renderSongItem}
+        onEndReached={hasMore ? loadMore : null}
+        onEndReachedThreshold={0.5}
+        ListFooterComponent={loadingMore ? (
+          <View style={{padding: 20, alignItems: 'center'}}>
+            <Text style={{color: 'white'}}>Loading more...</Text>
+          </View>
+        ) : null}
+      />}
       {Data?.data?.results?.length === 0 && <View style={{
         height:400,
         alignItems:"center",
@@ -65,7 +78,7 @@ export default function SongDisplay({data, limit, Searchtext, loadMore, hasMore}
         <PlainText text={"No Song found!"}/>
         <SmallText text={"Opps!  T_T"}/>
         </View> }
-     </View>
+     </Animated.View>
   )
 }
 

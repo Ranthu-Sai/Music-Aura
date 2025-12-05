@@ -6,7 +6,7 @@ import { useTheme } from "@react-navigation/native";
 function EachTabs({item,isActive,index,setActive}) {
     const theme = useTheme()
     const width = Dimensions.get('window').width
-    return <Pressable style={{padding:7, alignItems:"center"}} onPress={()=>{
+    return <Pressable style={{padding:3, alignItems:"center"}} onPress={()=>{
         setActive(index)
     }}>
         {!isActive &&   <View style={{
