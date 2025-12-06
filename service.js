@@ -7,7 +7,13 @@ export const PlaybackService = async function () {
     try {
       await TrackPlayer.setupPlayer({
         waitForBuffer: true,
-        autoHandleInterruptions: true, // Auto-handle audio focus
+        autoHandleInterruptions: true,
+        // Android-specific options for better streaming
+        androidAudioContentType: 'music',
+        androidAudioFocusMode: 'audiofocus_gain',
+        // iOS-specific options
+        iosCategory: 'playback',
+        iosCategoryMode: 'default',
       });
       playerInitialized = true;
     } catch (error) {

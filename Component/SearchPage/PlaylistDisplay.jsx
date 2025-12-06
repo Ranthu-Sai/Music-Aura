@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from 'react'
-import { Dimensions, FlatList, View, Animated, ActivityIndicator } from 'react-native'
+import { Dimensions, FlatList, View, ActivityIndicator } from 'react-native'
 import { EachPlaylistCard } from '../Global/EachPlaylistCard'
 import { PlainText } from '../Global/PlainText'
 import { SmallText } from '../Global/SmallText'
@@ -7,20 +7,10 @@ import { SmallText } from '../Global/SmallText'
 export default function PlaylistDisplay({ data, limit, Searchtext, loadMore, hasMore, loadingMore }) {
   const Data = data
   const flatListRef = useRef(null);
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    fadeAnim.setValue(0);
-    Animated.timing(fadeAnim, {
-      toValue: 1,
-      duration: 300,
-      useNativeDriver: true,
-    }).start();
-  }, [Data, fadeAnim]);
 
   const width = Dimensions.get("window").width
   return (
-    <Animated.View style={{ opacity: fadeAnim }}>
+    <View>
       {Data?.data?.results?.length !== 0 && <FlatList
         ref={flatListRef}
         showsVerticalScrollIndicator={false}
@@ -68,6 +58,6 @@ export default function PlaylistDisplay({ data, limit, Searchtext, loadMore, has
         <PlainText text={"No Playlist found!"} />
         <SmallText text={"Opps!  T_T"} />
       </View>}
-    </Animated.View>
+    </View>
   )
 }

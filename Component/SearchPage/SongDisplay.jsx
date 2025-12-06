@@ -1,6 +1,6 @@
 /* eslint-disable keyword-spacing */
 import React, { useState, useRef, useEffect } from 'react'
-import { Dimensions, FlatList, View, TouchableOpacity, Text, Animated, ActivityIndicator } from 'react-native'
+import { Dimensions, FlatList, View, TouchableOpacity, Text, ActivityIndicator } from 'react-native'
 import { EachSongCard } from '../Global/EachSongCard'
 import { getSearchSongData } from '../../Api/Songs'
 import { LoadingComponent } from '../Global/Loading'
@@ -10,16 +10,6 @@ import { SmallText } from '../Global/SmallText'
 export default function SongDisplay({ data, limit, Searchtext, loadMore, hasMore, loadingMore }) {
   const Data = data
   const width = Dimensions.get("window").width
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    fadeAnim.setValue(0);
-    Animated.timing(fadeAnim, {
-      toValue: 1,
-      duration: 300,
-      useNativeDriver: true,
-    }).start();
-  }, [Data, fadeAnim]);
 
   function FormatArtist(data) {
     let artist = ""
@@ -52,7 +42,7 @@ export default function SongDisplay({ data, limit, Searchtext, loadMore, hasMore
   }
 
   return (
-    <Animated.View style={{ opacity: fadeAnim }}>
+    <View>
       {Data?.data?.results?.length !== 0 && <FlatList
         showsVerticalScrollIndicator={false}
         scrollEnabled={true}
@@ -78,7 +68,7 @@ export default function SongDisplay({ data, limit, Searchtext, loadMore, hasMore
         <PlainText text={"No Song found!"} />
         <SmallText text={"Opps!  T_T"} />
       </View>}
-    </Animated.View>
+    </View>
   )
 }
 

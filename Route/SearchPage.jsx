@@ -63,7 +63,13 @@ export const SearchPage = ({ navigation }) => {
 
         // Check if data is valid
         if (data && data.data && Array.isArray(data.data.results)) {
-          if (append) {
+          // Check if results are empty - stop loading immediately for YT Music and YouTube
+          if (data.data.results.length === 0) {
+            if (!append) {
+              setData({ data: { results: [] } })
+            }
+            setHasMore(false)
+          } else if (append) {
             // Filter out duplicates based on song ID
             const existingIds = new Set((Data?.data?.results || []).map(item => item.id));
             const newUniqueResults = data.data.results.filter(item => !existingIds.has(item.id));

@@ -1,6 +1,6 @@
 /* eslint-disable keyword-spacing */
 import React, { useState, useRef, useEffect } from 'react'
-import { Dimensions, FlatList, ScrollView, View, Animated, ActivityIndicator } from 'react-native'
+import { Dimensions, FlatList, ScrollView, View, ActivityIndicator } from 'react-native'
 import { LoadingComponent } from '../Global/Loading'
 import { PlainText } from '../Global/PlainText'
 import { SmallText } from '../Global/SmallText'
@@ -9,16 +9,6 @@ import { getSearchAlbumData } from '../../Api/Album'
 
 export default function AlbumsDisplay({ data, limit, Searchtext, loadMore, hasMore, loadingMore }) {
   const Data = data
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    fadeAnim.setValue(0);
-    Animated.timing(fadeAnim, {
-      toValue: 1,
-      duration: 300,
-      useNativeDriver: true,
-    }).start();
-  }, [Data, fadeAnim]);
 
   function FormatArtist(data) {
     let artist = ""
@@ -34,7 +24,7 @@ export default function AlbumsDisplay({ data, limit, Searchtext, loadMore, hasMo
   const width = Dimensions.get("window").width
   const itemWidth = (width - 40) / 2; // 20 padding on sides, 20 gap between
   return (
-    <Animated.View style={{ opacity: fadeAnim }}>
+    <View>
       {Data?.data?.results?.length !== 0 && <FlatList
         showsVerticalScrollIndicator={false}
         numColumns={2}
@@ -66,6 +56,6 @@ export default function AlbumsDisplay({ data, limit, Searchtext, loadMore, hasMo
         <PlainText text={"No Album found!"} />
         <SmallText text={"Opps!  T_T"} />
       </View>}
-    </Animated.View>
+    </View>
   )
 }

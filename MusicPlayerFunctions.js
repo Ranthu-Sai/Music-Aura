@@ -13,6 +13,12 @@ async function ensurePlayerInitialized() {
       await TrackPlayer.setupPlayer({
         waitForBuffer: true,
         autoHandleInterruptions: true,
+        // Android-specific options for better streaming
+        androidAudioContentType: 'music',
+        androidAudioFocusMode: 'audiofocus_gain',
+        // iOS-specific options
+        iosCategory: 'playback',
+        iosCategoryMode: 'default',
       });
       playerInitialized = true;
     } catch (error) {
