@@ -2,7 +2,7 @@ import TrackPlayer, { Capability, Event } from "react-native-track-player";
 
 let playerInitialized = false;
 
-export const PlaybackService = async function() {
+export const PlaybackService = async function () {
   if (!playerInitialized) {
     try {
       await TrackPlayer.setupPlayer({
@@ -23,7 +23,7 @@ export const PlaybackService = async function() {
     TrackPlayer.addEventListener(Event.RemoteNext, () => TrackPlayer.skipToNext());
     TrackPlayer.addEventListener(Event.RemotePrevious, () => TrackPlayer.skipToPrevious());
     TrackPlayer.addEventListener(Event.RemoteSeek, (e) => TrackPlayer.seekTo(e.position));
-    
+
     // Handle audio focus interruptions from other apps
     TrackPlayer.addEventListener(Event.RemoteDuck, async (event) => {
       if (event.paused) {
@@ -37,13 +37,13 @@ export const PlaybackService = async function() {
         await TrackPlayer.setVolume(0.3);
       }
     });
-    
+
     // Resume when audio focus is regained
     TrackPlayer.addEventListener(Event.PlaybackQueueEnded, async (event) => {
       // Restore volume when interruption ends
       await TrackPlayer.setVolume(1.0);
     });
-    
+
     // Add playback error handler
     TrackPlayer.addEventListener(Event.PlaybackError, (error) => {
       // Error logged silently
