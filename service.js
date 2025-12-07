@@ -24,10 +24,65 @@ export const PlaybackService = async function () {
   }
 
   try {
+    // Debounce mechanism to prevent rapid successive skips
+    let lastSkipTime = 0;
+    const SKIP_DEBOUNCE_MS = 300; // Minimum time between skips
+
     TrackPlayer.addEventListener(Event.RemotePlay, () => TrackPlayer.play());
     TrackPlayer.addEventListener(Event.RemotePause, () => TrackPlayer.pause());
-    TrackPlayer.addEventListener(Event.RemoteNext, () => TrackPlayer.skipToNext());
-    TrackPlayer.addEventListener(Event.RemotePrevious, () => TrackPlayer.skipToPrevious());
+
+    TrackPlayer.addEventListener(Event.RemoteNext, async () => {
+      const now = Date.now();
+      if (now - lastSkipTime < SKIP_DEBOUNCE_MS) {
+        console.log('⏭️ Skip debounced - too fast');
+        return;
+      }
+      lastSkipTime = now;
+
+      try {
+        const queue = await TrackPlayer.getQueue();
+        const currentIndex = await TrackPlayer.getActiveTrackIndex();
+
+        if (!queue || queue.length === 0) {
+          console.warn('⚠️ Cannot skip: Queue is empty');
+          return;
+        }
+
+        if (currentIndex !== null && currentIndex < queue.length - 1) {
+          await TrackPlayer.skipToNext();
+          await TrackPlayer.play();
+        }
+      } catch (error) {
+        console.error('❌ Remote next error:', error);
+      }
+    });
+
+    TrackPlayer.addEventListener(Event.RemotePrevious, async () => {
+      const now = Date.now();
+      if (now - lastSkipTime < SKIP_DEBOUNCE_MS) {
+        console.log('⏮️ Skip back debounced - too fast');
+        return;
+      }
+      lastSkipTime = now;
+
+      try {
+        const queue = await TrackPlayer.getQueue();
+        const currentIndex = await TrackPlayer.getActiveTrackIndex();
+
+        if (!queue || queue.length === 0) {
+          console.warn('⚠️ Cannot skip back: Queue is empty');
+          return;
+        }
+
+        if (currentIndex !== null && currentIndex > 0) {
+          await TrackPlayer.skipToPrevious();
+          await TrackPlayer.play();
+        }
+      } catch (error) {
+        console.error('❌ Remote previous error:', error);
+      }
+    });
+
     TrackPlayer.addEventListener(Event.RemoteSeek, (e) => TrackPlayer.seekTo(e.position));
 
     // Handle audio focus interruptions from other apps

@@ -123,13 +123,52 @@ async function AddSongsToQueue(songs) {
   }
 
   // Filter out null/undefined songs and songs without required properties
-  const validSongs = songs.filter(song => song && song.id && song.url);
+  const validSongs = songs.filter(song => song && song.id && song.url && song.title);
 
   if (validSongs.length === 0) {
     return;
   }
 
-  const processedSongs = await Promise.all(validSongs.map(async (song) => {
+  // Get current queue to check for duplicates
+  const currentQueue = await TrackPlayer.getQueue();
+  const existingIds = new Set(currentQueue.filter(t => t && t.id).map(t => t.id));
+  const existingUrls = new Set(currentQueue.filter(t => t && t.url).map(t => t.url.split('?')[0]));
+  const existingSignatures = new Set(
+    currentQueue
+      .filter(t => t && t.title && t.artist)
+      .map(t => `${t.title.toLowerCase().trim()}-${t.artist.toLowerCase().trim()}`)
+  );
+
+  // Filter out duplicates before processing
+  const uniqueSongs = validSongs.filter(song => {
+    // Check ID
+    if (existingIds.has(song.id)) {
+      return false;
+    }
+
+    // Check URL
+    const normalizedUrl = song.url.split('?')[0];
+    if (existingUrls.has(normalizedUrl)) {
+      return false;
+    }
+
+    // Check title+artist signature
+    if (song.title && song.artist) {
+      const signature = `${song.title.toLowerCase().trim()}-${song.artist.toLowerCase().trim()}`;
+      if (existingSignatures.has(signature)) {
+        return false;
+      }
+    }
+
+    return true;
+  });
+
+  if (uniqueSongs.length === 0) {
+    console.log('📋 No new unique songs to add to queue');
+    return;
+  }
+
+  const processedSongs = await Promise.all(uniqueSongs.map(async (song) => {
     if (!song.url.startsWith('http')) {
       try {
         const streamData = await getYTMusicStreamUrl(song.url);
@@ -151,6 +190,7 @@ async function AddSongsToQueue(songs) {
 
   if (successfulSongs.length > 0) {
     await TrackPlayer.add(successfulSongs);
+    console.log(`✅ Added ${successfulSongs.length} unique songs to queue`);
   }
 }
 async function PlaySong() {
@@ -169,14 +209,130 @@ async function SetProgressSong(value) {
 
 async function PlayNextSong() {
   await ensurePlayerInitialized();
-  await TrackPlayer.skipToNext();
-  PlaySong()
+
+  try {
+    // Get current queue state
+    const queue = await TrackPlayer.getQueue();
+    const currentIndex = await TrackPlayer.getActiveTrackIndex();
+    const currentTrack = await TrackPlayer.getActiveTrack();
+
+    // Validate queue has songs
+    if (!queue || queue.length === 0) {
+      console.warn('⚠️ Cannot skip: Queue is empty');
+      return;
+    }
+
+    // Check if there's a next song
+    if (currentIndex === null || currentIndex === undefined) {
+      console.warn('⚠️ Cannot skip: No active track');
+      return;
+    }
+
+    if (currentIndex >= queue.length - 1) {
+      // At last song - check repeat mode
+      const repeatMode = await TrackPlayer.getRepeatMode();
+      if (repeatMode === 0) { // RepeatMode.Off
+        console.log('📍 At last song with repeat off');
+        return;
+      }
+      // RepeatMode.Queue or RepeatMode.Track will handle automatically
+    }
+
+    // Store current track ID to verify change
+    const currentTrackId = currentTrack?.id;
+
+    // Attempt to skip
+    await TrackPlayer.skipToNext();
+
+    // Verify track actually changed (with small delay for state update)
+    await new Promise(resolve => setTimeout(resolve, 100));
+
+    const newTrack = await TrackPlayer.getActiveTrack();
+    const newTrackId = newTrack?.id;
+
+    // If track didn't change and we're not on repeat track mode, something went wrong
+    if (currentTrackId === newTrackId && currentIndex < queue.length - 1) {
+      console.warn('⚠️ Track did not change after skip, retrying...');
+      // Retry once
+      await TrackPlayer.skipToNext();
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+
+    // Ensure playback starts
+    await PlaySong();
+
+  } catch (error) {
+    console.error('❌ Error in PlayNextSong:', error);
+    // Try to recover by just playing current track
+    try {
+      await PlaySong();
+    } catch (recoveryError) {
+      console.error('❌ Recovery failed:', recoveryError);
+    }
+  }
 }
 
 async function PlayPreviousSong() {
   await ensurePlayerInitialized();
-  await TrackPlayer.skipToPrevious();
-  PlaySong()
+
+  try {
+    // Get current queue state
+    const queue = await TrackPlayer.getQueue();
+    const currentIndex = await TrackPlayer.getActiveTrackIndex();
+    const currentTrack = await TrackPlayer.getActiveTrack();
+
+    // Validate queue has songs
+    if (!queue || queue.length === 0) {
+      console.warn('⚠️ Cannot skip back: Queue is empty');
+      return;
+    }
+
+    // Check if there's a previous song
+    if (currentIndex === null || currentIndex === undefined) {
+      console.warn('⚠️ Cannot skip back: No active track');
+      return;
+    }
+
+    if (currentIndex <= 0) {
+      // At first song - check repeat mode
+      const repeatMode = await TrackPlayer.getRepeatMode();
+      if (repeatMode === 0) { // RepeatMode.Off
+        console.log('📍 At first song with repeat off');
+        return;
+      }
+    }
+
+    // Store current track ID to verify change
+    const currentTrackId = currentTrack?.id;
+
+    // Attempt to skip
+    await TrackPlayer.skipToPrevious();
+
+    // Verify track actually changed (with small delay for state update)
+    await new Promise(resolve => setTimeout(resolve, 100));
+
+    const newTrack = await TrackPlayer.getActiveTrack();
+    const newTrackId = newTrack?.id;
+
+    // If track didn't change, retry once
+    if (currentTrackId === newTrackId && currentIndex > 0) {
+      console.warn('⚠️ Track did not change after skip back, retrying...');
+      await TrackPlayer.skipToPrevious();
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+
+    // Ensure playback starts
+    await PlaySong();
+
+  } catch (error) {
+    console.error('❌ Error in PlayPreviousSong:', error);
+    // Try to recover by just playing current track
+    try {
+      await PlaySong();
+    } catch (recoveryError) {
+      console.error('❌ Recovery failed:', recoveryError);
+    }
+  }
 }
 async function SkipToTrack(trackIndex) {
   await ensurePlayerInitialized();
@@ -209,13 +365,24 @@ async function getIndexQuality() {
 export { PlayOneSong, PlaySong, PauseSong, SetProgressSong, PlayNextSong, AddPlaylist, PlayPreviousSong, AddSongsToQueue, SkipToTrack, SetRepeatMode, getIndexQuality }
 
 // Build a fresh queue from a song id + related songs, then play
+// Utility function to shuffle array (Fisher-Yates algorithm)
+function shuffleArray(array) {
+  const shuffled = [...array];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+}
+
 export async function PlaySongWithRelated(id, fallbackImage, songInfo = null) {
   await ensurePlayerInitialized();
 
   // Check if this is a YouTube video ID (11 chars, alphanumeric with - and _)
   const isYouTubeId = /^[a-zA-Z0-9_-]{11}$/.test(id);
 
-  if (isYouTubeId) {    // For YouTube, play directly without fetching related (Invidious doesn't provide good related)
+  if (isYouTubeId) {
+    // For YouTube, play directly without fetching related (Invidious doesn't provide good related)
     await PlayOneSong({
       url: songInfo?.url || id, // Use provided URL or fallback to ID
       title: songInfo?.title || 'Loading...',
@@ -229,7 +396,7 @@ export async function PlaySongWithRelated(id, fallbackImage, songInfo = null) {
     return;
   }
 
-  // JioSaavn song handling (original code)
+  // JioSaavn song handling with enhanced queue building
   try {
     const [songData, quality, related] = await Promise.all([
       getSongData(id),
@@ -240,6 +407,7 @@ export async function PlaySongWithRelated(id, fallbackImage, songInfo = null) {
     if (!songObj) {
       throw new Error('Song not found');
     }
+
     const mainSong = {
       url: songObj.downloadUrl?.[quality]?.url || songObj.downloadUrl?.[0]?.url,
       title: songObj.name,
@@ -252,24 +420,68 @@ export async function PlaySongWithRelated(id, fallbackImage, songInfo = null) {
       image: songObj.image?.[2]?.url || fallbackImage,
       downloadUrl: songObj.downloadUrl,
     };
+
     const recs = Array.isArray(related?.data) ? related.data : [];
     const queue = [mainSong];
-    const seen = new Set([mainSong.id]);
-    for (const e of recs) {
+
+    // Enhanced duplicate detection with multiple criteria
+    const seenIds = new Set([mainSong.id]);
+    const seenUrls = new Set([mainSong.url?.split('?')[0]]);
+    const seenSignatures = new Set([
+      `${mainSong.title.toLowerCase().trim()}-${mainSong.artist.toLowerCase().trim()}`
+    ]);
+
+    // Shuffle recommended songs for variety
+    const shuffledRecs = shuffleArray(recs);
+
+    for (const e of shuffledRecs) {
       try {
         const rid = e.id || e?.more_info?.id || e?.songid;
-        if (!rid || seen.has(rid)) {
+        if (!rid) {
           continue;
         }
+
+        // Check ID duplicate
+        if (seenIds.has(rid)) {
+          continue;
+        }
+
         const rimg = e?.image?.[2]?.url || e?.image?.[2]?.link || e?.image?.[0]?.url || fallbackImage;
         const rdl = e?.downloadUrl || e?.more_info?.downloadUrl;
+
         if (!Array.isArray(rdl) || !rdl[quality]) {
           continue;
         }
+
+        const songUrl = rdl[quality].url;
+        const normalizedUrl = songUrl?.split('?')[0];
+
+        // Check URL duplicate
+        if (normalizedUrl && seenUrls.has(normalizedUrl)) {
+          continue;
+        }
+
+        const songTitle = e?.name || e?.title || "";
+        const songArtist = (e?.artists?.primary || []).map(a => a.name).join(', ');
+
+        // Check title+artist duplicate (fuzzy matching)
+        if (songTitle && songArtist) {
+          const signature = `${songTitle.toLowerCase().trim()}-${songArtist.toLowerCase().trim()}`;
+          if (seenSignatures.has(signature)) {
+            continue;
+          }
+          seenSignatures.add(signature);
+        }
+
+        // Validate required fields
+        if (!songTitle || !songUrl) {
+          continue;
+        }
+
         queue.push({
-          url: rdl[quality].url,
-          title: e?.name || e?.title || "",
-          artist: (e?.artists?.primary || []).map(a => a.name).join(', '),
+          url: songUrl,
+          title: songTitle,
+          artist: songArtist,
           artwork: rimg,
           duration: e?.duration,
           id: rid,
@@ -278,11 +490,22 @@ export async function PlaySongWithRelated(id, fallbackImage, songInfo = null) {
           image: rimg,
           downloadUrl: rdl,
         });
-        seen.add(rid);
+
+        seenIds.add(rid);
+        if (normalizedUrl) {
+          seenUrls.add(normalizedUrl);
+        }
+
+        // Limit initial queue to prevent overwhelming (will auto-grow via ContextState)
+        if (queue.length >= 30) {
+          break;
+        }
       } catch (_) {
         // skip malformed
       }
     }
+
+    console.log(`🎵 Built queue with ${queue.length} unique songs (1 main + ${queue.length - 1} related)`);
     await AddPlaylist(queue);
   } catch (e) {
     // fallback to just attempting to play id if related or details failed
@@ -310,6 +533,7 @@ export async function PlaySongWithRelated(id, fallbackImage, songInfo = null) {
     }
   }
 }
+
 
 
 

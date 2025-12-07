@@ -105,7 +105,7 @@ const ContextState = (props) => {
         }
     }, [Queue]);
     const recommendedProcessedRef = useRef(new Set());
-    const MIN_QUEUE_SIZE = 50; // Initial target, but will keep growing
+    const MIN_QUEUE_SIZE = 100; // Larger queue for unlimited smooth playback
 
     // Helper to detect if a song ID is from YouTube Music (11 chars alphanumeric)
     const isYouTubeId = (id) => {
@@ -138,10 +138,52 @@ const ContextState = (props) => {
                 const songData = songs?.data?.results || songs?.data;
 
                 if (songData?.length) {
-                    const existingIds = tracks.filter(t => t && t.id).map(t => t.id);
+                    // Build comprehensive duplicate detection sets
+                    const existingIds = new Set();
+                    const existingUrls = new Set();
+                    const existingTitles = new Set();
+
+                    // Scan entire queue for duplicates
+                    tracks.forEach(t => {
+                        if (t && t.id) {
+                            existingIds.add(t.id);
+                        }
+                        if (t && t.url) {
+                            // Normalize URL by removing query params for better matching
+                            const normalizedUrl = t.url.split('?')[0];
+                            existingUrls.add(normalizedUrl);
+                        }
+                        if (t && t.title && t.artist) {
+                            // Create normalized signature for fuzzy matching
+                            const signature = `${t.title.toLowerCase().trim()}-${t.artist.toLowerCase().trim()}`;
+                            existingTitles.add(signature);
+                        }
+                    });
+
                     const ForMusicPlayer = songData
                         .filter(song => {
-                            if (!song || !song.id || existingIds.includes(song.id)) return false;
+                            if (!song || !song.id) return false;
+
+                            // Check ID duplicates
+                            if (existingIds.has(song.id)) {
+                                return false;
+                            }
+
+                            // Check URL duplicates
+                            const songUrl = song.downloadUrl?.[3]?.url || song.downloadUrl?.[0]?.url || song.id;
+                            const normalizedSongUrl = songUrl.split('?')[0];
+                            if (existingUrls.has(normalizedSongUrl)) {
+                                return false;
+                            }
+
+                            // Check title+artist duplicates (fuzzy matching)
+                            if (song.name && song.artists?.primary) {
+                                const artistName = FormatArtist(song.artists.primary)?.toString() || '';
+                                const signature = `${song.name.toLowerCase().trim()}-${artistName.toLowerCase().trim()}`;
+                                if (existingTitles.has(signature)) {
+                                    return false;
+                                }
+                            }
 
                             // If user has selected a language, only include songs in that language
                             // For YouTube Music, skip language filtering as it doesn't have reliable language tags
@@ -166,7 +208,20 @@ const ContextState = (props) => {
                             id: e.id,
                             language: e.language || 'en',
                         }))
-                        .filter(song => song.id && song.url); // Final safety check
+                        .filter(song => {
+                            // Final validation: ensure all required fields exist
+                            if (!song.id || !song.url || !song.title) {
+                                return false;
+                            }
+
+                            // Double-check no duplicates slipped through
+                            if (existingIds.has(song.id)) {
+                                return false;
+                            }
+
+                            return true;
+                        });
+
                     if (ForMusicPlayer.length > 0) {
                         // Add 1 second delay before adding songs to queue
                         await new Promise(resolve => setTimeout(resolve, 1000));
@@ -277,10 +332,20 @@ const ContextState = (props) => {
     });
     const InitialSetup = useCallback(async () => {
         try {
+            console.log('🚀 Starting app initialization...');
+
             // Only perform player setup once; subsequent calls just sync queue/state
             if (!hasSetupRef.current) {
-                try { await TrackPlayer.setupPlayer(); } catch (_) { }
-                try { await SetRepeatMode(RepeatMode.Queue); } catch (_) { }
+                try {
+                    await TrackPlayer.setupPlayer();
+                    console.log('✅ TrackPlayer setup complete');
+                } catch (_) {
+                    console.warn('⚠️ TrackPlayer already initialized');
+                }
+                try {
+                    await SetRepeatMode(RepeatMode.Queue);
+                    console.log('✅ Repeat mode set to Queue');
+                } catch (_) { }
                 hasSetupRef.current = true;
             }
 
@@ -288,28 +353,47 @@ const ContextState = (props) => {
             let song = null;
             try {
                 song = await TrackPlayer.getActiveTrack();
+                if (song && song.id) {
+                    console.log('✅ Found active track:', song.title);
+                }
             } catch (_) { }
 
             // If no active track, try to restore from saved last song
             if (!song || !song.id) {
+                console.log('📍 No active track, attempting to restore last song...');
                 const lastSong = await GetLastSong();
+
                 if (lastSong && lastSong.id) {
                     try {
+                        console.log('🔄 Restoring last song:', lastSong.title);
+
                         // Reset player and add the last song
                         await TrackPlayer.reset();
                         await TrackPlayer.add([lastSong]);
+
+                        // CRITICAL: Skip to track 0 to make it the active track
+                        // This ensures useActiveTrack() hook picks it up in MinimizedMusic
+                        await TrackPlayer.skip(0);
+
+                        // Update state immediately to show in mini player
                         song = lastSong;
                         setCurrentPlaying(lastSong);
                         setIndex(0);
 
+                        console.log('✅ Last song restored and set as active track');
+
                         // Auto-fill queue with recommended songs
+                        console.log('🎵 Auto-filling queue with recommendations...');
                         await AddRecommendedSongs(0, song.id, true);
                     } catch (e) {
-                        // Error restoring last song
+                        console.error('❌ Error restoring last song:', e);
                     }
+                } else {
+                    console.log('📍 No last song to restore');
                 }
             } else {
                 // Update current playing if there's already an active track
+                console.log('✅ Using existing active track');
                 setCurrentPlaying(song);
             }
 
@@ -320,12 +404,17 @@ const ContextState = (props) => {
                 setIndex(0);
                 // Auto-fill queue to minimum size on startup
                 const tracks = await TrackPlayer.getQueue();
+                console.log(`📋 Current queue size: ${tracks.length} songs`);
+
                 if (tracks.length < MIN_QUEUE_SIZE) {
+                    console.log(`🎵 Queue below minimum (${MIN_QUEUE_SIZE}), adding more songs...`);
                     await AddRecommendedSongs(0, song.id, true);
                 }
             }
+
+            console.log('✅ App initialization complete');
         } catch (error) {
-            // Error silently handled
+            console.error('❌ Error during initialization:', error);
         }
     }, [updateTrack, setIndex]);
     const getCurrentSong = useCallback(async () => {
