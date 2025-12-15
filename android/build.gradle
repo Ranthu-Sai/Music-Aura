@@ -11,12 +11,32 @@ buildscript {
     repositories {
         google()
         mavenCentral()
+        maven { url 'https://jitpack.io' }
     }
     dependencies {
         classpath("com.android.tools.build:gradle:$androidGradlePluginVersion")
         classpath("com.facebook.react:react-native-gradle-plugin")
         classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion") // Use the variable for Kotlin version
+        classpath("org.jetbrains.kotlin:kotlin-serialization:$kotlinVersion")
+        classpath 'com.google.gms:google-services:4.4.0'
     }
 }
 
 apply plugin: "com.facebook.react.rootproject"
+
+// Exclude problematic packages for all subprojects
+allprojects {
+    repositories {
+        maven { url 'https://www.jitpack.io' }
+        maven {
+            // All of React Native (JS, Obj-C sources, Android binaries) is installed from npm
+            url("$rootDir/../node_modules/react-native/android")
+        }
+        maven {
+            // Android JSC is installed from npm
+            url("$rootDir/../node_modules/jsc-android/dist")
+        }
+        google()
+        mavenCentral()
+    }
+}

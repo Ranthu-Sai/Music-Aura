@@ -92,15 +92,12 @@ async function GetLastSong() {
 
       // Validate song object has required fields
       if (song && song.id && song.title && song.url) {
-        console.log('✅ Retrieved last song:', song.title);
         return song;
       } else {
-        console.warn('⚠️ Last song data invalid, clearing...');
         await AsyncStorage.removeItem('LastSong');
         return null;
       }
     } else {
-      console.log('📍 No last song found');
       return null;
     }
   } catch (e) {
@@ -139,7 +136,6 @@ async function SetLastSong(song) {
 
     const jsonValue = JSON.stringify(songToSave);
     await AsyncStorage.setItem('LastSong', jsonValue);
-    console.log('💾 Saved last song:', songToSave.title);
     return true;
   } catch (e) {
     console.error('❌ Error saving last song:', e);

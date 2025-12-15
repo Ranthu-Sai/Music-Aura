@@ -7,15 +7,33 @@ import { View, TouchableOpacity, StyleSheet } from "react-native";
 import Octicons from "react-native-vector-icons/Octicons";
 import AntDesign from "react-native-vector-icons/AntDesign";
 
-const QueueBottomSheet = () => {
+const QueueBottomSheet = React.forwardRef((props, ref) => {
   const backgroundColor = 'rgba(5,5,5,0.76)'
   const bottomSheetRef = useRef(null);
   const [index, setIndex] = useState(0);
   
   const handleClose = () => {
-    bottomSheetRef.current?.snapToIndex(0);
-    setIndex(0);
+    if (bottomSheetRef.current) {
+      bottomSheetRef.current.snapToIndex(0);
+      setIndex(0);
+    }
   };
+
+  const handleOpen = () => {
+    // Add a small delay to ensure BottomSheet is ready
+    setTimeout(() => {
+      if (bottomSheetRef.current) {
+        bottomSheetRef.current.snapToIndex(1);
+        setIndex(1);
+      }
+    }, 100);
+  };
+
+  // Expose methods to parent component
+  React.useImperativeHandle(ref, () => ({
+    open: handleOpen,
+    close: handleClose,
+  }));
 
   return (
       <BottomSheet
@@ -53,7 +71,7 @@ const QueueBottomSheet = () => {
         <QueueRenderSongs/>
       </BottomSheet>
   );
-};
+});
 
 const styles = StyleSheet.create({
   headerContainer: {

@@ -1,28 +1,87 @@
 /**
  * @format
  */
+// Silence noisy console logs only in production; keep logs in development for debugging
+if (!__DEV__) {
+  (() => {
+    const NOOP = () => { };
+    // Keep warnings/errors intact; silence normal logs and debug/info
+    console.log = NOOP;
+    console.info = NOOP;
+    console.debug = NOOP;
+  })();
+}
+
 import 'react-native-reanimated';
 import 'react-native-gesture-handler';
-import { AppRegistry, LogBox } from 'react-native';
+import { AppRegistry, LogBox, Alert } from 'react-native';
 import App from './App';
 import { name as appName } from './app.json';
 import TrackPlayer from "react-native-track-player";
 import { PlaybackService } from "./service";
+import { CacheManager } from './Utils/NavigationCacheManager';
+import smartPrefetchManager from './Utils/SmartPrefetchManager';
+
+// Clear stream cache on app startup to remove any invalid cached URLs
+// This is especially important after fixing the StreamModule to ensure
+// fresh URLs are fetched using the corrected code
+try {
+  CacheManager.clearStreamCache();
+  smartPrefetchManager.clearCache();
+  console.log('✅ Stream cache cleared on app startup');
+} catch (e) {
+  console.warn('Failed to clear stream cache:', e);
+}
 
 // Ignore specific warnings
 LogBox.ignoreLogs([
   'Non-serializable values were found in the navigation state',
 ]);
 
-// Global error handler
-const defaultErrorHandler = ErrorUtils.getGlobalHandler();
+// Global error handler — capture uncaught exceptions and prevent app from exiting
+const defaultErrorHandler = ErrorUtils.getGlobalHandler && ErrorUtils.getGlobalHandler();
 const errorHandler = (error, isFatal) => {
-  if (isFatal) {
-    console.error('Fatal error:', error);
+  try {
+    console.error('Global caught error:', error, 'isFatal:', isFatal);
+    // Optional: send to remote logging here
+    if (isFatal) {
+      // Show a simple alert to the user but DO NOT rethrow to avoid killing the app
+      try {
+        Alert.alert('Unexpected error', 'An unexpected error occurred. The app will try to continue.', [
+          { text: 'OK' }
+        ]);
+      } catch (aErr) {
+        // ignore alert failures
+      }
+    }
+  } catch (logErr) {
+    // ignore logging failure
   }
-  defaultErrorHandler(error, isFatal);
+  // Do not call the default handler for fatal errors to avoid process termination
+  if (!isFatal && typeof defaultErrorHandler === 'function') {
+    try {
+      defaultErrorHandler(error, isFatal);
+    } catch (_) {
+      // swallow
+    }
+  }
 };
 ErrorUtils.setGlobalHandler(errorHandler);
+
+// Catch unhandled promise rejections where supported
+try {
+  if (typeof global !== 'undefined' && typeof global.addEventListener === 'function') {
+    global.addEventListener('unhandledrejection', (evt) => {
+      try {
+        console.error('Unhandled promise rejection:', evt.reason || evt);
+        // prevent default behavior
+        if (evt && typeof evt.preventDefault === 'function') {
+          evt.preventDefault();
+        }
+      } catch (e) { }
+    });
+  }
+} catch (e) { }
 
 // Register the playback service
 TrackPlayer.registerPlaybackService(() => PlaybackService);

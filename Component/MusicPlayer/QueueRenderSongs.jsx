@@ -6,7 +6,7 @@ import Context from "../../Context/Context";
 import { ActivityIndicator, View } from "react-native";
 
 export const QueueRenderSongs = memo(function QueueRenderSongs({Index}) {
-  const { Queue, ensureMinimumQueue } = useContext(Context)
+  const { Queue, ensureMinimumQueue, Index: currentIndex } = useContext(Context)
   const [displayedSongs, setDisplayedSongs] = useState([])
   const [page, setPage] = useState(1)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
@@ -21,14 +21,19 @@ export const QueueRenderSongs = memo(function QueueRenderSongs({Index}) {
     }
   }, [ensureMinimumQueue]);
 
-  // Initialize with first 50 songs
+  // Initialize with songs including current playing position
   useEffect(() => {
     if (Queue && Queue.length > 0) {
-      const initial = Queue.slice(0, SONGS_PER_PAGE)
-      setDisplayedSongs(initial)
-      setPage(1)
+      // Ensure current playing song is visible by loading enough songs
+      const currentPlayingIndex = currentIndex || 0;
+      const minSongsToShow = Math.max(SONGS_PER_PAGE, currentPlayingIndex + 10); // Show at least current + 10 more
+      const songsToShow = Math.min(Queue.length, minSongsToShow);
+      
+      const initial = Queue.slice(0, songsToShow);
+      setDisplayedSongs(initial);
+      setPage(Math.ceil(songsToShow / SONGS_PER_PAGE));
     }
-  }, [Queue])
+  }, [Queue, currentIndex]);
 
   // Load next 50 songs when user scrolls near the end
   const loadMoreSongs = () => {
@@ -37,16 +42,15 @@ export const QueueRenderSongs = memo(function QueueRenderSongs({Index}) {
     }
 
     setIsLoadingMore(true)
-    const nextPage = page + 1
-    const startIndex = page * SONGS_PER_PAGE
-    const endIndex = startIndex + SONGS_PER_PAGE
-    const newSongs = Queue.slice(startIndex, endIndex)
+    const startIndex = displayedSongs.length;
+    const endIndex = Math.min(Queue.length, startIndex + SONGS_PER_PAGE);
+    const newSongs = Queue.slice(startIndex, endIndex);
 
     if (newSongs.length > 0) {
-      setDisplayedSongs(prev => [...prev, ...newSongs])
-      setPage(nextPage)
+      setDisplayedSongs(prev => [...prev, ...newSongs]);
+      setPage(prev => prev + 1);
     }
-    setIsLoadingMore(false)
+    setIsLoadingMore(false);
   }
 
   const renderFooter = () => {
@@ -62,7 +66,9 @@ export const QueueRenderSongs = memo(function QueueRenderSongs({Index}) {
     contentContainerStyle={{paddingHorizontal:20, paddingBottom:100, paddingRight:60}}
     data={displayedSongs}
     keyExtractor={(item, index) => `${item?.id?.toString()}-${index}`}
-    renderItem={(item)=><EachSongQueue title={item.item.title}  artist={item.item.artist} id={item.item.id} index={item.index} image={item.item.artwork}/>}
+    renderItem={(item)=>{
+      return <EachSongQueue title={item.item.title} artist={item.item.artist} id={item.item.id} index={item.index} image={item.item.artwork}/>
+    }}
     onEndReached={loadMoreSongs}
     onEndReachedThreshold={0.5}
     ListFooterComponent={renderFooter}

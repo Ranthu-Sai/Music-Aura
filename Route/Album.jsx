@@ -79,14 +79,13 @@ export const Album = ({route}) => {
             paddingBottom:80,
             backgroundColor:"#101010",
           }}>
-            <PlaylistTopHeader AnimatedRef={AnimatedRef} url={headerImage} />
+            <PlaylistTopHeader url={headerImage} />
             <AlbumDetails name={Data?.data?.name ?? ""} liked={false} releaseData={Data?.data?.year ?? ""}  Data={Data}/>
             {<View style={{
               paddingHorizontal:10,
-              backgroundColor:"#101010",
               gap:7,
             }}>
-              {playableSongs.map((e,i)=><EachSongCard isFromPlaylist={true} Data={Data} index={i} artist={FormatArtist(e?.artists?.primary)} language={e?.language} playlist={true} artistID={e?.primary_artists_id} key={i} duration={e?.duration} image={e?.image?.[2]?.url} id={e?.id} width={"100%"} title={e?.name}  url={e?.downloadUrl || []} style={{
+              {playableSongs.map((e,i)=><EachSongCard isFromPlaylist={true} Data={Data} index={i} artist={FormatArtist(e?.artists?.primary)} language={e?.language} playlist={true} artistID={e?.primary_artists_id} key={i} duration={e?.duration} image={Array.isArray(e?.image) ? (e?.image[2]?.url || e?.image[1]?.url || e?.image[0]?.url || "") : (typeof e?.image === 'string' ? e?.image : "")} id={e?.id} width={"100%"} title={e?.name} albumName={Data?.data?.name} releaseDate={Data?.data?.year} url={e?.downloadUrl || []} style={{
                 marginBottom:15,
               }}/>)}
             </View>}

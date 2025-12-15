@@ -75,7 +75,7 @@ const themes = {
     },
 };
 const ContextState = (props) => {
-    const [Index, setIndex] = useState(0);
+    const [Index, setIndexState] = useState(0);
     const [QueueIndex, setQueueIndex] = useState(0);
     const [currentPlaying, setCurrentPlaying] = useState({})
     const [Repeat, setRepeat] = useState(Repeats.RepeatAll);
@@ -87,10 +87,20 @@ const ContextState = (props) => {
     const hasSetupRef = useRef(false);
     const wasPlayingBeforeInterruption = useRef(false); // Track if we were playing before interruption
 
+    // Safe setIndex function to prevent invalid snap point indices
+    const setIndex = useCallback((index) => {
+        if (typeof index === 'number' && index >= 0 && index <= 1) {
+            setIndexState(index);
+        } else {
+            console.warn('Invalid index provided to setIndex:', index, 'expected 0 or 1');
+        }
+    }, []);
+
     const currentThemeColors = useMemo(() => themes[theme] || themes.Dark, [theme]);
 
     const [Queue, setQueue] = useState([]);
     const lyricsCacheRef = useRef({});
+    const [queueVisible, setQueueVisible] = useState(false);
     const updateTrack = useCallback(async () => {
         try {
             const tracks = await TrackPlayer.getQueue();
@@ -106,6 +116,9 @@ const ContextState = (props) => {
     }, [Queue]);
     const recommendedProcessedRef = useRef(new Set());
     const MIN_QUEUE_SIZE = 100; // Larger queue for unlimited smooth playback
+    // Playback error circuit breaker
+    let lastPlaybackErrorTime = 0;
+    let playbackErrorCount = 0;
 
     // Helper to detect if a song ID is from YouTube Music (11 chars alphanumeric)
     const isYouTubeId = (id) => {
@@ -244,32 +257,72 @@ const ContextState = (props) => {
 
     useTrackPlayerEvents(events, async (event) => {
         if (event.type === Event.PlaybackError) {
-            console.warn('An error occured while playing the current track.');
+            const now = Date.now();
 
-            // Auto-retry: Get fresh stream URL and retry playback
+            // Simple rate-limiting / circuit breaker: avoid repeated retries
+            if (now - lastPlaybackErrorTime > 5000) {
+                playbackErrorCount = 0;
+            }
+            lastPlaybackErrorTime = now;
+            playbackErrorCount++;
+
+            if (playbackErrorCount > 3) {
+                console.error('PlaybackError circuit breaker tripped — skipping track to prevent loop.');
+                try { await TrackPlayer.skipToNext(); } catch (_) { }
+                playbackErrorCount = 0;
+                return;
+            }
+
+            // Auto-retry: Get fresh stream URL and retry playback (best-effort)
             try {
                 const currentTrack = await TrackPlayer.getActiveTrack();
-                if (currentTrack && currentTrack.id && /^[A-Za-z0-9_-]{11}$/.test(currentTrack.id)) {
-                    // This is a YouTube Music track - get fresh stream URL
-                    const { getYTMusicStreamUrl } = require('../Api/YTMusicStream');
-                    const streamData = await getYTMusicStreamUrl(currentTrack.id);
+                if (currentTrack && currentTrack.id) {
+                    let streamData = null;
+                    if (/^[A-Za-z0-9_-]{11}$/.test(currentTrack.id)) {
+                        // YouTube Music track
+                        const { getYTMusicStreamUrl } = require('../Api/YTMusicStream');
+                        streamData = await getYTMusicStreamUrl(currentTrack.id);
+                    } else if (currentTrack.source === 'saavn' || currentTrack.id.startsWith('saavn_')) {
+                        // Saavn track - try to get fresh stream
+                        // Assuming Saavn has a similar function, adjust as needed
+                        // For now, skip retry for Saavn if no function
+                        console.warn('PlaybackError for Saavn track, skipping retry');
+                        throw new Error('No retry for Saavn');
+                    }
 
-                    // Update track with fresh URL
-                    await TrackPlayer.updateNowPlayingMetadata({
-                        ...currentTrack,
-                        url: streamData.url,
-                        headers: streamData.headers,
-                    });
+                    if (streamData && streamData.url) {
+                        // Update track with fresh URL
+                        try {
+                            const activeIndex = await TrackPlayer.getActiveTrackIndex();
+                            if (typeof activeIndex === 'number' && activeIndex >= 0) {
+                                await TrackPlayer.updateMetadataForTrack(activeIndex, {
+                                    url: streamData.url,
+                                    headers: streamData.headers,
+                                });
+                            } else {
+                                await TrackPlayer.updateNowPlayingMetadata({
+                                    ...currentTrack,
+                                    url: streamData.url,
+                                    headers: streamData.headers,
+                                });
+                            }
+                        } catch (metaErr) {
+                            console.warn('Failed to update track metadata, will attempt play anyway', metaErr);
+                        }
 
-                    // Retry playback
-                    await TrackPlayer.play();
+                        // Retry playback
+                        await TrackPlayer.play();
+                        return;
+                    }
                 }
             } catch (retryError) {
-                // If retry fails, skip to next track
-                try {
-                    await TrackPlayer.skipToNext();
-                } catch (_) { }
+                console.warn('PlaybackError retry failed:', retryError?.message || retryError);
             }
+
+            // If we reach here, retry didn't work — skip to next track
+            try {
+                await TrackPlayer.skipToNext();
+            } catch (_) { }
         }
 
         // Handle audio focus interruptions from other apps
@@ -301,10 +354,17 @@ const ContextState = (props) => {
                 // Save the current track so it can be restored on app restart
                 SetLastSong(event.track).catch(() => { });
 
-                // Continuously add recommended songs - unlimited queue growth
-                AddRecommendedSongs(event.index, event.track.id).catch(err => {
-                    // Error silently handled
-                });
+                // Only add recommended songs if this track wasn't already in the queue
+                // (i.e., it was played from outside the queue, not clicked within the queue)
+                const currentQueue = await TrackPlayer.getQueue();
+                const trackAlreadyInQueue = currentQueue.some(track => track && track.id === event.track.id);
+                
+                if (!trackAlreadyInQueue) {
+                    // Continuously add recommended songs - unlimited queue growth
+                    AddRecommendedSongs(event.index, event.track.id).catch(err => {
+                        // Error silently handled
+                    });
+                }
 
                 // Prefetch lyrics for faster first open, prefer track language
                 const cacheKey = event.track.id || `${event.track?.artist || 'unknown'}-${event.track?.title || 'unknown'}`
@@ -318,12 +378,12 @@ const ContextState = (props) => {
                             if (Lyrics?.success && lyricsCacheRef?.current) {
                                 lyricsCacheRef.current[cacheKey] = Lyrics.data
                             } else if (lyricsCacheRef?.current) {
-                                lyricsCacheRef.current[cacheKey] = { lyrics: "No Lyrics Found \nOpps... O_o" }
+                                lyricsCacheRef.current[cacheKey] = { lyrics: "No Lyrics Found" }
                             }
                         })
                         .catch(() => {
                             if (lyricsCacheRef?.current) {
-                                lyricsCacheRef.current[cacheKey] = { lyrics: "No Lyrics Found \nOpps... O_o" }
+                                lyricsCacheRef.current[cacheKey] = { lyrics: "No Lyrics Found" }
                             }
                         })
                 }
@@ -481,6 +541,14 @@ const ContextState = (props) => {
         }
     }, []);
 
+    const openQueue = () => {
+        setQueueVisible(true);
+    };
+
+    const closeQueue = () => {
+        setQueueVisible(false);
+    };
+
     useEffect(() => {
         InitialSetup();
         loadFontSize();
@@ -488,7 +556,7 @@ const ContextState = (props) => {
         // Deliberately empty dependency array so setup is not re-run on queue updates
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
-    return <Context.Provider value={{ currentPlaying, Repeat, setRepeat, updateTrack, Index, setIndex, QueueIndex, setQueueIndex, setVisible, Queue, fontSize, setFontSize, theme, setTheme, currentThemeColors, lyricsCacheRef, ensureMinimumQueue }}>
+    return <Context.Provider value={{ currentPlaying, Repeat, setRepeat, updateTrack, Index, setIndex, QueueIndex, setQueueIndex, setVisible, Queue, fontSize, setFontSize, theme, setTheme, currentThemeColors, lyricsCacheRef, ensureMinimumQueue, queueVisible, setQueueVisible, openQueue, closeQueue }}>
         {props.children}
         <EachSongMenuModal setVisible={setVisible} Visible={Visible} />
     </Context.Provider>

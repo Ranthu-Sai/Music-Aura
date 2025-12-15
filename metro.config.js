@@ -6,6 +6,26 @@ const {getDefaultConfig, mergeConfig} = require('@react-native/metro-config');
  *
  * @type {import('metro-config').MetroConfig}
  */
-const config = {};
+async function createConfig() {
+	const defaultConfig = await getDefaultConfig(__dirname);
 
-module.exports = mergeConfig(getDefaultConfig(__dirname), config);
+	const config = {
+		resolver: {
+			// Ensure Metro will process ESM files that some packages ship (.mjs/.cjs)
+			sourceExts: Array.from(new Set([...(defaultConfig.resolver.sourceExts || []), 'cjs', 'mjs'])),
+		},
+		transformer: {
+			// Enable experimental import support to handle ESM modules properly
+			getTransformOptions: async () => ({
+				transform: {
+					experimentalImportSupport: true,
+					inlineRequires: true,
+				},
+			}),
+		},
+	};
+
+	return mergeConfig(defaultConfig, config);
+}
+
+module.exports = createConfig();

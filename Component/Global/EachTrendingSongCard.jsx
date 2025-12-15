@@ -10,7 +10,7 @@ import FormatTitleAndArtist from "../../Utils/FormatTitleAndArtist";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 import { useActiveTrack, usePlaybackState } from "react-native-track-player";
 
-export const EachTrendingSongCard = memo(function EachTrendingSongCard({image, name, artists, id}) {
+export const EachTrendingSongCard = memo(function EachTrendingSongCard({image, name, artists, id, url, duration, language}) {
   const { updateTrack, lyricsCacheRef } = useContext(Context);
   const [isLoading, setIsLoading] = useState(false);
   const [imageUri, setImageUri] = useState(image || 'https://via.placeholder.com/150x150/cccccc/000000?text=No+Image')
@@ -30,7 +30,15 @@ export const EachTrendingSongCard = memo(function EachTrendingSongCard({image, n
     setIsLoading(true);
     try {
       if (lyricsCacheRef?.current) { lyricsCacheRef.current = {}; }
-      await PlaySongWithRelated(id, image);
+      // Forward additional song data (download URLs, duration, language) when available
+      const songData = {
+        url: url || undefined,
+        duration: duration || undefined,
+        language: language || undefined,
+        title: name || undefined,
+        artist: artistsNames || undefined,
+      };
+      await PlaySongWithRelated(id, image, songData);
       await updateTrack();
     } catch (error) {
       console.error('Error playing song:', error);

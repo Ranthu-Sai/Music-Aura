@@ -26,7 +26,7 @@ const BottomSheetMusic = ({color}) => {
   const handleSheetChanges = useCallback(index => {
     if (index < 0){
       setIndex(0)
-    } else {
+    } else if (index <= 1) { // Ensure index doesn't exceed snapPoints length
       setIndex(index)
     }
   }, []);

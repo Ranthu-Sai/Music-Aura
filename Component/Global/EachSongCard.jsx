@@ -2,7 +2,7 @@ import { Dimensions, Pressable,View } from "react-native";
 import { PlainText } from "./PlainText";
 import { SmallText } from "./SmallText";
 import FastImage from "react-native-fast-image";
-import { PlaySongWithRelated } from "../../MusicPlayerFunctions";
+import { AddSongsToQueue, getIndexQuality, PlaySongWithRelated } from "../../MusicPlayerFunctions";
 import { memo, useContext, useState, useCallback } from "react";
 import Context from "../../Context/Context";
 import { useActiveTrack, usePlaybackState } from "react-native-track-player";
@@ -10,7 +10,7 @@ import FormatTitleAndArtist from "../../Utils/FormatTitleAndArtist";
 import { EachSongMenuButton } from "../MusicPlayer/EachSongMenuButton";
 
 
-export const EachSongCard = memo(function EachSongCard({title,artist,image,id,url,duration,language,artistID,isLibraryLiked, width, titleandartistwidth, isFromPlaylist, Data, index}) {
+export const EachSongCard = memo(function EachSongCard({title,artist,image,id,url,duration,language,artistID,isLibraryLiked, width, titleandartistwidth, isFromPlaylist, Data, index, albumName, releaseDate}) {
   const width1 = Dimensions.get("window").width;
   const {updateTrack, setVisible, lyricsCacheRef} = useContext(Context)
   const currentPlaying = useActiveTrack()
@@ -22,9 +22,12 @@ export const EachSongCard = memo(function EachSongCard({title,artist,image,id,ur
     setIsLoading(true);
     try {
       if (lyricsCacheRef?.current) { lyricsCacheRef.current = {}; }
-      // Pass full song info for YouTube support
-      await PlaySongWithRelated(id, image, { title, artist, url, duration, language })
-      updateTrack()
+      
+      // Always start playback (original behavior)
+      await PlaySongWithRelated(id, image, { title, artist, url, duration, language });
+      await updateTrack();
+    } catch (error) {
+      console.error('Error in AddSongToPlayer:', error);
     } finally {
       setIsLoading(false);
     }
@@ -52,7 +55,7 @@ export const EachSongCard = memo(function EachSongCard({title,artist,image,id,ur
           <FastImage source={((id === currentPlaying?.id ?? "") && playerState.state === "playing") ? require("../../Images/playing.gif") : ((id === currentPlaying?.id ?? "") && playerState.state !== "playing" ) ? require("../../Images/songPaused.gif") : {
             uri: image || 'https://via.placeholder.com/40x40/cccccc/000000?text=No+Img',
           }} 
-          resizeMode={FastImage.resizeMode.contain}
+          resizeMode={FastImage.resizeMode.cover}
           style={{
             height:60,
             width:60,
@@ -63,6 +66,16 @@ export const EachSongCard = memo(function EachSongCard({title,artist,image,id,ur
           }}>
             <PlainText text={FormatTitleAndArtist(title)} style={{width:titleandartistwidth ? titleandartistwidth : width1 * 0.67}}/>
             <SmallText text={FormatTitleAndArtist(artist)} style={{width:titleandartistwidth ? titleandartistwidth : width1 * 0.67}}/>
+            {(albumName || releaseDate) && (
+              <SmallText 
+                text={`${albumName ? albumName : ''}${albumName && releaseDate ? ' • ' : ''}${releaseDate ? releaseDate : ''}`} 
+                style={{
+                  width: titleandartistwidth ? titleandartistwidth : width1 * 0.67,
+                  color: '#CCCCCC',
+                  fontSize: 12
+                }}
+              />
+            )}
           </View>
         </Pressable>
         <EachSongMenuButton Onpress={()=>{

@@ -8,6 +8,7 @@ import { PlayPauseButton } from "./PlayPauseButton";
 import { NextSongButton } from "./NextSongButton";
 import { PreviousSongButton } from "./PreviousSongButton";
 import FastImage from "react-native-fast-image";
+import YTArtworkUtils from "../../Utils/YTMusicArtworkUtils";
 import { useActiveTrack, useProgress } from "react-native-track-player";
 import { PlayNextSong, PlayPreviousSong } from "../../MusicPlayerFunctions";
 
@@ -59,13 +60,25 @@ export const MinimizedMusic = memo(({ setIndex, color }) => {
           }}>
             <FastImage
               source={{
-                uri: currentPlaying?.artwork ?? "https://htmlcolorcodes.com/assets/images/colors/gray-color-solid-background-1920x1080.png",
+                uri: (() => {
+                  const art = currentPlaying?.artwork || currentPlaying?.thumbnail || "https://htmlcolorcodes.com/assets/images/colors/gray-color-solid-background-1920x1080.png";
+                  if (!art) return art;
+                  // Prefer upgrading ytimg thumbnails to maxres and googleusercontent to w500
+                  if (art.includes('i.ytimg.com/vi/')) {
+                    return YTArtworkUtils.upgradeYtimgQuality(art);
+                  }
+                  if (art.includes('lh3.googleusercontent.com')) {
+                    return YTArtworkUtils.upgradeArtworkQuality(art);
+                  }
+                  return art;
+                })(),
               }}
-              resizeMode={FastImage.resizeMode.contain}
+              resizeMode={FastImage.resizeMode.cover}
               style={{
-                height: (size * 0.1) - 30,
-                width: (size * 0.1) - 30,
-                borderRadius: 10,
+                height: 64,
+                width: 64,
+                borderRadius: 8,
+                backgroundColor: '#111',
               }}
             />
             <View style={{

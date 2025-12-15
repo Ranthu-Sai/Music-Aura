@@ -2,7 +2,8 @@ apply plugin: "com.android.application"
 apply plugin: "org.jetbrains.kotlin.android"
 apply plugin: "com.facebook.react"
 apply from: file("../../node_modules/react-native-vector-icons/fonts.gradle")
-apply from: "../../node_modules/react-native-code-push/android/codepush.gradle"
+
+
 
 /**
  * This is the configuration block to customize your React Native Android app.
@@ -56,7 +57,7 @@ react {
 /**
  * Set this to true to Run Proguard on Release builds to minify the Java bytecode.
  */
-def enableProguardInReleaseBuilds = false
+def enableProguardInReleaseBuilds = true
 
 /**
  * The preferred build flavor of JavaScriptCore (JSC)
@@ -81,10 +82,30 @@ android {
         applicationId "com.melody"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 7
-        versionName "1.5.0"
+        versionCode 8
+        versionName "2.0.0"
         multiDexEnabled true
     }
+    // Exclude native InnerTube original files (they reference unavailable libs)
+    sourceSets {
+        main {
+            java {
+                exclude '**/InnerTubeModule.kt'
+                // Exclude partially copied native InnerTube/Orbit sources until they're validated
+                exclude '**/zionhuang/**'
+                exclude '**/com/zionhuang/**'
+                exclude '**/orbit/**'
+            }
+        }
+    }
+    
+    // Java 8 Desugaring Support
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+        coreLibraryDesugaringEnabled true
+    }
+
     signingConfigs {
         debug {
             storeFile file('debug.keystore')
@@ -142,6 +163,25 @@ dependencies {
     implementation("com.facebook.react:flipper-integration")
     implementation ('com.facebook.fresco:fresco:2.0.0')
     implementation ('com.facebook.fresco:animated-gif:2.0.0')
+    
+    // Firebase BoM
+    implementation platform('com.google.firebase:firebase-bom:32.7.0')
+    implementation 'com.google.firebase:firebase-analytics'
+    
+    // YouTube Music Streaming Dependencies
+    implementation "com.github.TeamNewPipe:NewPipeExtractor:v0.24.8"
+    implementation 'com.squareup.okhttp3:okhttp:4.10.0'
+    implementation "io.ktor:ktor-client-okhttp:2.3.6"
+    implementation "io.ktor:ktor-client-core:2.3.6"
+    implementation "io.ktor:ktor-client-content-negotiation:2.3.6"
+    implementation "io.ktor:ktor-serialization-kotlinx-json:2.3.6"
+    implementation "io.ktor:ktor-client-encoding:2.3.6"
+    implementation "org.brotli:dec:0.1.2"
+    implementation "org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.0"
+    // OuterTune InnerTube (via JitPack) - commented out due to unavailability
+    // implementation 'com.github.zionhuang:innertube:0.1.0'
+    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.0.3'
+    
     if (hermesEnabled.toBoolean()) {
         implementation("com.facebook.react:hermes-android")
     } else {
@@ -161,6 +201,8 @@ configurations.all {
 }
 
 apply from: file("../../node_modules/@react-native-community/cli-platform-android/native_modules.gradle"); applyNativeModulesAppBuildGradle(project)
+
+apply plugin: 'com.google.gms.google-services'
 
 // Fix for react-native-vector-icons task dependency
 afterEvaluate {

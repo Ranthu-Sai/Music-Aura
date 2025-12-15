@@ -1,6 +1,6 @@
 import { Dimensions, ImageBackground, View, TouchableOpacity, Modal, Pressable } from "react-native";
 import FastImage from "react-native-fast-image";
-import React, { useContext, useRef, useState, useEffect } from "react";
+import React, { useContext, useState, useEffect, useRef } from "react";
 import LinearGradient from "react-native-linear-gradient";
 import { Heading } from "../Global/Heading";
 import { SmallText } from "../Global/SmallText";
@@ -16,6 +16,7 @@ import { ProgressBar } from "./ProgressBar";
 import { GetLyricsButton } from "./GetLyricsButton";
 import QueueBottomSheet from "./QueueBottomSheet";
 import { getYTLyricsSongData, getSongData } from "../../Api/Songs";
+import YTArtworkUtils from "../../Utils/YTMusicArtworkUtils";
 import { GetLanguageValue } from "../../LocalStorage/Languages";
 import { ShowLyrics } from "./ShowLyrics";
 import { useActiveTrack } from "react-native-track-player";
@@ -25,6 +26,7 @@ import Context from "../../Context/Context";
 import AntDesign from "react-native-vector-icons/AntDesign";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 import { useNavigation } from "@react-navigation/native";
+import { DeviceEventEmitter } from "react-native";
 
 export const FullScreenMusic = ({ color, Index, setIndex }) => {
   const pan = Gesture.Pan();
@@ -45,10 +47,27 @@ export const FullScreenMusic = ({ color, Index, setIndex }) => {
   const [Lyric, setLyric] = useState({});
   const [Loading, setLoading] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
+  const [lyricsFetchInProgress, setLyricsFetchInProgress] = useState(false);
+  const queueBottomSheetRef = useRef(null);
+
+  // Clear lyrics when track changes to prevent showing wrong lyrics (but don't close modal if lyrics are loaded)
+  useEffect(() => {
+    if (currentPlaying?.id && !lyricsFetchInProgress) {
+      // Only clear lyrics and close modal if no lyrics are loaded for this track
+      const cacheKey = currentPlaying?.id || `${currentPlaying?.artist}-${currentPlaying?.title}`
+      const hasLyrics = lyricsCacheRef?.current?.[cacheKey] || Lyric?.lyrics || Lyric?.timed_lyrics;
+
+      if (!hasLyrics) {
+        setLyric({});
+        setLoading(false);
+        setShowDailog(false); // Only close modal if no lyrics available
+      }
+    }
+  }, [currentPlaying?.id, lyricsFetchInProgress]);
 
   // Preload lyrics in background when song changes
   useEffect(() => {
-    if (!currentPlaying?.id) return;
+    if (!currentPlaying?.id) { return; }
 
     const cacheKey = currentPlaying?.id || `${currentPlaying?.artist}-${currentPlaying?.title}`;
 
@@ -63,17 +82,47 @@ export const FullScreenMusic = ({ color, Index, setIndex }) => {
         const preferredLanguage = await GetLanguageValue();
         const languageToUse = preferredLanguage || currentPlaying?.language || 'en';
 
-        const Lyrics = await getYTLyricsSongData(currentPlaying.artist, currentPlaying.title, languageToUse);
+        // If artist is missing or generic, try to parse from title (common for YT videos)
+        let artistForLookup = currentPlaying.artist;
+        let titleForLookup = currentPlaying.title;
+
+        if (!artistForLookup || artistForLookup === 'Unknown Artist' || artistForLookup === 'Unknown') {
+          // Attempt to split title patterns like "Artist - Title" or "Title - Artist"
+          const separators = [' - ', ' — ', ' – ', '|', '•', ' by '];
+          for (const sep of separators) {
+            if (titleForLookup && titleForLookup.includes(sep)) {
+              const parts = titleForLookup.split(sep).map(p => p.trim()).filter(Boolean);
+              if (parts.length >= 2) {
+                // Heuristic: if first part contains more than 3 words it's probably the title
+                if (parts[0].split(' ').length > 3) {
+                  // assume format "Title - Artist"
+                  titleForLookup = parts[0];
+                  artistForLookup = parts[1];
+                } else {
+                  // assume "Artist - Title"
+                  artistForLookup = parts[0];
+                  titleForLookup = parts[1];
+                }
+                break;
+              }
+            }
+          }
+        }
+
+        // Detect if this is a YouTube Music song (11-character ID)
+        const isYouTubeMusic = /^[a-zA-Z0-9_-]{11}$/.test(currentPlaying.id);
+
+        const Lyrics = await getYTLyricsSongData(artistForLookup, titleForLookup, languageToUse, isYouTubeMusic);
 
         if (Lyrics.success && lyricsCacheRef?.current) {
           lyricsCacheRef.current[cacheKey] = Lyrics.data;
         } else if (lyricsCacheRef?.current) {
-          lyricsCacheRef.current[cacheKey] = { lyrics: "No Lyrics Found \nOpps... O_o" };
+          lyricsCacheRef.current[cacheKey] = { lyrics: "No Lyrics Found" };
         }
       } catch (e) {
         // Silently cache failure
         if (lyricsCacheRef?.current) {
-          lyricsCacheRef.current[cacheKey] = { lyrics: "No Lyrics Found \nOpps... O_o" };
+          lyricsCacheRef.current[cacheKey] = { lyrics: "No Lyrics Found" };
         }
       }
     };
@@ -83,6 +132,22 @@ export const FullScreenMusic = ({ color, Index, setIndex }) => {
 
     return () => clearTimeout(timeoutId);
   }, [currentPlaying?.id, currentPlaying?.artist, currentPlaying?.title, currentPlaying?.language, lyricsCacheRef]);
+
+  // Listen for song played events to open queue
+  useEffect(() => {
+    const subscription = DeviceEventEmitter.addListener('songPlayed', (data) => {
+      // Open queue when a song is played from anywhere in the app
+      setTimeout(() => {
+        if (queueBottomSheetRef.current) {
+          queueBottomSheetRef.current.open();
+        }
+      }, 200); // Small delay to ensure BottomSheet is ready
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, []);
 
   async function handleGoToAlbum() {
     try {
@@ -122,7 +187,6 @@ export const FullScreenMusic = ({ color, Index, setIndex }) => {
 
             // Try to find album browse ID in the response
             let albumId = null;
-            let albumTitle = null;
 
             // Check in tabs -> tab renderer -> content
             const tabs = data?.contents?.singleColumnMusicWatchNextResultsRenderer?.tabbedRenderer?.watchNextTabbedResultsRenderer?.tabs;
@@ -135,13 +199,12 @@ export const FullScreenMusic = ({ color, Index, setIndex }) => {
                   if (runs) {
                     for (const run of runs) {
                       if (run?.navigationEndpoint?.browseEndpoint?.browseId?.startsWith('MPREb_')) {
-                        albumId = run.navigationEndpoint.browseEndpoint.browseId;
-                        albumTitle = run.text;
-                        break;
+                          albumId = run.navigationEndpoint.browseEndpoint.browseId;
+                          break;
                       }
                     }
                   }
-                  if (albumId) break;
+                    if (albumId) { break; }
                 }
               }
             }
@@ -150,10 +213,10 @@ export const FullScreenMusic = ({ color, Index, setIndex }) => {
               setIndex(0); // Close full player
 
               if (navigation && typeof navigation.navigate === 'function') {
-                navigation.navigate('Album', {
-                  id: albumId,
-                  image: currentPlaying.artwork
-                });
+                  navigation.navigate('Album', {
+                    id: albumId,
+                    image: currentPlaying.artwork,
+                  });
               }
               return;
             }
@@ -181,7 +244,7 @@ export const FullScreenMusic = ({ color, Index, setIndex }) => {
         if (navigation && typeof navigation.navigate === 'function') {
           navigation.navigate('Album', {
             id: albumId,
-            image: albumImage
+            image: albumImage,
           });
         }
       }
@@ -191,42 +254,117 @@ export const FullScreenMusic = ({ color, Index, setIndex }) => {
   }
 
   async function GetLyrics() {
+    if (!currentPlaying?.id) {
+      console.warn('No current playing track for lyrics');
+      return;
+    }
+
     setShowDailog(true)
+    setLoading(true) // Always show loading spinner initially
+    setLyricsFetchInProgress(true)
+
     const cacheKey = currentPlaying?.id || `${currentPlaying?.artist}-${currentPlaying?.title}`
     const cached = lyricsCacheRef?.current?.[cacheKey]
     if (cached) {
-      setLyric(cached)
-      setLoading(false)
+      // Small delay to show loading spinner even for cached lyrics
+      setTimeout(() => {
+        setLyric(cached)
+        setLoading(false)
+        setLyricsFetchInProgress(false)
+      }, 200) // Faster for cached lyrics
       return
     }
     try {
-      setLoading(true)
       const preferredLanguage = await GetLanguageValue()
 
       // Use preferred language first, then fall back to track language
       // This ensures user's language choice is respected over auto-detected language
       const languageToUse = preferredLanguage || currentPlaying?.language || 'en';
 
-      const Lyrics = await getYTLyricsSongData(currentPlaying.artist, currentPlaying.title, languageToUse)
+      // Store the track ID we're fetching for to avoid race conditions
+      const trackIdForFetch = currentPlaying.id;
+
+      // Fallback parsing for YouTube metadata to improve lyric searches
+      let artistForLookup = currentPlaying.artist;
+      let titleForLookup = currentPlaying.title;
+      
+      // Clean YouTube-specific title formats
+      if (titleForLookup) {
+        // Remove common YouTube suffixes
+        titleForLookup = titleForLookup
+          .replace(/\s*\(Official Music Video\)/gi, '')
+          .replace(/\s*\(Official Video\)/gi, '')
+          .replace(/\s*\(Lyrics\)/gi, '')
+          .replace(/\s*\(Official Lyric Video\)/gi, '')
+          .replace(/\s*\(Audio\)/gi, '')
+          .replace(/\s*\(Official Audio\)/gi, '')
+          .replace(/\s*\|\s*Lyric Video/gi, '')
+          .replace(/\s*\|\s*Lyrics/gi, '')
+          .trim();
+      }
+      
+      if (!artistForLookup || artistForLookup === 'Unknown Artist' || artistForLookup === 'Unknown') {
+        const separators = [' - ', ' — ', ' – ', '|', '•', ' by '];
+        for (const sep of separators) {
+          if (titleForLookup && titleForLookup.includes(sep)) {
+            const parts = titleForLookup.split(sep).map(p => p.trim()).filter(Boolean);
+            if (parts.length >= 2) {
+              if (parts[0].split(' ').length > 3) {
+                // assume format "Title - Artist"
+                titleForLookup = parts[0];
+                artistForLookup = parts[1];
+              } else {
+                // assume "Artist - Title"
+                artistForLookup = parts[0];
+                titleForLookup = parts[1];
+              }
+              break;
+            }
+          }
+        }
+      }
+
+      // Detect if this is a YouTube Music song (11-character ID)
+      const isYouTubeMusic = /^[a-zA-Z0-9_-]{11}$/.test(currentPlaying.id);
+      
+      // For YouTube Music songs, we might need different API priority
+      // YouTube songs often have better coverage in lrclib.net for time-synced lyrics
+      const Lyrics = await getYTLyricsSongData(artistForLookup, titleForLookup, languageToUse, isYouTubeMusic)
+
+      // Check if track changed while fetching
+      if (currentPlaying.id !== trackIdForFetch) {
+        console.log('Track changed during lyrics fetch, ignoring result');
+        setLyricsFetchInProgress(false)
+        setLoading(false) // Also clear loading state
+        return;
+      }
+
       if (Lyrics.success) {
         if (lyricsCacheRef?.current) { lyricsCacheRef.current[cacheKey] = Lyrics.data }
         setLyric(Lyrics.data)
+        setLoading(false) // Ensure loading is false when lyrics are loaded
       } else {
-        const fallback = { lyrics: "No Lyrics Found \nOpps... O_o" }
+        const fallback = { lyrics: "No Lyrics Found" }
         if (lyricsCacheRef?.current) { lyricsCacheRef.current[cacheKey] = fallback }
         setLyric(fallback)
+        setLoading(false) // Ensure loading is false even for fallback
       }
     } catch (e) {
-      const fallback = { lyrics: "No Lyrics Found \nOpps... O_o" }
-      if (lyricsCacheRef?.current) { lyricsCacheRef.current[cacheKey] = fallback }
+      console.error('Error fetching lyrics:', e);
+      const fallback = { lyrics: "No Lyrics Found" }
+      if (lyricsCacheRef?.current) {
+        const cacheKey = currentPlaying?.id || `${currentPlaying?.artist}-${currentPlaying?.title}`
+        lyricsCacheRef.current[cacheKey] = fallback
+      }
       setLyric(fallback)
     } finally {
       setLoading(false)
+      setLyricsFetchInProgress(false)
     }
   }
   return (
     <Animated.View entering={FadeInDown.delay(200)} style={{ backgroundColor: "rgb(0,0,0)", flex: 1 }}>
-      <ShowLyrics Loading={Loading} Lyric={Lyric} setShowDailog={setShowDailog} ShowDailog={ShowDailog} />
+      <ShowLyrics Loading={Loading} Lyric={Lyric} setShowDailog={setShowDailog} ShowDailog={ShowDailog} currentSong={currentPlaying} />
       <ImageBackground blurRadius={20} source={{ uri: currentPlaying?.artwork ?? "https://htmlcolorcodes.com/assets/images/colors/gray-color-solid-background-1920x1080.png" }} style={{
         flex: 1,
       }}>
@@ -250,7 +388,7 @@ export const FullScreenMusic = ({ color, Index, setIndex }) => {
               >
                 <MaterialCommunityIcons name="dots-vertical" size={24} color="white" />
               </TouchableOpacity>
-              <GetLyricsButton onPress={GetLyrics} />
+              <GetLyricsButton onPress={GetLyrics} loading={Loading || lyricsFetchInProgress} />
               <TouchableOpacity
                 onPress={() => setIndex(0)}
                 style={{
@@ -288,8 +426,7 @@ export const FullScreenMusic = ({ color, Index, setIndex }) => {
                 }}>
                   <TouchableOpacity
                     onPress={() => {
-                      handleGoToAlbum().catch(err => {
-                      });
+                      handleGoToAlbum().catch(err => { console.warn(err); });
                     }}
                     style={{
                       flexDirection: 'row',
@@ -308,13 +445,23 @@ export const FullScreenMusic = ({ color, Index, setIndex }) => {
             <GestureDetector gesture={pan}>
               <FastImage
                 source={{
-                  uri: currentPlaying?.artwork ?? "https://htmlcolorcodes.com/assets/images/colors/gray-color-solid-background-1920x1080.png",
+                  uri: (() => {
+                    const art = currentPlaying?.artwork || "https://htmlcolorcodes.com/assets/images/colors/gray-color-solid-background-1920x1080.png";
+                    // Prefer upgrading ytimg URLs to maxres and googleusercontent to w500
+                    if (art.includes('i.ytimg.com/vi/')) {
+                      return YTArtworkUtils.upgradeYtimgQuality(art);
+                    }
+                    if (art.includes('lh3.googleusercontent.com')) {
+                      return YTArtworkUtils.upgradeArtworkQuality(art);
+                    }
+                    return art;
+                  })(),
                 }}
-                resizeMode={FastImage.resizeMode.contain}
+                resizeMode={FastImage.resizeMode.cover}
                 style={{
-                  height: width * 0.9,
+                  height: width * 0.9, // full-width square like Saavn, decreased by 10%
                   width: width * 0.9,
-                  borderRadius: 10,
+                  borderRadius: 6,
                 }}
               />
             </GestureDetector>
@@ -339,7 +486,7 @@ export const FullScreenMusic = ({ color, Index, setIndex }) => {
           </LinearGradient>
         </View>
       </ImageBackground>
-      <QueueBottomSheet Index={1} />
+      <QueueBottomSheet ref={queueBottomSheetRef} Index={1} />
     </Animated.View>
   );
 };
