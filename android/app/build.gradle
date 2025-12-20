@@ -82,8 +82,8 @@ android {
         applicationId "com.melody"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 8
-        versionName "2.0.0"
+        versionCode 9
+        versionName "2.0.1"
         multiDexEnabled true
     }
     // Exclude native InnerTube original files (they reference unavailable libs)
