@@ -42,6 +42,10 @@ class SmartPrefetchManager {
         // Circuit Breaker (Prevent looping storms)
         this.consecutiveErrors = 0;
         this.lastErrorTimestamp = 0;
+
+        // Initialization grace period to prevent auto-skip on app reopen
+        this.initializationTime = 0;
+        this.INITIALIZATION_GRACE_PERIOD = 3000; // 3 seconds
     }
 
     // ==========================================
@@ -53,6 +57,9 @@ class SmartPrefetchManager {
      */
     initialize() {
         if (this.isInitialized) return;
+
+        // Record initialization time
+        this.initializationTime = Date.now();
 
         // FIXED: Listen to PlaybackState instead of track change
         TrackPlayer.addEventListener(Event.PlaybackState, this._handlePlaybackState.bind(this));
@@ -113,6 +120,13 @@ class SmartPrefetchManager {
      * Handle track changes - IMMEDIATE N+1, N+2, N+3 prefetch + queue cleanup
      */
     async _handleTrackChanged(event) {
+        // Skip processing during initialization grace period to prevent auto-skip on app reopen
+        const timeSinceInit = Date.now() - this.initializationTime;
+        if (timeSinceInit < this.INITIALIZATION_GRACE_PERIOD) {
+            console.log(`⏸️ SmartPrefetch: Skipping track change handling (grace period: ${timeSinceInit}ms/${this.INITIALIZATION_GRACE_PERIOD}ms)`);
+            return;
+        }
+
         // Debug: Log event to verify handler is called
         console.log('🔔 SmartPrefetch: Track changed event', {
             index: event.index,

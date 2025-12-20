@@ -16,11 +16,12 @@ export function upgradeArtworkQuality(url) {
         return url;
     }
 
-    // Handle googleusercontent.com URLs - upgrade size parameters
-    // Use 800x800 for higher quality images
-    if (url.includes('lh3.googleusercontent.com')) {
+    // Handle googleusercontent.com and ggpht.com URLs - upgrade size parameters
+    // Use 800x800 for higher quality square images
+    if (url.includes('.googleusercontent.com') || url.includes('.ggpht.com')) {
         // Replace any size parameters (w###-h###) with w800-h800
-        return url.replace(/=w\d+-h\d+/g, '=w800-h800');
+        // Use a more robust regex to catch various formats like =w120-h120-l90-rj
+        return url.replace(/=w\d+-h\d+[^/]*/g, '=w800-h800-l90-rj');
     }
 
     // For ytimg.com URLs - DON'T upgrade automatically

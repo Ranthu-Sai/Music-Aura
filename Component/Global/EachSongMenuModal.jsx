@@ -11,11 +11,13 @@ import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityI
 import ReactNativeBlobUtil from "react-native-blob-util";
 import { GetDownloadPath } from "../../LocalStorage/AppSettings";
 import DeviceInfo from "react-native-device-info";
-import { AddSongsToQueue, getIndexQuality} from "../../MusicPlayerFunctions";
+import { AddSongsToQueue, getIndexQuality } from "../../MusicPlayerFunctions";
 import Context from "../../Context/Context";
 
-export const EachSongMenuModal = ({Visible, setVisible}) => {
-  const {updateTrack} = useContext(Context)
+import youtubeStreamingService from "../../Utils/YouTubeStreamingService";
+
+export const EachSongMenuModal = ({ Visible, setVisible }) => {
+  const { updateTrack } = useContext(Context)
   function isMp3Link(link, mime) {
     return (mime && mime.includes('audio/mpeg')) || (link || '').toLowerCase().includes('.mp3');
   }
@@ -26,161 +28,14 @@ export const EachSongMenuModal = ({Visible, setVisible}) => {
       if (typeof Visible.url === 'string') {
         // If not a direct http link, resolve via YouTube APIs
         if (!Visible.url.startsWith('http')) {
-          // Try Invidious API first (more reliable)
-          const invidiousInstances = [
-            'https://yt.omada.cafe',
-            'https://inv.perditum.com',
-          ];
-          
-          for (const invidiousInstance of invidiousInstances) {
-            try {
-              const controller = new AbortController();
-              const timeoutId = setTimeout(() => controller.abort(), 10000);
-              
-              const response = await fetch(`${invidiousInstance}/api/v1/videos/${Visible.url}`, {
-                signal: controller.signal,
-              });
-              clearTimeout(timeoutId);
-              
-              if (response.ok) {
-                const data = await response.json();
-                
-                // Check if the response contains an error
-                if (data.error) {
-                  // console.log(`Invidious ${invidiousInstance} returned error:`, data.error);
-                  continue;
-                }
-                
-                // Try to get proxied URLs first (more reliable for downloads)
-                try {
-                  const proxiedResponse = await fetch(`${invidiousInstance}/api/v1/videos/${Visible.url}?local=true`, {
-                    signal: controller.signal,
-                  });
-                  
-                  if (proxiedResponse.ok) {
-                    const proxiedData = await proxiedResponse.json();
-                    
-                    // Check for proxied formatStreams
-                    if (proxiedData.formatStreams && proxiedData.formatStreams.length > 0) {
-                      const audioStream = proxiedData.formatStreams.find(f => 
-                        f.type && f.type.includes('audio') && 
-                        (f.resolution === '360p' || f.resolution === '240p' || f.quality === 'small')
-                      );
-                      
-                      if (audioStream?.url) {
-                        // console.log(`Using proxied Invidious audio from ${invidiousInstance}: ${audioStream.quality || audioStream.resolution}`);
-                        return { url: audioStream.url, isMp3: false };
-                      }
-                    }
-                    
-                    // Check for proxied adaptiveFormats
-                    if (proxiedData.adaptiveFormats && proxiedData.adaptiveFormats.length > 0) {
-                      const audioFormats = proxiedData.adaptiveFormats.filter(f => 
-                        f.type && f.type.includes('audio')
-                      );
-                      
-                      if (audioFormats.length > 0) {
-                        const bestAudio = audioFormats.sort((a,b)=> {
-                          const aBitrate = parseInt(a.bitrate || 0);
-                          const bBitrate = parseInt(b.bitrate || 0);
-                          return bBitrate - aBitrate;
-                        })[0];
-                        
-                        if (bestAudio?.url) {
-                          // console.log(`Using proxied Invidious audio from ${invidiousInstance}: ${bestAudio.bitrate} bps`);
-                          return { url: bestAudio.url, isMp3: false };
-                        }
-                      }
-                    }
-                  }
-                } catch (proxyErr) {
-                  // console.log(`Proxied request failed for ${invidiousInstance}:`, proxyErr.message);
-                }
-                
-                // Fall back to direct URLs if proxied fails
-                const adaptiveFormats = data?.adaptiveFormats || [];
-                
-                // Find audio-only formats
-                const audioFormats = adaptiveFormats.filter(f => 
-                  f.type && f.type.includes('audio')
-                );
-                
-                if (audioFormats.length > 0) {
-                  // Prefer formats with higher bitrate
-                  const bestAudio = audioFormats.sort((a,b)=> {
-                    const aBitrate = parseInt(a.bitrate || 0);
-                    const bBitrate = parseInt(b.bitrate || 0);
-                    return bBitrate - aBitrate;
-                  })[0];
-                  
-                  if (bestAudio?.url) {
-                    // console.log(`Using direct Invidious audio from ${invidiousInstance}: ${bestAudio.bitrate} bps - ${bestAudio.type}`);
-                    return { url: bestAudio.url, isMp3: false };
-                  }
-                } else {
-                  // console.log(`No audio formats from ${invidiousInstance}`);
-                }
-              } else {
-                // console.log(`Invidious ${invidiousInstance} unavailable (${response.status})`);
-              }
-            } catch (e) {
-              // console.log(`Invidious ${invidiousInstance} failed:`, e.message);
-              continue;
-            }
+          // Use YouTubeStreamingService (NewPipe based) for resolving YouTube stream URLs
+          const streamData = await youtubeStreamingService.getStreamUrl(Visible.url);
+
+          if (streamData && streamData.url) {
+            // console.log('Resolved YouTube stream URL via native service');
+            return { url: streamData.url, isMp3: false };
           }
-          
-          // Try Piped API as fallback
-          const pipedInstance = 'https://pipedapi.tokhmi.xyz';
-          
-          try {
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 10000);
-            
-            const response = await fetch(`${pipedInstance}/streams/${Visible.url}`, {
-              signal: controller.signal,
-            });
-            clearTimeout(timeoutId);
-            
-            if (response.ok) {
-              const data = await response.json();
-              
-              // Check if Piped returned an error
-              if (data.error) {
-                // console.log(`Piped API returned error:`, data.error);
-                return { url: null, isMp3: false };
-              }
-              
-              const audioStreams = data?.audioStreams || [];
-              
-              if (audioStreams.length > 0) {
-                // Prefer mp3/mpeg stream for better compatibility
-                const mp3 = audioStreams.find(s => 
-                  (s.mimeType || '').includes('audio/mpeg') || 
-                  (s.url || '').includes('.mp3')
-                );
-                
-                if (mp3?.url) {
-                  // console.log('Found MP3 stream from Piped');
-                  return { url: mp3.url, isMp3: true };
-                }
-                
-                // Fallback to highest bitrate audio
-                const best = audioStreams.sort((a,b)=> (b.bitrate||0) - (a.bitrate||0))[0];
-                if (best?.url) {
-                  // console.log(`Using best audio stream from Piped: ${best.quality || best.bitrate} - ${best.mimeType}`);
-                  return { url: best.url, isMp3: false };
-                }
-              } else {
-                // console.log(`No audio streams from Piped`);
-              }
-            } else {
-              // console.log(`Piped API unavailable (${response.status})`);
-            }
-          } catch (e) {
-            // console.log(`Piped API failed:`, e.message);
-          }
-          
-          // Both APIs failed
+
           // console.log('All download sources failed for video:', Visible.url);
           return { url: null, isMp3: false };
         }
@@ -200,7 +55,7 @@ export const EachSongMenuModal = ({Visible, setVisible}) => {
     return { url: null, isMp3: false };
   }
 
-  async function actualDownload () {
+  async function actualDownload() {
     let dirs = ReactNativeBlobUtil.fs.dirs
     const path = await GetDownloadPath()
     const { url: downloadLink, isMp3 } = await resolveDownloadUrl();
@@ -210,7 +65,7 @@ export const EachSongMenuModal = ({Visible, setVisible}) => {
         ToastAndroid.SHORT,
         ToastAndroid.CENTER,
       );
-      setVisible({visible: false})
+      setVisible({ visible: false })
       return;
     }
     ToastAndroid.showWithGravity(
@@ -218,7 +73,7 @@ export const EachSongMenuModal = ({Visible, setVisible}) => {
       ToastAndroid.SHORT,
       ToastAndroid.CENTER,
     );
-    
+
     // Decide extension and mime based on URL and format info
     const deriveExt = () => {
       const lower = (downloadLink || '').toLowerCase();
@@ -226,14 +81,14 @@ export const EachSongMenuModal = ({Visible, setVisible}) => {
       if (lower.includes('.m4a') || lower.includes('audio/mp4')) return 'm4a';
       if (lower.includes('.webm') || lower.includes('audio/webm') || lower.includes('codecs="opus"')) return 'webm';
       if (lower.includes('audio/mpeg')) return 'mp3';
-      // Default to webm for Invidious streams as they're often Opus in WebM
-      if (downloadLink.includes('invidious')) return 'webm';
+      // Default to webm for YouTube stream URLs
+      if (downloadLink.includes('googlevideo.com')) return 'webm';
       return 'mp3';
     }
     const ext = deriveExt();
-    const mime = ext === 'mp3' ? 'audio/mpeg' : 
-                 ext === 'm4a' ? 'audio/mp4' : 
-                 ext === 'webm' ? 'audio/webm' : 'audio/*';
+    const mime = ext === 'mp3' ? 'audio/mpeg' :
+      ext === 'm4a' ? 'audio/mp4' :
+        ext === 'webm' ? 'audio/webm' : 'audio/*';
 
     const baseDir = (path === "Downloads") ? dirs.LegacyDownloadDir : dirs.LegacyMusicDir;
     const fileName = `${FormatTitleAndArtist(Visible.title)}.${ext}`;
@@ -249,13 +104,11 @@ export const EachSongMenuModal = ({Visible, setVisible}) => {
     }
 
     // For YouTube downloads (complex URLs), use direct fetch without Download Manager
-    const isYouTubeUrl = downloadLink.includes('googlevideo.com') || 
-                         downloadLink.includes('piped') || 
-                         downloadLink.includes('invidious');
-    
+    const isYouTubeUrl = downloadLink.includes('googlevideo.com');
+
     if (isYouTubeUrl) {
       let lastLoggedPercentage = -1;
-      
+
       // Use ReactNativeBlobUtil fetch without Download Manager for complex URLs
       const downloadPromise = ReactNativeBlobUtil
         .config({
@@ -271,7 +124,7 @@ export const EachSongMenuModal = ({Visible, setVisible}) => {
           'Sec-Fetch-Dest': 'empty',
           'Sec-Fetch-Mode': 'cors',
           'Sec-Fetch-Site': 'cross-site',
-          'Referer': 'https://yt.omada.cafe/', // Use the instance that provided the URL
+          'Referer': 'https://www.youtube.com/',
         })
         .progress((received, total) => {
           if (total > 0) {
@@ -292,12 +145,12 @@ export const EachSongMenuModal = ({Visible, setVisible}) => {
       Promise.race([downloadPromise, timeoutPromise])
         .then(async (res) => {
           // console.log('Download completed, file saved to:', res.path());
-          
+
           // Check if file actually has content
           try {
             const stats = await ReactNativeBlobUtil.fs.stat(res.path());
             // console.log('Downloaded file size:', stats.size, 'bytes');
-            
+
             if (stats.size === 0) {
               // console.log('Downloaded file is empty, deleting...');
               await ReactNativeBlobUtil.fs.unlink(res.path());
@@ -311,7 +164,7 @@ export const EachSongMenuModal = ({Visible, setVisible}) => {
           } catch (statErr) {
             // console.log('Error checking file stats:', statErr);
           }
-          
+
           // Notify Android MediaScanner about the new file
           ReactNativeBlobUtil.fs.scanFile([{ path: res.path(), mime }])
             .then(() => {
@@ -337,15 +190,15 @@ export const EachSongMenuModal = ({Visible, setVisible}) => {
             ToastAndroid.CENTER
           );
         })
-        .finally(() => setVisible({visible: false}))
+        .finally(() => setVisible({ visible: false }))
     } else {
       // Use Download Manager for direct MP3 links (Saavn, etc.)
       ReactNativeBlobUtil
         .config({
-          addAndroidDownloads:{
-            useDownloadManager:true,
+          addAndroidDownloads: {
+            useDownloadManager: true,
             path: finalPath,
-            notification:true,
+            notification: true,
             title: fileName,
             mime,
           },
@@ -367,7 +220,7 @@ export const EachSongMenuModal = ({Visible, setVisible}) => {
             ToastAndroid.CENTER
           );
         })
-        .finally(() => setVisible({visible: false}))
+        .finally(() => setVisible({ visible: false }))
     }
   }
 
@@ -388,27 +241,28 @@ export const EachSongMenuModal = ({Visible, setVisible}) => {
         if (granted === PermissionsAndroid.RESULTS.GRANTED) {
           actualDownload();
         } else {
-                }
+        }
       } catch (err) {
-        console.log("display error",err)    }
+        console.log("display error", err)
+      }
     }
   };
-  async function addSongToQueue(){
+  async function addSongToQueue() {
     const quality = await getIndexQuality()
-    const song  = {
+    const song = {
       url: Visible.url[quality].url,
-      title:FormatTitleAndArtist(Visible.title),
-      artist:FormatTitleAndArtist(Visible.artist),
-      artwork:Visible.image,
-      duration:Visible.duration,
-      id:Visible.id,
-      language:Visible.language,
-      image:Visible.image,
-      downloadUrl:Visible.url,
+      title: FormatTitleAndArtist(Visible.title),
+      artist: FormatTitleAndArtist(Visible.artist),
+      artwork: Visible.image,
+      duration: Visible.duration,
+      id: Visible.id,
+      language: Visible.language,
+      image: Visible.image,
+      downloadUrl: Visible.url,
     }
-   await AddSongsToQueue([song])
+    await AddSongsToQueue([song])
     updateTrack()
-    setVisible({visible: false})
+    setVisible({ visible: false })
     ToastAndroid.showWithGravity(
       `Song Added To Queue`,
       ToastAndroid.SHORT,
@@ -417,79 +271,79 @@ export const EachSongMenuModal = ({Visible, setVisible}) => {
   }
   const size = Dimensions.get("window").height
   return (
-    <Modal onBackButtonPress={()=>setVisible({visible: false})} onSwipeComplete={()=>setVisible({visible: false})} onBackdropPress={()=>setVisible({visible: false})} swipeDirection={['up', 'left', 'right', 'down']} isVisible={Visible.visible} style={{
+    <Modal onBackButtonPress={() => setVisible({ visible: false })} onSwipeComplete={() => setVisible({ visible: false })} onBackdropPress={() => setVisible({ visible: false })} swipeDirection={['up', 'left', 'right', 'down']} isVisible={Visible.visible} style={{
       justifyContent: 'flex-end',
       margin: 0,
     }}>
       <View style={{
-        backgroundColor:"rgb(18,18,18)",
-        elevation:10,
+        backgroundColor: "rgb(18,18,18)",
+        elevation: 10,
       }}>
-        <Spacer/>
+        <Spacer />
         <View
           style={{
             flexDirection: 'row',
-            justifyContent:"space-between",
-            paddingHorizontal:15,
-            paddingTop:5,
-            alignItems:"center",
-            gap:10,
+            justifyContent: "space-between",
+            paddingHorizontal: 15,
+            paddingTop: 5,
+            alignItems: "center",
+            gap: 10,
           }}>
           <View style={{
-            flexDirection:"row",
-            flex:1,
+            flexDirection: "row",
+            flex: 1,
           }}>
             <FastImage
               source={{
                 uri: Visible.image ?? "https://htmlcolorcodes.com/assets/images/colors/gray-color-solid-background-1920x1080.png",
               }}
               style={{
-                height: (size *  0.1) - 30,
-                width: (size *  0.1) - 30,
+                height: (size * 0.1) - 30,
+                width: (size * 0.1) - 30,
                 borderRadius: 10,
               }}
             />
             <View style={{
-              flex:1,
-              height:(size *  0.1) - 30,
-              alignItems:"flex-start",
-              justifyContent:"center",
-              paddingHorizontal:10,
+              flex: 1,
+              height: (size * 0.1) - 30,
+              alignItems: "flex-start",
+              justifyContent: "center",
+              paddingHorizontal: 10,
             }}>
-              <PlainText text={FormatTitleAndArtist(Visible?.title) ?? "No music :("} style={{color:"white"}}/>
-              <SmallText text={FormatTitleAndArtist(Visible?.artist) ?? "Explore now!"} maxLine={1}/>
+              <PlainText text={FormatTitleAndArtist(Visible?.title) ?? "No music :("} style={{ color: "white" }} />
+              <SmallText text={FormatTitleAndArtist(Visible?.artist) ?? "Explore now!"} maxLine={1} />
             </View>
           </View>
         </View>
-        <Spacer/>
+        <Spacer />
         <View style={{
-          flexDirection:"row",
-          gap:10,
-          paddingHorizontal:10,
+          flexDirection: "row",
+          gap: 10,
+          paddingHorizontal: 10,
         }}>
-          <EachModalButton text={"Add to Queue"} icon={<MaterialCommunityIcons name={"playlist-music-outline"} size={25} color={"white"}/>} Onpress={addSongToQueue}/>
-         <EachModalButton text={"Download"} Onpress={getPermission} icon={<AntDesign name={"download"} size={25} color={"white"}/>}/>
+          <EachModalButton text={"Add to Queue"} icon={<MaterialCommunityIcons name={"playlist-music-outline"} size={25} color={"white"} />} Onpress={addSongToQueue} />
+          <EachModalButton text={"Download"} Onpress={getPermission} icon={<AntDesign name={"download"} size={25} color={"white"} />} />
         </View>
-        <Spacer/>
-        <Spacer/>
-        <Spacer/>
+        <Spacer />
+        <Spacer />
+        <Spacer />
       </View>
     </Modal>
   );
 };
-function EachModalButton({icon,text,Onpress}){
-  return  <Pressable onPress={()=>Onpress()} style={{
-    height:100,
-    backgroundColor:"rgb(41,47,49)",
-    borderRadius:10,
-    flex:1,
-    alignItems:"center",
-    justifyContent:"center",
-    elevation:5,
+function EachModalButton({ icon, text, Onpress }) {
+  return <Pressable onPress={() => Onpress()} style={{
+    height: 100,
+    backgroundColor: "rgb(41,47,49)",
+    borderRadius: 10,
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    elevation: 5,
   }}>
     {icon}
-    <Spacer/>
-    <PlainText text={text} style={{color:"white", paddingRight:0}}/>
+    <Spacer />
+    <PlainText text={text} style={{ color: "white", paddingRight: 0 }} />
   </Pressable>
 }
 

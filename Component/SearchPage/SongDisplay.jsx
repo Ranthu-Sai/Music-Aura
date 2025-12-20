@@ -36,9 +36,27 @@ export default function SongDisplay({ data, limit, Searchtext, loadMore, hasMore
     if (song?.source === 'ytmusic') {
     }
 
-    return <EachSongCard artistID={artistID} language={song?.language} duration={song?.duration} image={image} id={song?.id} width={width * 0.95} title={title} artist={artist} url={url} style={{
-      marginBottom: 13,
-    }} />
+    const albumName = song?.album?.name || '';
+    const albumId = song?.album?.id || '';
+    const releaseDate = isSaavn ? song?.year : (song?.releaseDate || song?.year || '');
+
+    return <EachSongCard
+      artistID={artistID}
+      language={song?.language}
+      duration={song?.duration}
+      image={image}
+      id={song?.id}
+      width={width * 0.95}
+      title={title}
+      artist={artist}
+      albumName={albumName}
+      albumId={albumId}
+      releaseDate={releaseDate}
+      url={url}
+      style={{
+        marginBottom: 13,
+      }}
+    />
   }
 
   return (

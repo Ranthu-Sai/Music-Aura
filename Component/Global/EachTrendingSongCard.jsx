@@ -10,7 +10,7 @@ import FormatTitleAndArtist from "../../Utils/FormatTitleAndArtist";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 import { useActiveTrack, usePlaybackState } from "react-native-track-player";
 
-export const EachTrendingSongCard = memo(function EachTrendingSongCard({image, name, artists, id, url, duration, language}) {
+export const EachTrendingSongCard = memo(function EachTrendingSongCard({ image, name, artists, id, url, duration, language }) {
   const { updateTrack, lyricsCacheRef } = useContext(Context);
   const [isLoading, setIsLoading] = useState(false);
   const [imageUri, setImageUri] = useState(image || 'https://via.placeholder.com/150x150/cccccc/000000?text=No+Image')
@@ -30,9 +30,9 @@ export const EachTrendingSongCard = memo(function EachTrendingSongCard({image, n
     setIsLoading(true);
     try {
       if (lyricsCacheRef?.current) { lyricsCacheRef.current = {}; }
-      // Forward additional song data (download URLs, duration, language) when available
+      // For Saavn songs from Home, url is actually the downloadUrl array
       const songData = {
-        url: url || undefined,
+        downloadUrl: url || undefined,
         duration: duration || undefined,
         language: language || undefined,
         title: name || undefined,
@@ -45,7 +45,7 @@ export const EachTrendingSongCard = memo(function EachTrendingSongCard({image, n
     } finally {
       setIsLoading(false);
     }
-  }, [isLoading, id, image, updateTrack, lyricsCacheRef]);
+  }, [isLoading, id, image, updateTrack, lyricsCacheRef, url, duration, language, name, artistsNames]);
 
   const getIconName = () => {
     if (isCurrentSong) {

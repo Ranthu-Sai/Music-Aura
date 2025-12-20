@@ -137,50 +137,50 @@ async function getYTSearchSongData(searchText, page, limit) {
             const thumbnails = musicItem.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails || [];
             let thumbnail = thumbnails[thumbnails.length - 1]?.url || `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
 
-            // Upgrade thumbnail quality using YTArtworkUtils
+            // Upgrade thumbnail quality using YTArtworkUtils (favoring w800-h800)
             thumbnail = YTArtworkUtils.upgradeArtworkQuality(thumbnail);
-            thumbnail = YTArtworkUtils.upgradeYtimgQuality(thumbnail);
+
+            // If it's still a ytimg URL, upgrade it to maxres
+            if (thumbnail.includes('i.ytimg.com')) {
+              thumbnail = YTArtworkUtils.upgradeYtimgQuality(thumbnail);
+            }
 
             // Extract duration
             const durationText = musicItem.flexColumns?.[musicItem.flexColumns.length - 1]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]?.text;
             const duration = parseDuration(durationText) || 0;
 
-            // Detect language from title/artist using script detection
+            // Detect language
             const detectLanguage = (text) => {
               if (!text) { return 'en'; }
-              // Telugu script: \u0C00-\u0C7F
               if (/[\u0C00-\u0C7F]/.test(text)) { return 'telugu'; }
-              // Hindi/Devanagari: \u0900-\u097F
               if (/[\u0900-\u097F]/.test(text)) { return 'hindi'; }
-              // Tamil: \u0B80-\u0BFF
               if (/[\u0B80-\u0BFF]/.test(text)) { return 'tamil'; }
-              // Kannada: \u0C80-\u0CFF
               if (/[\u0C80-\u0CFF]/.test(text)) { return 'kannada'; }
-              // Malayalam: \u0D00-\u0D7F
               if (/[\u0D00-\u0D7F]/.test(text)) { return 'malayalam'; }
-              // Bengali: \u0980-\u09FF
               if (/[\u0980-\u09FF]/.test(text)) { return 'bengali'; }
-              // Punjabi: \u0A00-\u0A7F
               if (/[\u0A00-\u0A7F]/.test(text)) { return 'punjabi'; }
-              // Gujarati: \u0A80-\u0AFF
               if (/[\u0A80-\u0AFF]/.test(text)) { return 'gujarati'; }
-              // Marathi uses Devanagari, same as Hindi
               return 'en';
             };
 
             const detectedLanguage = detectLanguage(title + ' ' + artistString);
 
-            // Debug logging for language detection
-            if (detectedLanguage !== 'en') {
-            }
+            // Extract album info
+            const albumRun = musicItem.flexColumns?.[1]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.find(r => r.navigationEndpoint?.browseEndpoint?.browseId?.startsWith('MPREb_'));
+            const albumName = albumRun?.text || '';
+            const albumId = albumRun?.navigationEndpoint?.browseEndpoint?.browseId || '';
 
             songs.push({
               id: videoId,
               name: title,
               title: title,
-              image: [{}, {}, { url: thumbnail }],
+              image: [{ url: thumbnail }, { url: thumbnail }, { url: thumbnail }],
               artist: artistString,
               artists: { primary: artists },
+              album: {
+                name: albumName,
+                id: albumId,
+              },
               url: videoId,
               downloadUrl: videoId,
               duration: duration,
@@ -261,7 +261,7 @@ async function getYTSearchAlbumData(searchText, page, limit) {
             const artist = artistRuns?.filter(r => r.text !== ' • ').map(r => r.text).join('') || 'Unknown';
 
             // Extract thumbnail
-            let thumbnail = musicItem.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails?.slice(-1)[0]?.url || '';
+            let thumbnail = musicItem.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails?.slice(-1)[0]?.url || 'https://via.placeholder.com/544x544/cccccc/000000?text=No+Img';
 
             // Upgrade thumbnail quality using YTArtworkUtils
             thumbnail = YTArtworkUtils.upgradeArtworkQuality(thumbnail);
@@ -270,7 +270,7 @@ async function getYTSearchAlbumData(searchText, page, limit) {
             albums.push({
               id: browseId,
               name: title,
-              image: [{}, {}, { url: thumbnail }],
+              image: [{ url: thumbnail }, { url: thumbnail }, { url: thumbnail }],
               artists: { primary: [{ name: artist }] },
               source: 'ytmusic',
             });
@@ -289,51 +289,8 @@ async function getYTSearchAlbumData(searchText, page, limit) {
   } catch (error) {
   }
 
-  // STRATEGY 2: Fallback to Invidious
-  const urls = [
-    'https://yt.omada.cafe',
-    'https://yewtu.be',
-    'https://inv.nadeko.net',
-    'https://invidious.nerdvpn.de',
-    'https://inv.perditum.com',
-  ];
-
-  for (let baseUrl of urls) {
-    try {
-      let config = {
-        method: 'get',
-        maxBodyLength: Infinity,
-        url: `${baseUrl}/api/v1/search?q=${encodeURIComponent(searchText)}&type=playlist`,
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-        },
-        timeout: 15000,
-      };
-      const response = await axios.request(config);
-
-      if (!response.data || !Array.isArray(response.data) || response.data.length === 0) {
-        continue;
-      }
-
-      // Transform to Saavn-like structure
-      const transformedResults = response.data
-        .filter(item => item.type === 'playlist' && item.playlistThumbnail)
-        .slice(0, limit)
-        .map(album => ({
-          id: album.playlistId,
-          name: album.title,
-          image: [{}, {}, { url: YTArtworkUtils.upgradeArtworkQuality(YTArtworkUtils.upgradeYtimgQuality(album.playlistThumbnail)) }],
-          artists: { primary: [{ name: album.author || 'Unknown' }] },
-        }));
-
-      if (transformedResults.length > 0) {
-        return { data: { results: transformedResults } };
-      }
-    } catch (e) {
-      continue;
-    }
-  }
-  throw new Error('All YouTube API instances failed');
+  // No fallback to Invidious - use InnerTube only
+  return { data: { results: [] } };
 }
 
 async function getYTSearchPlaylistData(searchText, page, limit) {
@@ -385,7 +342,7 @@ async function getYTSearchPlaylistData(searchText, page, limit) {
             const title = musicItem.flexColumns?.[0]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]?.text || 'Unknown';
 
             // Extract thumbnail
-            let thumbnail = musicItem.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails?.slice(-1)[0]?.url || '';
+            let thumbnail = musicItem.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails?.slice(-1)[0]?.url || 'https://via.placeholder.com/544x544/cccccc/000000?text=No+Img';
 
             // Upgrade thumbnail quality using YTArtworkUtils
             thumbnail = YTArtworkUtils.upgradeArtworkQuality(thumbnail);
@@ -394,7 +351,7 @@ async function getYTSearchPlaylistData(searchText, page, limit) {
             playlists.push({
               id: browseId,
               name: title,
-              image: [{}, {}, { link: thumbnail }],
+              image: [{ url: thumbnail }, { url: thumbnail }, { url: thumbnail }],
               follower: '',
               source: 'ytmusic',
             });
@@ -413,51 +370,8 @@ async function getYTSearchPlaylistData(searchText, page, limit) {
   } catch (error) {
   }
 
-  // STRATEGY 2: Fallback to Invidious
-  const urls = [
-    'https://yt.omada.cafe',
-    'https://yewtu.be',
-    'https://inv.nadeko.net',
-    'https://invidious.nerdvpn.de',
-    'https://inv.perditum.com',
-  ];
-
-  for (let baseUrl of urls) {
-    try {
-      let config = {
-        method: 'get',
-        maxBodyLength: Infinity,
-        url: `${baseUrl}/api/v1/search?q=${encodeURIComponent(searchText)}&type=playlist`,
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-        },
-        timeout: 15000,
-      };
-      const response = await axios.request(config);
-
-      if (!response.data || !Array.isArray(response.data) || response.data.length === 0) {
-        continue;
-      }
-
-      // Transform to Saavn-like structure
-      const transformedResults = response.data
-        .filter(item => item.type === 'playlist' && item.playlistId)
-        .slice(0, limit)
-        .map(playlist => ({
-          id: playlist.playlistId,
-          name: playlist.title,
-          image: [{}, {}, { link: YTArtworkUtils.upgradeArtworkQuality(YTArtworkUtils.upgradeYtimgQuality(playlist.playlistThumbnail || '')) }],
-          follower: "",
-        }));
-
-      if (transformedResults.length > 0) {
-        return { data: { results: transformedResults } };
-      }
-    } catch (e) {
-      continue;
-    }
-  }
-  throw new Error('All YouTube API instances failed');
+  // No fallback to Invidious - use InnerTube only
+  return { data: { results: [] } };
 }
 
 async function getLyricsSongData(id) {
@@ -493,7 +407,7 @@ async function getYTLyricsSongData(artist, title, preferredLanguage, isYouTubeMu
         if (data.syncedLyrics) {
           // Handle both LRC format (string) and JSON format (array)
           let timed_lyrics = [];
-          
+
           if (Array.isArray(data.syncedLyrics)) {
             // JSON format from lrclib.net API
             timed_lyrics = data.syncedLyrics.map((line, index) => ({
@@ -505,7 +419,7 @@ async function getYTLyricsSongData(artist, title, preferredLanguage, isYouTubeMu
           } else if (typeof data.syncedLyrics === 'string') {
             // LRC format - parse synced lyrics
             const lines = data.syncedLyrics.split('\n');
-            
+
             for (const line of lines) {
               const match = line.match(/\[(\d+):(\d+\.\d+)\]\s*(.*)/);
               if (match) {
@@ -513,25 +427,25 @@ async function getYTLyricsSongData(artist, title, preferredLanguage, isYouTubeMu
                 const seconds = parseFloat(match[2]);
                 const start_time = (minutes * 60 + seconds) * 1000;
                 const text = match[3].trim();
-                
+
                 if (text) {
                   // Check if this is a continuation of previous line (very close timing)
                   if (timed_lyrics.length > 0) {
                     const lastLine = timed_lyrics[timed_lyrics.length - 1];
                     const timeDiff = start_time - lastLine.start_time;
-                    
+
                     // If timing is very close (< 0.5 seconds) and last line is short, combine them
                     if (timeDiff < 500 && lastLine.text.length < 50) {
                       lastLine.text += ' ' + text;
                       continue;
                     }
                   }
-                  
+
                   timed_lyrics.push({ start_time, text });
                 }
               }
             }
-            
+
             // Add IDs and end times for LRC format
             timed_lyrics = timed_lyrics.map((line, index) => ({
               ...line,
@@ -539,12 +453,12 @@ async function getYTLyricsSongData(artist, title, preferredLanguage, isYouTubeMu
               id: `line_${index}`
             }));
           }
-          
+
           return {
             success: true,
             data: {
-              lyrics: data.plainLyrics || (Array.isArray(data.syncedLyrics) ? 
-                data.syncedLyrics.map(line => line.text).join('\n') : 
+              lyrics: data.plainLyrics || (Array.isArray(data.syncedLyrics) ?
+                data.syncedLyrics.map(line => line.text).join('\n') :
                 data.syncedLyrics.replace(/\[\d+:\d+\.\d+\]\s*/g, '')),
               timed_lyrics: timed_lyrics,
             },
@@ -562,13 +476,13 @@ async function getYTLyricsSongData(artist, title, preferredLanguage, isYouTubeMu
           const ttml = data.ttml;
           // Simple extraction of text from TTML
           const plainLyrics = ttml.replace(/<[^>]*>/g, '').trim();
-          
+
           // For timed_lyrics, parse the spans with begin/end
           const timed_lyrics = [];
           const spanRegex = /<span begin="([^"]*)" end="([^"]*)">([^<]*)<\/span>/g;
           let match;
           const words = [];
-          
+
           while ((match = spanRegex.exec(ttml)) !== null) {
             const start_time = parseFloat(match[1]) * 1000; // times are in seconds
             const text = match[3].trim();
@@ -576,15 +490,15 @@ async function getYTLyricsSongData(artist, title, preferredLanguage, isYouTubeMu
               words.push({ start_time, text });
             }
           }
-          
+
           // Group words into lines based on timing gaps (more than 2 seconds apart)
           if (words.length > 0) {
             let currentLine = { start_time: words[0].start_time, text: words[0].text };
-            
+
             for (let i = 1; i < words.length; i++) {
               const word = words[i];
               const timeGap = word.start_time - (currentLine.start_time + currentLine.text.length * 100); // Rough estimate
-              
+
               if (timeGap > 2000 || currentLine.text.length > 100) { // New line if gap > 2s or line too long
                 timed_lyrics.push({ ...currentLine, id: `line_${timed_lyrics.length}` });
                 currentLine = { start_time: word.start_time, text: word.text };
@@ -594,7 +508,7 @@ async function getYTLyricsSongData(artist, title, preferredLanguage, isYouTubeMu
             }
             timed_lyrics.push({ ...currentLine, id: `line_${timed_lyrics.length}` }); // Add the last line
           }
-          
+
           return {
             success: true,
             data: {
@@ -776,61 +690,7 @@ async function getYTLyricsSongData(artist, title, preferredLanguage, isYouTubeMu
 }
 
 async function getYTSearchVideoData(searchText, page, limit) {
-  // STRATEGY 1: Try Invidious API instances first (tested 2024-12-06)
-  const urls = [
-    'https://yt.omada.cafe',      // ✅ Working (200 OK)
-    'https://inv.perditum.com',   // ✅ Working (200 OK)
-    'https://y.com.sb',           // ✅ Working (200 OK)
-  ];
-
-  for (let baseUrl of urls) {
-    try {
-      let config = {
-        method: 'get',
-        maxBodyLength: Infinity,
-        url: `${baseUrl}/api/v1/search?q=${encodeURIComponent(searchText)}&type=video`,
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-        },
-        timeout: 15000,
-      };
-      const response = await axios.request(config);
-
-      if (!response.data || !Array.isArray(response.data) || response.data.length === 0) {
-        continue;
-      }
-
-      // Transform to Saavn-like structure
-      const transformedResults = response.data
-        .filter(item => item.type === 'video' && item.videoId)
-        .slice(0, limit)
-        .map(video => {
-          const thumbnails = video.videoThumbnails || [];
-          const highQualityThumb = thumbnails.find(t => t?.quality === 'maxres' || t?.quality === 'maxresdefault')?.url ||
-            thumbnails.find(t => t?.width >= 1280)?.url ||
-            thumbnails[thumbnails.length - 1]?.url ||
-            `https://img.youtube.com/vi/${video.videoId}/maxresdefault.jpg`;
-
-          return {
-            id: video.videoId,
-            name: video.title,
-            image: [{ url: highQualityThumb }, { url: highQualityThumb }, { url: highQualityThumb }],
-            artists: { primary: [{ name: video.author || 'Unknown' }] },
-            downloadUrl: video.videoId,
-            duration: video.lengthSeconds || 0,
-            language: 'en',
-          };
-        });
-
-      if (transformedResults.length > 0) {
-        return { data: { results: transformedResults } };
-      }
-    } catch (error) {
-      continue;
-    }
-  }
-
-  // STRATEGY 2: Fallback to YouTube InnerTube API if all Invidious instances fail
+  // Use YouTube InnerTube API (primary)
   try {
     const innerTubeResponse = await fetch('https://www.youtube.com/youtubei/v1/search?key=AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8', {
       method: 'POST',

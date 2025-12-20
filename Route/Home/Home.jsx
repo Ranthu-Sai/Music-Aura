@@ -57,7 +57,7 @@ export const Home = () => {
       const Languages = await GetLanguageValue();
       const data = await getHomePageData(Languages);
       const playlists = await getAllPlaylists(Languages);
-      
+
       // Filter albums by selected language
       if (data?.data?.albums && Languages && Languages !== 'All') {
         const languageLower = Languages.toLowerCase();
@@ -67,7 +67,7 @@ export const Home = () => {
           return !albumLanguage || albumLanguage === languageLower || albumLanguage === 'unknown';
         });
       }
-      
+
       setData(data);
       setAllPlaylists(playlists?.data?.results || []);
     } catch (e) {

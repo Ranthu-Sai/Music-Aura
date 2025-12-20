@@ -99,7 +99,7 @@ const extractArtwork = (song) => {
   if (song.artwork?.uri) return song.artwork.uri;
   if (song.image?.uri) return song.image.uri;
 
-  return '';
+  return undefined; // Return undefined instead of empty string to avoid TrackPlayer error
 };
 
 // Safe HTTP GET helper: prefer axios if available, otherwise fall back to fetch
@@ -234,22 +234,29 @@ async function PlayOneSong(song) {
     }
 
     // Get the appropriate URL based on playback quality setting
+    // Prioritize downloadUrl for Saavn songs, fallback to url
     let playbackUrl = song.url;
     let updatedSong = { ...song };
 
-    // Handle case where `song.url` is an array of quality objects
+    // If downloadUrl exists (Saavn songs), use it instead of url
+    if (song.downloadUrl && Array.isArray(song.downloadUrl) && song.downloadUrl.length > 0) {
+      playbackUrl = song.downloadUrl;
+      updatedSong.url = song.downloadUrl; // Ensure url is set for downstream processing
+    }
+
+    // Handle case where `song.url` or `downloadUrl` is an array of quality objects
     // e.g. [{ quality: '12kbps', url: '...' }, { quality: '160kbps', url: '...' }]
-    if (Array.isArray(song.url)) {
+    if (Array.isArray(playbackUrl)) {
       try {
         const qualityIndex = await getIndexQuality();
         // Prefer configured quality, fall back to highest available
-        const preferred = song.url[qualityIndex] && (song.url[qualityIndex].url || song.url[qualityIndex].link || song.url[qualityIndex].download);
+        const preferred = playbackUrl[qualityIndex] && (playbackUrl[qualityIndex].url || playbackUrl[qualityIndex].link || playbackUrl[qualityIndex].download);
         if (preferred) {
           playbackUrl = preferred;
         } else {
           // Find highest-quality available by iterating from end
-          for (let i = song.url.length - 1; i >= 0; i--) {
-            const candidate = song.url[i];
+          for (let i = playbackUrl.length - 1; i >= 0; i--) {
+            const candidate = playbackUrl[i];
             const candidateUrl = candidate && (candidate.url || candidate.link || candidate.download);
             if (candidateUrl) {
               playbackUrl = candidateUrl;
@@ -483,13 +490,13 @@ async function PlayOneSong(song) {
 
     // Enhance artwork to highest quality for playing song (w500)
     const enhancedArtwork = enhanceYTMusicArtwork(updatedSong.artwork || updatedSong.image, 'playing');
-    const playingArtwork = getPrimaryArtworkUrl(enhancedArtwork) || updatedSong.artwork || updatedSong.image;
+    const playingArtwork = getPrimaryArtworkUrl(enhancedArtwork) || updatedSong.artwork || updatedSong.image || undefined;
 
     const songForPlayback = {
       ...updatedSong,
       url: playbackUrl,
       currentPlayingQuality: currentQuality,
-      artwork: playingArtwork // Use enhanced w500 quality
+      artwork: playingArtwork && playingArtwork.trim() !== '' ? playingArtwork : undefined // Ensure never empty string
     };
 
     await TrackPlayer.reset();
@@ -563,13 +570,15 @@ async function PlayOneSong(song) {
 
 async function PlaySongWithRelated(videoId, artwork, songData = {}) {
   try {
+
     // Create song object
     const song = {
       id: videoId,
       artwork: artwork,
       title: songData.title || 'Unknown Title',
       artist: songData.artist || 'Unknown Artist',
-      url: songData.url || '', // Will be fetched for YouTube
+      url: songData.url || '',
+      downloadUrl: songData.downloadUrl || undefined, // Accept downloadUrl from caller
       duration: songData.duration || 0,
       language: songData.language || 'Unknown',
       // Mark as YouTube song
@@ -581,15 +590,26 @@ async function PlaySongWithRelated(videoId, artwork, songData = {}) {
     // If this is not a YouTube song and URL/download metadata is missing,
     // try to fetch Saavn song details from the API so we can obtain downloadUrl(s).
     const isUrlMissing = (!song.url || (typeof song.url === 'string' && song.url.trim() === '') || (Array.isArray(song.url) && song.url.length === 0));
+    const isDownloadUrlMissing = !song.downloadUrl || (Array.isArray(song.downloadUrl) && song.downloadUrl.length === 0);
 
-    if (!song.isYouTubeSong && isUrlMissing) {
+    if (!song.isYouTubeSong && isUrlMissing && isDownloadUrlMissing) {
       try {
         const { getSongData } = require('./Api/Songs');
         const apiResp = await getSongData(song.id);
 
         // Normalize response into songInfo object
         let songInfo = apiResp;
-        if (apiResp && apiResp.data) songInfo = apiResp.data;
+
+        // Handle case where data is directly an array (Saavn API format)
+        if (apiResp && apiResp.data && Array.isArray(apiResp.data) && apiResp.data.length > 0) {
+          songInfo = apiResp.data[0];
+        }
+        // Handle case where data.results is an array
+        else if (apiResp && apiResp.data) {
+          songInfo = apiResp.data;
+        }
+
+        // Handle nested results array
         if (songInfo && songInfo.results && Array.isArray(songInfo.results) && songInfo.results.length > 0) {
           songInfo = songInfo.results[0];
         }
@@ -660,8 +680,70 @@ async function PlaySongWithRelated(videoId, artwork, songData = {}) {
     // Emit event to open queue when song is played from anywhere
     DeviceEventEmitter.emit('songPlayed', { songId: videoId });
 
-    // Start auto-recommendations for continuous playback
-    autoRecommendations.start(videoId);
+    // Build queue based on song type
+    if (song.isYouTubeSong) {
+      // Start auto-recommendations for YouTube Music songs
+      autoRecommendations.start(videoId);
+    } else {
+      // Build queue for JioSaavn songs using recommendations API
+      (async () => {
+        try {
+          console.log('🎵 Building queue for Saavn song:', videoId);
+          const { getRecommendedSongs } = require('./Api/Recommended');
+          const recommendations = await getRecommendedSongs(videoId);
+
+          // Parse recommendations response
+          let songs = [];
+          if (recommendations?.data) {
+            songs = Array.isArray(recommendations.data) ? recommendations.data : [];
+          } else if (Array.isArray(recommendations)) {
+            songs = recommendations;
+          }
+
+          // Format and filter songs to ensure they have all required fields
+          const formattedSongs = songs
+            .filter(s => s && s.id && s.id !== videoId)
+            .map(s => {
+              // Extract artwork URL from image array
+              let artworkUrl = '';
+              if (Array.isArray(s.image) && s.image.length > 0) {
+                // Get highest quality image (usually the last one)
+                artworkUrl = s.image[s.image.length - 1]?.url ||
+                  s.image[2]?.url ||
+                  s.image[1]?.url ||
+                  s.image[0]?.url || '';
+              } else if (typeof s.image === 'string') {
+                artworkUrl = s.image;
+              }
+
+              return {
+                id: s.id,
+                name: s.name || s.title || 'Unknown',
+                title: s.name || s.title || 'Unknown',
+                artist: s.artists?.primary?.map(a => a.name).join(', ') ||
+                  s.primary_artists ||
+                  s.artist ||
+                  'Unknown Artist',
+                artists: s.artists || { primary: [{ name: 'Unknown Artist' }] },
+                image: s.image || [],
+                artwork: artworkUrl, // Set artwork as string URL for player
+                downloadUrl: s.downloadUrl || s.download_url || [],
+                duration: s.duration || 0,
+                language: s.language || 'Unknown',
+                url: s.url || '',
+              };
+            })
+            .slice(0, 20);
+
+          if (formattedSongs.length > 0) {
+            console.log(`✅ Adding ${formattedSongs.length} Saavn recommendations to queue`);
+            await AddSongsToQueue(formattedSongs);
+          }
+        } catch (error) {
+          console.warn('Failed to build Saavn queue:', error?.message || error);
+        }
+      })();
+    }
   } catch (error) {
     console.error('Error in PlaySongWithRelated:', error);
   }

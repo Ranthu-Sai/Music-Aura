@@ -349,6 +349,13 @@ const ContextState = (props) => {
         }
 
         if (event.type === Event.PlaybackActiveTrackChanged) {
+            console.log('🎵 PlaybackActiveTrackChanged event:', {
+                trackId: event.track?.id,
+                trackTitle: event.track?.title,
+                index: event.index,
+                previousTrackId: currentPlaying?.id
+            });
+
             setCurrentPlaying(event.track)
             if (event?.track?.id) {
                 // Save the current track so it can be restored on app restart
@@ -358,12 +365,15 @@ const ContextState = (props) => {
                 // (i.e., it was played from outside the queue, not clicked within the queue)
                 const currentQueue = await TrackPlayer.getQueue();
                 const trackAlreadyInQueue = currentQueue.some(track => track && track.id === event.track.id);
-                
+
                 if (!trackAlreadyInQueue) {
+                    console.log('🎵 Track not in queue, adding recommendations');
                     // Continuously add recommended songs - unlimited queue growth
                     AddRecommendedSongs(event.index, event.track.id).catch(err => {
                         // Error silently handled
                     });
+                } else {
+                    console.log('✅ Track already in queue, skipping recommendations');
                 }
 
                 // Prefetch lyrics for faster first open, prefer track language
@@ -455,13 +465,30 @@ const ContextState = (props) => {
                 // Update current playing if there's already an active track
                 console.log('✅ Using existing active track');
                 setCurrentPlaying(song);
+
+                // Get the actual current track index from TrackPlayer
+                try {
+                    const currentIndex = await TrackPlayer.getActiveTrackIndex();
+                    if (typeof currentIndex === 'number' && currentIndex >= 0) {
+                        console.log(`📍 Current track index: ${currentIndex}`);
+                        // Don't call setIndex here to avoid triggering UI changes
+                        // The player is already at the correct position
+                    }
+                } catch (e) {
+                    console.warn('⚠️ Could not get current track index:', e);
+                }
             }
 
             // Always update track list after setup
             await updateTrack();
 
             if (song && song.id) {
-                setIndex(0);
+                // Only set index to 0 if we just restored a song, not if there was already an active track
+                const wasRestored = !await TrackPlayer.getActiveTrack() || (await TrackPlayer.getActiveTrackIndex()) === undefined;
+                if (wasRestored) {
+                    setIndex(0);
+                }
+
                 // Auto-fill queue to minimum size on startup
                 const tracks = await TrackPlayer.getQueue();
                 console.log(`📋 Current queue size: ${tracks.length} songs`);

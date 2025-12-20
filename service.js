@@ -59,8 +59,9 @@ export const PlaybackService = async function () {
             try { await TrackPlayer.skip(nextIndex); await TrackPlayer.play(); } catch (e2) { console.error('Fallback skip failed', e2); }
           }
 
-          // Run the higher-level PlayNextSong logic in background (don't block notification)
-          PlayNextSong().catch(e => console.warn('PlayNextSong background failed', e));
+          // NOTE: Removed PlayNextSong() call to prevent double-skip
+          // TrackPlayer.skipToNext() already handles the skip operation
+          // PlayNextSong().catch(e => console.warn('PlayNextSong background failed', e));
         } catch (err) {
           console.error('RemoteNext handler failed', err);
         }

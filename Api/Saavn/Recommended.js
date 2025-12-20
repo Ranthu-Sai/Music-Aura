@@ -1,4 +1,5 @@
 import axios from "axios";
+import InnerTubeClient from "../InnertubeClient";
 
 // Get recommended songs for JioSaavn tracks
 async function getRecommendedSongs(id) {
@@ -54,127 +55,29 @@ function parseDuration(durationText) {
 // Get recommended songs for YouTube Music tracks
 async function getYTMusicRecommendedSongs(videoId) {
   try {
-    // Invidious / piped lookup removed — use the videoId as the search query
-    const searchQuery = String(videoId || "");
+    // Use InnerTube to get recommendations/radio
+    const result = await InnerTubeClient.getNext(videoId);
+    if (!result || !result.items) {
+      return { data: { results: [] } };
+    }
 
-    // Search YouTube Music InnerTube API for similar songs
-    const response = await fetch(
-      "https://music.youtube.com/youtubei/v1/search?key=AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "User-Agent":
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-          Origin: "https://music.youtube.com",
+    // Filter to get only songs from the next list and format for the UI
+    const recommendedSongs = result.items
+      .filter(item => item.type === 'song' && item.videoId !== videoId)
+      .map(item => ({
+        id: item.videoId,
+        name: item.title,
+        image: item.thumbnails ? item.thumbnails.map(t => ({ url: t.url })) : [{ url: item.thumbnail }],
+        artists: {
+          primary: item.artists || [{ name: item.artist }]
         },
-        body: JSON.stringify({
-          context: {
-            client: {
-              clientName: "WEB_REMIX",
-              clientVersion: "1.20241204.01.00",
-              hl: "en",
-              gl: "US",
-            },
-          },
-          query: searchQuery,
-          params: "EgWKAQIIAWoKEAMQBBAJEAoQBQ==", // Filter for songs only
-        }),
-      }
-    );
+        downloadUrl: item.videoId,
+        duration: item.duration,
+        language: "en",
+        source: "ytmusic",
+      }));
 
-    if (!response.ok) {
-      return { data: { results: [] } };
-    }
-
-    const data = await response.json();
-    const contents =
-      data?.contents?.tabbedSearchResultsRenderer?.tabs?.[0]?.tabRenderer?.content
-        ?.sectionListRenderer?.contents;
-
-    if (!contents || contents.length === 0) {
-      return { data: { results: [] } };
-    }
-
-    const songs = [];
-
-    for (const section of contents) {
-      const musicShelf = section.musicShelfRenderer;
-      if (!musicShelf || !musicShelf.contents) continue;
-
-      for (const item of musicShelf.contents) {
-        if (!item) continue;
-
-        const musicItem = item.musicResponsiveListItemRenderer;
-        if (!musicItem) continue;
-
-        const foundVideoId =
-          musicItem.playlistItemData?.videoId ||
-          musicItem.overlay?.musicItemThumbnailOverlayRenderer?.content
-            ?.musicPlayButtonRenderer?.playNavigationEndpoint?.watchEndpoint?.videoId;
-
-        if (!foundVideoId || foundVideoId === videoId) continue; // Skip if no ID or original song
-
-        const title =
-          musicItem.flexColumns?.[0]?.musicResponsiveListItemFlexColumnRenderer?.text
-            ?.runs?.[0]?.text || "Unknown";
-
-        const artistRuns =
-          musicItem.flexColumns?.[1]?.musicResponsiveListItemFlexColumnRenderer?.text
-            ?.runs;
-        let artist = "Unknown";
-        if (artistRuns && artistRuns.length > 0) {
-          artist = artistRuns[0]?.text || "Unknown";
-        }
-
-        let thumbnail =
-          musicItem.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails?.slice(-1)[0]
-            ?.url || `https://img.youtube.com/vi/${foundVideoId}/maxresdefault.jpg`;
-
-        if (
-          thumbnail &&
-          (thumbnail.includes("googleusercontent.com") || thumbnail.includes("ggpht.com"))
-        ) {
-          thumbnail = thumbnail.split("=")[0] + "=w1080-h1080-l90-rj";
-        }
-
-        const durationText =
-          musicItem.flexColumns?.[musicItem.flexColumns.length - 1]
-            ?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]?.text;
-        const duration = parseDuration(durationText) || 0;
-
-        // Only add if we have a valid video ID
-        if (foundVideoId) {
-          songs.push({
-            id: foundVideoId,
-            name: title,
-            image: [
-              { url: thumbnail },
-              { url: thumbnail },
-              { url: thumbnail },
-            ],
-            artists: {
-              primary: [{ name: artist }],
-            },
-            downloadUrl: [
-              { url: foundVideoId },
-              { url: foundVideoId },
-              { url: foundVideoId },
-              { url: foundVideoId },
-            ],
-            duration: duration,
-            language: "en",
-            source: "ytmusic",
-          });
-        }
-
-        if (songs.length >= 10) break;
-      }
-
-      if (songs.length >= 10) break;
-    }
-
-    return { data: { results: songs } };
+    return { data: { results: recommendedSongs.slice(0, 10) } };
   } catch (error) {
     return { data: { results: [] } };
   }

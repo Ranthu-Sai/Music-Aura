@@ -17,7 +17,7 @@ import ContentTypeToggle from "../Component/Global/ContentTypeToggle";
 
 export const SearchPage = ({ navigation }) => {
   const [ActiveTab, setActiveTab] = useState(0)
-  const [engine, setEngine] = useState(0) // 0: Saavn, 1: Yt Music, 2: Youtube
+  const [engine, setEngine] = useState(0) // 0: Saavn, 1: YT Music, 2: Youtube
   const [query, setQuery] = useState("");
   const [submittedQuery, setSubmittedQuery] = useState("");
   const [SearchText, setSearchText] = useState("")
@@ -48,7 +48,7 @@ export const SearchPage = ({ navigation }) => {
             data = await getSearchPlaylistData(text, pageNum, limit)
           }
         } else if (engine === 1) {
-          // Yt Music
+          // YT Music
           if (ActiveTab === 0) {
             data = await getYTSearchSongData(text, pageNum, limit)
           } else if (ActiveTab === 1) {
@@ -217,7 +217,7 @@ export const SearchPage = ({ navigation }) => {
       }}>
         <ContentTypeToggle activeTab={ActiveTab} setActiveTab={setActiveTab} />
         <View style={{ marginLeft: 15 }}>
-          <Tabs tabs={["Saavn", "Yt Music", "Youtube"]} setState={setEngine} state={engine} />
+          <Tabs tabs={["Saavn", "YT Music", "Youtube"]} setState={setEngine} state={engine} />
         </View>
       </View>
       <Spacer height={10} />
