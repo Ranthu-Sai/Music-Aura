@@ -925,6 +925,84 @@ async function AddPlaylist(songs, startSongId = null) {
         console.error('Error prefetching next track:', err)
       );
     }, 1000);
+
+    // Add recommendations after album/playlist songs to enable continuous playback
+    // This runs in the background after the album is loaded
+    InteractionManager.runAfterInteractions(() => {
+      setTimeout(async () => {
+        try {
+          // Get the last song from the original songs array to base recommendations on
+          const lastSong = processedSongs[processedSongs.length - 1];
+          if (!lastSong || !lastSong.id) return;
+
+          console.log('🎵 Fetching recommendations for continuous playback after album/playlist');
+
+          // Check if this is a YouTube Music song
+          const isYouTubeSong = lastSong.id && typeof lastSong.id === 'string' && lastSong.id.length === 11 && !lastSong.isLocalMusic;
+
+          if (isYouTubeSong) {
+            // Fetch YouTube Music recommendations
+            const recommendations = await queueManager.buildQueueFromRecommendations(lastSong.id, 'ytmusic', 20);
+            if (recommendations && recommendations.length > 0) {
+              await AddSongsToQueue(recommendations);
+              console.log(`✅ Added ${recommendations.length} YTMusic recommendations after album`);
+            }
+          } else {
+            // Fetch JioSaavn recommendations
+            const { getRecommendedSongs } = require('./Api/Recommended');
+            const recommendations = await getRecommendedSongs(lastSong.id);
+
+            // Parse recommendations response
+            let songs = [];
+            if (recommendations?.data) {
+              songs = Array.isArray(recommendations.data) ? recommendations.data : [];
+            } else if (Array.isArray(recommendations)) {
+              songs = recommendations;
+            }
+
+            // Format songs
+            const formattedSongs = songs
+              .filter(s => s && s.id)
+              .map(s => {
+                let artworkUrl = '';
+                if (Array.isArray(s.image) && s.image.length > 0) {
+                  artworkUrl = s.image[s.image.length - 1]?.url ||
+                    s.image[2]?.url ||
+                    s.image[1]?.url ||
+                    s.image[0]?.url || '';
+                } else if (typeof s.image === 'string') {
+                  artworkUrl = s.image;
+                }
+
+                return {
+                  id: s.id,
+                  name: s.name || s.title || 'Unknown',
+                  title: s.name || s.title || 'Unknown',
+                  artist: s.artists?.primary?.map(a => a.name).join(', ') ||
+                    s.primary_artists ||
+                    s.artist ||
+                    'Unknown Artist',
+                  artists: s.artists || { primary: [{ name: 'Unknown Artist' }] },
+                  image: s.image || [],
+                  artwork: artworkUrl,
+                  downloadUrl: s.downloadUrl || s.download_url || [],
+                  duration: s.duration || 0,
+                  language: s.language || 'Unknown',
+                  url: s.url || '',
+                };
+              })
+              .slice(0, 20);
+
+            if (formattedSongs.length > 0) {
+              await AddSongsToQueue(formattedSongs);
+              console.log(`✅ Added ${formattedSongs.length} Saavn recommendations after album`);
+            }
+          }
+        } catch (error) {
+          console.warn('Failed to add recommendations after album:', error?.message || error);
+        }
+      }, 2000); // Wait 2 seconds after album loads
+    });
   } catch (error) {
     console.error('Error in AddPlaylist:', error);
   }

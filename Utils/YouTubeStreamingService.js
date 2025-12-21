@@ -49,9 +49,9 @@ class YouTubeStreamingService {
                         fromCache: true
                     };
                 } else {
-                    // Invalid cached URL - clear it and fetch fresh
+                    // Invalid cached URL - clear only that entry and fetch fresh
                     console.warn(`⚠️ Invalid cached URL for ${videoId}: ${cachedUrl}, fetching fresh`);
-                    CacheManager.clearStreamCache();
+                    CacheManager.clearStreamUrl(videoId, 'ytmusic');
                 }
             }
 
@@ -59,7 +59,8 @@ class YouTubeStreamingService {
             // Orbit VIP Mode: Inject Cookies if available
             const cookies = await AsyncStorage.getItem('yt_cookies');
 
-            const result = await NativeStreaming.getStreamUrl(videoId, cookies || '');
+            // Use a retry wrapper with timeout to avoid long native hangs
+            const result = await this._nativeFetchWithRetries(videoId, cookies || '', 3, 8000);
 
             if (result && result.url) {
                 // Validate URL before caching
@@ -91,6 +92,48 @@ class YouTubeStreamingService {
             console.error(`❌ Native Streaming failed for ${videoId}:`, error);
             return null;
         }
+    }
+
+    /**
+     * Try fetching native stream URL with retries and timeout
+     * @private
+     */
+    async _nativeFetchWithRetries(videoId, cookies = '', maxAttempts = 3, timeoutMs = 8000) {
+        let attempt = 0;
+        let lastError = null;
+
+        const callNative = () => NativeStreaming.getStreamUrl(videoId, cookies || '');
+
+        while (attempt < maxAttempts) {
+            attempt += 1;
+            try {
+                console.log(`🔄 Fetch attempt ${attempt}/${maxAttempts} for: ${videoId}`);
+
+                const result = await Promise.race([
+                    callNative(),
+                    new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), timeoutMs))
+                ]);
+
+                if (result && result.url && typeof result.url === 'string' && (result.url.startsWith('http://') || result.url.startsWith('https://'))) {
+                    return result;
+                }
+
+                // Invalid result — treat as error to retry
+                lastError = new Error(`Invalid stream URL result on attempt ${attempt}`);
+                console.warn(`⚠️ Invalid stream result for ${videoId} on attempt ${attempt}: ${result && result.url}`);
+            } catch (err) {
+                lastError = err;
+                console.warn(`⚠️ Native fetch attempt ${attempt} failed for ${videoId}:`, err);
+            }
+
+            // Backoff before retrying
+            if (attempt < maxAttempts) {
+                const backoffMs = 500 * Math.pow(2, attempt - 1);
+                await new Promise(res => setTimeout(res, backoffMs));
+            }
+        }
+
+        throw lastError || new Error('Native fetch failed');
     }
 }
 

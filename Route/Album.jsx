@@ -124,15 +124,15 @@ export const Album = ({ route }) => {
                     <EachSongCard
                       Data={Data}
                       index={i}
-                      artist={e?.artist}
+                      title={e?.name}
+                      artist={FormatArtist(e?.artists?.primary)}
                       language={e?.language}
                       artistID={e?.primary_artists_id}
-                      key={i}
+                      key={e?.id}
                       duration={e?.duration}
                       image={Array.isArray(e?.image) ? (e?.image[2]?.url || e?.image[1]?.url || e?.image[0]?.url || "") : (typeof e?.image === 'string' ? e?.image : "")}
                       id={e?.id}
                       width={"100%"}
-                      title={e?.title}
                       albumName={albumData.name}
                       albumId={albumData.id}
                       releaseDate={albumData.year}

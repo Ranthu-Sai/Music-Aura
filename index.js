@@ -1,15 +1,33 @@
 /**
  * @format
  */
-// Silence noisy console logs only in production; keep logs in development for debugging
-if (!__DEV__) {
-  (() => {
-    const NOOP = () => { };
-    // Keep warnings/errors intact; silence normal logs and debug/info
-    console.log = NOOP;
-    console.info = NOOP;
-    console.debug = NOOP;
-  })();
+// Centralized log control: allows hiding logs in any environment via hide-logs.json
+try {
+  const logConfig = require('./hide-logs.json');
+  const { applyHideLogs } = require('./Utils/LogControl');
+  if (logConfig && logConfig.hide) {
+    applyHideLogs(true);
+  } else {
+    // Keep existing behavior: silence some logs in production
+    if (!__DEV__) {
+      (() => {
+        const NOOP = () => { };
+        console.log = NOOP;
+        console.info = NOOP;
+        console.debug = NOOP;
+      })();
+    }
+  }
+} catch (e) {
+  // If config missing or error, fallback to previous behavior
+  if (!__DEV__) {
+    (() => {
+      const NOOP = () => { };
+      console.log = NOOP;
+      console.info = NOOP;
+      console.debug = NOOP;
+    })();
+  }
 }
 
 import 'react-native-reanimated';

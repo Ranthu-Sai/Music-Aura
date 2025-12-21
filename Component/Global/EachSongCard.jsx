@@ -19,6 +19,25 @@ export const EachSongCard = memo(function EachSongCard({ title, artist, image, i
   const navigation = useNavigation();
   const [isLoading, setIsLoading] = useState(false);
 
+  // Normalize artwork formats (string, array, object) to a single URI
+  const normalizeArtwork = (img) => {
+    if (!img) return null;
+    if (typeof img === 'string') return img;
+    if (Array.isArray(img) && img.length > 0) {
+      const best = img[img.length - 1] || img[0];
+      if (best?.url) return best.url;
+      if (best?.link) return best.link;
+      if (typeof best === 'string') return best;
+    }
+    if (typeof img === 'object') {
+      if (img.url) return img.url;
+      if (img.uri) return img.uri;
+    }
+    return null;
+  };
+
+  const artworkUri = normalizeArtwork(image) || 'https://via.placeholder.com/60x60/cccccc/000000?text=No+Img';
+
   const handleAlbumPress = () => {
     if (albumId) {
       navigation.navigate('Album', { id: albumId, image: image, highlightSongId: id });
@@ -31,15 +50,45 @@ export const EachSongCard = memo(function EachSongCard({ title, artist, image, i
     try {
       if (lyricsCacheRef?.current) { lyricsCacheRef.current = {}; }
 
-      // Always start playback (original behavior)
-      await PlaySongWithRelated(id, image, { title, artist, url, duration, language });
-      await updateTrack();
+      // Check if this song is from an album/playlist with Data prop
+      if (Data && Data.data && Data.data.songs && Array.isArray(Data.data.songs)) {
+        // Album/Playlist mode: Play from this song and queue remaining songs
+        const { AddPlaylist, getIndexQuality } = require('../../MusicPlayerFunctions');
+        const FormatArtist = require('../../Utils/FormatArtists').default;
+
+        const quality = await getIndexQuality();
+        const ForMusicPlayer = Data.data.songs.map((e, i) => {
+          // Handle the case where downloadUrl might be a single URL or an array
+          const download = Array.isArray(e?.downloadUrl) ? (e?.downloadUrl[quality]?.url || e?.downloadUrl[0]?.url) : e?.downloadUrl;
+
+          return {
+            url: download,
+            title: FormatTitleAndArtist(e?.name || e?.title),
+            artist: FormatTitleAndArtist(FormatArtist(e?.artists?.primary)),
+            artwork: Array.isArray(e?.image) ? (e?.image[2]?.url || e?.image[0]?.url) : e?.image,
+            image: Array.isArray(e?.image) ? (e?.image[2]?.url || e?.image[0]?.url) : e?.image,
+            duration: e?.duration,
+            id: e?.id,
+            language: e?.language,
+            artistID: e?.primary_artists_id,
+            source: e?.source || Data.data.source
+          };
+        });
+
+        // Play from the clicked song using startSongId
+        await AddPlaylist(ForMusicPlayer, id);
+        await updateTrack();
+      } else {
+        // Single song mode: Use existing behavior with recommendations
+        await PlaySongWithRelated(id, image, { title, artist, url, duration, language });
+        await updateTrack();
+      }
     } catch (error) {
       console.error('Error in AddSongToPlayer:', error);
     } finally {
       setIsLoading(false);
     }
-  }, [isLoading, id, image, title, artist, url, duration, language, updateTrack, lyricsCacheRef]);
+  }, [isLoading, id, image, title, artist, url, duration, language, updateTrack, lyricsCacheRef, Data]);
 
   return (
     <>
@@ -65,9 +114,40 @@ export const EachSongCard = memo(function EachSongCard({ title, artist, image, i
           flex: 1,
           opacity: isLoading ? 0.5 : 1,
         }}>
-          <FastImage source={((id === currentPlaying?.id ?? "") && playerState.state === "playing") ? require("../../Images/playing.gif") : ((id === currentPlaying?.id ?? "") && playerState.state !== "playing") ? require("../../Images/songPaused.gif") : {
-            uri: image || 'https://via.placeholder.com/40x40/cccccc/000000?text=No+Img',
-          }}
+          <FastImage source={(() => {
+            // Primary match: by ID
+            let isCurrentSong = id === currentPlaying?.id;
+
+            // Fallback for YouTube Music: match by title if IDs don't match
+            // (YT Music can have different video IDs for same song in search vs album)
+            if (!isCurrentSong && currentPlaying?.title && title) {
+              const normalizeTitle = (str) => str?.toLowerCase().replace(/[^\w\s]/g, '').trim();
+              const currentTitle = normalizeTitle(currentPlaying.title);
+              const cardTitle = normalizeTitle(title);
+
+              // Match if titles are very similar (allows for minor differences)
+                if (currentTitle && cardTitle && currentTitle === cardTitle) {
+                isCurrentSong = true;
+                  console.log(`✅ Matched by exact title: "${title}" === "${currentPlaying.title}"`);
+              }
+            }
+
+            const isPlaying = playerState.state === "playing";
+
+            // Debug logging
+            if (isCurrentSong) {
+                const idMatch = id === currentPlaying?.id;
+                console.log(`🎵 Playing icon: "${title}" | ID match: ${idMatch} | Title fallback: ${!idMatch && !!currentPlaying?.title} | State: ${playerState.state}`);
+            }
+
+            if (isCurrentSong && isPlaying) {
+              return require("../../Images/playing.gif");
+            } else if (isCurrentSong && !isPlaying) {
+              return require("../../Images/songPaused.gif");
+            } else {
+              return { uri: artworkUri };
+            }
+          })()}
             resizeMode={FastImage.resizeMode.cover}
             style={{
               height: 60,

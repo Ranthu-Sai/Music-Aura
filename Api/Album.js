@@ -106,146 +106,115 @@ async function getYTMusicAlbumData(browseId) {
 
     const data = await response.json();
 
-    // Debug: Log the full structure to understand the API response    if (data.header) {    }
-    if (data.contents) { }
+    // Extract album metadata from musicResponsiveHeaderRenderer
+    const twoCol = data?.contents?.twoColumnBrowseResultsRenderer;
+    const tabContent = twoCol?.tabs?.[0]?.tabRenderer?.content?.sectionListRenderer;
+    const header = tabContent?.contents?.[0]?.musicResponsiveHeaderRenderer;
 
-    // Try multiple possible header locations
-    const header = data?.header?.musicDetailHeaderRenderer ||
-      data?.header?.musicImmersiveHeaderRenderer ||
-      data?.header?.musicHeaderRenderer ||
-      data?.header?.musicEditablePlaylistDetailHeaderRenderer ||
-      data?.header?.musicVisualHeaderRenderer;
-
-    const albumName = header?.title?.runs?.[0]?.text ||
-      header?.title?.text ||
-      'Unknown Album';
-
-    // Extract thumbnail (album artwork) - Try multiple possible paths for robustness
-    let thumbnail =
-      header?.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails?.slice(-1)[0]?.url ||
-      header?.thumbnail?.croppedSquareThumbnailRenderer?.thumbnail?.thumbnails?.slice(-1)[0]?.url ||
-      header?.thumbnail?.thumbnails?.slice(-1)[0]?.url ||
-      '';
-
-    // If thumbnail is still empty, look in a common alternative location
-    if (!thumbnail && data?.header?.musicVisualHeaderRenderer?.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails) {
-      const visualThumbs = data.header.musicVisualHeaderRenderer.thumbnail.musicThumbnailRenderer.thumbnail.thumbnails;
-      thumbnail = visualThumbs[visualThumbs.length - 1]?.url;
+    if (!header) {
+      console.error('❌ No musicResponsiveHeaderRenderer found in response');
+      throw new Error('Invalid YouTube Music album response structure');
     }
 
-    // Upgrade album thumbnail quality
+    // Extract album name
+    const albumName = header?.title?.runs?.[0]?.text || 'Unknown Album';
+    console.log('📋 Album Name:', albumName);
+
+    // Extract album thumbnail
+    let thumbnail = header?.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails?.slice(-1)[0]?.url || '';
+
+    // Upgrade thumbnail quality
     if (thumbnail) {
       thumbnail = YTArtworkUtils.upgradeArtworkQuality(thumbnail);
       thumbnail = YTArtworkUtils.upgradeYtimgQuality(thumbnail);
     }
+    console.log('📋 Album Thumbnail:', thumbnail ? 'Found' : 'Not found');
 
-    // Extract year
+    // Extract year and artist from subtitle
     const subtitle = header?.subtitle?.runs || [];
     let year = '';
-    for (const run of subtitle) {
-      if (run.text && /^\d{4}$/.test(run.text.trim())) {
-        year = run.text.trim();
-        break;
+    let primaryArtist = '';
+
+    for (let i = 0; i < subtitle.length; i++) {
+      const text = subtitle[i].text?.trim();
+      if (text && /^\d{4}$/.test(text)) {
+        year = text;
+      } else if (text && text !== '•' && text !== ' • ' && !primaryArtist) {
+        // First non-separator text is usually the type (EP, Album, etc.) or artist
+        if (text !== 'EP' && text !== 'Album' && text !== 'Single') {
+          primaryArtist = text;
+        }
       }
     }
 
-    // Extract songs
+    if (!primaryArtist) {
+      primaryArtist = 'Various Artists';
+    }
+
+    // Extract songs from secondaryContents
     const songs = [];
+    const musicShelf = twoCol?.secondaryContents?.sectionListRenderer?.contents?.[0]?.musicShelfRenderer;
 
-    // Try multiple possible content paths
-    let contentsArr = data?.contents?.singleColumnBrowseResultsRenderer?.tabs?.[0]?.tabRenderer?.content?.sectionListRenderer?.contents;
+    if (musicShelf && musicShelf.contents) {
+      console.log('📋 Found', musicShelf.contents.length, 'songs');
 
-    if (!contentsArr) {
-      // Try alternative path for two-column layout
-      contentsArr = data?.contents?.twoColumnBrowseResultsRenderer?.secondaryContents?.sectionListRenderer?.contents;
-    }
+      for (const item of musicShelf.contents) {
+        const musicItem = item.musicResponsiveListItemRenderer;
+        if (!musicItem) continue;
 
-    if (!contentsArr) {
-      // Try another alternative
-      contentsArr = data?.contents?.twoColumnBrowseResultsRenderer?.tabs?.[0]?.tabRenderer?.content?.sectionListRenderer?.contents;
-    }
+        // Extract video ID
+        const videoId = musicItem.playlistItemData?.videoId;
+        if (!videoId) continue;
 
-    if (contentsArr) {
-      for (const section of contentsArr) {
-        const musicShelf = section.musicPlaylistShelfRenderer || section.musicShelfRenderer;
-        if (!musicShelf || !musicShelf.contents) {
-          continue;
-        }
+        // Extract title
+        const title = musicItem.flexColumns?.[0]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]?.text || 'Unknown';
 
-        for (const item of musicShelf.contents) {
-          const musicItem = item.musicResponsiveListItemRenderer;
-          if (!musicItem) {
-            continue;
-          }
+        // Extract artist
+        const artistRuns = musicItem.flexColumns?.[1]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs;
+        const artist = artistRuns?.filter(r => r.text !== ' • ').map(r => r.text).join('') || 'Unknown';
 
-          // Extract video ID
-          const videoId = musicItem.playlistItemData?.videoId ||
-            musicItem.overlay?.musicItemThumbnailOverlayRenderer?.content?.musicPlayButtonRenderer?.playNavigationEndpoint?.watchEndpoint?.videoId;
+        // Extract duration
+        const durationText = musicItem.fixedColumns?.[0]?.musicResponsiveListItemFixedColumnRenderer?.text?.runs?.[0]?.text;
+        const duration = parseDuration(durationText) || 0;
 
-          if (!videoId) {
-            continue;
-          }
+        // Detect language
+        const detectLanguage = (text) => {
+          if (!text) return 'en';
+          if (/[\u0C00-\u0C7F]/.test(text)) return 'telugu';
+          if (/[\u0900-\u097F]/.test(text)) return 'hindi';
+          if (/[\u0B80-\u0BFF]/.test(text)) return 'tamil';
+          if (/[\u0C80-\u0CFF]/.test(text)) return 'kannada';
+          if (/[\u0D00-\u0D7F]/.test(text)) return 'malayalam';
+          if (/[\u0980-\u09FF]/.test(text)) return 'bengali';
+          if (/[\u0A00-\u0A7F]/.test(text)) return 'punjabi';
+          if (/[\u0A80-\u0AFF]/.test(text)) return 'gujarati';
+          return 'en';
+        };
 
-          // Extract title
-          const title = musicItem.flexColumns?.[0]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]?.text || 'Unknown';
-
-          // Extract artist
-          const artistRuns = musicItem.flexColumns?.[1]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs;
-          const artist = artistRuns?.filter(r => r.text !== ' • ').map(r => r.text).join('') || 'Unknown';
-
-          // Extract thumbnail - try multiple paths for robustness
-          const itemThumbs = musicItem.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails || [];
-          let songThumbnail = itemThumbs[itemThumbs.length - 1]?.url || thumbnail || `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
-
-          // Upgrade thumbnail quality
-          songThumbnail = YTArtworkUtils.upgradeArtworkQuality(songThumbnail);
-          songThumbnail = YTArtworkUtils.upgradeYtimgQuality(songThumbnail);
-
-          // Extract duration
-          const durationText = musicItem.fixedColumns?.[0]?.musicResponsiveListItemFixedColumnRenderer?.text?.runs?.[0]?.text;
-          const duration = parseDuration(durationText) || 0;
-
-          // Detect language
-          const detectLanguage = (text) => {
-            if (!text) return 'en';
-            if (/[\u0C00-\u0C7F]/.test(text)) return 'telugu';
-            if (/[\u0900-\u097F]/.test(text)) return 'hindi';
-            if (/[\u0B80-\u0BFF]/.test(text)) return 'tamil';
-            if (/[\u0C80-\u0CFF]/.test(text)) return 'kannada';
-            if (/[\u0D00-\u0D7F]/.test(text)) return 'malayalam';
-            if (/[\u0980-\u09FF]/.test(text)) return 'bengali';
-            if (/[\u0A00-\u0A7F]/.test(text)) return 'punjabi';
-            if (/[\u0A80-\u0AFF]/.test(text)) return 'gujarati';
-            return 'en';
-          };
-
-          songs.push({
-            id: videoId,
-            name: title,
-            title: title,
-            image: [{ url: songThumbnail }, { url: songThumbnail }, { url: songThumbnail }],
-            duration: duration,
-            language: detectLanguage(title + ' ' + artist),
-            artist: artist,
-            artists: { primary: [{ name: artist }] },
-            downloadUrl: videoId,
-            url: videoId,
-            source: 'ytmusic'
-          });
-        }
+        // ALWAYS use album thumbnail for all songs (consistent artwork)
+        songs.push({
+          id: videoId,
+          name: title,
+          title: title,
+          image: [{ url: thumbnail }, { url: thumbnail }, { url: thumbnail }],
+          duration: duration,
+          language: detectLanguage(title + ' ' + artist),
+          artist: artist,
+          artists: { primary: [{ name: artist }] },
+          downloadUrl: videoId,
+          url: videoId,
+          album: albumName,
+          albumId: browseId,
+          year: year,
+          source: 'ytmusic'
+        });
       }
     }
 
-    // Calculate total duration and song count
+    // Calculate total duration
     const totalDuration = songs.reduce((acc, song) => acc + (song.duration || 0), 0);
-    const songCount = songs.length;
 
-    // Extract primary artist from subtitle if possible
-    let primaryArtist = 'Various Artists';
-    if (subtitle.length > 0) {
-      // Usually the first run is the artist or type
-      primaryArtist = subtitle[0].text || primaryArtist;
-    }
+    console.log('✅ YT Music Album:', albumName, '|', songs.length, 'songs |', year);
 
     const albumData = {
       data: {
@@ -255,21 +224,24 @@ async function getYTMusicAlbumData(browseId) {
         image: [{ url: thumbnail }, { url: thumbnail }, { url: thumbnail }],
         year: year,
         songs: songs,
-        songCount: songCount,
+        songCount: songs.length,
         totalDuration: totalDuration,
         type: 'album',
         source: 'ytmusic',
       },
-    }; return albumData;
+    };
+
+    return albumData;
 
   } catch (error) {
+    console.error('❌ Error fetching YT Music album:', error);
     throw error;
   }
 }
 
 // Helper function to parse duration
 function parseDuration(durationText) {
-  if (!durationText) { return 0; }
+  if (!durationText) return 0;
   const parts = durationText.split(':').map(p => parseInt(p, 10));
   if (parts.length === 2) {
     return parts[0] * 60 + parts[1]; // MM:SS
@@ -280,6 +252,3 @@ function parseDuration(durationText) {
 }
 
 export { getAlbumData, getSearchAlbumData }
-
-
-

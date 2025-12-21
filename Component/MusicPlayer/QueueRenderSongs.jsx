@@ -40,11 +40,16 @@ export const QueueRenderSongs = memo(function QueueRenderSongs({Index}) {
     if (isLoadingMore || displayedSongs.length >= Queue.length) {
       return
     }
-
+    console.log('[QueueRenderSongs] Loading more songs. current displayed:', displayedSongs.length, 'total queue:', Queue.length);
     setIsLoadingMore(true)
     const startIndex = displayedSongs.length;
     const endIndex = Math.min(Queue.length, startIndex + SONGS_PER_PAGE);
     const newSongs = Queue.slice(startIndex, endIndex);
+
+    // Log sample artwork shapes for debugging missing images
+    if (newSongs && newSongs.length > 0) {
+      console.log('[QueueRenderSongs] newSongs sample artwork values:', newSongs.slice(0,5).map(s => ({ id: s?.id, artwork: s?.artwork, image: s?.image, thumbnail: s?.thumbnail })) );
+    }
 
     if (newSongs.length > 0) {
       setDisplayedSongs(prev => [...prev, ...newSongs]);
@@ -65,9 +70,15 @@ export const QueueRenderSongs = memo(function QueueRenderSongs({Index}) {
   return <BottomSheetFlatList
     contentContainerStyle={{paddingHorizontal:20, paddingBottom:100, paddingRight:60}}
     data={displayedSongs}
-    keyExtractor={(item, index) => `${item?.id?.toString()}-${index}`}
+    keyExtractor={(item, index) => {
+      const id = item?.id || item?.item?.id || item?.item?.title || `idx_${index}`;
+      return `${id.toString()}-${index}`;
+    }}
     renderItem={(item)=>{
-      return <EachSongQueue title={item.item.title} artist={item.item.artist} id={item.item.id} index={item.index} image={item.item.artwork}/>
+      const song = item.item || {};
+      // Normalize artwork field from various possible properties
+      const image = song.artwork || song.image || song.thumbnail || (song.thumbnail && song.thumbnail.url) || song.thumbnails || song.artwork?.url || song.image?.url || song.bestThumbnail || null;
+      return <EachSongQueue title={song.title} artist={song.artist} id={song.id} index={item.index} image={image} />
     }}
     onEndReached={loadMoreSongs}
     onEndReachedThreshold={0.5}

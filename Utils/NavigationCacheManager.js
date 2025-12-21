@@ -232,6 +232,18 @@ class NavigationCacheManager {
         console.log('[CacheManager] Stream cache cleared');
     }
 
+    /**
+     * Clear cached stream URL for a specific video
+     * @param {string} videoId
+     * @param {string} source
+     */
+    clearStreamUrl(videoId, source = 'ytmusic') {
+        const key = `${source}_${videoId}`;
+        if (this.streamCache.has(key)) {
+            this.streamCache.delete(key);
+            console.log(`[CacheManager] Cleared stream cache for ${source}:${videoId}`);
+        }
+    }
     // ============================================
     // SCROLL POSITION METHODS
     // ============================================
