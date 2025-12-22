@@ -1,6 +1,6 @@
 import axios from "axios";
 
-async function getPlaylistData(id){
+async function getPlaylistData(id) {
   // Check if it's a YouTube Music playlist (starts with VL, RDAMPL, OLAK, or other YTM playlist IDs)
   if (id.startsWith('VL') || id.startsWith('RDAMPL') || id.startsWith('OLAK') || id.startsWith('PL')) {
     return await getYTMusicPlaylistData(id);
@@ -9,10 +9,10 @@ async function getPlaylistData(id){
   if (id.startsWith('/')) {
     // Regular YouTube playlist - try InnerTube API first, then Piped as fallback
     const listId = id.split('list=')[1];
-    
+
     // STRATEGY 1: Try YouTube InnerTube API (primary)
     try {
-          const innerTubeResponse = await fetch('https://www.youtube.com/youtubei/v1/browse?key=AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8', {
+      const innerTubeResponse = await fetch('https://www.youtube.com/youtubei/v1/browse?key=AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -32,11 +32,11 @@ async function getPlaylistData(id){
 
       if (innerTubeResponse.ok) {
         const data = await innerTubeResponse.json();
-      
+
         // Extract playlist metadata
         const header = data?.header?.playlistHeaderRenderer;
         const playlistName = header?.title?.simpleText || 'Unknown Playlist';
-        
+
         let thumbnail = header?.playlistHeaderBanner?.heroPlaylistThumbnailRenderer?.thumbnail?.thumbnails?.slice(-1)[0]?.url || '';
         if (!thumbnail) {
           thumbnail = data?.sidebar?.playlistSidebarRenderer?.items?.[0]?.playlistSidebarPrimaryInfoRenderer?.thumbnailRenderer?.playlistVideoThumbnailRenderer?.thumbnail?.thumbnails?.slice(-1)[0]?.url || '';
@@ -49,17 +49,17 @@ async function getPlaylistData(id){
         if (contents) {
           for (const item of contents) {
             const video = item.playlistVideoRenderer;
-            if (!video) {continue;}
+            if (!video) { continue; }
 
             const videoId = video.videoId;
-            if (!videoId) {continue;}
+            if (!videoId) { continue; }
 
             const title = video.title?.runs?.[0]?.text || video.title?.simpleText || 'Unknown';
             const artist = video.shortBylineText?.runs?.[0]?.text || 'Unknown';
             const thumbnails = video.thumbnail?.thumbnails || [];
             const videoThumbnail = thumbnails.find(t => t?.width >= 1280)?.url ||
-                                   thumbnails[thumbnails.length - 1]?.url ||
-                                   `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
+              thumbnails[thumbnails.length - 1]?.url ||
+              `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
             const durationText = video.lengthText?.simpleText;
             const duration = parseDuration(durationText) || 0;
 
@@ -75,7 +75,7 @@ async function getPlaylistData(id){
           }
         }
 
-              return {
+        return {
           data: {
             name: playlistName,
             image: [{}, {}, { url: thumbnail }],
@@ -84,7 +84,7 @@ async function getPlaylistData(id){
         };
       }
     } catch (error) {
-        }
+    }
 
     // Piped fallback removed — if InnerTube failed, return an empty playlist result
     return {
@@ -118,7 +118,7 @@ async function getPlaylistData(id){
           method: 'get',
           maxBodyLength: Infinity,
           url: url,
-          headers: { },
+          headers: {},
         };
         const response = await axios.request(config);
         return response.data
@@ -130,7 +130,7 @@ async function getPlaylistData(id){
   }
 }
 
-async function getSearchPlaylistData(searchText,page,limit){
+async function getSearchPlaylistData(searchText, page, limit) {
   const baseUrl = "https://www.jiosaavn.com/api.php";
   const defaultParams = {
     ctx: "wap6dot0",
@@ -153,7 +153,7 @@ async function getSearchPlaylistData(searchText,page,limit){
         method: 'get',
         maxBodyLength: Infinity,
         url: url,
-        headers: { },
+        headers: {},
       };
       const response = await axios.request(config);
       return response.data
@@ -164,7 +164,7 @@ async function getSearchPlaylistData(searchText,page,limit){
   throw new Error('All playlist search API instances failed');
 }
 
-async function getAllPlaylists(language){
+async function getAllPlaylists(language) {
   const urls = [
     'https://jiosaavn-c451wwyru-sumit-kolhes-projects-94a4846a.vercel.app',
     'https://nepotuneapi.vercel.app',
@@ -195,7 +195,7 @@ async function getAllPlaylists(language){
 
 async function getYTMusicPlaylistData(browseId) {
   try {
-      const response = await fetch('https://music.youtube.com/youtubei/v1/browse?key=AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30', {
+    const response = await fetch('https://music.youtube.com/youtubei/v1/browse?key=AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -221,28 +221,28 @@ async function getYTMusicPlaylistData(browseId) {
       throw new Error(`HTTP ${response.status}`);
     }
 
-    const data = await response.json();    if (data.header) {    }
-    if (data.contents) {    }
+    const data = await response.json(); if (data.header) { }
+    if (data.contents) { }
 
     // Try multiple possible header locations
     const header = data?.header?.musicDetailHeaderRenderer ||
-                   data?.header?.musicImmersiveHeaderRenderer ||
-                   data?.header?.musicHeaderRenderer ||
-                   data?.header?.musicEditablePlaylistDetailHeaderRenderer ||
-                   data?.header?.musicVisualHeaderRenderer;
+      data?.header?.musicImmersiveHeaderRenderer ||
+      data?.header?.musicHeaderRenderer ||
+      data?.header?.musicEditablePlaylistDetailHeaderRenderer ||
+      data?.header?.musicVisualHeaderRenderer;
 
-  
+
     const playlistName = header?.title?.runs?.[0]?.text ||
-                        header?.title?.text ||
-                        'Unknown Playlist';
-  
+      header?.title?.text ||
+      'Unknown Playlist';
+
     // Extract thumbnail
     let thumbnail = header?.thumbnail?.croppedSquareThumbnailRenderer?.thumbnail?.thumbnails?.slice(-1)[0]?.url ||
-                   header?.thumbnail?.thumbnails?.slice(-1)[0]?.url || '';
+      header?.thumbnail?.thumbnails?.slice(-1)[0]?.url || '';
     if (thumbnail && (thumbnail.includes('googleusercontent.com') || thumbnail.includes('ggpht.com'))) {
       thumbnail = thumbnail.split('=')[0] + '=w544-h544-l90-rj';
     }
-  
+
     // Extract songs - try multiple possible content paths
     const songs = [];
     let contents = data?.contents?.singleColumnBrowseResultsRenderer?.tabs?.[0]?.tabRenderer?.content?.sectionListRenderer?.contents;
@@ -255,24 +255,25 @@ async function getYTMusicPlaylistData(browseId) {
       contents = data?.contents?.twoColumnBrowseResultsRenderer?.tabs?.[0]?.tabRenderer?.content?.sectionListRenderer?.contents;
     }
 
-      if (contents && contents.length > 0) {    }
+    if (contents && contents.length > 0) { }
 
     if (contents) {
       for (const section of contents) {
         const musicShelf = section.musicPlaylistShelfRenderer || section.musicShelfRenderer;
-        if (!musicShelf || !musicShelf.contents) {          continue;
+        if (!musicShelf || !musicShelf.contents) {
+          continue;
         }
 
-      
+
         for (const item of musicShelf.contents) {
           const musicItem = item.musicResponsiveListItemRenderer;
-          if (!musicItem) {continue;}
+          if (!musicItem) { continue; }
 
           // Extract video ID
           const videoId = musicItem.playlistItemData?.videoId ||
-                         musicItem.overlay?.musicItemThumbnailOverlayRenderer?.content?.musicPlayButtonRenderer?.playNavigationEndpoint?.watchEndpoint?.videoId;
+            musicItem.overlay?.musicItemThumbnailOverlayRenderer?.content?.musicPlayButtonRenderer?.playNavigationEndpoint?.watchEndpoint?.videoId;
 
-          if (!videoId) {continue;}
+          if (!videoId) { continue; }
 
           // Extract title
           const title = musicItem.flexColumns?.[0]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]?.text || 'Unknown';
@@ -282,11 +283,13 @@ async function getYTMusicPlaylistData(browseId) {
           const artist = artistRuns?.filter(r => r.text !== ' • ').map(r => r.text).join('') || 'Unknown';
 
           // Extract thumbnail - use highest quality available
-          const thumbnails = musicItem.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails || [];
+          const thumbnails = musicItem.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails || 
+            musicItem.thumbnailRenderer?.musicThumbnailRenderer?.thumbnail?.thumbnails ||
+            musicItem.thumbnail?.thumbnails || [];
           let songThumbnail = thumbnails[thumbnails.length - 1]?.url ||
-                             thumbnails[0]?.url ||
-                             thumbnail || // Use playlist thumbnail as fallback
-                             `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
+            thumbnails[0]?.url ||
+            thumbnail || // Use playlist thumbnail as fallback
+            `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
 
           // Fix YouTube Music thumbnail URLs - use maximum resolution
           if (songThumbnail && (songThumbnail.includes('googleusercontent.com') || songThumbnail.includes('ggpht.com'))) {
@@ -299,22 +302,22 @@ async function getYTMusicPlaylistData(browseId) {
 
           // Detect language from title/artist
           const detectLanguage = (text) => {
-            if (!text) {return 'en';}
-            if (/[\u0C00-\u0C7F]/.test(text)) {return 'telugu';}
-            if (/[\u0900-\u097F]/.test(text)) {return 'hindi';}
-            if (/[\u0B80-\u0BFF]/.test(text)) {return 'tamil';}
-            if (/[\u0C80-\u0CFF]/.test(text)) {return 'kannada';}
-            if (/[\u0D00-\u0D7F]/.test(text)) {return 'malayalam';}
-            if (/[\u0980-\u09FF]/.test(text)) {return 'bengali';}
-            if (/[\u0A00-\u0A7F]/.test(text)) {return 'punjabi';}
-            if (/[\u0A80-\u0AFF]/.test(text)) {return 'gujarati';}
+            if (!text) { return 'en'; }
+            if (/[\u0C00-\u0C7F]/.test(text)) { return 'telugu'; }
+            if (/[\u0900-\u097F]/.test(text)) { return 'hindi'; }
+            if (/[\u0B80-\u0BFF]/.test(text)) { return 'tamil'; }
+            if (/[\u0C80-\u0CFF]/.test(text)) { return 'kannada'; }
+            if (/[\u0D00-\u0D7F]/.test(text)) { return 'malayalam'; }
+            if (/[\u0980-\u09FF]/.test(text)) { return 'bengali'; }
+            if (/[\u0A00-\u0A7F]/.test(text)) { return 'punjabi'; }
+            if (/[\u0A80-\u0AFF]/.test(text)) { return 'gujarati'; }
             return 'en';
           };
 
           songs.push({
             id: videoId,
             name: title,
-            image: [{}, {}, { url: songThumbnail }],
+            image: [{ url: songThumbnail }, { url: songThumbnail }, { url: songThumbnail }],
             duration: duration,
             language: detectLanguage(title + ' ' + artist),
             artists: { primary: [{ name: artist }] },
@@ -329,21 +332,21 @@ async function getYTMusicPlaylistData(browseId) {
       data: {
         id: browseId,
         name: playlistName,
-        image: [{}, {}, { url: thumbnail }],
+        image: [{ url: thumbnail }, { url: thumbnail }, { url: thumbnail }],
         songs: songs,
         type: 'playlist',
         source: 'ytmusic',
       },
-    };    return playlistData;
+    }; return playlistData;
 
   } catch (error) {
-        throw error;
+    throw error;
   }
 }
 
 // Helper function to parse duration
 function parseDuration(durationText) {
-  if (!durationText) {return 0;}
+  if (!durationText) { return 0; }
   const parts = durationText.split(':').map(p => parseInt(p, 10));
   if (parts.length === 2) {
     return parts[0] * 60 + parts[1]; // MM:SS
@@ -353,4 +356,4 @@ function parseDuration(durationText) {
   return 0;
 }
 
-export {getPlaylistData,getSearchPlaylistData,getAllPlaylists}
+export { getPlaylistData, getSearchPlaylistData, getAllPlaylists }

@@ -443,27 +443,40 @@ export const FullScreenMusic = ({ color, Index, setIndex }) => {
             </Modal>
             <Spacer height={20} />
             <GestureDetector gesture={pan}>
-              <FastImage
-                source={{
-                  uri: (() => {
-                    const art = currentPlaying?.artwork || "https://htmlcolorcodes.com/assets/images/colors/gray-color-solid-background-1920x1080.png";
-                    // Prefer upgrading ytimg URLs to maxres and googleusercontent to w500
-                    if (art.includes('i.ytimg.com/vi/')) {
-                      return YTArtworkUtils.upgradeYtimgQuality(art);
-                    }
-                    if (art.includes('lh3.googleusercontent.com')) {
-                      return YTArtworkUtils.upgradeArtworkQuality(art);
-                    }
-                    return art;
-                  })(),
-                }}
-                resizeMode={FastImage.resizeMode.cover}
+              <View
                 style={{
-                  height: width * 0.9, // full-width square like Saavn, decreased by 10%
                   width: width * 0.9,
-                  borderRadius: 6,
-                }}
-              />
+                  height: width * 0.9,
+                  backgroundColor: "rgba(0,0,0,0.6)",
+                  overflow: "hidden",
+                }}>
+                <FastImage
+                  source={{
+                    uri: (() => {
+                      const fallback = "https://htmlcolorcodes.com/assets/images/colors/gray-color-solid-background-1920x1080.png";
+                      const raw = currentPlaying?.artwork || fallback;
+
+                      // If artwork is a YouTube videoId, use an uncropped thumbnail
+                      if (typeof raw === 'string' && /^[a-zA-Z0-9_-]{11}$/.test(raw)) {
+                        return `https://i.ytimg.com/vi/${raw}/maxresdefault.jpg`;
+                      }
+
+                      // Avoid square-cropped Google/YT Music thumbnails (they often append =w###-h###...)
+                      if (typeof raw === 'string' && (raw.includes('googleusercontent.com') || raw.includes('ggpht.com'))) {
+                        return raw.split('=')[0];
+                      }
+
+                      return YTArtworkUtils.upgradeArtworkQuality(raw);
+                    })(),
+                  }}
+                  // contain shows the full image without cropping
+                  resizeMode={FastImage.resizeMode.contain}
+                  style={{
+                    width: "100%",
+                    height: "100%",
+                  }}
+                />
+              </View>
             </GestureDetector>
             <Spacer />
             <Heading text={currentPlaying?.title ?? "No music :("} style={{ textAlign: "center", paddingHorizontal: 2 }} nospace={true} />

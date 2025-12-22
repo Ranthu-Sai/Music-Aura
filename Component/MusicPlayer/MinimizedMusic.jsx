@@ -62,15 +62,7 @@ export const MinimizedMusic = memo(({ setIndex, color }) => {
               source={{
                 uri: (() => {
                   const art = currentPlaying?.artwork || currentPlaying?.thumbnail || "https://htmlcolorcodes.com/assets/images/colors/gray-color-solid-background-1920x1080.png";
-                  if (!art) return art;
-                  // Prefer upgrading ytimg thumbnails to maxres and googleusercontent to w500
-                  if (art.includes('i.ytimg.com/vi/')) {
-                    return YTArtworkUtils.upgradeYtimgQuality(art);
-                  }
-                  if (art.includes('lh3.googleusercontent.com')) {
-                    return YTArtworkUtils.upgradeArtworkQuality(art);
-                  }
-                  return art;
+                  return YTArtworkUtils.upgradeArtworkQuality(art);
                 })(),
               }}
               resizeMode={FastImage.resizeMode.cover}

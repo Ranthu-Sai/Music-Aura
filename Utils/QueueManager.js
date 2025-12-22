@@ -55,7 +55,7 @@ class QueueManager {
 
                         if (!artworkUri && videoId) {
                             // Construct highest quality YouTube thumbnail URL
-                            artworkUri = `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`;
+                            artworkUri = `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
                         }
 
                         // Final fallbacks

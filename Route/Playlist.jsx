@@ -20,6 +20,12 @@ export const Playlist = ({route}) => {
   const [Data, setData] = useState({});
   // const [Links, setLinks] = useState([]);
   const {id, image, name, follower} = route.params
+
+  // Normalize playlist image to a single URL string for the header.
+  // Search results can pass image as Saavn-style array (with .link) or YTMusic-style array (with .url) or string.
+  const headerImageUrl = Array.isArray(image)
+    ? (image?.[2]?.link || image?.[2]?.url || image?.[1]?.link || image?.[1]?.url || image?.[0]?.link || image?.[0]?.url || "")
+    : (typeof image === 'string' ? image : "")
   
   async function fetchPlaylistData(){
     try {
@@ -51,7 +57,7 @@ export const Playlist = ({route}) => {
         paddingBottom:80,
          backgroundColor:"#101010",
       }}>
-        <PlaylistTopHeader url={image ?? ""} />
+        <PlaylistTopHeader url={headerImageUrl} />
         <PlaylistDetails id={id} image={image} name={name} follower={follower} listener={follower ?? ""} releasedDate={Data?.data?.releaseDate ?? ""} Data={Data}  Loading={Loading}/>
          {Loading &&
            <LoadingComponent loading={Loading} height={200}/>}

@@ -7,11 +7,11 @@
 
 import { enhanceYTMusicArtwork } from '../Utils/ArtworkEnhancer';
 
-const INNERTUBE_API_KEY = 'AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8';
+const INNERTUBE_API_KEY = 'AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30';
 const INNERTUBE_API_URL = 'https://music.youtube.com/youtubei/v1';
 
 const HEADERS = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:88.0) Gecko/20100101 Firefox/88.0',
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
     'Content-Type': 'application/json',
     'Origin': 'https://music.youtube.com',
 };
@@ -20,10 +20,10 @@ const WEB_REMIX_CONTEXT = {
     context: {
         client: {
             clientName: 'WEB_REMIX',
-            clientVersion: '1.20250310.01.00',
+            clientVersion: '1.20241204.01.00',
             originalUrl: 'https://music.youtube.com',
             hl: 'en',
-            gl: 'IN'
+            gl: 'US'
         }
     }
 };
@@ -230,58 +230,64 @@ class InnerTubeClient {
 
             console.log(`InnerTube Search: Found ${contents.length} sections`);
 
-            // YouTube wraps results in itemSectionRenderer - need to look inside
-            let musicShelfRenderer = null;
-
+            // Extract results from all relevant shelves (musicShelfRenderer, musicCardShelfRenderer)
             for (const section of contents) {
-                // Check for DIRECT musicShelfRenderer (when results exist)
+                // Handle musicShelfRenderer (normal list results)
                 if (section.musicShelfRenderer) {
-                    musicShelfRenderer = section.musicShelfRenderer;
-                    console.log('  -> Found musicShelfRenderer directly!');
-                    break;
+                    console.log('  -> Processing musicShelfRenderer');
+                    section.musicShelfRenderer.contents?.forEach((item) => {
+                        const parsed = this.parseItem(item);
+                        if (parsed) results.push(parsed);
+                    });
                 }
 
-                // Check inside itemSectionRenderer wrapper (no results case)
+                // Handle musicCardShelfRenderer (Top Result)
+                if (section.musicCardShelfRenderer) {
+                    console.log('  -> Processing musicCardShelfRenderer (Top Result)');
+                    const cardShelf = section.musicCardShelfRenderer;
+                    
+                    // Top result can have sub-items (buttons, links) but we want the main item
+                    // Construct a pseudo itemWrapper for parseItem
+                    const parsed = this.parseItem({
+                        musicResponsiveListItemRenderer: {
+                            ...cardShelf,
+                            // Card shelf has different title path
+                            title: cardShelf.title,
+                            // Card shelf has different thumbnail path
+                            thumbnail: cardShelf.thumbnail
+                        }
+                    });
+                    if (parsed) {
+                        // Prepend top result
+                        results.unshift(parsed);
+                    }
+                }
+
+                // Check inside itemSectionRenderer wrapper (sometimes used for no results or specific groupings)
                 if (section.itemSectionRenderer?.contents) {
                     console.log('  -> itemSectionRenderer has', section.itemSectionRenderer.contents.length, 'items');
                     for (const item of section.itemSectionRenderer.contents) {
-                        const keys = Object.keys(item);
-                        console.log(`     Item keys: [${keys.join(', ')}]`);
-
-                        // Check for messageRenderer (no results message)
-                        if (item.messageRenderer) {
-                            const message = item.messageRenderer.text?.runs?.[0]?.text;
-                            console.log(`     -> messageRenderer: "${message}"`);
-                        }
-
                         if (item.musicShelfRenderer) {
-                            musicShelfRenderer = item.musicShelfRenderer;
-                            console.log('  -> Found musicShelfRenderer!');
-                            break;
+                            item.musicShelfRenderer.contents?.forEach((shelfItem) => {
+                                const parsed = this.parseItem(shelfItem);
+                                if (parsed) results.push(parsed);
+                            });
                         }
                     }
                 }
-                if (musicShelfRenderer) break;
             }
 
-            if (!musicShelfRenderer) {
-                console.log('InnerTube Search: No musicShelfRenderer found');
-                return [];
-            }
+            // Deduplicate by ID
+            const seenIds = new Set();
+            const finalResults = results.filter(item => {
+                const id = item.videoId || item.browseId || item.id;
+                if (!id || seenIds.has(id)) return false;
+                seenIds.add(id);
+                return true;
+            });
 
-            console.log(`InnerTube Search: Processing ${musicShelfRenderer.contents?.length || 0} items`);
-
-            if (musicShelfRenderer?.contents) {
-                musicShelfRenderer.contents.forEach((item, idx) => {
-                    const parsed = this.parseItem(item);
-                    if (parsed) {
-                        console.log(`✓ ${parsed.title}`);
-                        results.push(parsed);
-                    }
-                });
-            }
-
-            console.log(`InnerTube Search: Returning ${results.length} results`);
+            console.log(`InnerTube Search: Returning ${finalResults.length} results`);
+            return finalResults;
         } catch (e) { console.error('Parse Search Error', e); }
         return results;
     }
@@ -582,13 +588,21 @@ class InnerTubeClient {
     static parseMusicTwoRowItem(renderer) {
         try {
             const title = renderer.title?.runs?.[0]?.text;
-            const thumbnails = renderer.thumbnailRenderer?.musicThumbnailRenderer?.thumbnail?.thumbnails;
-            const thumbnail = thumbnails?.length > 0 ? thumbnails[thumbnails.length - 1]?.url : null;
+            const thumbnails = renderer.thumbnailRenderer?.musicThumbnailRenderer?.thumbnail?.thumbnails ||
+                renderer.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails ||
+                renderer.thumbnailRenderer?.thumbnail?.thumbnails ||
+                renderer.thumbnail?.thumbnails || [];
+            let thumbnail = thumbnails?.length > 0 ? thumbnails[thumbnails.length - 1]?.url : null;
             const subtitle = renderer.subtitle?.runs?.map(r => r.text).join('') || '';
 
             const browseEndpoint = renderer.navigationEndpoint?.browseEndpoint;
             const watchEndpoint = renderer.navigationEndpoint?.watchEndpoint;
             const browseId = browseEndpoint?.browseId;
+
+            // Song fallback thumbnail
+            if (!thumbnail && watchEndpoint?.videoId) {
+                thumbnail = `https://i.ytimg.com/vi/${watchEndpoint.videoId}/hqdefault.jpg`;
+            }
 
             // Get pageType from browseEndpointContextSupportedConfigs (OuterTune method)
             const pageType = browseEndpoint?.browseEndpointContextSupportedConfigs?.browseEndpointContextMusicConfig?.pageType;
@@ -945,53 +959,67 @@ class InnerTubeClient {
     // --- generic Item Parser ---
     static parseItem(itemWrapper) {
         try {
-            const item = itemWrapper.musicResponsiveListItemRenderer || itemWrapper.musicTwoRowItemRenderer || itemWrapper.playlistPanelVideoRenderer;
-            if (!item) {
-                // Debug: log what keys are present in itemWrapper
-                console.log('parseItem: No recognized renderer, keys:', Object.keys(itemWrapper || {}));
+            // Handle cases where itemWrapper itself is the renderer, or it's wrapped
+            const item = itemWrapper.musicResponsiveListItemRenderer || 
+                         itemWrapper.musicTwoRowItemRenderer || 
+                         itemWrapper.playlistPanelVideoRenderer ||
+                         itemWrapper.videoRenderer ||
+                         itemWrapper;
+
+            if (!item || (!item.videoId && !item.browseId && !item.playlistId && !item.playlistItemData)) {
                 return null;
             }
 
-            // CRITICAL: Search results store videoId in playlistItemData.videoId (OuterTune's approach)
-            // Also try overlay for album tracks which use a different structure
+            // CRITICAL: Search results store videoId in playlistItemData.videoId
             const videoId = item.playlistItemData?.videoId ||
                 item.videoId ||
                 item.onTap?.watchEndpoint?.videoId ||
                 item.navigationEndpoint?.watchEndpoint?.videoId ||
                 item.overlay?.musicItemThumbnailOverlayRenderer?.content?.musicPlayButtonRenderer?.playNavigationEndpoint?.watchEndpoint?.videoId;
+            
             let browseId = item.navigationEndpoint?.browseEndpoint?.browseId || item.onTap?.browseEndpoint?.browseId;
 
-            // Try flexColumns first (used in search results), then fallback to direct title
-            let title = item.flexColumns?.[0]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]?.text;
-            if (!title) {
-                title = item.title?.runs?.[0]?.text || item.title?.simpleText;
-            }
+            // Try multiple paths for title
+            let title = item.flexColumns?.[0]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]?.text ||
+                        item.title?.runs?.[0]?.text ||
+                        item.title?.simpleText ||
+                        item.name?.runs?.[0]?.text ||
+                        item.name?.simpleText;
 
-            // Thumbnail - get highest quality available
-            const thumbnails = item.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails ||
+            // Thumbnail extraction - be extremely aggressive finding the thumbnails array
+            const thumbnails = 
+                item.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails ||
                 item.thumbnailRenderer?.musicThumbnailRenderer?.thumbnail?.thumbnails ||
+                item.thumbnail?.croppedSquareThumbnailRenderer?.thumbnail?.thumbnails ||
+                item.thumbnail?.thumbnail?.thumbnails ||
+                item.thumbnail?.thumbnails ||
+                item.thumbnailRenderer?.thumbnail?.thumbnails ||
+                item.thumbnails?.thumbnails ||
                 item.thumbnails || [];
 
             // Sort thumbnails by width (descending) to get highest quality
-            const sortedThumbnails = [...thumbnails].sort((a, b) => (b.width || 0) - (a.width || 0));
+            const sortedThumbnails = Array.isArray(thumbnails) ? [...thumbnails].sort((a, b) => (b.width || 0) - (a.width || 0)) : [];
             let thumbnail = sortedThumbnails[0]?.url;
 
-            // If we have a videoId, construct the highest quality YouTube thumbnail URL
-            // YouTube provides these quality levels:
-            // - maxresdefault.jpg (1280x720)
-            // - sddefault.jpg (640x480)
-            // - hqdefault.jpg (480x360)
-            // - mqdefault.jpg (320x180)
-            if (videoId && (!thumbnail || thumbnail.includes('60-') || thumbnail.includes('w60'))) {
+            // Ensure protocol
+            if (thumbnail && thumbnail.startsWith('//')) {
+                thumbnail = 'https:' + thumbnail;
+            }
+
+            // Reliable fallback construct
+            if (!thumbnail && videoId) {
                 thumbnail = `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
             }
 
-            // Also provide a high-res version for full player
-            const highResThumbnail = videoId ? `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg` : thumbnail;
+            // Use enhanced artwork logic to get the best possible thumbnail reliably
+            thumbnail = enhanceYTMusicArtwork(thumbnail, 'card') || thumbnail;
+
+            // Provide high-res version for player
+            const highResThumbnail = enhanceYTMusicArtwork(thumbnail, 'playing') || thumbnail;
 
             // Type detection
             let type = 'song';
-            let playlistId = null;
+            let playlistId = item.playlistId;
 
             if (browseId && (browseId.startsWith('MPRE') || browseId.startsWith('OLAK'))) type = 'album';
             if (browseId && browseId.startsWith('VL')) {
@@ -1003,61 +1031,38 @@ class InnerTubeClient {
             }
             if (browseId && browseId.startsWith('UC')) type = 'artist';
 
-            if (itemWrapper.musicTwoRowItemRenderer && !videoId && type === 'song') type = 'album/playlist';
+            if ((itemWrapper.musicTwoRowItemRenderer || item.type === 'album') && !videoId && type === 'song') type = 'album/playlist';
 
-            // Artist extraction - handle multiple structures:
-            // 1. Search results: flexColumns[1].text.runs
-            // 2. Recommendations (playlistPanelVideoRenderer): longBylineText.runs or shortBylineText.runs
+            // Artist extraction
             let artist = 'Unknown';
             let artistsList = [];
 
-            // Try flexColumns first (search results)
             const flexColumn1 = item.flexColumns?.[1]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs;
+            const bylineRuns = item.longBylineText?.runs || item.shortBylineText?.runs || item.subtitle?.runs;
+
             if (flexColumn1 && Array.isArray(flexColumn1) && flexColumn1.length > 0) {
-                // Filter to get only even-indexed elements (skip " • " separators)
                 const oddElements = flexColumn1.filter((_, index) => index % 2 === 0);
                 artistsList = oddElements.map(run => ({
                     name: run.text,
                     id: run.navigationEndpoint?.browseEndpoint?.browseId
                 }));
-                artist = oddElements.map(run => run.text).join(', ') || 'Unknown';
-            }
-            // Try longBylineText (used in playlistPanelVideoRenderer for recommendations)
-            else if (item.longBylineText?.runs && Array.isArray(item.longBylineText.runs)) {
-                const runs = item.longBylineText.runs;
-                // First run is usually the artist name
-                artistsList = runs.filter((_, index) => index % 2 === 0).map(run => ({
+                artist = oddElements.map(run => run.text).join(', ');
+            } else if (bylineRuns && Array.isArray(bylineRuns)) {
+                const oddElements = bylineRuns.filter((_, index) => index % 2 === 0);
+                artistsList = oddElements.map(run => ({
                     name: run.text,
                     id: run.navigationEndpoint?.browseEndpoint?.browseId
                 }));
-                artist = runs.filter((_, index) => index % 2 === 0).map(run => run.text).join(', ') || 'Unknown';
-            }
-            // Try shortBylineText as fallback
-            else if (item.shortBylineText?.runs && Array.isArray(item.shortBylineText.runs)) {
-                const runs = item.shortBylineText.runs;
-                artistsList = runs.filter((_, index) => index % 2 === 0).map(run => ({
-                    name: run.text,
-                    id: run.navigationEndpoint?.browseEndpoint?.browseId
-                }));
-                artist = runs.filter((_, index) => index % 2 === 0).map(run => run.text).join(', ') || 'Unknown';
-            }
-            // Try subtitle as last resort (used in some UI)
-            else if (item.subtitle?.runs && Array.isArray(item.subtitle.runs)) {
-                // Usually format: "Artist • Duration" or "Artist • Album • Year"
-                const firstRun = item.subtitle.runs[0];
-                if (firstRun?.text) {
-                    artist = firstRun.text;
-                    artistsList = [{ name: firstRun.text, id: firstRun.navigationEndpoint?.browseEndpoint?.browseId }];
-                }
+                artist = oddElements.map(run => run.text).join(', ');
             }
 
-            // Duration extraction - from fixedColumns[0] or lengthText (for playlistPanelVideoRenderer)
-            let durationText = item.fixedColumns?.[0]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]?.text;
-            if (!durationText) {
-                durationText = item.lengthText?.runs?.[0]?.text || item.lengthText?.simpleText;
-            }
+            if (!artist || artist === '') artist = 'Unknown';
+
+            // Duration extraction
+            let durationText = item.fixedColumns?.[0]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]?.text ||
+                               item.lengthText?.runs?.[0]?.text || 
+                               item.lengthText?.simpleText;
             const duration = durationText ? this.parseTime(durationText) : null;
-
 
             return {
                 videoId,
@@ -1065,25 +1070,23 @@ class InnerTubeClient {
                 playlistId,
                 title,
                 artist,
-                artists: artistsList,  // Array of artist objects
-                duration,  // Duration in seconds
+                artists: artistsList,
+                duration,
                 thumbnail,
-                highResThumbnail,  // High resolution for full-screen player
-                thumbnails,
+                highResThumbnail,
+                thumbnails: sortedThumbnails,
                 type,
-                // UI Compat
-                id: videoId || browseId,
+                id: videoId || browseId || playlistId,
                 name: title,
                 subtitle: item.subtitle?.runs?.map(r => r.text).join('') || item.longBylineText?.runs?.map(r => r.text).join('') || item.shortBylineText?.runs?.map(r => r.text).join('') || '',
-                image: videoId ? [
-                    { url: `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`, quality: 'max' },
-                    { url: `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`, quality: 'hq' },
-                    { url: thumbnail, quality: 'default' }
-                ] : thumbnails.map(t => ({ url: t.url, quality: 'hd' })),
-                artwork: highResThumbnail || thumbnail,  // Use original quality for cards/lists (performance optimized)
+                image: [
+                    { url: thumbnail, quality: 'default' },
+                    { url: highResThumbnail, quality: 'max' }
+                ],
+                artwork: highResThumbnail || thumbnail,
                 year: item.subtitle?.runs?.[item.subtitle.runs.length - 1]?.text || ''
             };
-        } catch (e) { console.error(e); return null; }
+        } catch (e) { console.error('parseItem error:', e); return null; }
     }
 }
 

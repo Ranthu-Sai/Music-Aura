@@ -196,11 +196,13 @@ async function getYTMusicAlbumData(browseId) {
           const artist = artistRuns?.filter(r => r.text !== ' • ').map(r => r.text).join('') || 'Unknown';
 
           // Extract thumbnail - try multiple paths
-          const thumbnails = musicItem.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails;
+          const thumbnails = musicItem.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails ||
+            musicItem.thumbnailRenderer?.musicThumbnailRenderer?.thumbnail?.thumbnails ||
+            musicItem.thumbnail?.thumbnails || [];
           let songThumbnail = thumbnails?.[thumbnails.length - 1]?.url ||
             thumbnails?.[0]?.url ||
             thumbnail || // Use album thumbnail as fallback
-            `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
+            `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
 
 
           // Fix YouTube Music CDN URLs to high resolution
@@ -231,7 +233,7 @@ async function getYTMusicAlbumData(browseId) {
           songs.push({
             id: videoId,
             name: title,
-            image: [{}, {}, { url: thumbnail }], // Use album artwork instead of song thumbnail
+            image: [{ url: thumbnail }, { url: thumbnail }, { url: thumbnail }], // Use album artwork instead of song thumbnail
             duration: duration,
             language: detectLanguage(title + ' ' + artist),
             artists: { primary: [{ name: artist }] },
@@ -253,7 +255,7 @@ async function getYTMusicAlbumData(browseId) {
       data: {
         id: browseId,
         name: albumName,
-        image: [{}, {}, { url: thumbnail }],
+        image: [{ url: thumbnail }, { url: thumbnail }, { url: thumbnail }],
         year: year,
         primaryArtist: albumArtist,
         totalDuration: totalDuration,

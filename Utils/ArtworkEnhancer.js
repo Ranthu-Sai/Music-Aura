@@ -62,8 +62,8 @@ const enhanceGoogleCDN = (url, context) => {
 };
 
 /**
- * Enhance YouTube thumbnail URLs by trying higher quality variants
- * Returns object with fallback chain: maxresdefault → hqdefault → original
+ * Enhance YouTube thumbnail URLs by providing a reliable high-quality URL.
+ * Returns a single "correct" URL without fallback objects to ensure compatibility.
  * @private
  */
 const enhanceYouTubeThumbnail = (url, context) => {
@@ -75,17 +75,13 @@ const enhanceYouTubeThumbnail = (url, context) => {
 
     const videoId = videoIdMatch[1];
 
-    // Build fallback chain
-    // maxresdefault: 1280x720 (best quality, but not available for all videos)
-    // hqdefault: 480x360 (good quality, widely available)
-    // original: API-provided URL (fallback)
-    return {
-        primary: `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`,
-        fallback: `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
-        original: url,
-        needsCrop: true, // YouTube thumbnails are 16:9, need center crop to 1:1
-        isYouTubeThumbnail: true
-    };
+    // For playing context, use highest possible quality (maxresdefault)
+    if (context === 'playing') {
+        return `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`;
+    }
+
+    // Use hqdefault.jpg as the reliable high-quality URL for lists/cards.
+    return `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
 };
 
 /**
@@ -94,11 +90,11 @@ const enhanceYouTubeThumbnail = (url, context) => {
  */
 const getSizeForContext = (context) => {
     const sizeMap = {
-        'playing': 500,      // Currently playing song (highest quality)
-        'card': 400,         // Song cards in playlists, albums, search
+        'playing': 1000,     // Highest quality for currently playing song
+        'card': 500,         // Good quality for lists and search results
         'queue': 300,        // Queue items (balance quality vs performance)
         'thumbnail': 200,    // Small thumbnails
-        'default': 400       // Safe default
+        'default': 500       // Safe default
     };
 
     return sizeMap[context] || sizeMap['default'];

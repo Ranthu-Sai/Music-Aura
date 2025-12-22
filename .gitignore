@@ -66,12 +66,9 @@ yarn-error.log
 /coverage
 
 # VS Code & IDE files
-.vscode/
 .fetch-client/
 .history/
-.idea/
 .qodo/
-.bundle/
 
 # Environment variables
 .env
@@ -88,7 +85,3 @@ instances.json
 PLAYBACK_PROXY_FIX.md
 YOUTUBE_MUSIC_FIX.md
 YOUTUBE_MUSIC_INNERTUBE.md
-
-# Build scripts (optional - remove if you want to keep them)
-build-release.bat
-build-release.sh

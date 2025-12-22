@@ -31,15 +31,15 @@ function resolveImageUri(image) {
   return null;
 }
 
-export const EachAlbumCard = memo(function EachAlbumCard({image,name,artists,id,mainContainerStyle,Search}) {
+export const EachAlbumCard = memo(function EachAlbumCard({ image, name, artists, id, mainContainerStyle, Search }) {
   const navigation = useNavigation()
   const initialUri = resolveImageUri(image) || 'https://via.placeholder.com/150x150/cccccc/000000?text=No+Image'
   const [imageUri, setImageUri] = useState(initialUri)
   let artistsNames = ""
-  if (!Search){
-    if (Array.isArray(artists) && artists.length > 3){
-      for (let i = 0; i < 3; i++){
-        if ( i === 2){
+  if (!Search) {
+    if (Array.isArray(artists) && artists.length > 3) {
+      for (let i = 0; i < 3; i++) {
+        if (i === 2) {
           artistsNames += artists[i].name
         } else {
           const additionName = artists[i].name + ", "
@@ -48,8 +48,8 @@ export const EachAlbumCard = memo(function EachAlbumCard({image,name,artists,id,
       }
       artistsNames += " ..."
     } else if (Array.isArray(artists)) {
-      artists.forEach((e,i)=>{
-        if (i === artists.length - 1){
+      artists.forEach((e, i) => {
+        if (i === artists.length - 1) {
           artistsNames += e.name
         } else {
           const additionName = e.name + ", "
@@ -58,46 +58,46 @@ export const EachAlbumCard = memo(function EachAlbumCard({image,name,artists,id,
       })
     }
   }
-  function formattedText (text){
+  function formattedText(text) {
     const decoded = FormatTitleAndArtist(text || "");
-    if (decoded.length >= 45){
-      return decoded.slice(0,45) + "...";
+    if (decoded.length >= 45) {
+      return decoded.slice(0, 45) + "...";
     }
     return decoded;
   }
   return (
-    <Pressable onPress={()=>{
+    <Pressable onPress={() => {
       const nameLower = (name || "").toLowerCase();
       // Block navigation for obvious podcast/show entries
       if (nameLower.includes('podcast') || nameLower.includes('episode')) { return; }
       if ((id || "").includes('playlist')) {
-        navigation.navigate("Playlist", {id, image: imageUri, name, follower: ""})
+        navigation.navigate("Playlist", { id, image: imageUri, name, follower: "" })
       } else {
-        navigation.navigate("Album", {id, image: imageUri})
+        navigation.navigate("Album", { id, image: imageUri })
       }
     }} android_ripple={{ color: 'rgba(0,0,0,0)' }} style={{
-      borderRadius:8,
-      height:250,
-      width:180,
-      backgroundColor:"rgba(55,55,79,0)",
-      overflow:"hidden",
+      borderRadius: 8,
+      height: 250,
+      width: 180,
+      backgroundColor: "rgba(55,55,79,0)",
+      overflow: "hidden",
       ...mainContainerStyle,
     }}>
       <FastImage source={{
         uri: imageUri,
         priority: 'high',
       }} onError={() => setImageUri('https://via.placeholder.com/150x150/cccccc/000000?text=No+Image')} style={{
-        height:180,
-        width:'100%',
-        borderRadius:8,
+        height: 180,
+        width: '100%',
+        borderRadius: 8,
       }} resizeMode="contain" />
       <View style={{
-        padding:8,
-        height:60,
-        alignItems:"center",
+        padding: 8,
+        height: 60,
+        alignItems: "center",
       }}>
-        <PlainText text={formattedText(name)}/>
-        <SmallText text={!Search ? artistsNames : artists} maxLine={1}/>
+        <PlainText text={formattedText(name)} />
+        <SmallText text={!Search ? artistsNames : artists} maxLine={1} />
       </View>
     </Pressable>
   );

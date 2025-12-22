@@ -1,4 +1,8 @@
 {
     "java.compile.nullAnalysis.mode": "disabled",
-    "java.configuration.updateBuildConfiguration": "interactive"
+    "java.configuration.updateBuildConfiguration": "interactive",
+    "chat.allowAnonymousAccess": false,
+    "chat.checkpoints.showFileChanges": false,
+    "chat.customAgentInSubagent.enabled": true,
+    "chat.detectParticipant.enabled": false
 }

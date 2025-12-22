@@ -132,9 +132,27 @@ async function getYTSearchSongData(searchText, page, limit) {
               artistString = 'Unknown';
             }
 
-            // Extract thumbnail - use highest quality available
-            const thumbnails = musicItem.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails || [];
-            let thumbnail = thumbnails[thumbnails.length - 1]?.url || `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
+            // Extract thumbnail - try multiple possible paths for robustness
+            const thumbnails = musicItem.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails || 
+                musicItem.thumbnailRenderer?.musicThumbnailRenderer?.thumbnail?.thumbnails ||
+                musicItem.thumbnail?.thumbnail?.thumbnails ||
+                musicItem.thumbnail?.thumbnails ||
+                musicItem.thumbnailRenderer?.thumbnail?.thumbnails ||
+                musicItem.thumbnails || [];
+            
+            let thumbnail = thumbnails[thumbnails.length - 1]?.url || thumbnails[0]?.url;
+            
+            // Handle missing thumbnails with a reliable construct
+            if (!thumbnail && videoId) {
+                thumbnail = `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
+            } else if (!thumbnail) {
+                thumbnail = 'https://via.placeholder.com/544x544/cccccc/000000?text=No+Img';
+            }
+
+            // Ensure protocol
+            if (thumbnail.startsWith('//')) {
+                thumbnail = 'https:' + thumbnail;
+            }
 
             // Upgrade thumbnail quality using YTArtworkUtils
             thumbnail = YTArtworkUtils.upgradeArtworkQuality(thumbnail);
@@ -177,7 +195,7 @@ async function getYTSearchSongData(searchText, page, limit) {
               id: videoId,
               name: title,
               title: title,
-              image: [{}, {}, { url: thumbnail }],
+              image: [{ url: thumbnail }, { url: thumbnail }, { url: thumbnail }],
               artist: artistString,
               artists: { primary: artists },
               url: videoId,
@@ -405,13 +423,13 @@ async function getYTLyricsSongData(artist, title, preferredLanguage, isYouTubeMu
           const ttml = data.ttml;
           // Simple extraction of text from TTML
           const plainLyrics = ttml.replace(/<[^>]*>/g, '').trim();
-          
+
           // For timed_lyrics, parse the spans with begin/end
           const timed_lyrics = [];
           const spanRegex = /<span begin="([^"]*)" end="([^"]*)">([^<]*)<\/span>/g;
           let match;
           const words = [];
-          
+
           while ((match = spanRegex.exec(ttml)) !== null) {
             const start_time = parseFloat(match[1]) * 1000; // times are in seconds
             const text = match[3].trim();
@@ -419,15 +437,15 @@ async function getYTLyricsSongData(artist, title, preferredLanguage, isYouTubeMu
               words.push({ start_time, text });
             }
           }
-          
+
           // Group words into lines based on timing gaps (more than 2 seconds apart)
           if (words.length > 0) {
             let currentLine = { start_time: words[0].start_time, text: words[0].text };
-            
+
             for (let i = 1; i < words.length; i++) {
               const word = words[i];
               const timeGap = word.start_time - (currentLine.start_time + currentLine.text.length * 100); // Rough estimate
-              
+
               if (timeGap > 2000 || currentLine.text.length > 100) { // New line if gap > 2s or line too long
                 timed_lyrics.push({ ...currentLine, id: `line_${timed_lyrics.length}` });
                 currentLine = { start_time: word.start_time, text: word.text };
@@ -437,7 +455,7 @@ async function getYTLyricsSongData(artist, title, preferredLanguage, isYouTubeMu
             }
             timed_lyrics.push({ ...currentLine, id: `line_${timed_lyrics.length}` }); // Add the last line
           }
-          
+
           return {
             success: true,
             data: {
@@ -489,7 +507,7 @@ async function getYTLyricsSongData(artist, title, preferredLanguage, isYouTubeMu
           // Parse synced lyrics - handle both line-level and word-level timestamps
           const lines = data.syncedLyrics.split('\n');
           const timed_lyrics = [];
-          
+
           for (const line of lines) {
             const match = line.match(/\[(\d+):(\d+\.\d+)\]\s*(.*)/);
             if (match) {
@@ -497,31 +515,31 @@ async function getYTLyricsSongData(artist, title, preferredLanguage, isYouTubeMu
               const seconds = parseFloat(match[2]);
               const start_time = (minutes * 60 + seconds) * 1000;
               const text = match[3].trim();
-              
+
               if (text) {
                 // Check if this is a continuation of previous line (very close timing)
                 if (timed_lyrics.length > 0) {
                   const lastLine = timed_lyrics[timed_lyrics.length - 1];
                   const timeDiff = start_time - lastLine.start_time;
-                  
+
                   // If timing is very close (< 0.5 seconds) and last line is short, combine them
                   if (timeDiff < 500 && lastLine.text.length < 50) {
                     lastLine.text += ' ' + text;
                     continue;
                   }
                 }
-                
+
                 timed_lyrics.push({ start_time, text });
               }
             }
           }
-          
+
           // Add IDs to timed lyrics for FlatList
           const timed_lyrics_with_ids = timed_lyrics.map((line, index) => ({
             ...line,
             id: `line_${index}`
           }));
-          
+
           return {
             success: true,
             data: {
@@ -713,7 +731,7 @@ async function getYTSearchVideoData(searchText, page, limit) {
 
             // Extract thumbnail - use highest quality available
             const thumbnails = videoRenderer.thumbnail?.thumbnails || [];
-            const thumbnail = YTArtworkUtils.upgradeArtworkQuality(YTArtworkUtils.upgradeYtimgQuality(thumbnails[thumbnails.length - 1]?.url || `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`));
+            const thumbnail = YTArtworkUtils.upgradeArtworkQuality(YTArtworkUtils.upgradeYtimgQuality(thumbnails[thumbnails.length - 1]?.url || `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`));
 
             // Extract duration from lengthText
             const durationText = videoRenderer.lengthText?.simpleText;

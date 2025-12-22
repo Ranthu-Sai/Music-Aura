@@ -133,17 +133,32 @@ async function getYTSearchSongData(searchText, page, limit) {
               artistString = 'Unknown';
             }
 
-            // Extract thumbnail - use highest quality available
-            const thumbnails = musicItem.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails || [];
-            let thumbnail = thumbnails[thumbnails.length - 1]?.url || `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
-
-            // Upgrade thumbnail quality using YTArtworkUtils (favoring w800-h800)
-            thumbnail = YTArtworkUtils.upgradeArtworkQuality(thumbnail);
-
-            // If it's still a ytimg URL, upgrade it to maxres
-            if (thumbnail.includes('i.ytimg.com')) {
-              thumbnail = YTArtworkUtils.upgradeYtimgQuality(thumbnail);
+            // Extract thumbnail - try multiple possible paths for robustness
+            const thumbnails = 
+                musicItem.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails || 
+                musicItem.thumbnailRenderer?.musicThumbnailRenderer?.thumbnail?.thumbnails ||
+                musicItem.thumbnail?.thumbnail?.thumbnails ||
+                musicItem.thumbnail?.thumbnails ||
+                musicItem.thumbnailRenderer?.thumbnail?.thumbnails ||
+                musicItem.thumbnails || [];
+            
+            let thumbnail = thumbnails[thumbnails.length - 1]?.url || thumbnails[0]?.url;
+            
+            // Handle missing thumbnails with a reliable construct
+            if (!thumbnail && videoId) {
+                thumbnail = `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
+            } else if (!thumbnail) {
+                thumbnail = 'https://via.placeholder.com/544x544/cccccc/000000?text=No+Img';
             }
+
+            // Ensure protocol
+            if (thumbnail.startsWith('//')) {
+                thumbnail = 'https:' + thumbnail;
+            }
+
+            // Upgrade thumbnail quality using YTArtworkUtils
+            thumbnail = YTArtworkUtils.upgradeArtworkQuality(thumbnail);
+            thumbnail = YTArtworkUtils.upgradeYtimgQuality(thumbnail);
 
             // Extract duration
             const durationText = musicItem.flexColumns?.[musicItem.flexColumns.length - 1]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]?.text;
@@ -295,6 +310,11 @@ async function getYTSearchAlbumData(searchText, page, limit) {
 
 async function getYTSearchPlaylistData(searchText, page, limit) {
   // STRATEGY 1: Try YouTube Music InnerTube API for curated playlists
+  // IMPORTANT: UI components expect a Saavn-like shape for playlists:
+  //   - title/name
+  //   - image[] entries with `.link`
+  //   - songCount (optional, used to detect Saavn shape)
+  // Also playlist browseId is usually like "VL...". Our getPlaylistData routes VL/RDAMPL/OLAK/PL to YTMusic browse.
   try {
     const innerTubeResponse = await fetch('https://music.youtube.com/youtubei/v1/search?key=AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30', {
       method: 'POST',
@@ -328,38 +348,73 @@ async function getYTSearchPlaylistData(searchText, page, limit) {
 
         for (const section of contents) {
           const musicShelf = section.musicShelfRenderer;
-          if (!musicShelf || !musicShelf.contents) { continue; }
+          if (!musicShelf || !musicShelf.contents) {
+            continue;
+          }
 
           for (const item of musicShelf.contents) {
             const musicItem = item.musicResponsiveListItemRenderer;
-            if (!musicItem) { continue; }
+            if (!musicItem) {
+              continue;
+            }
 
             // Extract browse ID for playlist
             const browseId = musicItem.navigationEndpoint?.browseEndpoint?.browseId;
-            if (!browseId) { continue; }
+            if (!browseId) {
+              continue;
+            }
 
             // Extract title
             const title = musicItem.flexColumns?.[0]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]?.text || 'Unknown';
 
+            // Extract song count (if present)
+            const metaRuns = musicItem.flexColumns?.[1]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs;
+            const metaText = Array.isArray(metaRuns) ? metaRuns.map(r => r.text).join('') : '';
+            const songCountMatch = metaText.match(/(\d+)\s*(song|songs)/i);
+            const songCount = songCountMatch ? parseInt(songCountMatch[1], 10) : undefined;
+
             // Extract thumbnail
-            let thumbnail = musicItem.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails?.slice(-1)[0]?.url || 'https://via.placeholder.com/544x544/cccccc/000000?text=No+Img';
+            let thumbnail =
+              musicItem.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails?.slice(-1)[0]?.url ||
+              musicItem.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails?.[0]?.url ||
+              'https://via.placeholder.com/544x544/cccccc/000000?text=No+Img';
+
+            if (thumbnail && thumbnail.startsWith('//')) {
+              thumbnail = 'https:' + thumbnail;
+            }
 
             // Upgrade thumbnail quality using YTArtworkUtils
             thumbnail = YTArtworkUtils.upgradeArtworkQuality(thumbnail);
             thumbnail = YTArtworkUtils.upgradeYtimgQuality(thumbnail);
 
+            // Return in Saavn-compatible shape (so existing UI doesn't show empty)
+            const imageArr = [
+              { quality: '50x50', link: thumbnail, url: thumbnail },
+              { quality: '150x150', link: thumbnail, url: thumbnail },
+              { quality: '500x500', link: thumbnail, url: thumbnail },
+            ];
+
             playlists.push({
               id: browseId,
+              // provide both name and title for safety across components
               name: title,
-              image: [{ url: thumbnail }, { url: thumbnail }, { url: thumbnail }],
-              follower: '',
+              title: title,
+              image: imageArr,
+              // make PlaylistDisplay treat it like Saavn (so it uses playlist.name and playlist.songCount)
+              songCount: songCount,
+              follower: songCount ? `Total ${songCount} Songs` : '',
               source: 'ytmusic',
+              type: 'playlist',
             });
 
-            if (playlists.length >= limit) { break; }
+            if (playlists.length >= limit) {
+              break;
+            }
           }
 
-          if (playlists.length >= limit) { break; }
+          if (playlists.length >= limit) {
+            break;
+          }
         }
 
         if (playlists.length > 0) {
@@ -368,6 +423,7 @@ async function getYTSearchPlaylistData(searchText, page, limit) {
       }
     }
   } catch (error) {
+    // ignore; return empty below
   }
 
   // No fallback to Invidious - use InnerTube only
@@ -746,9 +802,22 @@ async function getYTSearchVideoData(searchText, page, limit) {
             // Extract channel name
             const channelName = videoRenderer.ownerText?.runs?.[0]?.text || 'Unknown';
 
-            // Extract thumbnail - use highest quality available
-            const thumbnails = videoRenderer.thumbnail?.thumbnails || [];
-            const thumbnail = YTArtworkUtils.upgradeArtworkQuality(YTArtworkUtils.upgradeYtimgQuality(thumbnails[thumbnails.length - 1]?.url || `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`));
+            // Extract thumbnail - try multiple paths for robustness
+            const thumbnails = videoRenderer.thumbnail?.thumbnails || 
+                               videoRenderer.thumbnails || 
+                               [];
+            let thumbnail = thumbnails[thumbnails.length - 1]?.url || 
+                            thumbnails[0]?.url || 
+                            `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
+
+            // Ensure protocol
+            if (thumbnail.startsWith('//')) {
+                thumbnail = 'https:' + thumbnail;
+            }
+
+            // Upgrade thumbnail quality using YTArtworkUtils
+            thumbnail = YTArtworkUtils.upgradeArtworkQuality(thumbnail);
+            thumbnail = YTArtworkUtils.upgradeYtimgQuality(thumbnail);
 
             // Extract duration from lengthText
             const durationText = videoRenderer.lengthText?.simpleText;

@@ -6,8 +6,7 @@
 
 /**
  * Upgrade YouTube Music artwork URL to higher quality
- * Only upgrades googleusercontent.com URLs (to w500-h500 for smartphones)
- * Does NOT upgrade ytimg URLs - those will be upgraded progressively during playback
+ * Upgrades googleusercontent.com URLs (to w1000-h1000) and ytimg URLs (to maxresdefault)
  * @param {string} url - Original artwork URL
  * @returns {string} - Upgraded high-quality URL
  */
@@ -17,18 +16,17 @@ export function upgradeArtworkQuality(url) {
     }
 
     // Handle googleusercontent.com and ggpht.com URLs - upgrade size parameters
-    // Use 800x800 for higher quality square images
+    // Using 1000x1000 for high-quality display in full-screen player
     if (url.includes('.googleusercontent.com') || url.includes('.ggpht.com')) {
-        // Replace any size parameters (w###-h###) with w800-h800
-        // Use a more robust regex to catch various formats like =w120-h120-l90-rj
-        return url.replace(/=w\d+-h\d+[^/]*/g, '=w800-h800-l90-rj');
+        // Replace any size parameters (w###-h###) with w1000-h1000
+        return url.replace(/=w\d+-h\d+[^/]*/g, '=w1000-h1000-l90-rj');
     }
 
-    // For ytimg.com URLs - DON'T upgrade automatically
-    // This will be handled progressively during playback
-    // Just return the original URL from API
+    // For ytimg.com URLs - Use maxresdefault for high-quality full screen display
+    if (url.includes('i.ytimg.com/vi/') || url.includes('img.youtube.com/vi/')) {
+        return url.replace(/\/([^/]+)\.(jpg|webp)$/, '/maxresdefault.jpg');
+    }
 
-    // Return unchanged for other URLs
     return url;
 }
 
@@ -42,29 +40,28 @@ export function getArtworkFallback(url) {
         return null;
     }
 
-    // For ytimg.com maxresdefault, fallback to hqdefault
-    if (url.includes('i.ytimg.com/vi/') && url.includes('maxresdefault.jpg')) {
-        return url.replace('maxresdefault.jpg', 'hqdefault.jpg');
+    // For ytimg.com, fallback to hqdefault which is the most reliable
+    if (url.includes('vi/')) {
+        return url.replace(/\/([^/]+)\.(jpg|webp)$/, '/hqdefault.jpg');
     }
 
     return null;
 }
 
 /**
- * Upgrade ytimg URL to higher quality (maxresdefault)
- * This is for progressive loading during playback
+ * Upgrade ytimg URL to higher quality (hqdefault)
  * @param {string} url - Original ytimg URL
- * @returns {string} - Upgraded URL with maxresdefault
+ * @returns {string} - Upgraded URL
  */
 export function upgradeYtimgQuality(url) {
     if (!url || typeof url !== 'string') {
         return url;
     }
 
-    // Only upgrade ytimg.com URLs
-    if (url.includes('i.ytimg.com/vi/')) {
-        // Try maxresdefault first
-        return url.replace(/(sd|mq|hq)default\.jpg/, 'maxresdefault.jpg');
+    // Support both i.ytimg.com and img.youtube.com
+    if (url.includes('vi/')) {
+        // Replace whatever filename (0.jpg, default.webp, etc.) with hqdefault.jpg
+        return url.replace(/\/([^/]+)\.(jpg|webp)$/, '/hqdefault.jpg');
     }
 
     return url;
