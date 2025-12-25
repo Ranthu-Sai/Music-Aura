@@ -99,7 +99,7 @@ Distributed under the MIT License. See [LICENSE](LICENSE) for more information.
 ```
 MIT License
 
-Copyright (c) 2024 Sai Ranthu
+Copyright (c) 2025 Sai Ranthu
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -139,17 +139,15 @@ non-commercial purposes and in accordance with all applicable laws and regulatio
 
 ### Terms of Use
 
-By using Orbit, you agree to:
+By using Music Aura, you agree to:
 - Use the application for personal, non-commercial purposes only
 - Not redistribute or modify the content obtained through the application
 - Comply with all applicable laws and regulations in your jurisdiction
 
 ### DMCA Compliance
 
-Orbit respects the intellectual property rights of others. If you believe that any content in the application infringes your copyright, please contact us with the following information:
+Music Aura respects the intellectual property rights of others. If you believe that any content in the application infringes your copyright, please contact us with the following information:
 - A description of the copyrighted work that you claim has been infringed
 - The URL or other specific location of the content
 - Your contact information
 - A statement that you have a good faith belief that the use is not authorized by the copyright owner
-
-# Music Aura
