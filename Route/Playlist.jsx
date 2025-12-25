@@ -11,6 +11,7 @@ import { useTheme } from "@react-navigation/native";
 import { PlainText } from "../Component/Global/PlainText";
 import { SmallText } from "../Component/Global/SmallText";
 import FormatArtist from "../Utils/FormatArtists";
+import { useActiveTrack } from "react-native-track-player";
 
 export const Playlist = ({route}) => {
   const theme = useTheme();
@@ -18,6 +19,7 @@ export const Playlist = ({route}) => {
   const scrollViewRef = useRef(null);
   const [Loading, setLoading] = useState(true)
   const [Data, setData] = useState({});
+  const activeTrack = useActiveTrack();
   // const [Links, setLinks] = useState([]);
   const {id, image, name, follower} = route.params
 
@@ -54,9 +56,9 @@ export const Playlist = ({route}) => {
           scrollViewRef.current = ref;
         }}
         contentContainerStyle={{
-        paddingBottom:80,
-         backgroundColor:"#101010",
-      }}>
+          paddingBottom: activeTrack ? 105 : 70,
+          backgroundColor:"#101010",
+        }}>
         <PlaylistTopHeader url={headerImageUrl} />
         <PlaylistDetails id={id} image={image} name={name} follower={follower} listener={follower ?? ""} releasedDate={Data?.data?.releaseDate ?? ""} Data={Data}  Loading={Loading}/>
          {Loading &&
@@ -67,7 +69,7 @@ export const Playlist = ({route}) => {
           gap:7,
         }}>
           {Data?.data?.songs?.map((e,i)=><EachSongCard Data={Data} isFromPlaylist={true} index={i}  artist={FormatArtist(e?.artists?.primary)} language={e?.language} playlist={true} artistID={e?.primary_artists_id} key={i} duration={e?.duration} image={Array.isArray(e?.image) ? (e?.image[2]?.url || e?.image[1]?.url || e?.image[0]?.url || "") : (typeof e?.image === 'string' ? e?.image : "")} id={e?.id} width={"100%"} title={e?.name}  url={e?.downloadUrl} style={{
-            marginBottom:15,
+            marginBottom:8,
           }}/>)}
         </View>}
       </Animated.ScrollView>

@@ -12,7 +12,7 @@ async function createConfig() {
 	const config = {
 		resolver: {
 			// Ensure Metro will process ESM files that some packages ship (.mjs/.cjs)
-			sourceExts: Array.from(new Set([...(defaultConfig.resolver.sourceExts || []), 'cjs', 'mjs'])),
+			sourceExts: Array.from(new Set([...(defaultConfig.resolver.sourceExts || []), 'cjs', 'mjs', 'ts', 'tsx'])),
 		},
 		transformer: {
 			// Enable experimental import support to handle ESM modules properly

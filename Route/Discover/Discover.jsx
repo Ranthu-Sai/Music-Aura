@@ -7,12 +7,14 @@ import { PaddingConatiner } from "../../Layout/PaddingConatiner";
 import { BundleEachLanguage } from "../../Component/Discover/BundleEachLanguage";
 import { BundleEachMomentanGenres } from "../../Component/Discover/BundleEachMomentanGenres";
 import { RouteHeading } from "../../Component/Home/RouteHeading";
+import { useActiveTrack } from "react-native-track-player";
 
 export const Discover = () => {
  const width = Dimensions.get("window").width
+ const activeTrack = useActiveTrack();
   return (
    <MainWrapper>
-    <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{paddingBottom:100}}>
+    <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{paddingBottom: activeTrack ? 105 : 70}}>
       <RouteHeading bottomText={"Discover music"} showSearch={false}/>
       <View style={{
         flexDirection:"row",

@@ -1,6 +1,27 @@
 apply plugin: "com.android.application"
 apply plugin: "org.jetbrains.kotlin.android"
 apply plugin: "com.facebook.react"
+project.ext.vectoricons = [
+    iconFontNames: [ 
+        'MaterialIcons.ttf', 
+        'Ionicons.ttf', 
+        'Feather.ttf', 
+        'FontAwesome.ttf', 
+        'FontAwesome5_Free.ttf', 
+        'FontAwesome5_Brands.ttf', 
+        'FontAwesome5_Solid.ttf',
+        'FontAwesome6_Free.ttf',
+        'FontAwesome6_Brands.ttf',
+        'FontAwesome6_Solid.ttf',
+        'MaterialCommunityIcons.ttf', 
+        'Entypo.ttf', 
+        'Octicons.ttf', 
+        'AntDesign.ttf', 
+        'EvilIcons.ttf',
+        'SimpleLineIcons.ttf'
+    ]
+]
+
 apply from: file("../../node_modules/react-native-vector-icons/fonts.gradle")
 
 
@@ -82,9 +103,10 @@ android {
         applicationId "com.melody"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 8
-        versionName "2.0.0"
+        versionCode 9
+        versionName "2.1.0"
         multiDexEnabled true
+        resConfigs "en"
     }
     // Exclude native InnerTube original files (they reference unavailable libs)
     sourceSets {
@@ -138,10 +160,14 @@ android {
         }
     }
 
-    // Disable ABI splits to produce a single universal APK only
+    // Enable ABI splits to produce multiple APKs and a single universal APK
+    // Setting universalApk to true creates a single APK containing all selected architectures
     splits {
         abi {
             enable false
+            reset()
+            include "armeabi-v7a", "arm64-v8a", "x86", "x86_64"
+            universalApk true
         }
     }
 
@@ -150,8 +176,8 @@ android {
             useLegacyPackaging = false
         }
         resources {
-            pickFirsts += ['**/libjsc.so', '**/libc++_shared.so']
-            excludes += ['**/libhermes.so', '**/libhermes-executor-debug.so', '**/libhermes-executor-release.so']
+            pickFirsts += ['**/libjsc.so', '**/libc++_shared.so', '**/libhermes.so', '**/libhermes-executor-debug.so', '**/libhermes-executor-release.so']
+            excludes += []
         }
     }
 }

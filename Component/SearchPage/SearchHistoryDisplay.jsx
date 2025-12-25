@@ -3,6 +3,7 @@ import MaterialIcons from "react-native-vector-icons/MaterialIcons";
 import Entypo from "react-native-vector-icons/Entypo";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import { useEffect, useRef } from "react";
+import { useActiveTrack } from "react-native-track-player";
 
 const AnimatedHistoryItem = ({ item, index, onSelectQuery, onRemoveQuery }) => {
   const itemAnim = useRef(new Animated.Value(0)).current;
@@ -40,7 +41,7 @@ const AnimatedHistoryItem = ({ item, index, onSelectQuery, onRemoveQuery }) => {
           paddingVertical: 14,
           paddingHorizontal: 16,
           marginHorizontal: 10,
-          marginVertical: 4,
+          marginVertical: 2,
           backgroundColor: "rgba(255,255,255,0.08)",
           borderRadius: 12,
           borderWidth: 1,
@@ -94,6 +95,7 @@ const AnimatedHistoryItem = ({ item, index, onSelectQuery, onRemoveQuery }) => {
 export default function SearchHistoryDisplay({ history, onSelectQuery, onRemoveQuery, onClearHistory }) {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
+  const activeTrack = useActiveTrack();
 
   useEffect(() => {
     Animated.parallel([
@@ -223,7 +225,7 @@ export default function SearchHistoryDisplay({ history, onSelectQuery, onRemoveQ
         keyExtractor={(item, index) => `${item}_${index}`}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
-          paddingBottom: 20,
+          paddingBottom: activeTrack ? 105 : 70,
         }}
       />
     </Animated.View>

@@ -12,12 +12,14 @@ import { getAlbumData } from "../Api/Album";
 import { getSongData } from "../Api/Songs";
 import { AlbumDetails } from "../Component/Album/AlbumDetails";
 import FormatArtist from "../Utils/FormatArtists";
+import { useActiveTrack } from "react-native-track-player";
 
 export const Album = ({ route }) => {
   const theme = useTheme();
   const AnimatedRef = useAnimatedRef()
   const [Loading, setLoading] = useState(true)
   const [Data, setData] = useState({});
+  const activeTrack = useActiveTrack();
   const { id, image: passedImage, highlightSongId } = route.params
   const [headerImage, setHeaderImage] = useState(passedImage || "");
 
@@ -97,7 +99,7 @@ export const Album = ({ route }) => {
                 scrollEventThrottle={16}
                 ref={AnimatedRef}
                 contentContainerStyle={{
-                  paddingBottom: 100,
+                  paddingBottom: activeTrack ? 105 : 70,
                   backgroundColor: "transparent",
                 }}
               >

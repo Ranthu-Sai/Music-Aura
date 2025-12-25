@@ -6,10 +6,12 @@ import { getSearchSongData } from '../../Api/Songs'
 import { LoadingComponent } from '../Global/Loading'
 import { PlainText } from '../Global/PlainText'
 import { SmallText } from '../Global/SmallText'
+import { useActiveTrack } from 'react-native-track-player'
 
 export default function SongDisplay({ data, limit, Searchtext, loadMore, hasMore, loadingMore }) {
   const Data = data
   const width = Dimensions.get("window").width
+  const activeTrack = useActiveTrack()
 
   function FormatArtist(data) {
     let artist = ""
@@ -54,24 +56,24 @@ export default function SongDisplay({ data, limit, Searchtext, loadMore, hasMore
       releaseDate={releaseDate}
       url={url}
       style={{
-        marginBottom: 13,
+        marginBottom: 8,
       }}
     />
   }
 
   return (
-    <View>
+    <View style={{ paddingBottom: activeTrack ? 30 : 20 }}>
       {Data?.data?.results?.length !== 0 && <FlatList
         showsVerticalScrollIndicator={false}
         scrollEnabled={true}
         keyExtractor={(item, index) => `${item?.id}_${index}`}
         contentContainerStyle={{
-          paddingBottom: 300,
+          paddingBottom: activeTrack ? 200 : 140,
         }}
         data={Data?.data?.results ?? []}
         renderItem={renderSongItem}
         onEndReached={hasMore ? loadMore : null}
-        onEndReachedThreshold={0.5}
+        onEndReachedThreshold={0.1}
         ListFooterComponent={loadingMore ? (
           <View style={{ padding: 20, alignItems: 'center' }}>
             <ActivityIndicator size="small" color="#fff" />

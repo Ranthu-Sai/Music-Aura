@@ -6,7 +6,7 @@ import { memo, useContext, useState, useCallback } from "react";
 import { PlaySongWithRelated } from "../../MusicPlayerFunctions";
 import Context from "../../Context/Context";
 import FormatTitleAndArtist from "../../Utils/FormatTitleAndArtist";
-// import FormatArtist from "../../Utils/FormatArtists";
+import FormatArtist from "../../Utils/FormatArtists";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 import { useActiveTrack, usePlaybackState } from "react-native-track-player";
 
@@ -17,7 +17,7 @@ export const EachTrendingSongCard = memo(function EachTrendingSongCard({ image, 
   const currentPlaying = useActiveTrack();
   const playerState = usePlaybackState();
 
-  const artistsNames = artists?.primary?.map(e => e.name).join(", ") || "";
+  const artistsNames = FormatArtist(artists);
   const formattedName = FormatTitleAndArtist(name || "");
 
   const isCurrentSong = id === currentPlaying?.id;

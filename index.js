@@ -1,51 +1,39 @@
 /**
  * @format
  */
-// Centralized log control: allows hiding logs in any environment via hide-logs.json
-try {
-  const logConfig = require('./hide-logs.json');
-  const { applyHideLogs } = require('./Utils/LogControl');
-  if (logConfig && logConfig.hide) {
-    applyHideLogs(true);
-  } else {
-    // Keep existing behavior: silence some logs in production
-    if (!__DEV__) {
-      (() => {
-        const NOOP = () => { };
-        console.log = NOOP;
-        console.info = NOOP;
-        console.debug = NOOP;
-      })();
-    }
-  }
-} catch (e) {
-  // If config missing or error, fallback to previous behavior
-  if (!__DEV__) {
-    (() => {
-      const NOOP = () => { };
-      console.log = NOOP;
-      console.info = NOOP;
-      console.debug = NOOP;
-    })();
-  }
-}
-
-import 'react-native-reanimated';
 import 'react-native-gesture-handler';
+import 'react-native-reanimated';
 import { AppRegistry, LogBox, Alert } from 'react-native';
 import App from './App';
-import { name as appName } from './app.json';
+import appJson from './app.json';
+const appName = appJson.name;
 import TrackPlayer from "react-native-track-player";
 import { PlaybackService } from "./service";
 import { CacheManager } from './Utils/NavigationCacheManager';
 import smartPrefetchManager from './Utils/SmartPrefetchManager';
+import { hideLogs } from './Utils/LogControl';
+
+// Hide logs immediately
+hideLogs();
+
+// Fallback for console logging in production
+if (!__DEV__) {
+  const NOOP = () => { };
+  console.log = NOOP;
+  console.info = NOOP;
+  console.debug = NOOP;
+}
 
 // Clear stream cache on app startup to remove any invalid cached URLs
 // This is especially important after fixing the StreamModule to ensure
 // fresh URLs are fetched using the corrected code
 try {
-  CacheManager.clearStreamCache();
-  smartPrefetchManager.clearCache();
+  if (CacheManager && CacheManager.clearStreamCache) {
+    CacheManager.clearStreamCache();
+  }
+  if (smartPrefetchManager && smartPrefetchManager.clearCache) {
+    smartPrefetchManager.clearCache();
+  }
   console.log('✅ Stream cache cleared on app startup');
 } catch (e) {
   console.warn('Failed to clear stream cache:', e);

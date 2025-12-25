@@ -16,6 +16,7 @@ import { EachTrendingSongCard } from "../../Component/Global/EachTrendingSongCar
 import { GetLanguageValue } from "../../LocalStorage/Languages";
 import { TopHeader } from "../../Component/Home/TopHeader";
 import { DisplayTopGenres } from "../../Component/Home/DisplayTopGenres";
+import { useActiveTrack } from "react-native-track-player";
 
 export const Home = () => {
   const [Loading, setLoading] = useState(true);
@@ -25,6 +26,7 @@ export const Home = () => {
   const [allPlaylists, setAllPlaylists] = useState([]);
   const isFocused = useIsFocused();
   const refreshTimerRef = useRef(null);
+  const activeTrack = useActiveTrack();
 
   // Filter out podcast / non-music entries heuristically before grouping
   const rawAlbums = (Data?.data?.albums ?? []).filter(a => {
@@ -121,7 +123,7 @@ export const Home = () => {
             }}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={{
-              paddingBottom: 90,
+              paddingBottom: activeTrack ? 105 : 70,
             }}
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
           >
@@ -156,7 +158,7 @@ export const Home = () => {
                       "https://htmlcolorcodes.com/assets/images/colors/gray-color-solid-background-1920x1080.png"
                     }
                     name={item.name}
-                    artists={item.artists}
+                    artists={item.primaryArtists}
                     id={item.id}
                     url={item.downloadUrl}
                     duration={item.duration}
@@ -168,7 +170,7 @@ export const Home = () => {
             </ScrollView>
             <PaddingConatiner>
               <HorizontalScrollSongs id={Data?.data?.charts?.[0]?.id} />
-              <Heading text={"Recommended"} />
+              <Heading text={"Recommended Playlists"} />
             </PaddingConatiner>
             <ScrollView
               horizontal

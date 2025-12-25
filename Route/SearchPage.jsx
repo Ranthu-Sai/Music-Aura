@@ -199,7 +199,7 @@ export const SearchPage = ({ navigation }) => {
   };
   return (
     <MainWrapper>
-      <Spacer />
+      <Spacer height={5} />
       <SearchBar
         navigation={navigation}
         value={query}
@@ -208,7 +208,7 @@ export const SearchPage = ({ navigation }) => {
         }}
         onSubmit={handleSearchSubmit}
       />
-      <Spacer height={10} />
+      <Spacer height={5} />
       <View style={{
         flexDirection: "row",
         alignItems: "center",
@@ -220,7 +220,7 @@ export const SearchPage = ({ navigation }) => {
           <Tabs tabs={["Saavn", "YT Music", "Youtube"]} setState={setEngine} state={engine} />
         </View>
       </View>
-      <Spacer height={10} />
+      <Spacer height={5} />
       {Loading && <LoadingComponent loading={Loading} />}
       {!Loading && !SearchText && (
         <SearchHistoryDisplay

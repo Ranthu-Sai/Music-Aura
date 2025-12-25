@@ -6,8 +6,8 @@ import { PlayNextSong } from "../../MusicPlayerFunctions";
 export const NextSongButton = ({size}) => {
   const theme = useTheme()
   return <Pressable style={{
-    padding:10,
+    padding:12,
   }} onPress={()=>{
          PlayNextSong()
-      }}><FontAwesome6 name={"forward-step"} size={size ? size :15} color={theme.colors.text}/></Pressable>
+      }}><FontAwesome6 name={"forward-step"} size={size ? size :20} color={theme.colors.text}/></Pressable>
 };

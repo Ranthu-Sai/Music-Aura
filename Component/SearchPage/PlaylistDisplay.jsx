@@ -3,10 +3,12 @@ import { Dimensions, FlatList, View, ActivityIndicator } from 'react-native'
 import { EachPlaylistCard } from '../Global/EachPlaylistCard'
 import { PlainText } from '../Global/PlainText'
 import { SmallText } from '../Global/SmallText'
+import { useActiveTrack } from 'react-native-track-player'
 
 export default function PlaylistDisplay({ data, limit, Searchtext, loadMore, hasMore, loadingMore }) {
   const Data = data
   const flatListRef = useRef(null);
+  const activeTrack = useActiveTrack()
 
   const width = Dimensions.get("window").width
   return (
@@ -18,7 +20,7 @@ export default function PlaylistDisplay({ data, limit, Searchtext, loadMore, has
         scrollEnabled={true}
         keyExtractor={(item, index) => `${item?.id}_${index}`}
         contentContainerStyle={{
-          paddingBottom: 220,
+          paddingBottom: activeTrack ? 105 : 70,
           alignItems: "flex-start",
         }}
         data={Data?.data?.results ?? []}

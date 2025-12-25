@@ -11,15 +11,15 @@ export const PlayPauseButton = ({isFullScreen}) => {
     <>
       {!isFullScreen &&  <>
         {playerState.state !== "playing" && playerState.state !== "buffering" && <Pressable style={{
-          padding:5,
+          padding:8,
         }}  onPress={()=>{
           PlaySong()
-        }}><FontAwesome6 name={"play"} size={20} color={theme.colors.text}/></Pressable>}
+        }}><FontAwesome6 name={"play"} size={25} color={theme.colors.text}/></Pressable>}
         {playerState.state === "playing" && <Pressable style={{
-          padding:5,
+          padding:8,
         }} onPress={()=>{
           PauseSong()
-        }}><FontAwesome6 name={"pause"} size={20} color={theme.colors.text}/></Pressable>}
+        }}><FontAwesome6 name={"pause"} size={25} color={theme.colors.text}/></Pressable>}
         {playerState.state === "buffering" && <ActivityIndicator size={"small"} color={"white"}/>}
       </>}
       {isFullScreen && <>

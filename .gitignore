@@ -80,8 +80,4 @@ yarn-error.log
 test_*.js
 temp_*
 instances.json
-
-# Development documentation
-PLAYBACK_PROXY_FIX.md
-YOUTUBE_MUSIC_FIX.md
-YOUTUBE_MUSIC_INNERTUBE.md
+release.md

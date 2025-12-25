@@ -6,9 +6,11 @@ import { PlainText } from '../Global/PlainText'
 import { SmallText } from '../Global/SmallText'
 import { EachAlbumCard } from '../Global/EachAlbumCard'
 import { getSearchAlbumData } from '../../Api/Album'
+import { useActiveTrack } from 'react-native-track-player'
 
 export default function AlbumsDisplay({ data, limit, Searchtext, loadMore, hasMore, loadingMore }) {
   const Data = data
+  const activeTrack = useActiveTrack()
 
   function FormatArtist(data) {
     let artist = ""
@@ -29,7 +31,7 @@ export default function AlbumsDisplay({ data, limit, Searchtext, loadMore, hasMo
         showsVerticalScrollIndicator={false}
         numColumns={2}
         contentContainerStyle={{
-          paddingBottom: 300,
+          paddingBottom: activeTrack ? 105 : 70,
         }}
         keyExtractor={(item, index) => `${item?.id}_${index}`}
         data={Data?.data?.results ?? []}
@@ -38,7 +40,7 @@ export default function AlbumsDisplay({ data, limit, Searchtext, loadMore, hasMo
           const name = isSaavn ? album?.name : album?.title;
           const artists = isSaavn ? FormatArtist(album?.artists?.primary) : album?.artist;
           const image = Array.isArray(album?.image) ? (album?.image[2]?.url || album?.image[1]?.url || album?.image[0]?.url || "") : (typeof album?.image === 'string' ? album?.image : "");
-          return <EachAlbumCard key={`${album?.id}_${index}`} Search={true} mainContainerStyle={{ width: itemWidth, marginBottom: 15, marginHorizontal: 5 }} image={image} artists={artists} name={name ?? ""} id={album?.id ?? ""} />
+          return <EachAlbumCard key={`${album?.id}_${index}`} Search={true} mainContainerStyle={{ width: itemWidth, marginBottom: 10, marginHorizontal: 5 }} image={image} artists={artists} name={name ?? ""} id={album?.id ?? ""} />
         }}
         onEndReached={hasMore ? loadMore : null}
         onEndReachedThreshold={0.5}

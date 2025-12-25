@@ -41,6 +41,9 @@ export const FullScreenMusic = ({ color, Index, setIndex }) => {
   })
   const width = Dimensions.get("window").width
   const currentPlaying = useActiveTrack()
+  if (!currentPlaying) {
+    return null;
+  }
   const { lyricsCacheRef } = useContext(Context)
   const navigation = useNavigation()
   const [ShowDailog, setShowDailog] = useState(false);

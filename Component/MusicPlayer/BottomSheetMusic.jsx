@@ -4,10 +4,18 @@ import BottomSheet, {BottomSheetView} from '@gorhom/bottom-sheet';
 import { MinimizedMusic } from "./MinimizedMusic";
 import { FullScreenMusic } from "./FullScreenMusic";
 import Context from "../../Context/Context";
+import { useActiveTrack } from "react-native-track-player";
 
 const BottomSheetMusic = ({color}) => {
   const bottomSheetRef = useRef(null)
   const {Index, setIndex} = useContext(Context)
+  const activeTrack = useActiveTrack()
+
+  useEffect(() => {
+    if (Index === -1) {
+      setIndex(0)
+    }
+  }, [activeTrack]);
   useEffect(() => {
     const backAction = () => {
       setIndex(0)
@@ -45,7 +53,7 @@ const BottomSheetMusic = ({color}) => {
         backgroundColor:"rgba(0,0,0,0)",
       }}
         backgroundStyle={{
-          backgroundColor:color,
+          backgroundColor: Index === 1 ? color : "transparent",
         }}
         // handleComponent={props => <MinimizedMusic  setIndex={updateIndex} color={color}/>}
         handleHeight={5}
@@ -58,7 +66,6 @@ const BottomSheetMusic = ({color}) => {
         onChange={handleSheetChanges}>
         <BottomSheetView  style={{
           ...styles.contentContainer,
-          backgroundColor:color,
         }}>
           {Index !== 1 &&  <MinimizedMusic  setIndex={updateIndex}/>}
           {Index === 1 &&  <FullScreenMusic color={color} Index={Index} setIndex={updateIndex}/>}

@@ -93,6 +93,32 @@ export const EachSongCard = memo(function EachSongCard({ title, artist, image, i
         // Play from the clicked song using startSongId
         await AddPlaylist(ForMusicPlayer, id);
         await updateTrack();
+      } else if (Data && Array.isArray(Data)) {
+        // Liked songs or other array-based lists: Play from this song and queue remaining songs
+        const { AddPlaylist, getIndexQuality } = require('../../MusicPlayerFunctions');
+
+        const quality = await getIndexQuality();
+        const ForMusicPlayer = Data.map((e, i) => {
+          // Handle the case where downloadUrl might be a single URL or an array
+          const download = Array.isArray(e?.downloadUrl) ? (e?.downloadUrl[quality]?.url || e?.downloadUrl[0]?.url) : e?.downloadUrl || e?.url;
+
+          return {
+            url: download,
+            title: FormatTitleAndArtist(e?.title || e?.name),
+            artist: FormatTitleAndArtist(e?.artist),
+            artwork: e?.artwork || e?.image,
+            image: e?.artwork || e?.image,
+            duration: e?.duration,
+            id: e?.id,
+            language: e?.language,
+            artistID: e?.artistID || e?.primary_artists_id,
+            source: e?.source
+          };
+        });
+
+        // Play from the clicked song using startSongId
+        await AddPlaylist(ForMusicPlayer, id);
+        await updateTrack();
       } else {
         // Single song mode: Use existing behavior with recommendations
         await PlaySongWithRelated(id, image, { title, artist, url, duration, language });
@@ -133,17 +159,19 @@ export const EachSongCard = memo(function EachSongCard({ title, artist, image, i
             // Primary match: by ID
             let isCurrentSong = id === currentPlaying?.id;
 
-            // Fallback for YouTube Music: match by title if IDs don't match
-            // (YT Music can have different video IDs for same song in search vs album)
-            if (!isCurrentSong && currentPlaying?.title && title) {
-              const normalizeTitle = (str) => str?.toLowerCase().replace(/[^\w\s]/g, '').trim();
-              const currentTitle = normalizeTitle(currentPlaying.title);
-              const cardTitle = normalizeTitle(title);
+            // Fallback for YouTube Music: match by title AND artist if IDs don't match
+            // This prevents multiple songs with same name but different artists from showing the animation
+            if (!isCurrentSong && currentPlaying?.title && title && currentPlaying?.artist && artist) {
+              const normalize = (str) => str?.toLowerCase().replace(/[^\w\s]/g, '').trim();
+              const currentTitle = normalize(currentPlaying.title);
+              const cardTitle = normalize(title);
+              const currentArtist = normalize(currentPlaying.artist);
+              const cardArtist = normalize(artist);
 
-              // Match if titles are very similar (allows for minor differences)
-                if (currentTitle && cardTitle && currentTitle === cardTitle) {
+              // Match if both title and artist are essentially the same
+              if (currentTitle && cardTitle && currentTitle === cardTitle && 
+                  currentArtist && cardArtist && (currentArtist.includes(cardArtist) || cardArtist.includes(currentArtist))) {
                 isCurrentSong = true;
-                  console.log(`✅ Matched by exact title: "${title}" === "${currentPlaying.title}"`);
               }
             }
 
