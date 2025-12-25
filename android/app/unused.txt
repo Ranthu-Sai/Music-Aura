@@ -716,40 +716,76 @@ android.support.v4.os.IResultReceiver2
 android.support.v4.os.ResultReceiver:
     public void <init>(android.os.Handler)
     public void send(int,android.os.Bundle)
+androidx.activity.BackEventCompat$SwipeEdge
+androidx.activity.BackEventCompat:
+    public static final int EDGE_LEFT
+    public static final int EDGE_RIGHT
+    public final float getProgress()
+    public final int getSwipeEdge()
+    public final float getTouchX()
+    public final float getTouchY()
+    public final android.window.BackEvent toBackEvent()
 androidx.activity.ComponentActivity$Api19Impl:
     private void <init>()
 androidx.activity.ComponentActivity$Api33Impl:
     private void <init>()
 androidx.activity.ComponentActivity:
     public void <init>(int)
-    public void onMultiWindowModeChanged(boolean)
-    public void onPictureInPictureModeChanged(boolean)
 androidx.activity.ComponentDialog:
     public void <init>(android.content.Context)
     public synthetic void <init>(android.content.Context,int,int,kotlin.jvm.internal.DefaultConstructorMarker)
-    public void addContentView(android.view.View,android.view.ViewGroup$LayoutParams)
-    private static synthetic void getOnBackPressedDispatcher$annotations()
-    private final void initViewTreeOwners()
-    public void setContentView(int)
-    public void setContentView(android.view.View)
-    public void setContentView(android.view.View,android.view.ViewGroup$LayoutParams)
+    public static synthetic void getOnBackPressedDispatcher$annotations()
+androidx.activity.EdgeToEdge
+androidx.activity.EdgeToEdgeApi21
+androidx.activity.EdgeToEdgeApi23
+androidx.activity.EdgeToEdgeApi26
+androidx.activity.EdgeToEdgeApi29
+androidx.activity.EdgeToEdgeBase
+androidx.activity.EdgeToEdgeImpl
+androidx.activity.FullyDrawnReporter:
+    public final void addOnReportDrawnListener(kotlin.jvm.functions.Function0)
+    public final void addReporter()
+    private final void postWhenReportersAreDone()
+    public final void removeOnReportDrawnListener(kotlin.jvm.functions.Function0)
+    public final void removeReporter()
+androidx.activity.FullyDrawnReporterKt$reportWhenComplete$1
+androidx.activity.FullyDrawnReporterKt
+androidx.activity.FullyDrawnReporterOwner:
+    public abstract androidx.activity.FullyDrawnReporter getFullyDrawnReporter()
 androidx.activity.ImmLeaksCleaner:
     private static final int INIT_FAILED
     private static final int INIT_SUCCESS
     private static final int NOT_INITIALIAZED
-androidx.activity.OnBackPressedDispatcher$Api33Impl:
-    private void <init>()
 androidx.activity.OnBackPressedDispatcher:
     public void <init>()
-    public void addCallback(androidx.activity.OnBackPressedCallback)
+    public synthetic void <init>(java.lang.Runnable,int,kotlin.jvm.internal.DefaultConstructorMarker)
+    public final void addCallback(androidx.activity.OnBackPressedCallback)
+    public final void dispatchOnBackCancelled()
+    public final void dispatchOnBackProgressed(androidx.activity.BackEventCompat)
+    public final void dispatchOnBackStarted(androidx.activity.BackEventCompat)
+    public final boolean hasEnabledCallbacks()
+androidx.activity.OnBackPressedDispatcherKt$addCallback$callback$1
+androidx.activity.OnBackPressedDispatcherKt
 androidx.activity.R$id:
     private void <init>()
 androidx.activity.R
+androidx.activity.SystemBarStyle$Companion$auto$1
+androidx.activity.SystemBarStyle$Companion$dark$1
+androidx.activity.SystemBarStyle$Companion$light$1
+androidx.activity.SystemBarStyle$Companion
+androidx.activity.SystemBarStyle
+androidx.activity.ViewTreeFullyDrawnReporterOwner$findViewTreeFullyDrawnReporterOwner$1
+androidx.activity.ViewTreeFullyDrawnReporterOwner$findViewTreeFullyDrawnReporterOwner$2
+androidx.activity.ViewTreeFullyDrawnReporterOwner:
+    public static final androidx.activity.FullyDrawnReporterOwner get(android.view.View)
 androidx.activity.ViewTreeOnBackPressedDispatcherOwner$findViewTreeOnBackPressedDispatcherOwner$1
 androidx.activity.ViewTreeOnBackPressedDispatcherOwner$findViewTreeOnBackPressedDispatcherOwner$2
 androidx.activity.ViewTreeOnBackPressedDispatcherOwner:
     public static final androidx.activity.OnBackPressedDispatcherOwner get(android.view.View)
 androidx.activity.contextaware.ContextAware
+androidx.activity.contextaware.ContextAwareKt$withContextAvailable$2$1
+androidx.activity.contextaware.ContextAwareKt$withContextAvailable$2$listener$1
+androidx.activity.contextaware.ContextAwareKt
 androidx.activity.result.ActivityResultCaller
 androidx.activity.result.ActivityResultLauncher:
     public abstract androidx.activity.result.contract.ActivityResultContract getContract()
@@ -761,16 +797,19 @@ androidx.activity.result.ActivityResultRegistry:
     private static final int INITIAL_REQUEST_CODE_VALUE
     private static final java.lang.String KEY_COMPONENT_ACTIVITY_LAUNCHED_KEYS
     private static final java.lang.String KEY_COMPONENT_ACTIVITY_PENDING_RESULTS
-    private static final java.lang.String KEY_COMPONENT_ACTIVITY_RANDOM_OBJECT
     private static final java.lang.String KEY_COMPONENT_ACTIVITY_REGISTERED_KEYS
     private static final java.lang.String KEY_COMPONENT_ACTIVITY_REGISTERED_RCS
     private static final java.lang.String LOG_TAG
+androidx.activity.result.IntentSenderRequest$Builder$Flag
 androidx.activity.result.IntentSenderRequest$Builder:
     public void <init>(android.app.PendingIntent)
+androidx.activity.result.IntentSenderRequest$Companion:
+    public static synthetic void getCREATOR$annotations()
+androidx.activity.result.IntentSenderRequest:
+    public synthetic void <init>(android.content.IntentSender,android.content.Intent,int,int,int,kotlin.jvm.internal.DefaultConstructorMarker)
 androidx.activity.result.PickVisualMediaRequest$Builder
 androidx.activity.result.PickVisualMediaRequest
 androidx.activity.result.PickVisualMediaRequestKt
-androidx.activity.result.contract.ActivityResultContracts$Api33Impl
 androidx.activity.result.contract.ActivityResultContracts$CaptureVideo
 androidx.activity.result.contract.ActivityResultContracts$CreateDocument
 androidx.activity.result.contract.ActivityResultContracts$GetContent
@@ -2957,12 +2996,10 @@ androidx.appcompat.widget.Toolbar$SavedState:
     public void <init>(android.os.Parcel)
 androidx.appcompat.widget.Toolbar:
     private static final java.lang.String TAG
-    public void addMenuProvider(androidx.core.view.MenuProvider)
     public void addMenuProvider(androidx.core.view.MenuProvider,androidx.lifecycle.LifecycleOwner)
     public void addMenuProvider(androidx.core.view.MenuProvider,androidx.lifecycle.LifecycleOwner,androidx.lifecycle.Lifecycle$State)
     public boolean isBackInvokedCallbackEnabled()
     public boolean isTitleTruncated()
-    public void removeMenuProvider(androidx.core.view.MenuProvider)
     public void setContentInsetsAbsolute(int,int)
     public void setTitleMargin(int,int,int,int)
 androidx.appcompat.widget.ToolbarWidgetWrapper:
@@ -3014,6 +3051,8 @@ androidx.arch.core.executor.ArchTaskExecutor:
     public void setDelegate(androidx.arch.core.executor.TaskExecutor)
 androidx.arch.core.executor.DefaultTaskExecutor$1:
     private static final java.lang.String THREAD_NAME_STEM
+androidx.arch.core.executor.DefaultTaskExecutor$Api28Impl:
+    private void <init>()
 androidx.arch.core.executor.TaskExecutor:
     public void executeOnMainThread(java.lang.Runnable)
 androidx.autofill.HintConstants
@@ -5352,9 +5391,7 @@ androidx.core.app.LocaleManagerCompat$Api24Impl
 androidx.core.app.LocaleManagerCompat$Api33Impl
 androidx.core.app.LocaleManagerCompat
 androidx.core.app.MultiWindowModeChangedInfo:
-    public void <init>(boolean)
     public android.content.res.Configuration getNewConfig()
-    public boolean isInMultiWindowMode()
 androidx.core.app.NavUtils$Api16Impl:
     private void <init>()
 androidx.core.app.NavUtils:
@@ -5877,9 +5914,7 @@ androidx.core.app.NotificationManagerCompat:
     public java.util.List getNotificationChannels()
     public java.util.List getNotificationChannelsCompat()
     public void notify(java.util.List)
-androidx.core.app.OnMultiWindowModeChangedProvider
 androidx.core.app.OnNewIntentProvider
-androidx.core.app.OnPictureInPictureModeChangedProvider
 androidx.core.app.PendingIntentCompat$Api16Impl
 androidx.core.app.PendingIntentCompat$Api23Impl
 androidx.core.app.PendingIntentCompat$Api26Impl
@@ -5916,9 +5951,7 @@ androidx.core.app.Person:
     public android.os.Bundle toBundle()
     public android.os.PersistableBundle toPersistableBundle()
 androidx.core.app.PictureInPictureModeChangedInfo:
-    public void <init>(boolean)
     public android.content.res.Configuration getNewConfig()
-    public boolean isInPictureInPictureMode()
 androidx.core.app.RemoteActionCompat$Api26Impl
 androidx.core.app.RemoteActionCompat$Api28Impl
 androidx.core.app.RemoteActionCompat:
@@ -6093,8 +6126,6 @@ androidx.core.content.LocusIdCompat:
     public static androidx.core.content.LocusIdCompat toLocusIdCompat(android.content.LocusId)
     public java.lang.String toString()
 androidx.core.content.MimeTypeFilter
-androidx.core.content.OnConfigurationChangedProvider
-androidx.core.content.OnTrimMemoryProvider
 androidx.core.content.PackageManagerCompat$Api30Impl
 androidx.core.content.PackageManagerCompat$UnusedAppRestrictionsStatus
 androidx.core.content.PackageManagerCompat
@@ -6542,6 +6573,7 @@ androidx.core.os.CancellationSignal$Api16Impl:
     private void <init>()
 androidx.core.os.CancellationSignal:
     public java.lang.Object getCancellationSignalObject()
+    public boolean isCanceled()
     public void throwIfCanceled()
 androidx.core.os.ConfigurationCompat$Api17Impl
 androidx.core.os.ConfigurationCompat$Api24Impl:
@@ -7002,7 +7034,10 @@ androidx.core.view.MarginLayoutParamsCompat:
     public static void setLayoutDirection(android.view.ViewGroup$MarginLayoutParams,int)
 androidx.core.view.MenuCompat$Api28Impl
 androidx.core.view.MenuCompat
-androidx.core.view.MenuHost
+androidx.core.view.MenuHost:
+    public abstract void addMenuProvider(androidx.core.view.MenuProvider,androidx.lifecycle.LifecycleOwner)
+    public abstract void addMenuProvider(androidx.core.view.MenuProvider,androidx.lifecycle.LifecycleOwner,androidx.lifecycle.Lifecycle$State)
+    public abstract void invalidateMenu()
 androidx.core.view.MenuItemCompat$1
 androidx.core.view.MenuItemCompat$Api26Impl:
     private void <init>()
@@ -9123,127 +9158,15 @@ androidx.exifinterface.media.ExifInterfaceUtils:
 androidx.fragment.R$anim
 androidx.fragment.R$animator:
     private void <init>()
-androidx.fragment.R$attr
-androidx.fragment.R$color
-androidx.fragment.R$dimen
-androidx.fragment.R$drawable
 androidx.fragment.R$id:
-    public static int accessibility_action_clickable_span
-    public static int accessibility_custom_action_0
-    public static int accessibility_custom_action_1
-    public static int accessibility_custom_action_10
-    public static int accessibility_custom_action_11
-    public static int accessibility_custom_action_12
-    public static int accessibility_custom_action_13
-    public static int accessibility_custom_action_14
-    public static int accessibility_custom_action_15
-    public static int accessibility_custom_action_16
-    public static int accessibility_custom_action_17
-    public static int accessibility_custom_action_18
-    public static int accessibility_custom_action_19
-    public static int accessibility_custom_action_2
-    public static int accessibility_custom_action_20
-    public static int accessibility_custom_action_21
-    public static int accessibility_custom_action_22
-    public static int accessibility_custom_action_23
-    public static int accessibility_custom_action_24
-    public static int accessibility_custom_action_25
-    public static int accessibility_custom_action_26
-    public static int accessibility_custom_action_27
-    public static int accessibility_custom_action_28
-    public static int accessibility_custom_action_29
-    public static int accessibility_custom_action_3
-    public static int accessibility_custom_action_30
-    public static int accessibility_custom_action_31
-    public static int accessibility_custom_action_4
-    public static int accessibility_custom_action_5
-    public static int accessibility_custom_action_6
-    public static int accessibility_custom_action_7
-    public static int accessibility_custom_action_8
-    public static int accessibility_custom_action_9
-    public static int action_container
-    public static int action_divider
-    public static int action_image
-    public static int action_text
-    public static int actions
-    public static int async
-    public static int blocking
-    public static int chronometer
-    public static int dialog_button
-    public static int forever
-    public static int icon
-    public static int icon_group
-    public static int info
-    public static int italic
-    public static int line1
-    public static int line3
-    public static int normal
-    public static int notification_background
-    public static int notification_main_column
-    public static int notification_main_column_container
-    public static int right_icon
-    public static int right_side
-    public static int tag_accessibility_actions
-    public static int tag_accessibility_clickable_spans
-    public static int tag_accessibility_heading
-    public static int tag_accessibility_pane_title
-    public static int tag_screen_reader_focusable
-    public static int tag_transition_group
-    public static int tag_unhandled_key_event_manager
-    public static int tag_unhandled_key_listeners
-    public static int text
-    public static int text2
-    public static int time
-    public static int title
-    public static int view_tree_lifecycle_owner
-    public static int view_tree_saved_state_registry_owner
-    public static int view_tree_view_model_store_owner
     private void <init>()
-androidx.fragment.R$integer
-androidx.fragment.R$layout
-androidx.fragment.R$string
-androidx.fragment.R$style
 androidx.fragment.R$styleable:
-    public static int ColorStateListItem_alpha
-    public static int ColorStateListItem_android_alpha
-    public static int ColorStateListItem_android_color
-    public static int ColorStateListItem_android_lStar
-    public static int ColorStateListItem_lStar
-    public static int FontFamilyFont_android_font
-    public static int FontFamilyFont_android_fontStyle
-    public static int FontFamilyFont_android_fontVariationSettings
-    public static int FontFamilyFont_android_fontWeight
-    public static int FontFamilyFont_android_ttcIndex
-    public static int FontFamilyFont_font
-    public static int FontFamilyFont_fontStyle
-    public static int FontFamilyFont_fontVariationSettings
-    public static int FontFamilyFont_fontWeight
-    public static int FontFamilyFont_ttcIndex
-    public static int FontFamily_fontProviderAuthority
-    public static int FontFamily_fontProviderCerts
-    public static int FontFamily_fontProviderFetchStrategy
-    public static int FontFamily_fontProviderFetchTimeout
-    public static int FontFamily_fontProviderPackage
-    public static int FontFamily_fontProviderQuery
-    public static int FontFamily_fontProviderSystemFontFamily
-    public static int GradientColorItem_android_color
-    public static int GradientColorItem_android_offset
-    public static int GradientColor_android_centerColor
-    public static int GradientColor_android_centerX
-    public static int GradientColor_android_centerY
-    public static int GradientColor_android_endColor
-    public static int GradientColor_android_endX
-    public static int GradientColor_android_endY
-    public static int GradientColor_android_gradientRadius
-    public static int GradientColor_android_startColor
-    public static int GradientColor_android_startX
-    public static int GradientColor_android_startY
-    public static int GradientColor_android_tileMode
-    public static int GradientColor_android_type
     private void <init>()
 androidx.fragment.R
 androidx.fragment.app.BackStackRecord:
     private static final java.lang.String TAG
+    void <init>(androidx.fragment.app.BackStackRecord)
+    void collapseOps()
     public androidx.fragment.app.FragmentTransaction detach(androidx.fragment.app.Fragment)
     public java.lang.CharSequence getBreadCrumbShortTitle()
     public int getBreadCrumbShortTitleRes()
@@ -9255,20 +9178,28 @@ androidx.fragment.app.BackStackRecord:
     public androidx.fragment.app.FragmentTransaction setMaxLifecycle(androidx.fragment.app.Fragment,androidx.lifecycle.Lifecycle$State)
     public androidx.fragment.app.FragmentTransaction setPrimaryNavigationFragment(androidx.fragment.app.Fragment)
     public androidx.fragment.app.FragmentTransaction show(androidx.fragment.app.Fragment)
-androidx.fragment.app.BackStackState:
+androidx.fragment.app.BackStackRecordState:
     private static final java.lang.String TAG
+    public androidx.fragment.app.BackStackRecord instantiate(androidx.fragment.app.FragmentManager,java.util.Map)
+androidx.fragment.app.BackStackState:
+    void <init>(java.util.List,java.util.List)
+    java.util.List instantiate(androidx.fragment.app.FragmentManager,java.util.Map)
 androidx.fragment.app.DialogFragment:
     public void <init>(int)
-androidx.fragment.app.Fragment$9:
+androidx.fragment.app.Fragment$10:
     public androidx.activity.result.contract.ActivityResultContract getContract()
+androidx.fragment.app.Fragment$Api19Impl:
+    private void <init>()
 androidx.fragment.app.Fragment$SavedState:
     void <init>(android.os.Bundle)
 androidx.fragment.app.Fragment:
     public void <init>(int)
 androidx.fragment.app.FragmentActivity$HostCallbacks:
-    public void onDump(java.lang.String,java.io.FileDescriptor,java.io.PrintWriter,java.lang.String[])
+    public void addMenuProvider(androidx.core.view.MenuProvider,androidx.lifecycle.LifecycleOwner)
+    public void addMenuProvider(androidx.core.view.MenuProvider,androidx.lifecycle.LifecycleOwner,androidx.lifecycle.Lifecycle$State)
     public int onGetWindowAnimations()
     public boolean onHasWindowAnimations()
+    public boolean onShouldSaveFragmentState(androidx.fragment.app.Fragment)
 androidx.fragment.app.FragmentActivity:
     public void <init>(int)
 androidx.fragment.app.FragmentAnim:
@@ -9276,7 +9207,15 @@ androidx.fragment.app.FragmentAnim:
 androidx.fragment.app.FragmentContainerView:
     public void <init>(android.content.Context)
 androidx.fragment.app.FragmentController:
+    public void dispatchConfigurationChanged(android.content.res.Configuration)
+    public boolean dispatchCreateOptionsMenu(android.view.Menu,android.view.MenuInflater)
     public void dispatchDestroyView()
+    public void dispatchLowMemory()
+    public void dispatchMultiWindowModeChanged(boolean)
+    public boolean dispatchOptionsItemSelected(android.view.MenuItem)
+    public void dispatchOptionsMenuClosed(android.view.Menu)
+    public void dispatchPictureInPictureModeChanged(boolean)
+    public boolean dispatchPrepareOptionsMenu(android.view.Menu)
     public void dispatchReallyStop()
     public void doLoaderDestroy()
     public void doLoaderRetain()
@@ -9291,16 +9230,18 @@ androidx.fragment.app.FragmentController:
     public void restoreAllState(android.os.Parcelable,androidx.fragment.app.FragmentManagerNonConfig)
     public void restoreAllState(android.os.Parcelable,java.util.List)
     public void restoreLoaderNonConfig(androidx.collection.SimpleArrayMap)
+    public void restoreSaveState(android.os.Parcelable)
     public androidx.collection.SimpleArrayMap retainLoaderNonConfig()
     public androidx.fragment.app.FragmentManagerNonConfig retainNestedNonConfig()
     public java.util.List retainNonConfig()
+    public android.os.Parcelable saveAllState()
 androidx.fragment.app.FragmentHostCallback:
     public void <init>(android.content.Context,android.os.Handler,int)
-    public void onDump(java.lang.String,java.io.FileDescriptor,java.io.PrintWriter,java.lang.String[])
     public android.view.View onFindViewById(int)
     public int onGetWindowAnimations()
     public boolean onHasView()
     public boolean onHasWindowAnimations()
+    public boolean onShouldSaveFragmentState(androidx.fragment.app.Fragment)
     public void onStartActivityFromFragment(androidx.fragment.app.Fragment,android.content.Intent,int)
 androidx.fragment.app.FragmentLayoutInflaterFactory:
     private static final java.lang.String TAG
@@ -9312,39 +9253,53 @@ androidx.fragment.app.FragmentLifecycleCallbacksDispatcher:
 androidx.fragment.app.FragmentManager$6:
     void <init>(androidx.fragment.app.FragmentManager,java.lang.String,androidx.fragment.app.FragmentResultListener,androidx.lifecycle.Lifecycle)
 androidx.fragment.app.FragmentManager$BackStackEntry
+androidx.fragment.app.FragmentManager$ClearBackStackState
 androidx.fragment.app.FragmentManager$FragmentLifecycleCallbacks:
     public void <init>()
 androidx.fragment.app.FragmentManager$LifecycleAwareResultListener
+androidx.fragment.app.FragmentManager$RestoreBackStackState
+androidx.fragment.app.FragmentManager$SaveBackStackState
 androidx.fragment.app.FragmentManager:
     private static final java.lang.String EXTRA_CREATED_FILLIN_INTENT
+    private static final java.lang.String FRAGMENT_KEY_PREFIX
+    private static final java.lang.String FRAGMENT_MANAGER_STATE_KEY
     public static final int POP_BACK_STACK_INCLUSIVE
-    static final java.lang.String TAG
+    private static final java.lang.String RESULT_KEY_PREFIX
+    private static final java.lang.String SAVED_STATE_KEY
+    public static final java.lang.String TAG
     public void addOnBackStackChangedListener(androidx.fragment.app.FragmentManager$OnBackStackChangedListener)
+    public void clearBackStack(java.lang.String)
+    boolean clearBackStackState(java.util.ArrayList,java.util.ArrayList,java.lang.String)
     public final void clearFragmentResultListener(java.lang.String)
     public static void enableDebugLogging(boolean)
-    public static void enableNewStateManager(boolean)
-    static androidx.fragment.app.FragmentManager findFragmentManager(android.view.View)
     int getActiveFragmentCount()
     java.util.List getActiveFragments()
     public androidx.fragment.app.FragmentManager$BackStackEntry getBackStackEntryAt(int)
     public androidx.fragment.app.Fragment getFragment(android.os.Bundle,java.lang.String)
+    androidx.fragment.app.FragmentStore getFragmentStore()
     public androidx.fragment.app.FragmentTransaction openTransaction()
     public void popBackStack()
+    public void popBackStack(int,int)
     public void popBackStack(java.lang.String,int)
-    public boolean popBackStackImmediate(int,int)
     public boolean popBackStackImmediate(java.lang.String,int)
     public void putFragment(android.os.Bundle,java.lang.String,androidx.fragment.app.Fragment)
     public void registerFragmentLifecycleCallbacks(androidx.fragment.app.FragmentManager$FragmentLifecycleCallbacks,boolean)
     public void removeFragmentOnAttachListener(androidx.fragment.app.FragmentOnAttachListener)
     public void removeOnBackStackChangedListener(androidx.fragment.app.FragmentManager$OnBackStackChangedListener)
     void restoreAllState(android.os.Parcelable,androidx.fragment.app.FragmentManagerNonConfig)
+    public void restoreBackStack(java.lang.String)
+    boolean restoreBackStackState(java.util.ArrayList,java.util.ArrayList,java.lang.String)
+    void restoreSaveState(android.os.Parcelable)
     androidx.fragment.app.FragmentManagerNonConfig retainNonConfig()
+    android.os.Parcelable saveAllState()
+    public void saveBackStack(java.lang.String)
+    boolean saveBackStackState(java.util.ArrayList,java.util.ArrayList,java.lang.String)
     public androidx.fragment.app.Fragment$SavedState saveFragmentInstanceState(androidx.fragment.app.Fragment)
     public void setFragmentFactory(androidx.fragment.app.FragmentFactory)
     public final void setFragmentResult(java.lang.String,android.os.Bundle)
     public final void setFragmentResultListener(java.lang.String,androidx.lifecycle.LifecycleOwner,androidx.fragment.app.FragmentResultListener)
     void setSpecialEffectsControllerFactory(androidx.fragment.app.SpecialEffectsControllerFactory)
-    private void throwException(java.lang.RuntimeException)
+    public void setStrictModePolicy(androidx.fragment.app.strictmode.FragmentStrictMode$Policy)
     public void unregisterFragmentLifecycleCallbacks(androidx.fragment.app.FragmentManager$FragmentLifecycleCallbacks)
 androidx.fragment.app.FragmentManagerNonConfig
 androidx.fragment.app.FragmentManagerViewModel:
@@ -9354,14 +9309,15 @@ androidx.fragment.app.FragmentManagerViewModel:
 androidx.fragment.app.FragmentPagerAdapter
 androidx.fragment.app.FragmentResultOwner
 androidx.fragment.app.FragmentStateManager:
+    static final java.lang.String ARGUMENTS_KEY
+    static final java.lang.String CHILD_FRAGMENT_MANAGER_KEY
+    static final java.lang.String FRAGMENT_STATE_KEY
+    static final java.lang.String REGISTRY_STATE_KEY
+    static final java.lang.String SAVED_INSTANCE_STATE_KEY
     private static final java.lang.String TAG
-    private static final java.lang.String TARGET_REQUEST_CODE_STATE_TAG
-    private static final java.lang.String TARGET_STATE_TAG
-    private static final java.lang.String USER_VISIBLE_HINT_TAG
-    private static final java.lang.String VIEW_REGISTRY_STATE_TAG
-    private static final java.lang.String VIEW_STATE_TAG
+    static final java.lang.String VIEW_REGISTRY_STATE_KEY
+    static final java.lang.String VIEW_STATE_KEY
     androidx.fragment.app.Fragment$SavedState saveInstanceState()
-androidx.fragment.app.FragmentStateManagerControl
 androidx.fragment.app.FragmentStatePagerAdapter
 androidx.fragment.app.FragmentStore:
     private static final java.lang.String TAG
@@ -9373,6 +9329,7 @@ androidx.fragment.app.FragmentTabHost$TabInfo
 androidx.fragment.app.FragmentTabHost
 androidx.fragment.app.FragmentTransaction$Op:
     void <init>(int,androidx.fragment.app.Fragment,androidx.lifecycle.Lifecycle$State)
+    void <init>(androidx.fragment.app.FragmentTransaction$Op)
 androidx.fragment.app.FragmentTransaction:
     static final int OP_ADD
     static final int OP_ATTACH
@@ -9389,10 +9346,13 @@ androidx.fragment.app.FragmentTransaction:
     public static final int TRANSIT_EXIT_MASK
     public static final int TRANSIT_FRAGMENT_CLOSE
     public static final int TRANSIT_FRAGMENT_FADE
+    public static final int TRANSIT_FRAGMENT_MATCH_ACTIVITY_CLOSE
+    public static final int TRANSIT_FRAGMENT_MATCH_ACTIVITY_OPEN
     public static final int TRANSIT_FRAGMENT_OPEN
     public static final int TRANSIT_NONE
     public static final int TRANSIT_UNSET
     public void <init>()
+    void <init>(androidx.fragment.app.FragmentFactory,java.lang.ClassLoader,androidx.fragment.app.FragmentTransaction)
     public final androidx.fragment.app.FragmentTransaction add(int,java.lang.Class,android.os.Bundle)
     public final androidx.fragment.app.FragmentTransaction add(int,java.lang.Class,android.os.Bundle,java.lang.String)
     public final androidx.fragment.app.FragmentTransaction add(java.lang.Class,android.os.Bundle,java.lang.String)
@@ -9417,14 +9377,47 @@ androidx.fragment.app.FragmentTransaction:
     public androidx.fragment.app.FragmentTransaction setTransitionStyle(int)
     public androidx.fragment.app.FragmentTransaction show(androidx.fragment.app.Fragment)
 androidx.fragment.app.FragmentTransition:
-    private void <init>()
-    static boolean supportsTransition()
+    public static final boolean supportsTransition()
+androidx.fragment.app.FragmentTransitionCompat21:
+    public void removeTarget(java.lang.Object,android.view.View)
+androidx.fragment.app.FragmentTransitionImpl:
+    public abstract void removeTarget(java.lang.Object,android.view.View)
+    public abstract void replaceTargets(java.lang.Object,java.util.ArrayList,java.util.ArrayList)
 androidx.fragment.app.FragmentViewLifecycleOwner:
     private androidx.lifecycle.ViewModelProvider$Factory mDefaultFactory
     public androidx.lifecycle.ViewModelProvider$Factory getDefaultViewModelProviderFactory()
 androidx.fragment.app.ListFragment$1
 androidx.fragment.app.ListFragment$2
 androidx.fragment.app.ListFragment
+androidx.fragment.app.SpecialEffectsController$Operation:
+    public final void setFinalState(androidx.fragment.app.SpecialEffectsController$Operation$State)
+    public final void setLifecycleImpact(androidx.fragment.app.SpecialEffectsController$Operation$LifecycleImpact)
+androidx.fragment.app.strictmode.FragmentReuseViolation:
+    public final java.lang.String getPreviousFragmentId()
+androidx.fragment.app.strictmode.FragmentStrictMode$Policy$Builder
+androidx.fragment.app.strictmode.FragmentStrictMode:
+    private static final java.lang.String TAG
+    public final androidx.fragment.app.strictmode.FragmentStrictMode$Policy getDefaultPolicy()
+    public final void onPolicyViolation(androidx.fragment.app.strictmode.Violation)
+    public final void setDefaultPolicy(androidx.fragment.app.strictmode.FragmentStrictMode$Policy)
+androidx.fragment.app.strictmode.FragmentTagUsageViolation:
+    public final android.view.ViewGroup getParentContainer()
+androidx.fragment.app.strictmode.RetainInstanceUsageViolation:
+    public synthetic void <init>(androidx.fragment.app.Fragment,java.lang.String,int,kotlin.jvm.internal.DefaultConstructorMarker)
+androidx.fragment.app.strictmode.SetTargetFragmentUsageViolation:
+    public final int getRequestCode()
+    public final androidx.fragment.app.Fragment getTargetFragment()
+androidx.fragment.app.strictmode.SetUserVisibleHintViolation:
+    public final boolean isVisibleToUser()
+androidx.fragment.app.strictmode.TargetFragmentUsageViolation:
+    public synthetic void <init>(androidx.fragment.app.Fragment,java.lang.String,int,kotlin.jvm.internal.DefaultConstructorMarker)
+androidx.fragment.app.strictmode.Violation:
+    public synthetic void <init>(androidx.fragment.app.Fragment,java.lang.String,int,kotlin.jvm.internal.DefaultConstructorMarker)
+androidx.fragment.app.strictmode.WrongFragmentContainerViolation:
+    public final android.view.ViewGroup getContainer()
+androidx.fragment.app.strictmode.WrongNestedHierarchyViolation:
+    public final int getContainerId()
+    public final androidx.fragment.app.Fragment getExpectedParentFragment()
 androidx.interpolator.R
 androidx.legacy.coreutils.R$attr
 androidx.legacy.coreutils.R$color
@@ -9437,46 +9430,70 @@ androidx.legacy.coreutils.R$string
 androidx.legacy.coreutils.R$style
 androidx.legacy.coreutils.R$styleable
 androidx.legacy.coreutils.R
+androidx.lifecycle.AbstractSavedStateViewModelFactory$Companion
 androidx.lifecycle.AbstractSavedStateViewModelFactory
 androidx.lifecycle.AndroidViewModel:
-    private android.app.Application mApplication
+    private final android.app.Application application
     public void <init>(android.app.Application)
     public android.app.Application getApplication()
 androidx.lifecycle.ClassesInfoCache:
     private static final int CALL_TYPE_NO_ARG
     private static final int CALL_TYPE_PROVIDER
     private static final int CALL_TYPE_PROVIDER_WITH_EVENT
-androidx.lifecycle.ComputableLiveData$1
-androidx.lifecycle.ComputableLiveData$2
-androidx.lifecycle.ComputableLiveData$3
+androidx.lifecycle.ComputableLiveData$_liveData$1
 androidx.lifecycle.ComputableLiveData
+androidx.lifecycle.DispatchQueue
 androidx.lifecycle.GenericLifecycleObserver
 androidx.lifecycle.HasDefaultViewModelProviderFactory:
     public abstract androidx.lifecycle.ViewModelProvider$Factory getDefaultViewModelProviderFactory()
 androidx.lifecycle.LegacySavedStateHandleController:
-    static final java.lang.String TAG_SAVED_STATE_HANDLE_CONTROLLER
-    private void <init>()
+    public static final java.lang.String TAG_SAVED_STATE_HANDLE_CONTROLLER
+androidx.lifecycle.Lifecycle$Event$Companion:
+    public final androidx.lifecycle.Lifecycle$Event downTo(androidx.lifecycle.Lifecycle$State)
 androidx.lifecycle.Lifecycle$Event:
-    public static androidx.lifecycle.Lifecycle$Event downTo(androidx.lifecycle.Lifecycle$State)
-androidx.lifecycle.LifecycleDispatcher:
-    private void <init>()
+    public static final androidx.lifecycle.Lifecycle$Event downTo(androidx.lifecycle.Lifecycle$State)
+    public static final androidx.lifecycle.Lifecycle$Event upFrom(androidx.lifecycle.Lifecycle$State)
+androidx.lifecycle.Lifecycle:
+    public final java.util.concurrent.atomic.AtomicReference getInternalScopeRef()
+    public final void setInternalScopeRef(java.util.concurrent.atomic.AtomicReference)
+androidx.lifecycle.LifecycleController
+androidx.lifecycle.LifecycleCoroutineScope$launchWhenCreated$1
+androidx.lifecycle.LifecycleCoroutineScope$launchWhenResumed$1
+androidx.lifecycle.LifecycleCoroutineScope$launchWhenStarted$1
+androidx.lifecycle.LifecycleCoroutineScope:
+    public void <init>()
+    public abstract androidx.lifecycle.Lifecycle getLifecycle$lifecycle_common()
+    public final kotlinx.coroutines.Job launchWhenCreated(kotlin.jvm.functions.Function2)
+    public final kotlinx.coroutines.Job launchWhenResumed(kotlin.jvm.functions.Function2)
+    public final kotlinx.coroutines.Job launchWhenStarted(kotlin.jvm.functions.Function2)
+androidx.lifecycle.LifecycleCoroutineScopeImpl$register$1
+androidx.lifecycle.LifecycleCoroutineScopeImpl:
+    public void <init>(androidx.lifecycle.Lifecycle,kotlin.coroutines.CoroutineContext)
+    public final void register()
+androidx.lifecycle.LifecycleKt
+androidx.lifecycle.LifecycleOwnerKt
+androidx.lifecycle.LifecycleRegistry$Companion:
+    public final androidx.lifecycle.LifecycleRegistry createUnsafe(androidx.lifecycle.LifecycleOwner)
+androidx.lifecycle.LifecycleRegistry$ObserverWithState:
+    public final androidx.lifecycle.LifecycleEventObserver getLifecycleObserver()
+    public final void setLifecycleObserver(androidx.lifecycle.LifecycleEventObserver)
+    public final void setState(androidx.lifecycle.Lifecycle$State)
 androidx.lifecycle.LifecycleRegistry:
-    public static androidx.lifecycle.LifecycleRegistry createUnsafe(androidx.lifecycle.LifecycleOwner)
+    public synthetic void <init>(androidx.lifecycle.LifecycleOwner,boolean,kotlin.jvm.internal.DefaultConstructorMarker)
+    public static final androidx.lifecycle.LifecycleRegistry createUnsafe(androidx.lifecycle.LifecycleOwner)
     public int getObserverCount()
+    public static final androidx.lifecycle.Lifecycle$State min$lifecycle_runtime_release(androidx.lifecycle.Lifecycle$State,androidx.lifecycle.Lifecycle$State)
 androidx.lifecycle.LifecycleRegistryOwner:
     public synthetic bridge androidx.lifecycle.Lifecycle getLifecycle()
-androidx.lifecycle.Lifecycling$1:
-    void <init>(androidx.lifecycle.LifecycleEventObserver)
 androidx.lifecycle.Lifecycling:
     private static final int GENERATED_CALLBACK
     private static final int REFLECTIVE_CALLBACK
-    private void <init>()
-    static androidx.lifecycle.GenericLifecycleObserver getCallback(java.lang.Object)
 androidx.lifecycle.LiveData:
     static final int START_VERSION
     public void <init>(java.lang.Object)
     int getVersion()
     public boolean hasObservers()
+    public boolean isInitialized()
     public void removeObservers(androidx.lifecycle.LifecycleOwner)
 androidx.lifecycle.MediatorLiveData$Source
 androidx.lifecycle.MediatorLiveData
@@ -9484,12 +9501,20 @@ androidx.lifecycle.MethodCallsLogger:
     public boolean approveCall(java.lang.String,int)
 androidx.lifecycle.MutableLiveData:
     public void <init>(java.lang.Object)
-androidx.lifecycle.ProcessLifecycleOwner$Api29Impl:
-    private void <init>()
+androidx.lifecycle.PausingDispatcher
+androidx.lifecycle.PausingDispatcherKt$whenStateAtLeast$2
+androidx.lifecycle.PausingDispatcherKt
+androidx.lifecycle.ProcessLifecycleOwner$Companion:
+    public static synthetic void getTIMEOUT_MS$lifecycle_process_release$annotations()
 androidx.lifecycle.ProcessLifecycleOwner:
-    static final long TIMEOUT_MS
+    public static final long TIMEOUT_MS
+    public static final void init$lifecycle_process_release(android.content.Context)
+androidx.lifecycle.ReportFragment$Companion:
+    public static synthetic void get$annotations(android.app.Activity)
 androidx.lifecycle.ReportFragment:
     private static final java.lang.String REPORT_FRAGMENT_TAG
+    public static final void dispatch$lifecycle_runtime_release(android.app.Activity,androidx.lifecycle.Lifecycle$Event)
+    public static final androidx.lifecycle.ReportFragment get(android.app.Activity)
 androidx.lifecycle.SavedStateHandle$SavingStateLiveData
 androidx.lifecycle.SavedStateHandle:
     private static final java.lang.String KEYS
@@ -9498,6 +9523,7 @@ androidx.lifecycle.SavedStateHandle:
     public static final synthetic java.util.Map access$getRegular$p(androidx.lifecycle.SavedStateHandle)
     public final void clearSavedStateProvider(java.lang.String)
     public final boolean contains(java.lang.String)
+    public static final androidx.lifecycle.SavedStateHandle createHandle(android.os.Bundle,android.os.Bundle)
     public final java.lang.Object get(java.lang.String)
     public final androidx.lifecycle.MutableLiveData getLiveData(java.lang.String)
     public final androidx.lifecycle.MutableLiveData getLiveData(java.lang.String,java.lang.Object)
@@ -9512,9 +9538,14 @@ androidx.lifecycle.SavedStateHandleSupport:
 androidx.lifecycle.SavedStateViewModelFactory:
     public void <init>()
     public void <init>(android.app.Application,androidx.savedstate.SavedStateRegistryOwner)
-androidx.lifecycle.Transformations$1
-androidx.lifecycle.Transformations$2$1
-androidx.lifecycle.Transformations$2
+androidx.lifecycle.Transformations$distinctUntilChanged$1
+androidx.lifecycle.Transformations$map$1
+androidx.lifecycle.Transformations$map$2
+androidx.lifecycle.Transformations$sam$androidx_lifecycle_Observer$0
+androidx.lifecycle.Transformations$switchMap$1$onChanged$1
+androidx.lifecycle.Transformations$switchMap$1
+androidx.lifecycle.Transformations$switchMap$2$onChanged$1
+androidx.lifecycle.Transformations$switchMap$2
 androidx.lifecycle.Transformations
 androidx.lifecycle.ViewModel:
     public varargs void <init>(java.io.Closeable[])
@@ -9536,13 +9567,15 @@ androidx.lifecycle.ViewModelProvider:
     public void <init>(androidx.lifecycle.ViewModelStoreOwner)
 androidx.lifecycle.ViewModelProviderGetKt:
     public static final synthetic androidx.lifecycle.ViewModel get(androidx.lifecycle.ViewModelProvider)
+androidx.lifecycle.ViewTreeLifecycleOwner$findViewTreeLifecycleOwner$1
+androidx.lifecycle.ViewTreeLifecycleOwner$findViewTreeLifecycleOwner$2
 androidx.lifecycle.ViewTreeLifecycleOwner:
-    private void <init>()
-    public static androidx.lifecycle.LifecycleOwner get(android.view.View)
+    public static final androidx.lifecycle.LifecycleOwner get(android.view.View)
 androidx.lifecycle.ViewTreeViewModelKt
+androidx.lifecycle.ViewTreeViewModelStoreOwner$findViewTreeViewModelStoreOwner$1
+androidx.lifecycle.ViewTreeViewModelStoreOwner$findViewTreeViewModelStoreOwner$2
 androidx.lifecycle.ViewTreeViewModelStoreOwner:
-    private void <init>()
-    public static androidx.lifecycle.ViewModelStoreOwner get(android.view.View)
+    public static final androidx.lifecycle.ViewModelStoreOwner get(android.view.View)
 androidx.lifecycle.livedata.R
 androidx.lifecycle.livedata.core.R
 androidx.lifecycle.process.R
@@ -10012,6 +10045,110 @@ androidx.privacysandbox.ads.adservices.topics.TopicsManagerApi33Ext4Impl
 androidx.privacysandbox.ads.adservices.topics.TopicsManagerApi33Ext5Impl
 androidx.privacysandbox.ads.adservices.topics.TopicsManagerImplCommon$getTopics$1
 androidx.privacysandbox.ads.adservices.topics.TopicsManagerImplCommon
+androidx.profileinstaller.BenchmarkOperation$Api21ContextHelper:
+    private void <init>()
+androidx.profileinstaller.BenchmarkOperation$Api24ContextHelper:
+    private void <init>()
+androidx.profileinstaller.BenchmarkOperation:
+    private void <init>()
+androidx.profileinstaller.Encoding:
+    static final int SIZEOF_BYTE
+    static final int UINT_16_SIZE
+    static final int UINT_32_SIZE
+    static final int UINT_8_SIZE
+    private void <init>()
+androidx.profileinstaller.FileSectionType:
+    static androidx.profileinstaller.FileSectionType fromValue(long)
+androidx.profileinstaller.ProfileInstallReceiver:
+    public static final java.lang.String ACTION_BENCHMARK_OPERATION
+    public static final java.lang.String ACTION_INSTALL_PROFILE
+    public static final java.lang.String ACTION_SAVE_PROFILE
+    public static final java.lang.String ACTION_SKIP_FILE
+    private static final java.lang.String EXTRA_BENCHMARK_OPERATION
+    private static final java.lang.String EXTRA_BENCHMARK_OPERATION_DROP_SHADER_CACHE
+    private static final java.lang.String EXTRA_SKIP_FILE_OPERATION
+    private static final java.lang.String EXTRA_SKIP_FILE_OPERATION_DELETE
+    private static final java.lang.String EXTRA_SKIP_FILE_OPERATION_WRITE
+androidx.profileinstaller.ProfileInstaller$2:
+    static final java.lang.String TAG
+androidx.profileinstaller.ProfileInstaller$DiagnosticCode
+androidx.profileinstaller.ProfileInstaller$ResultCode
+androidx.profileinstaller.ProfileInstaller:
+    public static final int DIAGNOSTIC_CURRENT_PROFILE_DOES_NOT_EXIST
+    public static final int DIAGNOSTIC_CURRENT_PROFILE_EXISTS
+    public static final int DIAGNOSTIC_PROFILE_IS_COMPRESSED
+    public static final int DIAGNOSTIC_REF_PROFILE_DOES_NOT_EXIST
+    public static final int DIAGNOSTIC_REF_PROFILE_EXISTS
+    private static final java.lang.String PROFILE_BASE_DIR
+    private static final java.lang.String PROFILE_FILE
+    private static final java.lang.String PROFILE_INSTALLER_SKIP_FILE_NAME
+    private static final java.lang.String PROFILE_META_LOCATION
+    private static final java.lang.String PROFILE_SOURCE_LOCATION
+    public static final int RESULT_ALREADY_INSTALLED
+    public static final int RESULT_BASELINE_PROFILE_NOT_FOUND
+    public static final int RESULT_BENCHMARK_OPERATION_FAILURE
+    public static final int RESULT_BENCHMARK_OPERATION_SUCCESS
+    public static final int RESULT_BENCHMARK_OPERATION_UNKNOWN
+    public static final int RESULT_DELETE_SKIP_FILE_SUCCESS
+    public static final int RESULT_DESIRED_FORMAT_UNSUPPORTED
+    public static final int RESULT_INSTALL_SKIP_FILE_SUCCESS
+    public static final int RESULT_INSTALL_SUCCESS
+    public static final int RESULT_IO_EXCEPTION
+    public static final int RESULT_META_FILE_REQUIRED_BUT_NOT_FOUND
+    public static final int RESULT_NOT_WRITABLE
+    public static final int RESULT_PARSE_EXCEPTION
+    public static final int RESULT_SAVE_PROFILE_SIGNALLED
+    public static final int RESULT_SAVE_PROFILE_SKIPPED
+    public static final int RESULT_UNSUPPORTED_ART_VERSION
+    private static final java.lang.String TAG
+    private void <init>()
+    static void diagnostic(java.util.concurrent.Executor,androidx.profileinstaller.ProfileInstaller$DiagnosticsCallback,int,java.lang.Object)
+    private static synthetic void lambda$diagnostic$1(androidx.profileinstaller.ProfileInstaller$DiagnosticsCallback,int,java.lang.Object)
+androidx.profileinstaller.ProfileInstallerInitializer$Choreographer16Impl:
+    private void <init>()
+androidx.profileinstaller.ProfileInstallerInitializer$Handler28Impl:
+    private void <init>()
+androidx.profileinstaller.ProfileInstallerInitializer:
+    private static final int DELAY_MS
+androidx.profileinstaller.ProfileTranscoder:
+    private static final int HOT
+    private static final int INLINE_CACHE_MEGAMORPHIC_ENCODING
+    private static final int INLINE_CACHE_MISSING_TYPES_ENCODING
+    private static final int POST_STARTUP
+    private static final int STARTUP
+    private void <init>()
+androidx.profileinstaller.ProfileVerifier$Api33Impl:
+    private void <init>()
+androidx.profileinstaller.ProfileVerifier$Cache:
+    private static final int SCHEMA
+androidx.profileinstaller.ProfileVerifier$CompilationStatus$ResultCode
+androidx.profileinstaller.ProfileVerifier$CompilationStatus:
+    public static final int RESULT_CODE_COMPILED_WITH_PROFILE
+    public static final int RESULT_CODE_COMPILED_WITH_PROFILE_NON_MATCHING
+    public static final int RESULT_CODE_ERROR_CACHE_FILE_EXISTS_BUT_CANNOT_BE_READ
+    public static final int RESULT_CODE_ERROR_CANT_WRITE_PROFILE_VERIFICATION_RESULT_CACHE_FILE
+    private static final int RESULT_CODE_ERROR_CODE_BIT_SHIFT
+    public static final int RESULT_CODE_ERROR_PACKAGE_NAME_DOES_NOT_EXIST
+    public static final int RESULT_CODE_ERROR_UNSUPPORTED_API_VERSION
+    public static final int RESULT_CODE_NO_PROFILE
+    public static final int RESULT_CODE_PROFILE_ENQUEUED_FOR_COMPILATION
+    public int getProfileInstallResultCode()
+    public boolean hasProfileEnqueuedForCompilation()
+    public boolean isCompiledWithProfile()
+androidx.profileinstaller.ProfileVerifier:
+    private static final java.lang.String CUR_PROFILES_BASE_DIR
+    private static final java.lang.String PROFILE_FILE_NAME
+    private static final java.lang.String PROFILE_INSTALLED_CACHE_FILE_NAME
+    private static final java.lang.String REF_PROFILES_BASE_DIR
+    private static final java.lang.String TAG
+    private void <init>()
+    public static com.google.common.util.concurrent.ListenableFuture getCompilationStatusAsync()
+    public static androidx.profileinstaller.ProfileVerifier$CompilationStatus writeProfileVerification(android.content.Context)
+androidx.profileinstaller.ProfileVersion:
+    public static final int MAX_SUPPORTED_SDK
+    public static final int MIN_SUPPORTED_SDK
+    private void <init>()
+androidx.profileinstaller.R
 androidx.recyclerview.R$attr:
     public static int fastScrollEnabled
     public static int fastScrollHorizontalThumbDrawable
@@ -11057,6 +11194,8 @@ androidx.transition.FragmentTransitionSupport$1:
     public android.graphics.Rect onGetEpicenter(androidx.transition.Transition)
 androidx.transition.FragmentTransitionSupport$4:
     public android.graphics.Rect onGetEpicenter(androidx.transition.Transition)
+androidx.transition.FragmentTransitionSupport:
+    public void removeTarget(java.lang.Object,android.view.View)
 androidx.transition.GhostView
 androidx.transition.GhostViewHolder
 androidx.transition.GhostViewPlatform
@@ -12426,14 +12565,14 @@ com.ReactNativeBlobUtil.ReactNativeBlobUtilConst:
     public static final java.lang.String RNFB_RESPONSE_PATH
     public static final java.lang.String RNFB_RESPONSE_UTF8
     public void <init>()
+com.ReactNativeBlobUtil.ReactNativeBlobUtilFS:
+    private static boolean isPathExists(java.lang.String)
 com.ReactNativeBlobUtil.ReactNativeBlobUtilFileTransformer:
     public void <init>()
 com.ReactNativeBlobUtil.ReactNativeBlobUtilImpl:
     public static final java.lang.String NAME
 com.ReactNativeBlobUtil.ReactNativeBlobUtilMediaCollection:
     public void <init>()
-com.ReactNativeBlobUtil.ReactNativeBlobUtilStream:
-    public static java.io.InputStream inputStreamFromPath(java.lang.String)
 com.ReactNativeBlobUtil.ReactNativeBlobUtilUtils:
     public void <init>()
 com.ReactNativeBlobUtil.Response.ReactNativeBlobUtilFileResp:
@@ -34775,6 +34914,8 @@ com.reactnativecommunity.slider.BuildConfig
 com.reactnativecommunity.slider.R
 com.reactnativecommunity.slider.ReactSliderEvent:
     public static final java.lang.String EVENT_NAME
+com.reactnativecommunity.slider.ReactSliderManager$ReactSliderShadowNode:
+    private boolean mMeasured
 com.reactnativecommunity.slider.ReactSliderManagerImpl:
     public static final java.lang.String REACT_CLASS
     public void <init>()
@@ -39399,7 +39540,6 @@ kotlin.collections.CollectionsKt__MutableCollectionsKt:
     public static final boolean removeAll(java.util.Collection,java.lang.Object[])
     public static final java.lang.Object removeFirst(java.util.List)
     public static final java.lang.Object removeFirstOrNull(java.util.List)
-    public static final boolean retainAll(java.lang.Iterable,kotlin.jvm.functions.Function1)
     public static final boolean retainAll(java.util.Collection,java.lang.Iterable)
     private static final boolean retainAll(java.util.Collection,java.util.Collection)
     public static final boolean retainAll(java.util.Collection,kotlin.sequences.Sequence)
@@ -39636,7 +39776,6 @@ kotlin.collections.CollectionsKt___CollectionsKt:
     public static final java.util.HashSet toHashSet(java.lang.Iterable)
     public static final int[] toIntArray(java.util.Collection)
     public static final long[] toLongArray(java.util.Collection)
-    public static final java.util.Set toMutableSet(java.lang.Iterable)
     public static final short[] toShortArray(java.util.Collection)
     public static final java.util.Set union(java.lang.Iterable,java.lang.Iterable)
     public static final java.util.List windowed(java.lang.Iterable,int,int,boolean)
@@ -40459,7 +40598,6 @@ kotlin.jvm.internal.FunctionReference:
     public boolean isOperator()
     public boolean isSuspend()
 kotlin.jvm.internal.FunctionReferenceImpl:
-    public void <init>(int,java.lang.Object,java.lang.Class,java.lang.String,java.lang.String,int)
     public void <init>(int,kotlin.reflect.KDeclarationContainer,java.lang.String,java.lang.String)
 kotlin.jvm.internal.InlineMarker
 kotlin.jvm.internal.IntCompanionObject
@@ -40772,7 +40910,6 @@ kotlin.random.AbstractPlatformRandom:
     public byte[] nextBytes(byte[])
     public double nextDouble()
     public float nextFloat()
-    public int nextInt(int)
     public long nextLong()
 kotlin.random.KotlinRandom$Companion
 kotlin.random.KotlinRandom
@@ -40790,7 +40927,6 @@ kotlin.random.Random$Default:
     public double nextDouble(double)
     public double nextDouble(double,double)
     public float nextFloat()
-    public int nextInt(int)
     public int nextInt(int,int)
     public long nextLong()
     public long nextLong(long)
@@ -40807,7 +40943,6 @@ kotlin.random.Random:
     public double nextDouble(double)
     public double nextDouble(double,double)
     public float nextFloat()
-    public int nextInt(int)
     public int nextInt(int,int)
     public long nextLong()
     public long nextLong(long)
@@ -42363,7 +42498,6 @@ kotlinx.coroutines.JobKt:
     public static final synthetic void cancel(kotlin.coroutines.CoroutineContext)
     public static final void cancel(kotlinx.coroutines.Job,java.lang.String,java.lang.Throwable)
     public static final synthetic boolean cancel(kotlin.coroutines.CoroutineContext,java.lang.Throwable)
-    public static synthetic void cancel$default(kotlin.coroutines.CoroutineContext,java.util.concurrent.CancellationException,int,java.lang.Object)
     public static synthetic void cancel$default(kotlinx.coroutines.Job,java.lang.String,java.lang.Throwable,int,java.lang.Object)
     public static synthetic boolean cancel$default(kotlin.coroutines.CoroutineContext,java.lang.Throwable,int,java.lang.Object)
     public static final java.lang.Object cancelAndJoin(kotlinx.coroutines.Job,kotlin.coroutines.Continuation)
@@ -42388,7 +42522,6 @@ kotlinx.coroutines.JobKt__JobKt:
     public static final synthetic void cancel(kotlin.coroutines.CoroutineContext)
     public static final void cancel(kotlinx.coroutines.Job,java.lang.String,java.lang.Throwable)
     public static final synthetic boolean cancel(kotlin.coroutines.CoroutineContext,java.lang.Throwable)
-    public static synthetic void cancel$default(kotlin.coroutines.CoroutineContext,java.util.concurrent.CancellationException,int,java.lang.Object)
     public static synthetic void cancel$default(kotlinx.coroutines.Job,java.lang.String,java.lang.Throwable,int,java.lang.Object)
     public static synthetic boolean cancel$default(kotlin.coroutines.CoroutineContext,java.lang.Throwable,int,java.lang.Object)
     public static final java.lang.Object cancelAndJoin(kotlinx.coroutines.Job,kotlin.coroutines.Continuation)
@@ -50832,6 +50965,7 @@ android.support.v4.media.session.MediaSessionCompat$OnActiveChangeListener
 android.support.v4.media.session.MediaSessionCompat$RegistrationCallbackHandler
 android.support.v4.media.session.ParcelableVolumeInfo:
     public void <init>(int,int,int,int,int)
+androidx.activity.ComponentActivity$ReportFullyDrawnExecutorApi1
 androidx.appcompat.app.ActionBar$OnMenuVisibilityListener
 androidx.appcompat.app.AlertController$AlertParams$OnPrepareListViewListener
 androidx.appcompat.app.AlertController$AlertParams:
@@ -51056,15 +51190,6 @@ androidx.core.view.LayoutInflaterCompat:
     private static boolean sCheckedField
     private static java.lang.reflect.Field sLayoutInflaterFactory2Field
     private static void forceSetFactory2(android.view.LayoutInflater,android.view.LayoutInflater$Factory2)
-androidx.core.view.MenuHostHelper$$InternalSyntheticLambda$2$53d760c323cae39bc0c5bba62d31584953579871a21b07a3eb73c498bb568c4c$0:
-    public final synthetic androidx.core.view.MenuProvider f$2
-androidx.core.view.MenuHostHelper$$InternalSyntheticLambda$2$91048c4ec09ce22cac64b9a0370f6b896bae10d5f9ad35e460d349a0db2e653b$0:
-    public final synthetic androidx.core.view.MenuProvider f$1
-androidx.core.view.MenuProvider:
-    public abstract void onCreateMenu(android.view.Menu,android.view.MenuInflater)
-    public abstract void onMenuClosed(android.view.Menu)
-    public abstract boolean onMenuItemSelected(android.view.MenuItem)
-    public abstract void onPrepareMenu(android.view.Menu)
 androidx.core.view.NestedScrollingChild:
     public abstract boolean isNestedScrollingEnabled()
     public abstract void setNestedScrollingEnabled(boolean)
@@ -51112,17 +51237,21 @@ androidx.fragment.app.FragmentManager:
     public final void clearFragmentResult(java.lang.String)
 androidx.fragment.app.FragmentResultListener
 androidx.fragment.app.FragmentTransition:
-    static java.lang.String findKeyForValue(androidx.collection.ArrayMap,java.lang.String)
-androidx.lifecycle.DefaultLifecycleObserver:
-    public abstract void onDestroy(androidx.lifecycle.LifecycleOwner)
-    public abstract void onPause(androidx.lifecycle.LifecycleOwner)
-    public abstract void onStop(androidx.lifecycle.LifecycleOwner)
+    public static final java.lang.String findKeyForValue(androidx.collection.ArrayMap,java.lang.String)
+androidx.fragment.app.strictmode.FragmentStrictMode$$InternalSyntheticLambda$1$933df05a424efc0e6c474a44c35b46fd7e43852d7ded14f7cdc5e9b18c2bc3d8$0
+androidx.fragment.app.strictmode.FragmentStrictMode$OnViolationListener:
+    public abstract void onViolation(androidx.fragment.app.strictmode.Violation)
+androidx.fragment.app.strictmode.FragmentStrictMode$Policy:
+    private final androidx.fragment.app.strictmode.FragmentStrictMode$OnViolationListener listener
+androidx.fragment.app.strictmode.FragmentStrictMode:
+    public static synthetic void $r8$lambda$euel0xqBXq2AV6jcWsq0SrkGBrs(androidx.fragment.app.strictmode.FragmentStrictMode$Policy,androidx.fragment.app.strictmode.Violation)
+    private static final void handlePolicyViolation$lambda$0(androidx.fragment.app.strictmode.FragmentStrictMode$Policy,androidx.fragment.app.strictmode.Violation)
 androidx.lifecycle.GeneratedAdapter:
     public abstract void callMethods(androidx.lifecycle.LifecycleOwner,androidx.lifecycle.Lifecycle$Event,boolean,androidx.lifecycle.MethodCallsLogger)
 androidx.lifecycle.LifecycleRegistryOwner
-androidx.lifecycle.ReportFragment$$InternalSyntheticThrowCCEIfNotNull$13$0773915ba46c1dc6e587156d4f592f290c7c8a402dec6cec9554f95dc3f9b7b3$0
+androidx.lifecycle.ReportFragment$Companion$$InternalSyntheticThrowCCEIfNotNull$13$6606f6a9d6c00feabd13f693204c7c685bcfd577a1c056fdbb01af5d22a24ba7$0
 androidx.lifecycle.SingleGeneratedAdapterObserver:
-    private final androidx.lifecycle.GeneratedAdapter mGeneratedAdapter
+    private final androidx.lifecycle.GeneratedAdapter generatedAdapter
 androidx.lifecycle.ViewModelProvider$Factory$Companion
 androidx.lifecycle.ViewModelProvider$Factory:
     public static final androidx.lifecycle.ViewModelProvider$Factory$Companion Companion

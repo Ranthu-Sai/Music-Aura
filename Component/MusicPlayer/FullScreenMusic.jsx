@@ -39,11 +39,9 @@ export const FullScreenMusic = ({ color, Index, setIndex }) => {
       setIndex(0)
     }
   })
-  const width = Dimensions.get("window").width
+  const { width, height } = Dimensions.get("window")
   const currentPlaying = useActiveTrack()
-  if (!currentPlaying) {
-    return null;
-  }
+
   const { lyricsCacheRef } = useContext(Context)
   const navigation = useNavigation()
   const [ShowDailog, setShowDailog] = useState(false);
@@ -202,12 +200,12 @@ export const FullScreenMusic = ({ color, Index, setIndex }) => {
                   if (runs) {
                     for (const run of runs) {
                       if (run?.navigationEndpoint?.browseEndpoint?.browseId?.startsWith('MPREb_')) {
-                          albumId = run.navigationEndpoint.browseEndpoint.browseId;
-                          break;
+                        albumId = run.navigationEndpoint.browseEndpoint.browseId;
+                        break;
                       }
                     }
                   }
-                    if (albumId) { break; }
+                  if (albumId) { break; }
                 }
               }
             }
@@ -216,10 +214,10 @@ export const FullScreenMusic = ({ color, Index, setIndex }) => {
               setIndex(0); // Close full player
 
               if (navigation && typeof navigation.navigate === 'function') {
-                  navigation.navigate('Album', {
-                    id: albumId,
-                    image: currentPlaying.artwork,
-                  });
+                navigation.navigate('Album', {
+                  id: albumId,
+                  image: currentPlaying.artwork,
+                });
               }
               return;
             }
@@ -290,7 +288,7 @@ export const FullScreenMusic = ({ color, Index, setIndex }) => {
       // Fallback parsing for YouTube metadata to improve lyric searches
       let artistForLookup = currentPlaying.artist;
       let titleForLookup = currentPlaying.title;
-      
+
       // Clean YouTube-specific title formats
       if (titleForLookup) {
         // Remove common YouTube suffixes
@@ -305,7 +303,7 @@ export const FullScreenMusic = ({ color, Index, setIndex }) => {
           .replace(/\s*\|\s*Lyrics/gi, '')
           .trim();
       }
-      
+
       if (!artistForLookup || artistForLookup === 'Unknown Artist' || artistForLookup === 'Unknown') {
         const separators = [' - ', ' — ', ' – ', '|', '•', ' by '];
         for (const sep of separators) {
@@ -329,7 +327,7 @@ export const FullScreenMusic = ({ color, Index, setIndex }) => {
 
       // Detect if this is a YouTube Music song (11-character ID)
       const isYouTubeMusic = /^[a-zA-Z0-9_-]{11}$/.test(currentPlaying.id);
-      
+
       // For YouTube Music songs, we might need different API priority
       // YouTube songs often have better coverage in lrclib.net for time-synced lyrics
       const Lyrics = await getYTLyricsSongData(artistForLookup, titleForLookup, languageToUse, isYouTubeMusic)
@@ -366,7 +364,7 @@ export const FullScreenMusic = ({ color, Index, setIndex }) => {
     }
   }
   return (
-    <Animated.View entering={FadeInDown.delay(200)} style={{ backgroundColor: "rgb(0,0,0)", flex: 1 }}>
+    <View style={{ backgroundColor: "rgb(0,0,0)", flex: 1 }}>
       <ShowLyrics Loading={Loading} Lyric={Lyric} setShowDailog={setShowDailog} ShowDailog={ShowDailog} currentSong={currentPlaying} />
       <ImageBackground blurRadius={20} source={{ uri: currentPlaying?.artwork ?? "https://htmlcolorcodes.com/assets/images/colors/gray-color-solid-background-1920x1080.png" }} style={{
         flex: 1,
@@ -503,7 +501,7 @@ export const FullScreenMusic = ({ color, Index, setIndex }) => {
         </View>
       </ImageBackground>
       <QueueBottomSheet ref={queueBottomSheetRef} Index={1} />
-    </Animated.View>
+    </View>
   );
 };
 
