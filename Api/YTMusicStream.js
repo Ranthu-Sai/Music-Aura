@@ -7,7 +7,7 @@ import youtubeStreamingService from '../Utils/YouTubeStreamingService';
 async function getYTMusicStreamUrl(videoId) {
   try {
     const data = await youtubeStreamingService.getStreamUrl(videoId);
-    if (!data) throw new Error('No stream data returned');
+    if (!data) {throw new Error('No stream data returned');}
     return {
       url: data.url,
       headers: data.headers || {},

@@ -1,11 +1,11 @@
 /**
  * ArtworkEnhancer.js
- * 
+ *
  * Centralized utility for upgrading YTMusic artwork URLs to higher quality versions.
  * Handles two types of URLs:
  * 1. Google CDN (lh3.googleusercontent.com) - modify query parameters
  * 2. YouTube CDN (i.ytimg.com) - replace filename with higher quality variant
- * 
+ *
  * Context-based sizing ensures optimal quality vs performance balance:
  * - 'playing': 500x500 (highest quality for currently playing song)
  * - 'card': 400x400 (good quality for lists and search results)
@@ -54,7 +54,7 @@ const enhanceGoogleCDN = (url, context) => {
     // Replace existing size parameters with enhanced ones
     // Preserves other parameters like -l90-rj (quality level, format)
     const enhanced = url.replace(
-        /=w\d+-h\d+(-[^-&]*)*/,
+        /[=]w\d+-h\d+(-[^-&]*)*/,
         `=w${size}-h${size}-l90-rj`
     );
 
@@ -94,10 +94,10 @@ const getSizeForContext = (context) => {
         'card': 500,         // Good quality for lists and search results
         'queue': 300,        // Queue items (balance quality vs performance)
         'thumbnail': 200,    // Small thumbnails
-        'default': 500       // Safe default
+        'default': 500,       // Safe default
     };
 
-    return sizeMap[context] || sizeMap['default'];
+    return sizeMap[context] || sizeMap.default;
 };
 
 /**
@@ -115,7 +115,7 @@ export const isYouTubeThumbnailObject = (artwork) => {
  * @returns {string|null}
  */
 export const getPrimaryArtworkUrl = (artwork) => {
-    if (!artwork) return null;
+    if (!artwork) {return null;}
 
     if (typeof artwork === 'string') {
         return artwork;

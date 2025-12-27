@@ -1,8 +1,23 @@
 {
     "java.compile.nullAnalysis.mode": "disabled",
-    "java.configuration.updateBuildConfiguration": "interactive",
+    "java.configuration.updateBuildConfiguration": "automatic",
     "chat.allowAnonymousAccess": false,
     "chat.checkpoints.showFileChanges": false,
     "chat.customAgentInSubagent.enabled": true,
-    "chat.detectParticipant.enabled": false
+    "chat.detectParticipant.enabled": false,
+    "java.import.exclusions": [
+        "**/node_modules/**",
+        "**/.metadata/**",
+        "**/archived/**"
+    ],
+    "files.exclude": {
+        "**/.git": true,
+        "**/.DS_Store": true,
+        "**/node_modules": true
+    },
+    "search.exclude": {
+        "**/node_modules": true,
+        "**/bower_components": true,
+        "**/.git": true
+    }
 }

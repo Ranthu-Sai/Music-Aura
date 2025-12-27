@@ -1,9 +1,9 @@
 /**
  * SkipOperationManager
- * 
+ *
  * Manages skip operations with debouncing and locking to prevent
  * excessive pending callbacks during rapid user interactions.
- * 
+ *
  * Features:
  * - Debounced skip operations
  * - Operation locking to prevent concurrent skips
@@ -63,7 +63,7 @@ class SkipOperationManager {
 
     /**
      * Execute a skip operation with debouncing and locking
-     * 
+     *
      * @param {Function} operation - The skip operation to execute
      * @param {boolean} immediate - If true, skip debouncing
      * @returns {Promise<boolean>} - true if operation was executed, false if blocked

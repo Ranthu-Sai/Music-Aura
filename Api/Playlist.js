@@ -1,6 +1,7 @@
 export * from './Saavn/Playlist';
 import axios from "axios";
 import { getYTMusicPlaylistData as getYTMusicPlaylistDataFromService } from "./YTMusic";
+import YTArtworkUtils from "../Utils/YTMusicArtworkUtils";
 
 async function getPlaylistData(id) {
     // Check if it's a YouTube Music playlist (starts with VL, RDAMPL, OLAK, or other YTM playlist IDs)
@@ -91,7 +92,7 @@ async function getPlaylistData(id) {
                         name: playlistName,
                         image: [{}, {}, { url: thumbnail }],
                         songs: songs,
-                    }
+                    },
                 };
             }
         } catch (error) {
@@ -173,7 +174,7 @@ async function getAllPlaylists(language) {
         'https://jiosaavn-c451wwyru-sumit-kolhes-projects-94a4846a.vercel.app',
         'https://nepotuneapi.vercel.app',
         'https://saavn.sumit.co',
-        'https://jio-savan-api-sigma.vercel.app'
+        'https://jio-savan-api-sigma.vercel.app',
     ];
     for (let baseUrl of urls) {
         try {

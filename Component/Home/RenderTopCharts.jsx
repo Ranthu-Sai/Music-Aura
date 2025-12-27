@@ -20,7 +20,7 @@ export const RenderTopCharts = ({playlist}) => {
         {e.map((e,index) => <View key={e?.id ?? `col-${i}-${index}`} style={{
           marginRight:15,
         }}>
-          <EachPlaylistCard image={e.image[2].url || e.image[2].link} name={e.title} follower={e.subtitle} key={i+index} id={e.id}/>
+          <EachPlaylistCard image={e.image[2].url || e.image[2].link} name={e.title} follower={e.subtitle} key={i + index} id={e.id}/>
         </View>)}
       </View>)}
     </>

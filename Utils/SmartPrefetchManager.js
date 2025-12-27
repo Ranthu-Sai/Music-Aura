@@ -1,16 +1,16 @@
 /**
  * SmartPrefetchManager
- * 
+ *
  * YOUTUBE MUSIC ONLY - Saavn doesn't need prefetching as it provides direct stream URLs
- * 
+ *
  * Fixed prefetch strategy that PREVENTS race conditions:
- * 
+ *
  * 1. Listen for PlaybackState.Playing (not track change)
  * 2. Wait 2 seconds after playback starts
  * 3. Prefetch ONLY the next song (not 3)
  * 4. Handle playback errors with on-demand fetch fallback
  * 5. Cancel prefetch if track changes before completion
- * 
+ *
  * This ensures tracks are ready BEFORE auto-progression occurs.
  */
 
@@ -56,7 +56,7 @@ class SmartPrefetchManager {
      * Initialize the prefetch manager with correct event listeners
      */
     initialize() {
-        if (this.isInitialized) return;
+        if (this.isInitialized) {return;}
 
         // Record initialization time
         this.initializationTime = Date.now();
@@ -130,7 +130,7 @@ class SmartPrefetchManager {
         // Debug: Log event to verify handler is called
         console.log('🔔 SmartPrefetch: Track changed event', {
             index: event.index,
-            trackId: event.track?.id
+            trackId: event.track?.id,
         });
 
         if (event.index !== undefined && event.index !== null) {
@@ -148,7 +148,7 @@ class SmartPrefetchManager {
             Promise.all([
                 this._prefetchTrackAtIndex(event.index + 1),
                 this._prefetchTrackAtIndex(event.index + 2),
-                this._prefetchTrackAtIndex(event.index + 3)
+                this._prefetchTrackAtIndex(event.index + 3),
             ]).catch(err => console.log('Prefetch batch error:', err.message));
         }
     }
@@ -365,7 +365,7 @@ class SmartPrefetchManager {
             const queue = await TrackPlayer.getQueue();
 
             // Safety check
-            if (failedIndex >= queue.length) return;
+            if (failedIndex >= queue.length) {return;}
 
             // Remove the failed track (safe)
             await this._safeRemove(failedIndex);
@@ -411,12 +411,12 @@ class SmartPrefetchManager {
     async _safeRemove(indexOrIndexes) {
         try {
             const queue = await TrackPlayer.getQueue();
-            if (!Array.isArray(queue) || queue.length === 0) return;
+            if (!Array.isArray(queue) || queue.length === 0) {return;}
 
             const indexes = Array.isArray(indexOrIndexes) ? indexOrIndexes.slice() : [indexOrIndexes];
             // Filter and dedupe
             const valid = Array.from(new Set(indexes)).filter(i => Number.isInteger(i) && i >= 0 && i < queue.length);
-            if (valid.length === 0) return;
+            if (valid.length === 0) {return;}
 
             // Sort descending to avoid shifting issues
             valid.sort((a, b) => b - a);
@@ -427,7 +427,7 @@ class SmartPrefetchManager {
             // due to race conditions when queue changes concurrently.
             if (msg && msg.toLowerCase().includes('out of bounds')) {
                 // debug log only in development - avoid console warning noise in production
-                if (__DEV__) console.debug('Safe remove ignored out-of-bounds:', msg);
+                if (__DEV__) {console.debug('Safe remove ignored out-of-bounds:', msg);}
                 return;
             }
             console.warn('Safe remove failed:', msg);
@@ -444,7 +444,7 @@ class SmartPrefetchManager {
             headers: streamData.headers,
             userAgent: streamData.headers?.['User-Agent'],
             _needsStream: false,
-            _prefetched: true
+            _prefetched: true,
         };
     }
 
@@ -452,13 +452,13 @@ class SmartPrefetchManager {
      * Check if track needs stream fetching
      */
     needsStream(track) {
-        if (!track) return false;
+        if (!track) {return false;}
 
         // Check if it's a YouTube track needing stream
         const isYTMusic = track.id && typeof track.id === 'string' &&
             track.id.length === 11 && !track.isLocalMusic;
 
-        if (!isYTMusic) return false;
+        if (!isYTMusic) {return false;}
 
         // Check if URL is placeholder or missing
         const url = track.url || '';
@@ -482,7 +482,7 @@ class SmartPrefetchManager {
     async _cleanupOldTracks(currentIndex) {
         try {
             // Only cleanup if we have more than 5 songs before current
-            if (currentIndex <= 5) return;
+            if (currentIndex <= 5) {return;}
 
             const tracksToRemove = currentIndex - 5;
 
@@ -517,7 +517,7 @@ class SmartPrefetchManager {
         this.prefetchedTracks.set(trackId, {
             url: streamData.url,
             headers: streamData.headers,
-            timestamp: Date.now()
+            timestamp: Date.now(),
         });
     }
 
@@ -526,7 +526,7 @@ class SmartPrefetchManager {
      */
     getPrefetchedStream(trackId) {
         const cached = this.prefetchedTracks.get(trackId);
-        if (!cached) return null;
+        if (!cached) {return null;}
 
         // Check if expired
         if (Date.now() - cached.timestamp > CACHE_TTL_MS) {

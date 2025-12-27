@@ -123,7 +123,7 @@ export const Slide2 = ({ navigation }) => {
           <View style={styles.cardContent}>
             <Text style={[styles.languageName, {
               color: isSelected ? "#FFFFFF" : "#DDD",
-              fontSize: config.languageNameSize
+              fontSize: config.languageNameSize,
             }]}>
               {item.name}
             </Text>
@@ -131,7 +131,7 @@ export const Slide2 = ({ navigation }) => {
               color: isSelected ? "#FFFFFF" : activeColor,
               textShadowColor: isSelected ? "transparent" : activeColor,
               textShadowRadius: isSelected ? 0 : 2,
-              fontSize: config.nativeTextSize
+              fontSize: config.nativeTextSize,
             }]}>
               {item.native}
             </Text>
@@ -146,7 +146,7 @@ export const Slide2 = ({ navigation }) => {
       <View style={[styles.container, { paddingHorizontal: config.containerPadding }]}>
         <View style={[styles.header, {
           marginTop: config.headerMarginTop,
-          marginBottom: config.headerMarginBottom
+          marginBottom: config.headerMarginBottom,
         }]}>
           <Heading
             text="What music do you like?"
@@ -170,7 +170,7 @@ export const Slide2 = ({ navigation }) => {
 
         <View style={[styles.footer, {
           bottom: config.footerBottom,
-          paddingHorizontal: config.containerPadding
+          paddingHorizontal: config.containerPadding,
         }]}>
           <TouchableOpacity style={styles.nextButton} onPress={onNextPress}>
             <LinearGradient

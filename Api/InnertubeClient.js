@@ -1,6 +1,6 @@
 /**
  * InnerTubeClient.js
- * 
+ *
  * Pure JavaScript implementation of YouTube Music InnerTube API.
  * Pure JavaScript implementation for YouTube Music InnerTube API.
  */
@@ -23,9 +23,9 @@ const WEB_REMIX_CONTEXT = {
             clientVersion: '1.20241204.01.00',
             originalUrl: 'https://music.youtube.com',
             hl: 'en',
-            gl: 'US'
-        }
-    }
+            gl: 'US',
+        },
+    },
 };
 
 class InnerTubeClient {
@@ -42,8 +42,8 @@ class InnerTubeClient {
                 headers: HEADERS,
                 body: JSON.stringify({
                     ...WEB_REMIX_CONTEXT,
-                    ...body
-                })
+                    ...body,
+                }),
             });
 
             const data = await response.json();
@@ -59,10 +59,10 @@ class InnerTubeClient {
      * Matches OuterTune's parseTime function
      */
     static parseTime(timeString) {
-        if (!timeString) return null;
+        if (!timeString) { return null; }
 
         const parts = timeString.split(':').map(p => parseInt(p, 10));
-        if (parts.some(isNaN)) return null;
+        if (parts.some(isNaN)) { return null; }
 
         if (parts.length === 2) {
             // MM:SS format
@@ -89,11 +89,11 @@ class InnerTubeClient {
     static async search(query, filter = null) {
         // OuterTune's exact filter params
         let params = null;
-        if (filter === 'songs') params = 'EgWKAQIIAWoKEAkQBRAKEAMQBA%3D%3D';
-        if (filter === 'videos') params = 'EgWKAQIQAWoKEAkQChAFEAMQBA%3D%3D';
-        if (filter === 'albums') params = 'EgWKAQIYAWoKEAkQChAFEAMQBA%3D%3D';
-        if (filter === 'artists') params = 'EgWKAQIgAWoKEAkQChAFEAMQBA%3D%3D';
-        if (filter === 'playlists') params = 'EgeKAQQoAEABagoQAxAEEAoQCRAF';
+        if (filter === 'songs') { params = 'EgWKAQIIAWoKEAkQBRAKEAMQBA%3D%3D'; }
+        if (filter === 'videos') { params = 'EgWKAQIQAWoKEAkQChAFEAMQBA%3D%3D'; }
+        if (filter === 'albums') { params = 'EgWKAQIYAWoKEAkQChAFEAMQBA%3D%3D'; }
+        if (filter === 'artists') { params = 'EgWKAQIgAWoKEAkQChAFEAMQBA%3D%3D'; }
+        if (filter === 'playlists') { params = 'EgeKAQQoAEABagoQAxAEEAoQCRAF'; }
 
         const data = await this.request('search', { query, params });
         return this.parseSearch(data, filter);
@@ -127,7 +127,7 @@ class InnerTubeClient {
     static async getNext(videoId, playlistId = null, continuation = null) {
         const body = {
             videoId,
-            isAudioOnly: true
+            isAudioOnly: true,
         };
 
         if (playlistId) {
@@ -150,7 +150,7 @@ class InnerTubeClient {
                     items: [...result.items, ...radioResult.items],
                     continuation: radioResult.continuation,
                     title: result.title || radioResult.title,
-                    automixPlaylistId: null // Already processed
+                    automixPlaylistId: null, // Already processed
                 };
             }
         }
@@ -181,7 +181,7 @@ class InnerTubeClient {
             playlistId,
             isAudioOnly: true,
             enablePersistentPlaylistPanel: true,
-            tunerSettingValue: 'AUTOMIX_SETTING_NORMAL'
+            tunerSettingValue: 'AUTOMIX_SETTING_NORMAL',
         };
 
         const data = await this.request('next', body);
@@ -195,7 +195,7 @@ class InnerTubeClient {
         try {
             // Home Feed logic
             const tabs = data?.contents?.singleColumnBrowseResultsRenderer?.tabs;
-            if (!tabs) return [];
+            if (!tabs) { return []; }
             const content = tabs[0]?.tabRenderer?.content?.sectionListRenderer?.contents;
 
             content?.forEach(section => {
@@ -205,7 +205,7 @@ class InnerTubeClient {
                     if (items.length > 0) {
                         sections.push({
                             title: shelf.header?.musicCarouselShelfBasicHeaderRenderer?.title?.runs?.[0]?.text || '',
-                            contents: items // 'contents' matches YTMusic.js expectations
+                            contents: items, // 'contents' matches YTMusic.js expectations
                         });
                     }
                 }
@@ -237,7 +237,7 @@ class InnerTubeClient {
                     console.log('  -> Processing musicShelfRenderer');
                     section.musicShelfRenderer.contents?.forEach((item) => {
                         const parsed = this.parseItem(item);
-                        if (parsed) results.push(parsed);
+                        if (parsed) { results.push(parsed); }
                     });
                 }
 
@@ -245,7 +245,7 @@ class InnerTubeClient {
                 if (section.musicCardShelfRenderer) {
                     console.log('  -> Processing musicCardShelfRenderer (Top Result)');
                     const cardShelf = section.musicCardShelfRenderer;
-                    
+
                     // Top result can have sub-items (buttons, links) but we want the main item
                     // Construct a pseudo itemWrapper for parseItem
                     const parsed = this.parseItem({
@@ -254,8 +254,8 @@ class InnerTubeClient {
                             // Card shelf has different title path
                             title: cardShelf.title,
                             // Card shelf has different thumbnail path
-                            thumbnail: cardShelf.thumbnail
-                        }
+                            thumbnail: cardShelf.thumbnail,
+                        },
                     });
                     if (parsed) {
                         // Prepend top result
@@ -270,7 +270,7 @@ class InnerTubeClient {
                         if (item.musicShelfRenderer) {
                             item.musicShelfRenderer.contents?.forEach((shelfItem) => {
                                 const parsed = this.parseItem(shelfItem);
-                                if (parsed) results.push(parsed);
+                                if (parsed) { results.push(parsed); }
                             });
                         }
                     }
@@ -281,7 +281,7 @@ class InnerTubeClient {
             const seenIds = new Set();
             const finalResults = results.filter(item => {
                 const id = item.videoId || item.browseId || item.id;
-                if (!id || seenIds.has(id)) return false;
+                if (!id || seenIds.has(id)) { return false; }
                 seenIds.add(id);
                 return true;
             });
@@ -350,7 +350,7 @@ class InnerTubeClient {
                 playEndpoint,
                 shuffleEndpoint,
                 radioEndpoint,
-                shareLink
+                shareLink,
             };
 
             // Parse all sections dynamically (matching OuterTune's approach)
@@ -366,7 +366,7 @@ class InnerTubeClient {
                     const seenIds = new Set();
                     parsedSection.items = parsedSection.items.filter(item => {
                         const id = item.videoId || item.id || item.browseId;
-                        if (!id || seenIds.has(id)) return false;
+                        if (!id || seenIds.has(id)) { return false; }
                         seenIds.add(id);
                         return true;
                     });
@@ -419,7 +419,7 @@ class InnerTubeClient {
                 videos,
                 playlists,
                 relatedArtists,
-                thumbnails: thumbnail ? [{ url: thumbnail }] : []
+                thumbnails: thumbnail ? [{ url: thumbnail }] : [],
             };
         } catch (e) {
             console.error('parseArtist error:', e);
@@ -449,9 +449,9 @@ class InnerTubeClient {
                     items,
                     moreEndpoint: moreEndpoint ? {
                         browseId: moreEndpoint.browseId,
-                        params: moreEndpoint.params
+                        params: moreEndpoint.params,
                     } : null,
-                    type: 'songs'
+                    type: 'songs',
                 };
             }
 
@@ -477,20 +477,20 @@ class InnerTubeClient {
                 // Determine section type based on first item's type OR title
                 let type = 'carousel';
                 const firstItem = items[0];
-                if (firstItem?.type === 'artist') type = 'artists';
-                else if (firstItem?.type === 'album') type = 'albums';
-                else if (firstItem?.type === 'playlist') type = 'playlists';
-                else if (firstItem?.type === 'song') type = 'songs';
+                if (firstItem?.type === 'artist') { type = 'artists'; }
+                else if (firstItem?.type === 'album') { type = 'albums'; }
+                else if (firstItem?.type === 'playlist') { type = 'playlists'; }
+                else if (firstItem?.type === 'song') { type = 'songs'; }
                 else {
                     // Fallback to title-based detection
                     const titleLower = title.toLowerCase();
-                    if (titleLower.includes('album')) type = 'albums';
-                    else if (titleLower.includes('single') || titleLower.includes('ep')) type = 'singles';
-                    else if (titleLower.includes('video')) type = 'videos';
-                    else if (titleLower.includes('playlist')) type = 'playlists';
-                    else if (titleLower.includes('fan') || titleLower.includes('like') || titleLower.includes('similar')) type = 'artists';
-                    else if (titleLower.includes('featured')) type = 'featured';
-                    else if (titleLower.includes('live')) type = 'live';
+                    if (titleLower.includes('album')) { type = 'albums'; }
+                    else if (titleLower.includes('single') || titleLower.includes('ep')) { type = 'singles'; }
+                    else if (titleLower.includes('video')) { type = 'videos'; }
+                    else if (titleLower.includes('playlist')) { type = 'playlists'; }
+                    else if (titleLower.includes('fan') || titleLower.includes('like') || titleLower.includes('similar')) { type = 'artists'; }
+                    else if (titleLower.includes('featured')) { type = 'featured'; }
+                    else if (titleLower.includes('live')) { type = 'live'; }
                 }
 
                 return {
@@ -498,9 +498,9 @@ class InnerTubeClient {
                     items,
                     moreEndpoint: moreEndpoint ? {
                         browseId: moreEndpoint.browseId,
-                        params: moreEndpoint.params
+                        params: moreEndpoint.params,
                     } : null,
-                    type
+                    type,
                 };
             }
 
@@ -540,7 +540,7 @@ class InnerTubeClient {
             const artistRuns = renderer.flexColumns?.[1]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs || [];
             const artists = artistRuns.filter((_, idx) => idx % 2 === 0).map(run => ({
                 name: run.text,
-                id: run.navigationEndpoint?.browseEndpoint?.browseId
+                id: run.navigationEndpoint?.browseEndpoint?.browseId,
             }));
 
             // OuterTune: album = from flexColumns using MUSIC_PAGE_TYPE_ALBUM
@@ -548,7 +548,7 @@ class InnerTubeClient {
                 renderer.flexColumns?.[3]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs;
             const album = albumRuns?.[0] ? {
                 name: albumRuns[0].text,
-                id: albumRuns[0].navigationEndpoint?.browseEndpoint?.browseId
+                id: albumRuns[0].navigationEndpoint?.browseEndpoint?.browseId,
             } : null;
 
             // OuterTune: thumbnail = renderer.thumbnail?.musicThumbnailRenderer?.getThumbnailUrl()
@@ -573,7 +573,7 @@ class InnerTubeClient {
                 endpoint,
                 type: 'song',
                 image: [{ url: thumbnail, quality: 'hd' }],
-                artwork: thumbnail
+                artwork: thumbnail,
             };
         } catch (e) {
             console.error('parseArtistSongItem error:', e);
@@ -622,7 +622,7 @@ class InnerTubeClient {
                     explicit: renderer.subtitleBadges?.some(b => b.musicInlineBadgeRenderer?.icon?.iconType === 'MUSIC_EXPLICIT_BADGE'),
                     type: 'song',
                     image: [{ url: thumbnail }],
-                    artwork: thumbnail
+                    artwork: thumbnail,
                 };
             }
 
@@ -635,7 +635,7 @@ class InnerTubeClient {
                         ?.musicPlayButtonRenderer?.playNavigationEndpoint?.watchPlaylistEndpoint?.playlistId;
 
                 const yearRun = renderer.subtitle?.runs?.slice(-1)[0];
-                const year = yearRun?.text?.match(/^\d{4}$/) ? parseInt(yearRun.text) : null;
+                const year = yearRun?.text?.match(/^\d{4}$/) ? parseInt(yearRun.text, 10) : null;
 
                 return {
                     browseId,
@@ -649,7 +649,7 @@ class InnerTubeClient {
                     subtitle,
                     explicit: renderer.subtitleBadges?.some(b => b.musicInlineBadgeRenderer?.icon?.iconType === 'MUSIC_EXPLICIT_BADGE'),
                     type: 'album',
-                    image: [{ url: thumbnail }]
+                    image: [{ url: thumbnail }],
                 };
             }
 
@@ -682,7 +682,7 @@ class InnerTubeClient {
                     playEndpoint,
                     shuffleEndpoint,
                     radioEndpoint,
-                    image: [{ url: thumbnail }]
+                    image: [{ url: thumbnail }],
                 };
             }
 
@@ -708,7 +708,7 @@ class InnerTubeClient {
                     type: 'artist',
                     shuffleEndpoint,
                     radioEndpoint,
-                    image: [{ url: thumbnail }]
+                    image: [{ url: thumbnail }],
                 };
             }
 
@@ -722,7 +722,7 @@ class InnerTubeClient {
                 thumbnails: thumbnails || [],
                 subtitle,
                 type: 'unknown',
-                image: [{ url: thumbnail }]
+                image: [{ url: thumbnail }],
             };
         } catch (e) {
             console.error('parseMusicTwoRowItem error:', e);
@@ -797,7 +797,7 @@ class InnerTubeClient {
                 url: enhanceYTMusicArtwork(thumb.url, 'album-header'),
                 link: enhanceYTMusicArtwork(thumb.url, 'album-header'),
                 width: thumb.width,
-                height: thumb.height
+                height: thumb.height,
             }));
 
             // Parse tracks
@@ -818,7 +818,7 @@ class InnerTubeClient {
                 thumbnail: thumbnails[thumbnails.length - 1]?.url,  // Also include single for backward compat
                 tracks,      // 'tracks' expected by getYTMusicAlbumData
                 songs: tracks,  // Also include 'songs' for backward compat
-                browseId
+                browseId,
             };
         } catch (e) {
             console.error('parseAlbum error:', e);
@@ -838,8 +838,8 @@ class InnerTubeClient {
 
             const rawItems = section?.items || section?.contents || [];
             const items = rawItems.map(i => {
-                if (i.musicTwoRowItemRenderer) return this.parseMusicTwoRowItem(i.musicTwoRowItemRenderer);
-                if (i.musicResponsiveListItemRenderer) return this.parseArtistSongItem(i);
+                if (i.musicTwoRowItemRenderer) { return this.parseMusicTwoRowItem(i.musicTwoRowItemRenderer); }
+                if (i.musicResponsiveListItemRenderer) { return this.parseArtistSongItem(i); }
                 return this.parseItem(i);
             }).filter(i => i);
 
@@ -850,7 +850,7 @@ class InnerTubeClient {
             return {
                 title,
                 items,
-                continuation
+                continuation,
             };
         } catch (e) {
             console.error('parseSection error:', e);
@@ -891,7 +891,7 @@ class InnerTubeClient {
                 description,
                 author,
                 year,
-                count: songs.length
+                count: songs.length,
             };
         } catch (e) { console.error('Parse Playlist Error', e); return null; }
     }
@@ -948,7 +948,7 @@ class InnerTubeClient {
                 continuation,
                 automixPlaylistId,
                 // Also return the title if available
-                title: data?.contents?.singleColumnMusicWatchNextResultsRenderer?.tabbedRenderer?.watchNextTabbedResultsRenderer?.tabs?.[0]?.tabRenderer?.content?.musicQueueRenderer?.header?.musicQueueHeaderRenderer?.subtitle?.runs?.[0]?.text || null
+                title: data?.contents?.singleColumnMusicWatchNextResultsRenderer?.tabbedRenderer?.watchNextTabbedResultsRenderer?.tabs?.[0]?.tabRenderer?.content?.musicQueueRenderer?.header?.musicQueueHeaderRenderer?.subtitle?.runs?.[0]?.text || null,
             };
         } catch (e) {
             console.error('Parse Next Error:', e);
@@ -960,11 +960,11 @@ class InnerTubeClient {
     static parseItem(itemWrapper) {
         try {
             // Handle cases where itemWrapper itself is the renderer, or it's wrapped
-            const item = itemWrapper.musicResponsiveListItemRenderer || 
-                         itemWrapper.musicTwoRowItemRenderer || 
-                         itemWrapper.playlistPanelVideoRenderer ||
-                         itemWrapper.videoRenderer ||
-                         itemWrapper;
+            const item = itemWrapper.musicResponsiveListItemRenderer ||
+                itemWrapper.musicTwoRowItemRenderer ||
+                itemWrapper.playlistPanelVideoRenderer ||
+                itemWrapper.videoRenderer ||
+                itemWrapper;
 
             if (!item || (!item.videoId && !item.browseId && !item.playlistId && !item.playlistItemData)) {
                 return null;
@@ -976,18 +976,18 @@ class InnerTubeClient {
                 item.onTap?.watchEndpoint?.videoId ||
                 item.navigationEndpoint?.watchEndpoint?.videoId ||
                 item.overlay?.musicItemThumbnailOverlayRenderer?.content?.musicPlayButtonRenderer?.playNavigationEndpoint?.watchEndpoint?.videoId;
-            
+
             let browseId = item.navigationEndpoint?.browseEndpoint?.browseId || item.onTap?.browseEndpoint?.browseId;
 
             // Try multiple paths for title
             let title = item.flexColumns?.[0]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]?.text ||
-                        item.title?.runs?.[0]?.text ||
-                        item.title?.simpleText ||
-                        item.name?.runs?.[0]?.text ||
-                        item.name?.simpleText;
+                item.title?.runs?.[0]?.text ||
+                item.title?.simpleText ||
+                item.name?.runs?.[0]?.text ||
+                item.name?.simpleText;
 
             // Thumbnail extraction - be extremely aggressive finding the thumbnails array
-            const thumbnails = 
+            const thumbnails =
                 item.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails ||
                 item.thumbnailRenderer?.musicThumbnailRenderer?.thumbnail?.thumbnails ||
                 item.thumbnail?.croppedSquareThumbnailRenderer?.thumbnail?.thumbnails ||
@@ -1021,7 +1021,7 @@ class InnerTubeClient {
             let type = 'song';
             let playlistId = item.playlistId;
 
-            if (browseId && (browseId.startsWith('MPRE') || browseId.startsWith('OLAK'))) type = 'album';
+            if (browseId && (browseId.startsWith('MPRE') || browseId.startsWith('OLAK'))) { type = 'album'; }
             if (browseId && browseId.startsWith('VL')) {
                 type = 'playlist';
                 playlistId = browseId;
@@ -1029,9 +1029,9 @@ class InnerTubeClient {
                 playlistId = `VL${browseId}`;
                 type = 'playlist';
             }
-            if (browseId && browseId.startsWith('UC')) type = 'artist';
+            if (browseId && browseId.startsWith('UC')) { type = 'artist'; }
 
-            if ((itemWrapper.musicTwoRowItemRenderer || item.type === 'album') && !videoId && type === 'song') type = 'album/playlist';
+            if ((itemWrapper.musicTwoRowItemRenderer || item.type === 'album') && !videoId && type === 'song') { type = 'album/playlist'; }
 
             // Artist extraction
             let artist = 'Unknown';
@@ -1044,24 +1044,24 @@ class InnerTubeClient {
                 const oddElements = flexColumn1.filter((_, index) => index % 2 === 0);
                 artistsList = oddElements.map(run => ({
                     name: run.text,
-                    id: run.navigationEndpoint?.browseEndpoint?.browseId
+                    id: run.navigationEndpoint?.browseEndpoint?.browseId,
                 }));
                 artist = oddElements.map(run => run.text).join(', ');
             } else if (bylineRuns && Array.isArray(bylineRuns)) {
                 const oddElements = bylineRuns.filter((_, index) => index % 2 === 0);
                 artistsList = oddElements.map(run => ({
                     name: run.text,
-                    id: run.navigationEndpoint?.browseEndpoint?.browseId
+                    id: run.navigationEndpoint?.browseEndpoint?.browseId,
                 }));
                 artist = oddElements.map(run => run.text).join(', ');
             }
 
-            if (!artist || artist === '') artist = 'Unknown';
+            if (!artist || artist === '') { artist = 'Unknown'; }
 
             // Duration extraction
             let durationText = item.fixedColumns?.[0]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]?.text ||
-                               item.lengthText?.runs?.[0]?.text || 
-                               item.lengthText?.simpleText;
+                item.lengthText?.runs?.[0]?.text ||
+                item.lengthText?.simpleText;
             const duration = durationText ? this.parseTime(durationText) : null;
 
             return {
@@ -1081,10 +1081,10 @@ class InnerTubeClient {
                 subtitle: item.subtitle?.runs?.map(r => r.text).join('') || item.longBylineText?.runs?.map(r => r.text).join('') || item.shortBylineText?.runs?.map(r => r.text).join('') || '',
                 image: [
                     { url: thumbnail, quality: 'default' },
-                    { url: highResThumbnail, quality: 'max' }
+                    { url: highResThumbnail, quality: 'max' },
                 ],
                 artwork: highResThumbnail || thumbnail,
-                year: item.subtitle?.runs?.[item.subtitle.runs.length - 1]?.text || ''
+                year: item.subtitle?.runs?.[item.subtitle.runs.length - 1]?.text || '',
             };
         } catch (e) { console.error('parseItem error:', e); return null; }
     }

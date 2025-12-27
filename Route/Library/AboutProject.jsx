@@ -23,10 +23,10 @@ export const AboutProject = () => {
             flexDirection:"row",
             gap:10,
           }}>
-            <FastImage 
+            <FastImage
   source={{
     uri: "https://res.cloudinary.com/dkpi8hona/image/upload/v1737190997/me.jpeg_uhraqu.jpg",
-  }} 
+  }}
   style={{
     height: TopHeight,
     width: TopHeight,
@@ -49,8 +49,8 @@ export const AboutProject = () => {
           <SmallText text={"join the community."}/>
           <Spacer/>
           {/*<View style={{flexDirection:"row", gap:10, alignItems:"center", justifyContent:"space-between"}}>
-            <EachCommunityButton title={"Telegram"} icon={<EvilIcons name={"sc-telegram"} size={35}/>} color={"rgb(50,95,123)"} subTitle={'Melody'} url={"https://t.me/+-irbEXtzhwI1NzU1"}/>
-            <EachCommunityButton title={"Whatsapp"} icon={<FontAwesome name={"whatsapp"} size={35}/>} color={"rgb(52,123,50)"} subTitle={'Melody'} url={"https://whatsapp.com/channel/0029VaCr9oTIt5s5DxEQCI11"}/>
+            <EachCommunityButton title={"Telegram"} icon={<EvilIcons name={"sc-telegram"} size={35}/>} color={"rgb(50,95,123)"} subTitle={'Music Aura'} url={"https://t.me/+-irbEXtzhwI1NzU1"}/>
+            <EachCommunityButton title={"Whatsapp"} icon={<FontAwesome name={"whatsapp"} size={35}/>} color={"rgb(52,123,50)"} subTitle={'Music Aura'} url={"https://whatsapp.com/channel/0029VaCr9oTIt5s5DxEQCI11"}/>
           </View>*/}
           <Spacer/>
           <PlainText text={"Are you a developer?"} nospace={true}/>

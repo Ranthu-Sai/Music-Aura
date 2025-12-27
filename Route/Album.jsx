@@ -47,7 +47,7 @@ export const Album = ({ route }) => {
             image: song.image,
             year: song.year,
             songs: [song],
-          }
+          },
         }
       }
       if (data?.data?.songs?.length > 0) {
@@ -73,7 +73,7 @@ export const Album = ({ route }) => {
   }, []);
   // Helper to format total duration
   const formatTotalDuration = (seconds) => {
-    if (!seconds) return "";
+    if (!seconds) {return "";}
     const h = Math.floor(seconds / 3600);
     const m = Math.floor((seconds % 3600) / 60);
     return `${h > 0 ? h + 'h ' : ''}${m}m`;

@@ -1,15 +1,15 @@
 import { useTheme } from "@react-navigation/native";
 import AntDesign from "react-native-vector-icons/AntDesign";
-import { memo, useContext, useEffect, useState } from "react";
+import { memo, useContext, useEffect, useState, useCallback } from "react";
 import { DeleteALikedSong, GetLikedSongs, SetLikedSongs } from "../../LocalStorage/StoreLikedSongs";
 import { Pressable } from "react-native";
 import Context from "../../Context/Context";
 
-export const LikeSongButton = memo(function LikeSongButton({size}) {
-  const {currentPlaying} = useContext(Context)
+export const LikeSongButton = memo(function LikeSongButton({ size }) {
+  const { currentPlaying } = useContext(Context)
   const theme = useTheme()
   const [Liked, setLiked] = useState(false);
-  async function getIsLiked(){
+  const getIsLiked = useCallback(async () => {
     if (!currentPlaying?.id) {
       setLiked(false);
       return;
@@ -24,17 +24,17 @@ export const LikeSongButton = memo(function LikeSongButton({size}) {
     } catch (error) {
       setLiked(false)
     }
-  }
-  async function LikeASong(){
+  }, [currentPlaying]);
+  async function LikeASong() {
     if (!currentPlaying?.id) {
       return;
     }
     try {
       const LikedSongs = await GetLikedSongs()
       if (!LikedSongs?.songs?.[currentPlaying.id]) {
-        if (currentPlaying.title && currentPlaying.artist && currentPlaying.id && currentPlaying.duration ){
+        if (currentPlaying.title && currentPlaying.artist && currentPlaying.id && currentPlaying.duration) {
           setLiked(true)
-          await SetLikedSongs(currentPlaying?.title,currentPlaying?.artist,currentPlaying?.artwork || currentPlaying?.image,currentPlaying?.id,currentPlaying?.url || currentPlaying?.downloadUrl,currentPlaying?.duration,currentPlaying?.language)
+          await SetLikedSongs(currentPlaying?.title, currentPlaying?.artist, currentPlaying?.artwork || currentPlaying?.image, currentPlaying?.id, currentPlaying?.url || currentPlaying?.downloadUrl, currentPlaying?.duration, currentPlaying?.language)
         }
       } else {
         setLiked(false)
@@ -46,12 +46,12 @@ export const LikeSongButton = memo(function LikeSongButton({size}) {
   }
   useEffect(() => {
     getIsLiked()
-  }, [currentPlaying]);
+  }, [currentPlaying, getIsLiked]);
   return (
-    <Pressable onPress={()=>{
-        LikeASong()
+    <Pressable onPress={() => {
+      LikeASong()
     }}>
-      <AntDesign name={Liked ? "heart" : "hearto"} size={size ? size : 15} color={Liked ? 'rgb(234,113,113)' : theme.colors.text}/>
+      <AntDesign name={Liked ? "heart" : "hearto"} size={size ? size : 15} color={Liked ? 'rgb(234,113,113)' : theme.colors.text} />
     </Pressable>
   );
 })

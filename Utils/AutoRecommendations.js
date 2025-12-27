@@ -1,9 +1,9 @@
 /**
  * AutoRecommendations.js
- * 
+ *
  * Automatically fetches and appends YouTube Music recommendations
  * to maintain infinite playback.
- * 
+ *
  * Flow:
  * 1. Fetch 20 recommendations when user starts playing
  * 2. Monitor current track position in queue
@@ -150,7 +150,7 @@ class AutoRecommendations {
                 console.error('❌ AutoRecommendations: Failed to add songs:', {
                     error: addError.message,
                     count: validatedSongs.length,
-                    stack: addError.stack
+                    stack: addError.stack,
                 });
                 this.isFetching = false;
                 return;
@@ -172,7 +172,7 @@ class AutoRecommendations {
      * Handle track change event
      */
     async onTrackChanged() {
-        if (!this.isEnabled) return;
+        if (!this.isEnabled) {return;}
 
         // Check if we need to fetch more
         await this.checkAndFetch();

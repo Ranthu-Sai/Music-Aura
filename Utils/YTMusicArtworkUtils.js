@@ -1,6 +1,6 @@
 /**
  * YTMusicArtworkUtils.js
- * 
+ *
  * Utilities for upgrading YouTube Music artwork URLs to higher quality versions
  */
 
@@ -19,7 +19,7 @@ export function upgradeArtworkQuality(url) {
     // Using 1000x1000 for high-quality display in full-screen player
     if (url.includes('.googleusercontent.com') || url.includes('.ggpht.com')) {
         // Replace any size parameters (w###-h###) with w1000-h1000
-        return url.replace(/=w\d+-h\d+[^/]*/g, '=w1000-h1000-l90-rj');
+        return url.replace(/[=]w\d+-h\d+[^/]*/g, '=w1000-h1000-l90-rj');
     }
 
     // For ytimg.com URLs - Use maxresdefault for high-quality full screen display
@@ -70,5 +70,5 @@ export function upgradeYtimgQuality(url) {
 export default {
     upgradeArtworkQuality,
     getArtworkFallback,
-    upgradeYtimgQuality
+    upgradeYtimgQuality,
 };

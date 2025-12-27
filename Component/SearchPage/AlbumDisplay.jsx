@@ -1,4 +1,4 @@
-/* eslint-disable keyword-spacing */
+
 import React, { useState, useRef, useEffect } from 'react'
 import { Dimensions, FlatList, ScrollView, View, ActivityIndicator } from 'react-native'
 import { LoadingComponent } from '../Global/Loading'

@@ -1,18 +1,18 @@
 /**
  * Stream Cache Utilities
- * 
+ *
  * Helper functions for caching stream URLs from YTMusic and DAB.
  * Stream URLs are cached for 3 hours as per user specification.
- * 
+ *
  * Usage:
  * import { getCachedStreamUrl, cacheStreamUrl } from '../Utils/StreamCacheUtils';
- * 
+ *
  * // Before fetching stream URL:
  * const cachedUrl = getCachedStreamUrl(videoId, 'ytmusic');
  * if (cachedUrl) {
  *   return cachedUrl; // Use cached URL
  * }
- * 
+ *
  * // After fetching stream URL:
  * const freshUrl = await fetchStreamUrl(videoId);
  * cacheStreamUrl(videoId, freshUrl, 'ytmusic');
@@ -27,7 +27,7 @@ import { CacheManager } from './NavigationCacheManager';
  * @returns {string|null} - Cached URL or null
  */
 export function getCachedStreamUrl(videoId, source = 'ytmusic') {
-    if (!videoId) return null;
+    if (!videoId) {return null;}
     return CacheManager.getStreamUrl(videoId, source);
 }
 
@@ -38,7 +38,7 @@ export function getCachedStreamUrl(videoId, source = 'ytmusic') {
  * @param {string} source - 'ytmusic' or 'dab'
  */
 export function cacheStreamUrl(videoId, url, source = 'ytmusic') {
-    if (!videoId || !url) return;
+    if (!videoId || !url) {return;}
     CacheManager.setStreamUrl(videoId, url, source);
 }
 
@@ -55,14 +55,14 @@ export function hasStreamUrl(videoId, source = 'ytmusic') {
 /**
  * Get or fetch stream URL with caching
  * This is a convenience wrapper that checks cache first
- * 
+ *
  * @param {string} videoId - Video/track ID
  * @param {function} fetchFn - Async function to fetch URL if not cached
  * @param {string} source - 'ytmusic' or 'dab'
  * @returns {Promise<string|null>} - Stream URL or null
  */
 export async function getOrFetchStreamUrl(videoId, fetchFn, source = 'ytmusic') {
-    if (!videoId) return null;
+    if (!videoId) {return null;}
 
     // Check cache first
     const cached = getCachedStreamUrl(videoId, source);
@@ -101,7 +101,7 @@ export function clearAllStreamCache() {
  * @param {Array<{videoId: string, url: string, source: string}>} streams
  */
 export function batchCacheStreamUrls(streams) {
-    if (!Array.isArray(streams)) return;
+    if (!Array.isArray(streams)) {return;}
 
     streams.forEach(({ videoId, url, source = 'ytmusic' }) => {
         if (videoId && url) {

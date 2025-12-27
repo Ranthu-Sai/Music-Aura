@@ -17,23 +17,23 @@ export default function NetworkTest() {
           'User-Agent': 'Mozilla/5.0',
         },
       });
-      
+
       const status = response.status;
       const count = response.data?.length || 0;
-      
+
       setResults(prev => [...prev, {
         url,
         status: 'SUCCESS',
         message: `${status} - ${count} results`,
       }]);
-      
+
         } catch (error) {
       setResults(prev => [...prev, {
         url,
         status: 'FAILED',
         message: error.message,
       }]);
-      
+
         }
   };
 
@@ -44,7 +44,7 @@ export default function NetworkTest() {
       'https://y.com.sb',
       'https://inv.perditum.com',
     ];
-    
+
     for (const instance of instances) {
       await testInstance(instance);
     }

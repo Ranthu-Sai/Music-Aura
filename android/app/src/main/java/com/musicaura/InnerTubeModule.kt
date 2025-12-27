@@ -1,7 +1,7 @@
 /* Native InnerTube implementation removed — JS fallback will be used. */
 
 
-package com.melody
+package com.musicaura
 
 import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext

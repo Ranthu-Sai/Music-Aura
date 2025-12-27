@@ -80,7 +80,7 @@ async function getPlaylistData(id) {
             name: playlistName,
             image: [{}, {}, { url: thumbnail }],
             songs: songs,
-          }
+          },
         };
       }
     } catch (error) {
@@ -92,7 +92,7 @@ async function getPlaylistData(id) {
         name: 'YouTube Playlist',
         image: [],
         songs: [],
-      }
+      },
     };
   } else {
     // Saavn playlist
@@ -169,7 +169,7 @@ async function getAllPlaylists(language) {
     'https://jiosaavn-c451wwyru-sumit-kolhes-projects-94a4846a.vercel.app',
     'https://nepotuneapi.vercel.app',
     'https://saavn.sumit.co',
-    'https://jio-savan-api-sigma.vercel.app'
+    'https://jio-savan-api-sigma.vercel.app',
   ];
   for (let baseUrl of urls) {
     try {
@@ -283,7 +283,7 @@ async function getYTMusicPlaylistData(browseId) {
           const artist = artistRuns?.filter(r => r.text !== ' • ').map(r => r.text).join('') || 'Unknown';
 
           // Extract thumbnail - use highest quality available
-          const thumbnails = musicItem.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails || 
+          const thumbnails = musicItem.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails ||
             musicItem.thumbnailRenderer?.musicThumbnailRenderer?.thumbnail?.thumbnails ||
             musicItem.thumbnail?.thumbnails || [];
           let songThumbnail = thumbnails[thumbnails.length - 1]?.url ||

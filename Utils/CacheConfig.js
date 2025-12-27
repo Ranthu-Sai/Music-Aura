@@ -1,6 +1,6 @@
 /**
  * Cache Configuration for Navigation and Stream Caching
- * 
+ *
  * This file defines TTL values and cache size limits for different data types.
  * All durations are in milliseconds.
  */
@@ -61,12 +61,12 @@ export const CACHE_LIMITS = {
 
 // Helper to generate cache keys
 export const generateCacheKey = (prefix, id) => {
-    if (!id) return prefix;
+    if (!id) {return prefix;}
     return `${prefix}_${id}`;
 };
 
 // Helper to check if a cache entry is stale
 export const isCacheStale = (timestamp, ttl) => {
-    if (!timestamp) return true;
+    if (!timestamp) {return true;}
     return Date.now() - timestamp > ttl;
 };

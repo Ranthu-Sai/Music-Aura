@@ -134,16 +134,16 @@ async function getYTSearchSongData(searchText, page, limit) {
             }
 
             // Extract thumbnail - try multiple possible paths for robustness
-            const thumbnails = 
-                musicItem.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails || 
+            const thumbnails =
+                musicItem.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails ||
                 musicItem.thumbnailRenderer?.musicThumbnailRenderer?.thumbnail?.thumbnails ||
                 musicItem.thumbnail?.thumbnail?.thumbnails ||
                 musicItem.thumbnail?.thumbnails ||
                 musicItem.thumbnailRenderer?.thumbnail?.thumbnails ||
                 musicItem.thumbnails || [];
-            
+
             let thumbnail = thumbnails[thumbnails.length - 1]?.url || thumbnails[0]?.url;
-            
+
             // Handle missing thumbnails with a reliable construct
             if (!thumbnail && videoId) {
                 thumbnail = `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
@@ -470,7 +470,7 @@ async function getYTLyricsSongData(artist, title, preferredLanguage, isYouTubeMu
               start_time: parseInt(line.startTimeMs, 10),
               end_time: parseInt(line.endTimeMs, 10),
               text: line.text,
-              id: `line_${index}`
+              id: `line_${index}`,
             }));
           } else if (typeof data.syncedLyrics === 'string') {
             // LRC format - parse synced lyrics
@@ -506,7 +506,7 @@ async function getYTLyricsSongData(artist, title, preferredLanguage, isYouTubeMu
             timed_lyrics = timed_lyrics.map((line, index) => ({
               ...line,
               end_time: timed_lyrics[index + 1] ? timed_lyrics[index + 1].start_time : line.start_time + 5000, // Default 5s duration
-              id: `line_${index}`
+              id: `line_${index}`,
             }));
           }
 
@@ -803,11 +803,11 @@ async function getYTSearchVideoData(searchText, page, limit) {
             const channelName = videoRenderer.ownerText?.runs?.[0]?.text || 'Unknown';
 
             // Extract thumbnail - try multiple paths for robustness
-            const thumbnails = videoRenderer.thumbnail?.thumbnails || 
-                               videoRenderer.thumbnails || 
+            const thumbnails = videoRenderer.thumbnail?.thumbnails ||
+                               videoRenderer.thumbnails ||
                                [];
-            let thumbnail = thumbnails[thumbnails.length - 1]?.url || 
-                            thumbnails[0]?.url || 
+            let thumbnail = thumbnails[thumbnails.length - 1]?.url ||
+                            thumbnails[0]?.url ||
                             `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
 
             // Ensure protocol

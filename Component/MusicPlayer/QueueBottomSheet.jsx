@@ -11,7 +11,7 @@ const QueueBottomSheet = React.forwardRef((props, ref) => {
   const backgroundColor = 'rgba(5,5,5,0.76)'
   const bottomSheetRef = useRef(null);
   const [index, setIndex] = useState(0);
-  
+
   const handleClose = () => {
     if (bottomSheetRef.current) {
       bottomSheetRef.current.snapToIndex(0);

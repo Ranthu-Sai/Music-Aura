@@ -21,31 +21,31 @@ export const EachSongCard = memo(function EachSongCard({ title, artist, image, i
 
   // Normalize artwork formats (string, array, object) to a single URI
   const normalizeArtwork = (img) => {
-    if (!img) return null;
-    if (typeof img === 'string' && img.trim().length > 0) return img;
-    
+    if (!img) {return null;}
+    if (typeof img === 'string' && img.trim().length > 0) {return img;}
+
     // If it's an array, find the best quality URL
     if (Array.isArray(img) && img.length > 0) {
       // Create a copy and reverse to search from highest quality
       const reversed = [...img].reverse();
       for (const item of reversed) {
-        if (!item) continue;
-        if (typeof item === 'string' && item.trim().length > 0) return item;
-        if (item.url && typeof item.url === 'string' && item.url.trim().length > 0) return item.url;
-        if (item.uri && typeof item.uri === 'string' && item.uri.trim().length > 0) return item.uri;
-        if (item.link && typeof item.link === 'string' && item.link.trim().length > 0) return item.link;
+        if (!item) {continue;}
+        if (typeof item === 'string' && item.trim().length > 0) {return item;}
+        if (item.url && typeof item.url === 'string' && item.url.trim().length > 0) {return item.url;}
+        if (item.uri && typeof item.uri === 'string' && item.uri.trim().length > 0) {return item.uri;}
+        if (item.link && typeof item.link === 'string' && item.link.trim().length > 0) {return item.link;}
       }
     }
-    
+
     // If it's an object, check common fields
     if (typeof img === 'object') {
-      if (img.url && typeof img.url === 'string' && img.url.trim().length > 0) return img.url;
-      if (img.uri && typeof img.uri === 'string' && img.uri.trim().length > 0) return img.uri;
-      if (img.link && typeof img.link === 'string' && img.link.trim().length > 0) return img.link;
+      if (img.url && typeof img.url === 'string' && img.url.trim().length > 0) {return img.url;}
+      if (img.uri && typeof img.uri === 'string' && img.uri.trim().length > 0) {return img.uri;}
+      if (img.link && typeof img.link === 'string' && img.link.trim().length > 0) {return img.link;}
       if (img.thumbnail) {
-        if (typeof img.thumbnail === 'string' && img.thumbnail.trim().length > 0) return img.thumbnail;
-        if (img.thumbnail.url && typeof img.thumbnail.url === 'string' && img.thumbnail.url.trim().length > 0) return img.thumbnail.url;
-        if (img.thumbnail.uri && typeof img.thumbnail.uri === 'string' && img.thumbnail.uri.trim().length > 0) return img.thumbnail.uri;
+        if (typeof img.thumbnail === 'string' && img.thumbnail.trim().length > 0) {return img.thumbnail;}
+        if (img.thumbnail.url && typeof img.thumbnail.url === 'string' && img.thumbnail.url.trim().length > 0) {return img.thumbnail.url;}
+        if (img.thumbnail.uri && typeof img.thumbnail.uri === 'string' && img.thumbnail.uri.trim().length > 0) {return img.thumbnail.uri;}
       }
     }
     return null;
@@ -60,7 +60,7 @@ export const EachSongCard = memo(function EachSongCard({ title, artist, image, i
   };
 
   const AddSongToPlayer = useCallback(async () => {
-    if (isLoading) return;
+    if (isLoading) {return;}
     setIsLoading(true);
     try {
       if (lyricsCacheRef?.current) { lyricsCacheRef.current = {}; }
@@ -86,7 +86,7 @@ export const EachSongCard = memo(function EachSongCard({ title, artist, image, i
             id: e?.id,
             language: e?.language,
             artistID: e?.primary_artists_id,
-            source: e?.source || Data.data.source
+            source: e?.source || Data.data.source,
           };
         });
 
@@ -112,7 +112,7 @@ export const EachSongCard = memo(function EachSongCard({ title, artist, image, i
             id: e?.id,
             language: e?.language,
             artistID: e?.artistID || e?.primary_artists_id,
-            source: e?.source
+            source: e?.source,
           };
         });
 
@@ -169,7 +169,7 @@ export const EachSongCard = memo(function EachSongCard({ title, artist, image, i
               const cardArtist = normalize(artist);
 
               // Match if both title and artist are essentially the same
-              if (currentTitle && cardTitle && currentTitle === cardTitle && 
+              if (currentTitle && cardTitle && currentTitle === cardTitle &&
                   currentArtist && cardArtist && (currentArtist.includes(cardArtist) || cardArtist.includes(currentArtist))) {
                 isCurrentSong = true;
               }
@@ -210,7 +210,7 @@ export const EachSongCard = memo(function EachSongCard({ title, artist, image, i
                     width: titleandartistwidth ? titleandartistwidth : width1 * 0.67,
                     color: albumId ? '#3498db' : '#CCCCCC', // Highlight if clickable
                     fontSize: 12,
-                    textDecorationLine: albumId ? 'underline' : 'none'
+                    textDecorationLine: albumId ? 'underline' : 'none',
                   }}
                 />
               </Pressable>
@@ -221,7 +221,7 @@ export const EachSongCard = memo(function EachSongCard({ title, artist, image, i
                 style={{
                   width: titleandartistwidth ? titleandartistwidth : width1 * 0.67,
                   color: '#CCCCCC',
-                  fontSize: 12
+                  fontSize: 12,
                 }}
               />
             )}

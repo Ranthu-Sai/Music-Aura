@@ -1,4 +1,4 @@
-package com.melody
+package com.musicaura
 
 import com.facebook.react.ReactPackage
 import com.facebook.react.bridge.NativeModule

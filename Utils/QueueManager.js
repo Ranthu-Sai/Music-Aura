@@ -1,7 +1,7 @@
 import TrackPlayer from 'react-native-track-player';
 import { getRecommendedSongs } from '../Api/Recommended';
 import youtubeStreamingService from './YouTubeStreamingService';
-import dabMusicService from './DabMusicService';
+
 import { getIndexQuality } from '../MusicPlayerFunctions';
 import InnerTubeClient from '../Api/InnertubeClient';
 
@@ -82,7 +82,7 @@ class QueueManager {
                             downloadUrl: videoId,
                             source: 'ytmusic',
                             isYTMusic: true,
-                            _needsStream: true // Mark for on-demand fetching
+                            _needsStream: true, // Mark for on-demand fetching
                         };
                     });
 
@@ -144,7 +144,7 @@ class QueueManager {
                     language: song.language || '',
                     downloadUrl: song.downloadUrl || song.download_url || [],
                     source: 'saavn',
-                    _needsStream: false
+                    _needsStream: false,
                 };
             });
 
@@ -213,7 +213,7 @@ class QueueManager {
                 await TrackPlayer.updateMetadataForTrack(trackIndex, {
                     url: streamData.url,
                     headers: streamData.headers,
-                    userAgent: streamData.headers?.['User-Agent']
+                    userAgent: streamData.headers?.['User-Agent'],
                 });
 
                 // Cache the stream (will expire in 2 minutes)
@@ -244,7 +244,6 @@ class QueueManager {
         try {
             const isYouTubeSong = song.id && typeof song.id === 'string' &&
                 song.id.length === 11 && !song.isLocalMusic;
-            const isDabSong = song.isDabTrack || song.source === 'dab';
 
             if (isYouTubeSong) {
                 // Use streamFetchManager for caching and deduplication
@@ -263,20 +262,10 @@ class QueueManager {
                         headers: streamData.headers,
                         thumbnail: streamData.thumbnail,
                         duration: streamData.duration,
-                        title: streamData.title
-                    };
-                }
-            } else if (isDabSong) {
-                await dabMusicService.initialize();
-                const streamUrl = await dabMusicService.getStreamUrl(song.id);
-                if (streamUrl) {
-                    return {
-                        url: streamUrl,
-                        headers: {},
+                        title: streamData.title,
                     };
                 }
             }
-
             return null;
         } catch (error) {
             if (error.message === 'AbortError' || error.name === 'AbortError') {
@@ -293,12 +282,12 @@ class QueueManager {
      * @private
      */
     _formatArtist(artistData) {
-        if (!artistData) return 'Unknown Artist';
-        if (typeof artistData === 'string') return artistData;
+        if (!artistData) { return 'Unknown Artist'; }
+        if (typeof artistData === 'string') { return artistData; }
         if (Array.isArray(artistData)) {
             return artistData.map(a => a.name || a).join(', ');
         }
-        if (artistData.name) return artistData.name;
+        if (artistData.name) { return artistData.name; }
         return 'Unknown Artist';
     }
 
@@ -340,13 +329,13 @@ class QueueManager {
      * @private
      */
     async _onTrackChange(event) {
-        if (this.isFetchingMore || !this.currentVideoId) return;
+        if (this.isFetchingMore || !this.currentVideoId) { return; }
 
         try {
             const queue = await TrackPlayer.getQueue();
             const currentIndex = event.index ?? (await TrackPlayer.getActiveTrackIndex());
 
-            if (currentIndex === null || currentIndex === undefined) return;
+            if (currentIndex === null || currentIndex === undefined) { return; }
 
             const songsRemaining = queue.length - currentIndex - 1;
 

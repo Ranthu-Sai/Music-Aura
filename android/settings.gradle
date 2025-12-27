@@ -1,4 +1,4 @@
-rootProject.name = 'Music Aura'
+rootProject.name = 'music-aura'
 
 // Apply native modules settings with filtering
 def nodeModulesPath = new File(rootProject.projectDir, '../node_modules')

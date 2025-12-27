@@ -7,7 +7,7 @@ import { getAnalytics, FirebaseAnalyticsTypes } from '@react-native-firebase/ana
 let analyticsInstance: FirebaseAnalyticsTypes.Module | null = null;
 
 function getAnalyticsIfAvailable(): FirebaseAnalyticsTypes.Module | null {
-  if (analyticsInstance) return analyticsInstance;
+  if (analyticsInstance) {return analyticsInstance;}
   try {
     const app = getApp();
     analyticsInstance = getAnalytics(app);
@@ -48,7 +48,7 @@ class AnalyticsService {
   setAnalyticsCollectionEnabled = async (enabled: boolean) => {
     try {
       const instance = getAnalyticsIfAvailable();
-      if (!instance) return;
+      if (!instance) {return;}
       await instance.setAnalyticsCollectionEnabled(enabled);
     } catch (error) {
       // Silent error handling for analytics
@@ -63,7 +63,7 @@ class AnalyticsService {
   logScreenView = async (screenName: string, screenClass?: string) => {
     try {
       const instance = getAnalyticsIfAvailable();
-      if (!instance) return;
+      if (!instance) {return;}
       await instance.logScreenView({
         screen_name: screenName,
         screen_class: screenClass || screenName,
@@ -81,7 +81,7 @@ class AnalyticsService {
   logEvent = async (eventName: string, params?: Record<string, any>) => {
     try {
       const instance = getAnalyticsIfAvailable();
-      if (!instance) return;
+      if (!instance) {return;}
       await instance.logEvent(eventName, params);
     } catch (error) {
       // Silent error handling for analytics
@@ -96,7 +96,7 @@ class AnalyticsService {
   setUserProperty = async (name: string, value: string) => {
     try {
       const instance = getAnalyticsIfAvailable();
-      if (!instance) return;
+      if (!instance) {return;}
       await instance.setUserProperty(name, value);
     } catch (error) {
       // Silent error handling for analytics
@@ -141,8 +141,8 @@ class AnalyticsService {
    * @param success Whether the download was successful
    */
   logDownloadComplete = (
-    contentId: string, 
-    contentType: 'song' | 'album', 
+    contentId: string,
+    contentType: 'song' | 'album',
     contentName: string,
     success: boolean
   ) => {
@@ -175,7 +175,7 @@ class AnalyticsService {
   trackDownloadCount = (count: number) => {
     this.logEvent('download_count', {
       count,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     });
   };
 
@@ -185,10 +185,10 @@ class AnalyticsService {
    */
   trackActiveUser = () => {
     this.logEvent('active_user', {
-      timestamp: Date.now()
+      timestamp: Date.now(),
     });
   };
 }
 
 // Export a singleton instance
-export const analyticsService = new AnalyticsService(); 
+export const analyticsService = new AnalyticsService();

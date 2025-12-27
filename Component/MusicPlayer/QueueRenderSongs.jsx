@@ -28,7 +28,7 @@ export const QueueRenderSongs = memo(function QueueRenderSongs({Index}) {
       const currentPlayingIndex = currentIndex || 0;
       const minSongsToShow = Math.max(SONGS_PER_PAGE, currentPlayingIndex + 10); // Show at least current + 10 more
       const songsToShow = Math.min(Queue.length, minSongsToShow);
-      
+
       const initial = Queue.slice(0, songsToShow);
       setDisplayedSongs(initial);
       setPage(Math.ceil(songsToShow / SONGS_PER_PAGE));

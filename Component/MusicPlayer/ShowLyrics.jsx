@@ -12,7 +12,7 @@ import FormatTitleAndArtist from '../../Utils/FormatTitleAndArtist';
 
 // Helper function to clean song title - extract only the core song name
 const cleanSongTitle = (title) => {
-  if (!title) return 'Unknown Song';
+  if (!title) {return 'Unknown Song';}
 
   let cleaned = FormatTitleAndArtist(title);
 

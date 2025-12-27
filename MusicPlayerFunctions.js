@@ -4,7 +4,7 @@ import NetInfo from "@react-native-community/netinfo";
 import { ToastAndroid, DeviceEventEmitter, InteractionManager } from "react-native";
 import historyManager from "./Utils/HistoryManager";
 
-import dabMusicService from "./Utils/DabMusicService";
+
 import youtubeStreamingService from "./Utils/YouTubeStreamingService";
 import queueManager from "./Utils/QueueManager";
 import { enhanceYTMusicArtwork, getPrimaryArtworkUrl } from "./Utils/ArtworkEnhancer";
@@ -19,14 +19,14 @@ let isPlayerInitialized = false;
 async function removeDuplicateTracks() {
   try {
     const queue = await TrackPlayer.getQueue();
-    if (!Array.isArray(queue) || queue.length === 0) return;
+    if (!Array.isArray(queue) || queue.length === 0) { return; }
 
     // Collect indices of duplicate tracks (keep first occurrence)
     const seen = new Set();
     const indicesToRemove = [];
     for (let i = 0; i < queue.length; i++) {
       const id = queue[i]?.id;
-      if (!id) continue;
+      if (!id) { continue; }
       if (seen.has(id)) {
         indicesToRemove.push(i);
       } else {
@@ -34,7 +34,7 @@ async function removeDuplicateTracks() {
       }
     }
 
-    if (indicesToRemove.length === 0) return;
+    if (indicesToRemove.length === 0) { return; }
 
     // Sort descending to avoid shifting issues and use safe remove helper
     indicesToRemove.sort((a, b) => b - a);
@@ -66,38 +66,38 @@ const extractArtwork = (song) => {
 
   // Object format with url/uri
   if (song.artwork && typeof song.artwork === 'object') {
-    if (song.artwork.url) return song.artwork.url;
-    if (song.artwork.uri) return song.artwork.uri;
+    if (song.artwork.url) { return song.artwork.url; }
+    if (song.artwork.uri) { return song.artwork.uri; }
   }
 
   // Array format (Saavn/OuterTune)
   if (song.image && Array.isArray(song.image)) {
     const bestImage = song.image[2] || song.image[song.image.length - 1] || song.image[0];
-    if (bestImage?.url) return bestImage.url;
-    if (bestImage?.link) return bestImage.link;
-    if (typeof bestImage === 'string') return bestImage;
+    if (bestImage?.url) { return bestImage.url; }
+    if (bestImage?.link) { return bestImage.link; }
+    if (typeof bestImage === 'string') { return bestImage; }
   }
 
   // Single Image Object format
   if (song.image && typeof song.image === 'object') {
-    if (song.image.url) return song.image.url;
-    if (song.image.uri) return song.image.uri;
+    if (song.image.url) { return song.image.url; }
+    if (song.image.uri) { return song.image.uri; }
   }
 
   // Thumbnail format (YTMusic)
   if (song.thumbnail) {
-    if (typeof song.thumbnail === 'string') return song.thumbnail;
-    if (typeof song.thumbnail === 'object' && song.thumbnail.url) return song.thumbnail.url;
+    if (typeof song.thumbnail === 'string') { return song.thumbnail; }
+    if (typeof song.thumbnail === 'object' && song.thumbnail.url) { return song.thumbnail.url; }
   }
 
   if (song.thumbnails && Array.isArray(song.thumbnails)) {
     const bestThumb = song.thumbnails[song.thumbnails.length - 1] || song.thumbnails[0];
-    if (bestThumb?.url) return bestThumb.url;
+    if (bestThumb?.url) { return bestThumb.url; }
   }
 
   // Try to find any property that looks like a URL
-  if (song.artwork?.uri) return song.artwork.uri;
-  if (song.image?.uri) return song.image.uri;
+  if (song.artwork?.uri) { return song.artwork.uri; }
+  if (song.image?.uri) { return song.image.uri; }
 
   return undefined; // Return undefined instead of empty string to avoid TrackPlayer error
 };
@@ -127,7 +127,7 @@ const safeHttpGet = async (url, opts = {}) => {
     }
 
     const response = await fetch(url, controller ? { signal: controller.signal } : {});
-    if (timeoutId) clearTimeout(timeoutId);
+    if (timeoutId) { clearTimeout(timeoutId); }
 
     const contentType = response.headers?.get?.('content-type') || '';
     let data;
@@ -192,7 +192,7 @@ export const setupPlayer = async () => {
             'skip',
             'skipToNext',
             'skipToPrevious',
-          ]
+          ],
         });
 
         isPlayerInitialized = true;
@@ -325,45 +325,7 @@ async function PlayOneSong(song) {
         return;
       }
     }
-    // Check if this is a DAB Music track
-    else if (song.isDabTrack || song.source === 'dab' || (!isNaN(song.url) && String(song.url).length > 5)) {
-      try {
-        console.log('🎵 DAB Track detected! Fetching stream URL for ID:', song.id);
-        await dabMusicService.initialize();
-        const streamUrl = await dabMusicService.getStreamUrl(song.id);
-
-        if (streamUrl) {
-          playbackUrl = streamUrl;
-
-          // Parse format from URL to determine quality
-          const fmtMatch = streamUrl.match(/[?&]fmt=(\d+)/);
-          const fmt = fmtMatch ? fmtMatch[1] : null;
-          const formatMap = {
-            '5': 'MP3 320kbps',
-            '6': 'FLAC 16-bit/44.1kHz',
-            '7': 'FLAC 24-bit/96kHz',
-            '27': 'FLAC 24-bit/192kHz'
-          };
-          const dabQuality = formatMap[fmt] || 'FLAC';
-
-          updatedSong = {
-            ...updatedSong,
-            url: streamUrl,
-            currentPlayingQuality: dabQuality  // Set actual FLAC quality
-          };
-          console.log('✅ DAB stream URL fetched successfully');
-          console.log('🎵 Quality:', dabQuality);
-        } else {
-          console.error('Failed to get DAB stream URL');
-          ToastAndroid.show('Failed to load DAB stream', ToastAndroid.SHORT);
-          return;
-        }
-      } catch (error) {
-        console.error('❌ Error fetching DAB stream:', error);
-        ToastAndroid.show('Error loading DAB stream', ToastAndroid.SHORT);
-        return;
-      }
-    } else {
+    else {
       // If song has multiple quality URLs, select based on setting
       if (song.downloadUrl && Array.isArray(song.downloadUrl)) {
         const qualityIndex = await getIndexQuality();
@@ -404,7 +366,7 @@ async function PlayOneSong(song) {
           const apiResp = await getSongData(song.id);
 
           let songInfo = apiResp;
-          if (apiResp && apiResp.data) songInfo = apiResp.data;
+          if (apiResp && apiResp.data) { songInfo = apiResp.data; }
           if (songInfo && songInfo.results && Array.isArray(songInfo.results) && songInfo.results.length > 0) {
             songInfo = songInfo.results[0];
           }
@@ -434,8 +396,8 @@ async function PlayOneSong(song) {
                 const first = results[0];
                 const cand = first?.downloadUrl || first?.download_url || first?.url || first?.stream_url || first?.playUrl;
                 if (cand) {
-                  if (Array.isArray(cand)) playbackUrl = cand[0] || (cand.find(d => d?.url)?.url) || playbackUrl;
-                  else if (typeof cand === 'string') playbackUrl = cand;
+                  if (Array.isArray(cand)) { playbackUrl = cand[0] || (cand.find(d => d?.url)?.url) || playbackUrl; }
+                  else if (typeof cand === 'string') { playbackUrl = cand; }
                 }
                 // Merge any improved metadata
                 song.title = song.title || first.title || first.name || song.title;
@@ -496,7 +458,7 @@ async function PlayOneSong(song) {
       ...updatedSong,
       url: playbackUrl,
       currentPlayingQuality: currentQuality,
-      artwork: playingArtwork && playingArtwork.trim() !== '' ? playingArtwork : undefined // Ensure never empty string
+      artwork: playingArtwork && playingArtwork.trim() !== '' ? playingArtwork : undefined, // Ensure never empty string
     };
 
     await TrackPlayer.reset();
@@ -584,7 +546,7 @@ async function PlaySongWithRelated(videoId, artwork, songData = {}) {
       // Mark as YouTube song
       // Only mark as YouTube if it looks like a YouTube video id (11 chars)
       // or if the caller explicitly sets source='ytmusic'
-      isYouTubeSong: (typeof videoId === 'string' && videoId.length === 11) || songData.source === 'ytmusic'
+      isYouTubeSong: (typeof videoId === 'string' && videoId.length === 11) || songData.source === 'ytmusic',
     };
 
     // If this is not a YouTube song and URL/download metadata is missing,
@@ -774,7 +736,7 @@ async function AddPlaylist(songs, startSongId = null) {
     if (albumId) {
       tracksToAdd = tracksToAdd.map(song => ({
         ...song,
-        albumId: albumId
+        albumId: albumId,
       }));
     }
 
@@ -810,7 +772,7 @@ async function AddPlaylist(songs, startSongId = null) {
                 artwork: streamData.thumbnail || updatedSong.artwork,
                 duration: streamData.duration || updatedSong.duration,
                 title: streamData.title || updatedSong.title,
-                currentPlayingQuality: currentQuality
+                currentPlayingQuality: currentQuality,
               };
             }
           } catch (error) {
@@ -823,38 +785,6 @@ async function AddPlaylist(songs, startSongId = null) {
           updatedSong.isYTMusic = true;
           updatedSong.url = playbackUrl;
           updatedSong.currentPlayingQuality = currentQuality;
-        }
-      }
-      // Check if this is a DAB Music track
-      else if (song.isDabTrack || song.source === 'dab' || (!isNaN(song.url) && String(song.url).length > 5)) {
-        try {
-          // For DAB tracks, we might also want to lazy load if there are many?
-          // For now, keeping existing logic but logging
-          // console.log('🎵 DAB Track detected in playlist:', song.id);
-          await dabMusicService.initialize();
-          const streamUrl = await dabMusicService.getStreamUrl(song.id);
-
-          if (streamUrl) {
-            playbackUrl = streamUrl;
-            // Parse format from URL to determine quality
-            const fmtMatch = streamUrl.match(/[?&]fmt=(\d+)/);
-            const fmt = fmtMatch ? fmtMatch[1] : null;
-            const formatMap = {
-              '5': 'MP3 320kbps',
-              '6': 'FLAC 16-bit/44.1kHz',
-              '7': 'FLAC 24-bit/96kHz',
-              '27': 'FLAC 24-bit/192kHz'
-            };
-            const dabQuality = formatMap[fmt] || 'FLAC';
-
-            updatedSong = {
-              ...updatedSong,
-              url: streamUrl,
-              currentPlayingQuality: dabQuality
-            };
-          }
-        } catch (error) {
-          // console.error('❌ Error fetching DAB stream (soft fail):', error.message);
         }
       } else {
         // Standard file/download URL logic
@@ -872,7 +802,7 @@ async function AddPlaylist(songs, startSongId = null) {
         url: playbackUrl || updatedSong.url,
         artwork: artworkUrl,
         image: artworkUrl,
-        currentPlayingQuality: currentQuality
+        currentPlayingQuality: currentQuality,
       };
     }));
 
@@ -901,7 +831,7 @@ async function AddPlaylist(songs, startSongId = null) {
             const batch = remainingSongs.slice(i, i + BATCH_SIZE);
 
             // Small pause to let UI breathe
-            if (i > 0) await new Promise(resolve => setTimeout(resolve, 50));
+            if (i > 0) { await new Promise(resolve => setTimeout(resolve, 50)); }
 
             await TrackPlayer.add(batch);
             console.log(`✅ Playlist: Added background batch ${i / BATCH_SIZE + 1}`);
@@ -933,7 +863,7 @@ async function AddPlaylist(songs, startSongId = null) {
         try {
           // Get the last song from the original songs array to base recommendations on
           const lastSong = processedSongs[processedSongs.length - 1];
-          if (!lastSong || !lastSong.id) return;
+          if (!lastSong || !lastSong.id) { return; }
 
           console.log('🎵 Fetching recommendations for continuous playback after album/playlist');
 
@@ -1020,7 +950,6 @@ async function AddSongsToQueue(songs) {
   for (const song of songs) {
     const hasValidYouTubeId = song.id && typeof song.id === 'string' && song.id.length === 11;
     const isYTMusicSource = song.source === 'ytmusic' || song.isYTMusic === true;
-    const isDabSong = song.isDabTrack || song.source === 'dab';
 
     let processedSong = { ...song };
 
@@ -1037,17 +966,10 @@ async function AddSongsToQueue(songs) {
         // Ensure artwork is set correctly using helper
         artwork: extractArtwork(song),
         image: extractArtwork(song),
-        duration: song.duration
+        duration: song.duration,
       };
 
-    } else if (isDabSong) {
-      // DAB songs logic - ideally lazy load too, but keeping minimal changes for now
-      processedSong = { ...processedSong, isDab: true };
-      try {
-        await dabMusicService.initialize();
-        const streamUrl = await dabMusicService.getStreamUrl(song.id);
-        if (streamUrl) processedSong.url = streamUrl;
-      } catch (e) { }
+
 
     } else {
       // Standard logic for downloads/local
@@ -1071,9 +993,9 @@ async function AddSongsToQueue(songs) {
       const uniqueProcessed = [];
       const seen = new Set();
       for (const p of processedSongs) {
-        if (!p || !p.id) continue;
-        if (existingIds.has(p.id)) continue; // already in queue
-        if (seen.has(p.id)) continue; // duplicate inside incoming batch
+        if (!p || !p.id) { continue; }
+        if (existingIds.has(p.id)) { continue; } // already in queue
+        if (seen.has(p.id)) { continue; } // duplicate inside incoming batch
         uniqueProcessed.push(p);
         seen.add(p.id);
       }
@@ -1107,7 +1029,7 @@ async function AddSongsToQueue(songs) {
               const batch = remainingSongs.slice(i, i + BATCH_SIZE);
 
               // Small delay to allow UI frame updates between batches
-              if (i > 0) await new Promise(resolve => setTimeout(resolve, 50));
+              if (i > 0) { await new Promise(resolve => setTimeout(resolve, 50)); }
 
               await TrackPlayer.add(batch);
               console.log(`✅ Queue: Added background batch ${i / BATCH_SIZE + 1} (${batch.length} songs)`);
@@ -1432,15 +1354,15 @@ async function AddOneSongToPlaylist(song) {
 
     // Safe image URL extraction
     const getImageUrl = (imageData) => {
-      if (!imageData) return null;
-      if (typeof imageData === 'string') return imageData;
+      if (!imageData) { return null; }
+      if (typeof imageData === 'string') { return imageData; }
       if (Array.isArray(imageData)) {
         for (const img of imageData) {
-          if (typeof img === 'string' && img.trim() !== '') return img;
-          if (img && typeof img === 'object' && img.url) return img.url;
+          if (typeof img === 'string' && img.trim() !== '') { return img; }
+          if (img && typeof img === 'object' && img.url) { return img.url; }
         }
       }
-      if (imageData && typeof imageData === 'object' && imageData.url) return imageData.url;
+      if (imageData && typeof imageData === 'object' && imageData.url) { return imageData.url; }
       return null;
     };
 
@@ -1481,5 +1403,5 @@ export {
   SetRepeatMode,
   getIndexQuality,
   AddOneSongToPlaylist,
-  PlaySongWithRelated
+  PlaySongWithRelated,
 }

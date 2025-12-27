@@ -33,8 +33,8 @@ export const Home = () => {
     const name = (a?.name || a?.title || '').toLowerCase();
     const type = (a?.type || '').toLowerCase();
     // Exclude if explicitly typed as podcast/show or name hints podcast content
-    if (type.includes('podcast') || type.includes('show')) return false;
-    if (name.includes('podcast') || name.includes('episode')) return false;
+    if (type.includes('podcast') || type.includes('show')) {return false;}
+    if (name.includes('podcast') || name.includes('episode')) {return false;}
     return true;
   });
   const albumData = [];

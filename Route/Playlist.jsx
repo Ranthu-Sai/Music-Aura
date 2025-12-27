@@ -28,7 +28,7 @@ export const Playlist = ({route}) => {
   const headerImageUrl = Array.isArray(image)
     ? (image?.[2]?.link || image?.[2]?.url || image?.[1]?.link || image?.[1]?.url || image?.[0]?.link || image?.[0]?.url || "")
     : (typeof image === 'string' ? image : "")
-  
+
   async function fetchPlaylistData(){
     try {
       setLoading(true)
@@ -49,8 +49,8 @@ export const Playlist = ({route}) => {
 
   return (
     <MainWrapper>
-       <Animated.ScrollView 
-        scrollEventThrottle={16} 
+       <Animated.ScrollView
+        scrollEventThrottle={16}
         ref={(ref) => {
           AnimatedRef.current = ref;
           scrollViewRef.current = ref;

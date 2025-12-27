@@ -1,4 +1,4 @@
-/* eslint-disable keyword-spacing */
+
 import React, { useState, useRef, useEffect } from 'react'
 import { Dimensions, FlatList, View, TouchableOpacity, Text, ActivityIndicator } from 'react-native'
 import { EachSongCard } from '../Global/EachSongCard'

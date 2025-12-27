@@ -1,4 +1,4 @@
-package com.melody
+package com.musicaura
 import android.app.Application
 import com.facebook.react.PackageList
 import com.facebook.react.ReactApplication
@@ -11,7 +11,7 @@ import com.facebook.react.defaults.DefaultReactNativeHost
 import com.facebook.react.flipper.ReactNativeFlipper
 import com.facebook.soloader.SoLoader
 
-import com.melody.StreamPackage
+
 import io.invertase.firebase.app.ReactNativeFirebaseAppPackage
 
 class MainApplication : Application(), ReactApplication {

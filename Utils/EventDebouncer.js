@@ -1,9 +1,9 @@
 /**
  * EventDebouncer
- * 
+ *
  * Utility for debouncing event handlers to prevent excessive processing
  * during rapid event firing (e.g., track changes, queue updates).
- * 
+ *
  * Features:
  * - Configurable debounce delay
  * - Immediate execution option
@@ -12,7 +12,7 @@
 
 /**
  * Creates a debounced version of a function
- * 
+ *
  * @param {Function} func - Function to debounce
  * @param {number} delay - Delay in milliseconds
  * @param {boolean} immediate - If true, trigger on leading edge instead of trailing
@@ -55,7 +55,7 @@ export function debounce(func, delay = 300, immediate = false) {
 /**
  * Creates a throttled version of a function
  * Only allows the function to be called once per time period
- * 
+ *
  * @param {Function} func - Function to throttle
  * @param {number} limit - Time limit in milliseconds
  * @returns {Function} - Throttled function
@@ -83,7 +83,7 @@ export function throttle(func, limit = 300) {
 /**
  * Event handler wrapper that prevents duplicate calls for the same data
  * Useful for preventing redundant processing when events fire multiple times
- * 
+ *
  * @param {Function} handler - Event handler function
  * @param {Function} keyExtractor - Function to extract unique key from event data
  * @returns {Function} - Wrapped handler
@@ -107,5 +107,5 @@ export function deduplicateEventHandler(handler, keyExtractor = (data) => JSON.s
 export default {
     debounce,
     throttle,
-    deduplicateEventHandler
+    deduplicateEventHandler,
 };

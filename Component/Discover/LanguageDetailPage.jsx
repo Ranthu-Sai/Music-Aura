@@ -26,7 +26,7 @@ export const LanguageDetailPage = ({route}) => {
     try {
       setLoading(true)
       const data = await getHomePageData(language)
-      
+
       // Filter albums by selected language
       if (data?.data?.albums && language) {
         const languageLower = language.toLowerCase();
@@ -36,7 +36,7 @@ export const LanguageDetailPage = ({route}) => {
           return albumLanguage === languageLower || !albumLanguage || albumLanguage === 'unknown';
         });
       }
-      
+
       // Filter trending albums by selected language
       if (data?.data?.trending?.albums && language) {
         const languageLower = language.toLowerCase();
@@ -46,7 +46,7 @@ export const LanguageDetailPage = ({route}) => {
           return albumLanguage === languageLower || !albumLanguage || albumLanguage === 'unknown';
         });
       }
-      
+
       setData(data)
     } catch (e) {
         } finally {

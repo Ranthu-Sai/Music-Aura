@@ -4,10 +4,10 @@ import { CacheManager } from './NavigationCacheManager';
 
 /**
  * YouTube Streaming Service
- * 
+ *
  * Provides YouTube Music streaming URLs with proper authentication headers.
  * Uses Direct Native NewPipe Extraction (via StreamModule).
- * 
+ *
  * CACHING: Stream URLs are cached for 3 hours to avoid repeated API calls.
  */
 
@@ -17,7 +17,7 @@ const ANDROID_CLIENT = {
         'User-Agent': 'com.google.android.youtube/19.09.37 (Linux; U; Android 12; en_IN)',
         'X-YouTube-Client-Name': '3',
         'X-YouTube-Client-Version': '19.09.37',
-    }
+    },
 };
 
 class YouTubeStreamingService {
@@ -29,7 +29,7 @@ class YouTubeStreamingService {
     /**
      * Get streaming URL using Native NewPipe Module
      * Uses 3-hour cache to avoid repeated API calls
-     * 
+     *
      * @param {string} videoId - YouTube video ID
      * @returns {Promise<{url: string, headers: object, thumbnail: string, duration: number, title: string}|null>}
      */
@@ -44,9 +44,9 @@ class YouTubeStreamingService {
                         url: cachedUrl,
                         headers: {
                             'User-Agent': ANDROID_CLIENT.headers['User-Agent'],
-                            'Range': 'bytes=0-'
+                            'Range': 'bytes=0-',
                         },
-                        fromCache: true
+                        fromCache: true,
                     };
                 } else {
                     // Invalid cached URL - clear only that entry and fetch fresh
@@ -76,13 +76,13 @@ class YouTubeStreamingService {
                     url: result.url,
                     headers: {
                         'User-Agent': ANDROID_CLIENT.headers['User-Agent'],
-                        'Range': 'bytes=0-'
+                        'Range': 'bytes=0-',
                     },
                     thumbnail: result.thumbnail,
                     duration: result.duration,
                     title: result.title,
                     author: result.author,
-                    fromCache: false
+                    fromCache: false,
                 };
             }
 
@@ -111,7 +111,7 @@ class YouTubeStreamingService {
 
                 const result = await Promise.race([
                     callNative(),
-                    new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), timeoutMs))
+                    new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), timeoutMs)),
                 ]);
 
                 if (result && result.url && typeof result.url === 'string' && (result.url.startsWith('http://') || result.url.startsWith('https://'))) {

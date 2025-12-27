@@ -1,10 +1,10 @@
 /**
  * Navigation Cache Manager
- * 
+ *
  * Centralized caching system for screen data, stream URLs, and UI state.
  * Eliminates unnecessary API calls on back navigation by providing
  * instant cached data when available.
- * 
+ *
  * Features:
  * - In-memory cache with TTL per entry
  * - LRU cache eviction to prevent memory bloat

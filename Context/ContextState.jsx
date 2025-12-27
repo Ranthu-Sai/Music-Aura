@@ -125,7 +125,7 @@ const ContextState = (props) => {
         return id && typeof id === 'string' && /^[A-Za-z0-9_-]{11}$/.test(id);
     };
 
-    async function AddRecommendedSongs(index, id, forceAdd = false) {
+    const AddRecommendedSongs = useCallback(async (index, id, forceAdd = false) => {
         // Avoid repeated fetch/add for the same track id (unless forced)
         if (!id || (!forceAdd && recommendedProcessedRef.current.has(id))) {
             return 0; // Return count of songs added
@@ -175,7 +175,7 @@ const ContextState = (props) => {
 
                     const ForMusicPlayer = songData
                         .filter(song => {
-                            if (!song || !song.id) return false;
+                            if (!song || !song.id) { return false; }
 
                             // Check ID duplicates
                             if (existingIds.has(song.id)) {
@@ -253,7 +253,7 @@ const ContextState = (props) => {
             }
         }
         return 0;
-    }
+    }, [updateTrack]);
 
     useTrackPlayerEvents(events, async (event) => {
         if (event.type === Event.PlaybackError) {
@@ -353,7 +353,7 @@ const ContextState = (props) => {
                 trackId: event.track?.id,
                 trackTitle: event.track?.title,
                 index: event.index,
-                previousTrackId: currentPlaying?.id
+                previousTrackId: currentPlaying?.id,
             });
 
             setCurrentPlaying(event.track)
@@ -503,7 +503,7 @@ const ContextState = (props) => {
         } catch (error) {
             console.error('❌ Error during initialization:', error);
         }
-    }, [updateTrack, setIndex]);
+    }, [updateTrack, setIndex, AddRecommendedSongs]);
     const getCurrentSong = useCallback(async () => {
         const song = await TrackPlayer.getActiveTrack()
         setCurrentPlaying(song)
@@ -566,7 +566,7 @@ const ContextState = (props) => {
         } catch (error) {
             // Error ignored
         }
-    }, []);
+    }, [AddRecommendedSongs]);
 
     const openQueue = () => {
         setQueueVisible(true);

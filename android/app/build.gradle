@@ -98,9 +98,9 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
-    namespace "com.melody"
+    namespace "com.musicaura"
     defaultConfig {
-        applicationId "com.melody"
+        applicationId "com.musicaura"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 9
@@ -113,10 +113,9 @@ android {
         main {
             java {
                 exclude '**/InnerTubeModule.kt'
-                // Exclude partially copied native InnerTube/Orbit sources until they're validated
+                // Exclude partially copied native InnerTube sources until they're validated
                 exclude '**/zionhuang/**'
                 exclude '**/com/zionhuang/**'
-                exclude '**/orbit/**'
             }
         }
     }

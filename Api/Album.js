@@ -160,11 +160,11 @@ async function getYTMusicAlbumData(browseId) {
 
             for (const item of musicShelf.contents) {
                 const musicItem = item.musicResponsiveListItemRenderer;
-                if (!musicItem) continue;
+                if (!musicItem) {continue;}
 
                 // Extract video ID
                 const videoId = musicItem.playlistItemData?.videoId;
-                if (!videoId) continue;
+                if (!videoId) {continue;}
 
                 // Extract title
                 const title = musicItem.flexColumns?.[0]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]?.text || 'Unknown';
@@ -179,15 +179,15 @@ async function getYTMusicAlbumData(browseId) {
 
                 // Detect language
                 const detectLanguage = (text) => {
-                    if (!text) return 'en';
-                    if (/[\u0C00-\u0C7F]/.test(text)) return 'telugu';
-                    if (/[\u0900-\u097F]/.test(text)) return 'hindi';
-                    if (/[\u0B80-\u0BFF]/.test(text)) return 'tamil';
-                    if (/[\u0C80-\u0CFF]/.test(text)) return 'kannada';
-                    if (/[\u0D00-\u0D7F]/.test(text)) return 'malayalam';
-                    if (/[\u0980-\u09FF]/.test(text)) return 'bengali';
-                    if (/[\u0A00-\u0A7F]/.test(text)) return 'punjabi';
-                    if (/[\u0A80-\u0AFF]/.test(text)) return 'gujarati';
+                    if (!text) {return 'en';}
+                    if (/[\u0C00-\u0C7F]/.test(text)) {return 'telugu';}
+                    if (/[\u0900-\u097F]/.test(text)) {return 'hindi';}
+                    if (/[\u0B80-\u0BFF]/.test(text)) {return 'tamil';}
+                    if (/[\u0C80-\u0CFF]/.test(text)) {return 'kannada';}
+                    if (/[\u0D00-\u0D7F]/.test(text)) {return 'malayalam';}
+                    if (/[\u0980-\u09FF]/.test(text)) {return 'bengali';}
+                    if (/[\u0A00-\u0A7F]/.test(text)) {return 'punjabi';}
+                    if (/[\u0A80-\u0AFF]/.test(text)) {return 'gujarati';}
                     return 'en';
                 };
 
@@ -206,7 +206,7 @@ async function getYTMusicAlbumData(browseId) {
                     album: albumName,
                     albumId: browseId,
                     year: year,
-                    source: 'ytmusic'
+                    source: 'ytmusic',
                 });
             }
         }
@@ -241,7 +241,7 @@ async function getYTMusicAlbumData(browseId) {
 
 // Helper function to parse duration
 function parseDuration(durationText) {
-    if (!durationText) return 0;
+    if (!durationText) {return 0;}
     const parts = durationText.split(':').map(p => parseInt(p, 10));
     if (parts.length === 2) {
         return parts[0] * 60 + parts[1]; // MM:SS

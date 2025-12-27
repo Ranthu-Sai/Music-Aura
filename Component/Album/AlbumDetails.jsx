@@ -33,7 +33,7 @@ export const AlbumDetails = ({ name, artist, year, songCount, duration, Data }) 
         id: e?.id,
         language: e?.language,
         artistID: e?.primary_artists_id,
-        source: 'ytmusic'
+        source: 'ytmusic',
       }
     })
     await AddPlaylist(ForMusicPlayer)
@@ -62,7 +62,7 @@ export const AlbumDetails = ({ name, artist, year, songCount, duration, Data }) 
             fontSize: 18,
             color: 'white',
             fontWeight: 'bold',
-            marginBottom: 4
+            marginBottom: 4,
           }}
         />
         <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
@@ -78,7 +78,7 @@ export const AlbumDetails = ({ name, artist, year, songCount, duration, Data }) 
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "flex-start",
-        gap: 15
+        gap: 15,
       }}>
         <PlayButton onPress={AddToPlayer} />
         {/* Placeholder for shuffle button which could be added later */}

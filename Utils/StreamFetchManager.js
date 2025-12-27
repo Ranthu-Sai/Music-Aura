@@ -1,9 +1,9 @@
 /**
  * StreamFetchManager
- * 
+ *
  * Manages stream URL fetching with abort support and deduplication
  * to prevent multiple concurrent fetches for the same track.
- * 
+ *
  * Features:
  * - Request deduplication
  * - Abort controller support
@@ -21,7 +21,7 @@ class StreamFetchManager {
 
     /**
      * Fetch stream URL with deduplication and abort support
-     * 
+     *
      * @param {string} videoId - YouTube video ID
      * @param {Function} fetchFunction - Function that performs the actual fetch
      * @param {AbortSignal} signal - Optional abort signal from parent operation
@@ -94,7 +94,7 @@ class StreamFetchManager {
         this.activeRequests.set(videoId, {
             promise: fetchPromise,
             abortController,
-            timestamp: Date.now()
+            timestamp: Date.now(),
         });
 
         return fetchPromise;
@@ -106,7 +106,7 @@ class StreamFetchManager {
      */
     getCachedStream(videoId) {
         const cached = this.requestCache.get(videoId);
-        if (!cached) return null;
+        if (!cached) {return null;}
 
         // Check if expired
         const age = Date.now() - cached.timestamp;
@@ -128,7 +128,7 @@ class StreamFetchManager {
             url: cached.url,
             headers: cached.headers,
             thumbnail: cached.thumbnail,
-            duration: cached.duration
+            duration: cached.duration,
         };
     }
 
@@ -142,7 +142,7 @@ class StreamFetchManager {
             headers: result.headers,
             thumbnail: result.thumbnail,
             duration: result.duration,
-            timestamp: Date.now()
+            timestamp: Date.now(),
         });
     }
 

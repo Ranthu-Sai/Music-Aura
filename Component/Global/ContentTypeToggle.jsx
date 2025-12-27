@@ -10,7 +10,7 @@ export default function ContentTypeToggle({ activeTab, setActiveTab }) {
   const contentTypes = [
     { id: 0, label: "Songs", icon: "music-note" },
     { id: 1, label: "Albums", icon: "album" },
-    { id: 2, label: "Playlists", icon: "queue-music" }
+    { id: 2, label: "Playlists", icon: "queue-music" },
   ];
 
   useEffect(() => {
@@ -26,7 +26,7 @@ export default function ContentTypeToggle({ activeTab, setActiveTab }) {
         useNativeDriver: true,
       }),
     ]).start();
-  }, [isExpanded]);
+  }, [isExpanded, slideAnim, rotateAnim]);
 
   const toggleExpanded = () => {
     setIsExpanded(!isExpanded);
@@ -99,7 +99,7 @@ export default function ContentTypeToggle({ activeTab, setActiveTab }) {
             translateY: slideAnim.interpolate({
               inputRange: [0, 1],
               outputRange: [-10, 0],
-            })
+            }),
           }],
         }}
       >

@@ -38,7 +38,7 @@ async function GetCacheSizes() {
 async function ClearSelectedCache(selectedKeys) {
   try {
     const keysToRemove = [];
-    
+
     for (const key of selectedKeys) {
       if (CACHE_KEYS[key]) {
         keysToRemove.push(CACHE_KEYS[key]);
@@ -47,7 +47,7 @@ async function ClearSelectedCache(selectedKeys) {
 
     if (keysToRemove.length > 0) {
       await AsyncStorage.multiRemove(keysToRemove);
-      
+
       // If queue was cleared, stop playback
       if (selectedKeys.includes('QUEUE') || selectedKeys.includes('LAST_SONG')) {
         try {
@@ -56,10 +56,10 @@ async function ClearSelectedCache(selectedKeys) {
           console.log("TrackPlayer reset error (may not be initialized):", e);
         }
       }
-      
+
       return true;
     }
-    
+
     return false;
   } catch (e) {
     console.error("Error clearing selected cache:", e);
@@ -71,14 +71,14 @@ async function ClearAllCache() {
   try {
     const allKeys = Object.values(CACHE_KEYS);
     await AsyncStorage.multiRemove(allKeys);
-    
+
     // Stop playback
     try {
       await TrackPlayer.reset();
     } catch (e) {
       console.log("TrackPlayer reset error (may not be initialized):", e);
     }
-    
+
     return true;
   } catch (e) {
     console.error("Error clearing all cache:", e);

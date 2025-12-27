@@ -6,7 +6,7 @@ export const LikedPagesTopHeader = ({AnimatedRef,url}) => {
   const ScrollOffset = useScrollViewOffset(AnimatedRef)
   const AnimatedImageStyle = useAnimatedStyle(()=>{
     return { transform:[{
-        translateY:interpolate(ScrollOffset.value,[-SizeOfSmallImage,0,SizeOfSmallImage],[-SizeOfSmallImage/2,0,SizeOfSmallImage*1.2]),
+        translateY:interpolate(ScrollOffset.value,[-SizeOfSmallImage,0,SizeOfSmallImage],[-SizeOfSmallImage / 2,0,SizeOfSmallImage * 1.2]),
       },
         {
           scale:interpolate(ScrollOffset.value,[SizeOfSmallImage,0,SizeOfSmallImage],[0,1,0]),
@@ -16,7 +16,7 @@ export const LikedPagesTopHeader = ({AnimatedRef,url}) => {
   //Animated For Large Image
   const AnimatedImageStyle2 = useAnimatedStyle(()=>{
     return { transform:[{
-        translateY:interpolate(ScrollOffset.value,[-SizeOfSmallImage,0,SizeOfSmallImage],[-SizeOfSmallImage/2,0,SizeOfSmallImage*1.2]),
+        translateY:interpolate(ScrollOffset.value,[-SizeOfSmallImage,0,SizeOfSmallImage],[-SizeOfSmallImage / 2,0,SizeOfSmallImage * 1.2]),
       },
       ]}
   })

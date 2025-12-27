@@ -133,15 +133,15 @@ async function getYTSearchSongData(searchText, page, limit) {
             }
 
             // Extract thumbnail - try multiple possible paths for robustness
-            const thumbnails = musicItem.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails || 
+            const thumbnails = musicItem.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails ||
                 musicItem.thumbnailRenderer?.musicThumbnailRenderer?.thumbnail?.thumbnails ||
                 musicItem.thumbnail?.thumbnail?.thumbnails ||
                 musicItem.thumbnail?.thumbnails ||
                 musicItem.thumbnailRenderer?.thumbnail?.thumbnails ||
                 musicItem.thumbnails || [];
-            
+
             let thumbnail = thumbnails[thumbnails.length - 1]?.url || thumbnails[0]?.url;
-            
+
             // Handle missing thumbnails with a reliable construct
             if (!thumbnail && videoId) {
                 thumbnail = `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
@@ -537,7 +537,7 @@ async function getYTLyricsSongData(artist, title, preferredLanguage, isYouTubeMu
           // Add IDs to timed lyrics for FlatList
           const timed_lyrics_with_ids = timed_lyrics.map((line, index) => ({
             ...line,
-            id: `line_${index}`
+            id: `line_${index}`,
           }));
 
           return {

@@ -17,7 +17,46 @@ import { SmallText } from "../../Component/Global/SmallText";
 import DeviceInfo from "react-native-device-info";
 import Context from "../../Context/Context";
 
-export const SettingsPage = ({navigation}) => {
+const EachSettingsButton = ({ text, OnPress, currentThemeColors }) => {
+  return <Pressable onPress={OnPress} style={{
+    backgroundColor: currentThemeColors.background,
+    padding: 20,
+    borderRadius: 10,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 10,
+  }}>
+    <PlainText text={text} />
+    <PlainText text={"→"} />
+  </Pressable>
+}
+
+const EachDropDownWithLabel = ({ data, text, placeholder, OnChange, currentThemeColors }) => {
+  return <View style={{
+    backgroundColor: currentThemeColors.background,
+    padding: 20,
+    borderRadius: 10,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 10,
+  }}>
+    <PlainText text={text} />
+    <Dropdown placeholder={placeholder} placeholderStyle={{
+      color: currentThemeColors.text,
+    }} itemTextStyle={{
+      color: currentThemeColors.secondaryText,
+    }} containerStyle={{
+      backgroundColor: currentThemeColors.secondaryBackground,
+      borderRadius: 5,
+      borderWidth: 0,
+    }} style={{
+      width: 120,
+    }} data={data} labelField="value" valueField="value" onChange={OnChange} />
+  </View>
+}
+
+export const SettingsPage = ({ navigation }) => {
   const { setFontSize, theme, setTheme, currentThemeColors } = useContext(Context);
   const [Font, setFont] = useState('Medium');
   const [Playback, setPlayback] = useState('320kbps');
@@ -50,19 +89,19 @@ export const SettingsPage = ({navigation}) => {
     { value: 'Pink' },
     { value: 'Teal' },
   ]
-  async function GetFontSize(){
+  async function GetFontSize() {
     const data = await GetFontSizeValue()
     setFont(data)
   }
-  async function GetPlayBack(){
+  async function GetPlayBack() {
     const data = await GetPlaybackQuality()
     setPlayback(data)
   }
-  async function GetDownLoad(){
+  async function GetDownLoad() {
     const data = await GetDownloadPath()
     setDownload(data)
   }
-  async function loadTheme(){
+  async function loadTheme() {
     const data = await GetTheme()
     setThemeState(data)
   }
@@ -73,7 +112,7 @@ export const SettingsPage = ({navigation}) => {
     loadTheme()
   }, []);
 
-  async function SetDownLoad({ value }){
+  async function SetDownLoad({ value }) {
     await SetDownloadPath(value)
     ToastAndroid.showWithGravity(
       `Download path changed to ${value}`,
@@ -81,7 +120,7 @@ export const SettingsPage = ({navigation}) => {
       ToastAndroid.CENTER,
     );
   }
-  async function SetPlayBack({ value }){
+  async function SetPlayBack({ value }) {
     await SetPlaybackQuality(value)
     ToastAndroid.showWithGravity(
       `Playback quality changed to ${value}`,
@@ -89,7 +128,7 @@ export const SettingsPage = ({navigation}) => {
       ToastAndroid.CENTER,
     );
   }
-  async function SetFont({ value }){
+  async function SetFont({ value }) {
     await SetFontSizeValue(value)
     setFontSize(value);
     ToastAndroid.showWithGravity(
@@ -98,7 +137,7 @@ export const SettingsPage = ({navigation}) => {
       ToastAndroid.CENTER,
     );
   }
-  async function handleSetTheme({ value }){
+  async function handleSetTheme({ value }) {
     await SetTheme(value)
     setTheme(value);
     ToastAndroid.showWithGravity(
@@ -107,70 +146,34 @@ export const SettingsPage = ({navigation}) => {
       ToastAndroid.CENTER,
     );
   }
-  function EachSettingsButton({text, OnPress}) {
-    return <Pressable onPress={OnPress} style={{
-      backgroundColor: currentThemeColors.background,
-      padding:20,
-      borderRadius:10,
-      flexDirection:"row",
-      justifyContent:"space-between",
-      marginBottom:10,
-    }}>
-      <PlainText text={text}/>
-      <PlainText text={"→"}/>
-    </Pressable>
-  }
-  function EachDropDownWithLabel({data, text, placeholder, OnChange}){
-    return <View style={{
-      backgroundColor: currentThemeColors.background,
-      padding:20,
-      borderRadius:10,
-      flexDirection:"row",
-      justifyContent:"space-between",
-      alignItems:"center",
-      marginBottom:10,
-    }}>
-      <PlainText text={text}/>
-      <Dropdown placeholder={placeholder} placeholderStyle={{
-        color: currentThemeColors.text,
-      }} itemTextStyle={{
-        color: currentThemeColors.secondaryText,
-      }} containerStyle={{
-        backgroundColor: currentThemeColors.secondaryBackground,
-        borderRadius:5,
-        borderWidth:0,
-      }} style={{
-        width:120,
-      }} data={data} labelField="value" valueField="value" onChange={OnChange}/>
-    </View>
-  }
+
   return (
     <MainWrapper>
-       <PaddingConatiner>
-         <Heading text={"SETTINGS"}/>
-         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
-           <EachSettingsButton text={"Select Languages"} OnPress={()=>{
-             navigation.navigate("SelectLanguages")
-           }}/>
-           <EachSettingsButton text={"Clear Cache"} OnPress={()=>{
-             navigation.navigate("ClearCache")
-           }}/>
-           <EachDropDownWithLabel data={FontSize} text={"Font size"} placeholder={Font} OnChange={SetFont}/>
-           <EachDropDownWithLabel data={PlaybackQuality} text={"Playback quality"} placeholder={Playback} OnChange={SetPlayBack}/>
-           <EachDropDownWithLabel data={DownloadPath} text={"Download Path"} placeholder={Download} OnChange={SetDownLoad}/>
-           <EachDropDownWithLabel data={Themes} text={"App Theme"} placeholder={Theme} OnChange={handleSetTheme}/>
-           <SmallText text={"*Note: If you change font size, change name or select languages please restart the app to see the effect"}/>
-           <View style={{
-             backgroundColor: currentThemeColors.background,
-             padding:20,
-             borderRadius:10,
-             marginTop:10,
-             marginBottom: 20,
-           }}>
-             <PlainText text={`Version: ${DeviceInfo.getVersion()} (${DeviceInfo.getBuildNumber()})`} />
-           </View>
-         </ScrollView>
-       </PaddingConatiner>
+      <PaddingConatiner>
+        <Heading text={"SETTINGS"} />
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
+          <EachSettingsButton text={"Select Languages"} OnPress={() => {
+            navigation.navigate("SelectLanguages")
+          }} currentThemeColors={currentThemeColors} />
+          <EachSettingsButton text={"Clear Cache"} OnPress={() => {
+            navigation.navigate("ClearCache")
+          }} currentThemeColors={currentThemeColors} />
+          <EachDropDownWithLabel data={FontSize} text={"Font size"} placeholder={Font} OnChange={SetFont} currentThemeColors={currentThemeColors} />
+          <EachDropDownWithLabel data={PlaybackQuality} text={"Playback quality"} placeholder={Playback} OnChange={SetPlayBack} currentThemeColors={currentThemeColors} />
+          <EachDropDownWithLabel data={DownloadPath} text={"Download Path"} placeholder={Download} OnChange={SetDownLoad} currentThemeColors={currentThemeColors} />
+          <EachDropDownWithLabel data={Themes} text={"App Theme"} placeholder={Theme} OnChange={handleSetTheme} currentThemeColors={currentThemeColors} />
+          <SmallText text={"*Note: If you change font size, change name or select languages please restart the app to see the effect"} />
+          <View style={{
+            backgroundColor: currentThemeColors.background,
+            padding: 20,
+            borderRadius: 10,
+            marginTop: 10,
+            marginBottom: 20,
+          }}>
+            <PlainText text={`Version: ${DeviceInfo.getVersion()} (${DeviceInfo.getBuildNumber()})`} />
+          </View>
+        </ScrollView>
+      </PaddingConatiner>
     </MainWrapper>
   );
 };

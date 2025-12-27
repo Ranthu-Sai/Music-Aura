@@ -13,7 +13,7 @@ export const Logo = ({text}) => {
       <Text style={{
         fontWeight:"bold",
         color:theme.colors.text,
-        fontSize:theme.colors.headingSize+10,
+        fontSize:theme.colors.headingSize + 10,
       }}>{text}</Text>
     </View>
   );

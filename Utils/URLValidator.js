@@ -1,6 +1,6 @@
 /**
  * URLValidator - Utility for validating track URLs before adding to TrackPlayer
- * 
+ *
  * This module prevents the NullPointerException crash that occurs when
  * TrackPlayer receives null, empty, or invalid URLs.
  */
@@ -35,13 +35,13 @@ export function isValidStreamUrl(url) {
  * Check if a track needs stream URL fetching
  */
 export function needsStreamFetch(track) {
-    if (!track) return false;
+    if (!track) {return false;}
 
     // Check if it's a YouTube track
     const isYTMusic = track.id && typeof track.id === 'string' &&
         track.id.length === 11 && !track.isLocalMusic;
 
-    if (!isYTMusic) return false;
+    if (!isYTMusic) {return false;}
 
     // Check if URL is missing or is a placeholder
     const url = track.url || '';
@@ -67,7 +67,7 @@ export function sanitizeTrackForPlayer(track) {
             id: track.id,
             title: track.title,
             url: track.url,
-            urlType: typeof track.url
+            urlType: typeof track.url,
         });
         return null;
     }
@@ -86,7 +86,7 @@ export function sanitizeTrackForPlayer(track) {
         url: track.url.trim(),
         artwork: artworkUrl,
         // Ensure duration is a number
-        duration: typeof track.duration === 'number' ? track.duration : 0
+        duration: typeof track.duration === 'number' ? track.duration : 0,
     };
 }
 
@@ -111,7 +111,7 @@ export function validateTracks(tracks) {
             invalidTracks.push({
                 id: track?.id,
                 title: track?.title,
-                url: track?.url
+                url: track?.url,
             });
         }
     }
@@ -127,5 +127,5 @@ export default {
     isValidStreamUrl,
     needsStreamFetch,
     sanitizeTrackForPlayer,
-    validateTracks
+    validateTracks,
 };

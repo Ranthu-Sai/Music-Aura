@@ -64,7 +64,7 @@ export const FullScreenMusic = ({ color, Index, setIndex }) => {
         setShowDailog(false); // Only close modal if no lyrics available
       }
     }
-  }, [currentPlaying?.id, lyricsFetchInProgress]);
+  }, [currentPlaying?.id, currentPlaying?.artist, currentPlaying?.title, lyricsFetchInProgress, Lyric?.lyrics, Lyric?.timed_lyrics, lyricsCacheRef]);
 
   // Preload lyrics in background when song changes
   useEffect(() => {
@@ -148,7 +148,7 @@ export const FullScreenMusic = ({ color, Index, setIndex }) => {
     return () => {
       subscription.remove();
     };
-  }, []);
+  }, [queueBottomSheetRef]);
 
   async function handleGoToAlbum() {
     try {

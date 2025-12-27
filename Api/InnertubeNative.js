@@ -4,7 +4,7 @@ const { InnerTubeModule } = NativeModules;
 
 /**
  * InnertubeNative - Wrapper for native InnerTube implementation (OuterTune port)
- * 
+ *
  * ✅ FIX #1: Null Safety - Checks if module is available before use
  * ✅ FIX #3: Error Handling - Provides context in error messages
  */
@@ -47,7 +47,7 @@ class InnertubeNative {
             console.error('[InnertubeNative] Search error:', {
                 query,
                 filter,
-                error: error.message
+                error: error.message,
             });
             // Re-throw original error so caller sees actual problem
             throw error;
@@ -82,7 +82,7 @@ class InnertubeNative {
         } catch (error) {
             console.error('[InnertubeNative] Artist error:', {
                 browseId,
-                error: error.message
+                error: error.message,
             });
             throw error; // Preserve original error
         }
@@ -101,7 +101,7 @@ class InnertubeNative {
         } catch (error) {
             console.error('[InnertubeNative] Album error:', {
                 browseId,
-                error: error.message
+                error: error.message,
             });
             throw error; // Preserve original error
         }
@@ -120,7 +120,7 @@ class InnertubeNative {
         } catch (error) {
             console.error('[InnertubeNative] Playlist error:', {
                 playlistId,
-                error: error.message
+                error: error.message,
             });
             throw error; // Preserve original error
         }
@@ -141,7 +141,7 @@ class InnertubeNative {
             console.error('[InnertubeNative] Next error:', {
                 videoId,
                 playlistId,
-                error: error.message
+                error: error.message,
             });
             throw error; // Preserve original error
         }

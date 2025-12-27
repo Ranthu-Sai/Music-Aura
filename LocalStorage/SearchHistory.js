@@ -21,18 +21,18 @@ async function AddSearchHistory(query) {
     if (!query || query.trim() === "") {
       return;
     }
-    
+
     const history = await GetSearchHistory();
-    
+
     const filteredHistory = history.filter(item => item.toLowerCase() !== query.toLowerCase());
-    
+
     const newHistory = [query, ...filteredHistory];
-    
+
     const trimmedHistory = newHistory.slice(0, MAX_HISTORY_ITEMS);
-    
+
     const jsonValue = JSON.stringify(trimmedHistory);
     await AsyncStorage.setItem('SearchHistory', jsonValue);
-    
+
     return trimmedHistory;
   } catch (e) {
     console.error("Error adding search history:", e);
@@ -43,10 +43,10 @@ async function RemoveSearchHistoryItem(query) {
   try {
     const history = await GetSearchHistory();
     const filteredHistory = history.filter(item => item !== query);
-    
+
     const jsonValue = JSON.stringify(filteredHistory);
     await AsyncStorage.setItem('SearchHistory', jsonValue);
-    
+
     return filteredHistory;
   } catch (e) {
     console.error("Error removing search history item:", e);

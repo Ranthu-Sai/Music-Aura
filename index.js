@@ -54,7 +54,7 @@ const errorHandler = (error, isFatal) => {
       // Show a simple alert to the user but DO NOT rethrow to avoid killing the app
       try {
         Alert.alert('Unexpected error', 'An unexpected error occurred. The app will try to continue.', [
-          { text: 'OK' }
+          { text: 'OK' },
         ]);
       } catch (aErr) {
         // ignore alert failures

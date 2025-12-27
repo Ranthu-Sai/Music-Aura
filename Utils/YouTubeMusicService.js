@@ -3,7 +3,7 @@ import NativeStreaming from './NativeStreaming';
 
 /**
  * YouTubeMusicService
- * 
+ *
  * Unified service layer for YouTube Music API operations.
  * Combines InnerTube API (JS) for metadata and Native Streaming (Kotlin) for audio URLs.
  */
@@ -23,7 +23,7 @@ class YouTubeMusicService {
             url: stream.url,
             // Add formats structure if needed (Native returns one best stream)
             all_formats: [],
-            format: 'audio/mp4'
+            format: 'audio/mp4',
         };
     }
 
@@ -68,7 +68,7 @@ class YouTubeMusicService {
             return {
                 ...stream,
                 ...results[0], // Merge metadata
-                stream_url: stream.url // legacy key
+                stream_url: stream.url, // legacy key
             };
         }
         return { error: "No results found" };

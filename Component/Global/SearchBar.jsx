@@ -13,7 +13,7 @@ export const SearchBar = ({ onChange, onSubmit, navigation, value }) => {
     if (value !== undefined && value !== searchText) {
       setSearchText(value);
     }
-  }, [value]);
+  }, [value, searchText]);
 
   const handleSubmit = () => {
     if (searchText.trim() && onSubmit) {

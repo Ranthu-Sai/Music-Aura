@@ -1,4 +1,4 @@
-package com.melody
+package com.musicaura
 import android.os.Bundle;
 import com.facebook.react.ReactActivity
 import com.facebook.react.ReactActivityDelegate

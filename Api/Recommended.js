@@ -66,7 +66,7 @@ async function getYTMusicRecommendedSongs(videoId) {
         name: item.title,
         image: item.thumbnails ? item.thumbnails.map(t => ({ url: t.url })) : [{ url: item.thumbnail }],
         artists: {
-          primary: item.artists || [{ name: item.artist }]
+          primary: item.artists || [{ name: item.artist }],
         },
         downloadUrl: item.videoId,
         duration: item.duration,

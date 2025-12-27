@@ -137,7 +137,7 @@ export const SelectLanguages = ({ navigation }) => {
           <View style={styles.cardContent}>
             <Text style={[styles.languageName, {
               color: isSelected ? "#FFFFFF" : "#DDD",
-              fontSize: config.languageNameSize
+              fontSize: config.languageNameSize,
             }]}>
               {item.name}
             </Text>
@@ -145,7 +145,7 @@ export const SelectLanguages = ({ navigation }) => {
               color: isSelected ? "#FFFFFF" : activeColor,
               textShadowColor: isSelected ? "transparent" : activeColor,
               textShadowRadius: isSelected ? 0 : 2,
-              fontSize: config.nativeTextSize
+              fontSize: config.nativeTextSize,
             }]}>
               {item.native}
             </Text>
@@ -160,7 +160,7 @@ export const SelectLanguages = ({ navigation }) => {
       <View style={[styles.container, { paddingHorizontal: config.containerPadding }]}>
         <View style={[styles.header, {
           marginTop: config.headerMarginTop,
-          marginBottom: config.headerMarginBottom
+          marginBottom: config.headerMarginBottom,
         }]}>
           <Heading
             text="Update Music Taste"

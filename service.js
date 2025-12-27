@@ -2,7 +2,7 @@
 import TrackPlayer, { Capability, Event } from "react-native-track-player";
 import historyManager from './Utils/HistoryManager';
 import autoRecommendations from './Utils/AutoRecommendations';
-import { PlayNextSong, PlayPreviousSong } from './MusicPlayerFunctions';
+import { PlayPreviousSong } from './MusicPlayerFunctions';
 
 let isPlayerInitialized = false;
 

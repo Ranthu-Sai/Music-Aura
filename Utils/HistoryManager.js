@@ -446,7 +446,7 @@ class HistoryManager {
       const history = await this.getHistory();
       const resetHistory = history.map(item => ({
         ...item,
-        playCount: 1
+        playCount: 1,
       }));
       await AsyncStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(resetHistory));
       return true;
@@ -532,7 +532,7 @@ class HistoryManager {
 
   // Format duration for display (consistent across app)
   formatDuration(milliseconds) {
-    if (!milliseconds || milliseconds < 0) return '0:00';
+    if (!milliseconds || milliseconds < 0) { return '0:00'; }
 
     const totalSeconds = Math.floor(milliseconds / 1000);
     const hours = Math.floor(totalSeconds / 3600);
@@ -548,7 +548,7 @@ class HistoryManager {
 
   // Format time for statistics display (hours/minutes format)
   static formatTimeForStats(milliseconds) {
-    if (!milliseconds || milliseconds < 0) return '<1m';
+    if (!milliseconds || milliseconds < 0) { return '<1m'; }
 
     const hours = Math.floor(milliseconds / (1000 * 60 * 60));
     const minutes = Math.floor((milliseconds % (1000 * 60 * 60)) / (1000 * 60));
@@ -643,9 +643,7 @@ class HistoryManager {
   }
 
   // Get tracking state
-  get isCurrentlyTracking() {
-    return this.isTracking;
-  }
+  // getCurrentTrackingInfo follows...
 
   // Get current tracking info
   getCurrentTrackingInfo() {
@@ -655,7 +653,7 @@ class HistoryManager {
       hasCountedPlay: this.hasCountedPlay,
       startTime: this.startTime,
       lastSavedDuration: this.lastSavedDuration,
-      duration: this.startTime ? Date.now() - this.startTime : 0
+      duration: this.startTime ? Date.now() - this.startTime : 0,
     };
   }
 

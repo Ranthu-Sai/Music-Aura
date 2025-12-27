@@ -1,8 +1,8 @@
 export default function FormatArtist(data){
-  if (!data) return "";
-  if (typeof data === 'string') return data;
-  if (!Array.isArray(data)) return "";
-  
+  if (!data) {return "";}
+  if (typeof data === 'string') {return data;}
+  if (!Array.isArray(data)) {return "";}
+
   let artist = ""
   data.forEach((e,i)=>{
     let name = "";
