@@ -6,86 +6,93 @@ import Entypo from "react-native-vector-icons/Entypo";
 import { View, TouchableOpacity, StyleSheet } from "react-native";
 import Octicons from "react-native-vector-icons/Octicons";
 import AntDesign from "react-native-vector-icons/AntDesign";
+import Icon from "react-native-vector-icons/MaterialCommunityIcons";
 
 const QueueBottomSheet = React.forwardRef((props, ref) => {
-  const backgroundColor = 'rgba(5,5,5,0.76)'
+  const backgroundColor = 'rgba(15,15,15,0.92)'
   const bottomSheetRef = useRef(null);
   const [index, setIndex] = useState(0);
 
   const handleClose = () => {
     if (bottomSheetRef.current) {
-      bottomSheetRef.current.snapToIndex(0);
-      setIndex(0);
+      bottomSheetRef.current.close();
+      setIndex(-1);
     }
   };
 
   const handleOpen = () => {
-    // Add a small delay to ensure BottomSheet is ready
-    setTimeout(() => {
-      if (bottomSheetRef.current) {
-        bottomSheetRef.current.snapToIndex(1);
-        setIndex(1);
-      }
-    }, 100);
+    if (bottomSheetRef.current) {
+      bottomSheetRef.current.expand();
+      setIndex(0);
+    }
   };
 
-  // Expose methods to parent component
   React.useImperativeHandle(ref, () => ({
     open: handleOpen,
     close: handleClose,
   }));
 
   return (
-      <BottomSheet
-        index={0}
-        onChange={(index)=>{
-          setIndex(index)
-        }}
-        enablePanDownToClose={false}
-        animateOnMount={false}
-        snapPoints={[130, '50%']}
-        ref={bottomSheetRef}
-        style={{
-          backgroundColor,
-        }}
-        handleComponent={props => {
-          return <View style={styles.headerContainer}>
-            <Octicons name={"dash"} size={24} color="white" />
+    <BottomSheet
+      index={-1}
+      onChange={(idx) => {
+        setIndex(idx)
+      }}
+      enablePanDownToClose={true}
+      animateOnMount={true}
+      snapPoints={['70%']}
+      ref={bottomSheetRef}
+      handleComponent={props => {
+        return (
+          <View style={styles.headerContainer}>
+            <View style={styles.handleBar} />
             <View style={styles.titleRow}>
-              <PlainText text={"Song Queue"}/>
-              {index === 1 && (
+              <Icon name="playlist-music" size={24} color="white" style={{ marginRight: 8 }} />
+              <PlainText text={"Next in Queue"} style={{ fontWeight: 'bold', fontSize: 18 }} />
+              {index === 0 && (
                 <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
-                  <AntDesign name="close" size={22} color="white" />
+                  <AntDesign name="closecircle" size={24} color="rgba(255,255,255,0.3)" />
                 </TouchableOpacity>
               )}
             </View>
           </View>
-        }}
-        backgroundStyle={{
-          backgroundColor:"rgb(0,0,0,0)",
-        }}
-        handleStyle={{
-          backgroundColor:backgroundColor,
-        }}
-      >
-        <QueueRenderSongs/>
-      </BottomSheet>
+        )
+      }}
+      backgroundStyle={{
+        backgroundColor: backgroundColor,
+        borderTopLeftRadius: 30,
+        borderTopRightRadius: 30,
+      }}
+    >
+      <View style={{ flex: 1, backgroundColor: 'transparent' }}>
+        <QueueRenderSongs />
+      </View>
+    </BottomSheet>
   );
 });
 
 const styles = StyleSheet.create({
   headerContainer: {
     alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "transparent",
-    height: 60,
+    paddingTop: 12,
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.05)',
+  },
+  handleBar: {
+    width: 40,
+    height: 4,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderRadius: 2,
+    marginBottom: 15,
   },
   titleRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     width: "100%",
-    position: "relative",
+    paddingHorizontal: 20,
+    marginBottom: 5,
   },
   closeButton: {
     position: "absolute",

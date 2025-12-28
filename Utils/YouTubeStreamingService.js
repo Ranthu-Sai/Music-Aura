@@ -28,31 +28,37 @@ class YouTubeStreamingService {
 
     /**
      * Get streaming URL using Native NewPipe Module
-     * Uses 3-hour cache to avoid repeated API calls
+     * Uses cache to avoid repeated API calls
      *
      * @param {string} videoId - YouTube video ID
+     * @param {boolean} forceFresh - Whether to ignore cache and fetch fresh
      * @returns {Promise<{url: string, headers: object, thumbnail: string, duration: number, title: string}|null>}
      */
-    async getStreamUrl(videoId) {
+    async getStreamUrl(videoId, forceFresh = false) {
         try {
-            // Step 1: CHECK CACHE FIRST (3-hour TTL)
-            const cachedUrl = CacheManager.getStreamUrl(videoId, 'ytmusic');
-            if (cachedUrl) {
-                // Validate cached URL before returning it
-                if (typeof cachedUrl === 'string' && (cachedUrl.startsWith('http://') || cachedUrl.startsWith('https://'))) {
-                    return {
-                        url: cachedUrl,
-                        headers: {
-                            'User-Agent': ANDROID_CLIENT.headers['User-Agent'],
-                            'Range': 'bytes=0-',
-                        },
-                        fromCache: true,
-                    };
-                } else {
-                    // Invalid cached URL - clear only that entry and fetch fresh
-                    console.warn(`⚠️ Invalid cached URL for ${videoId}: ${cachedUrl}, fetching fresh`);
-                    CacheManager.clearStreamUrl(videoId, 'ytmusic');
+            // Step 1: CHECK CACHE FIRST (unless forceFresh)
+            if (!forceFresh) {
+                const cachedUrl = CacheManager.getStreamUrl(videoId, 'ytmusic');
+                if (cachedUrl) {
+                    // Validate cached URL before returning it
+                    if (typeof cachedUrl === 'string' && (cachedUrl.startsWith('http://') || cachedUrl.startsWith('https://'))) {
+                        return {
+                            url: cachedUrl,
+                            headers: {
+                                'User-Agent': ANDROID_CLIENT.headers['User-Agent'],
+                                'Range': 'bytes=0-',
+                            },
+                            fromCache: true,
+                        };
+                    } else {
+                        // Invalid cached URL - clear only that entry and fetch fresh
+                        console.warn(`⚠️ Invalid cached URL for ${videoId}: ${cachedUrl}, fetching fresh`);
+                        CacheManager.clearStreamUrl(videoId, 'ytmusic');
+                    }
                 }
+            } else {
+                console.log(`🚀 Force fresh fetch requested for: ${videoId}`);
+                CacheManager.clearStreamUrl(videoId, 'ytmusic');
             }
 
             // Step 2: Cache miss - fetch from Native NewPipe

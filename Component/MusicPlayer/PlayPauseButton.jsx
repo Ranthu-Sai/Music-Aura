@@ -2,52 +2,60 @@ import FontAwesome6 from "react-native-vector-icons/FontAwesome6";
 import { useTheme } from "@react-navigation/native";
 import { ActivityIndicator, Pressable } from "react-native";
 import {  PauseSong, PlaySong } from "../../MusicPlayerFunctions";
-import { usePlaybackState } from "react-native-track-player";
+import { usePlaybackState, State } from "react-native-track-player";
 
-export const PlayPauseButton = ({isFullScreen}) => {
+export const PlayPauseButton = ({isFullScreen, size, color}) => {
   const theme = useTheme()
-  const playerState = usePlaybackState();
+  const playbackState = usePlaybackState();
+  const playerState = playbackState.state;
+  
+  const iconSize = size || (isFullScreen ? 20 : 25);
+  const iconColor = color || (isFullScreen ? "black" : theme.colors.text);
+
+  const isPlaying = playerState === State.Playing;
+  const isBuffering = playerState === State.Buffering || playerState === State.Loading;
+
   return (
     <>
       {!isFullScreen &&  <>
-        {playerState.state !== "playing" && playerState.state !== "buffering" && <Pressable style={{
-          padding:8,
+        {!isPlaying && !isBuffering && <Pressable style={{
+          padding: 8,
         }}  onPress={()=>{
           PlaySong()
-        }}><FontAwesome6 name={"play"} size={25} color={theme.colors.text}/></Pressable>}
-        {playerState.state === "playing" && <Pressable style={{
-          padding:8,
+        }}><FontAwesome6 name={"play"} size={iconSize} color={iconColor}/></Pressable>}
+        {isPlaying && <Pressable style={{
+          padding: 8,
         }} onPress={()=>{
           PauseSong()
-        }}><FontAwesome6 name={"pause"} size={25} color={theme.colors.text}/></Pressable>}
-        {playerState.state === "buffering" && <ActivityIndicator size={"small"} color={"white"}/>}
+        }}><FontAwesome6 name={"pause"} size={iconSize} color={iconColor}/></Pressable>}
+        {isBuffering && <ActivityIndicator size={"small"} color={iconColor}/>}
       </>}
       {isFullScreen && <>
-        {playerState.state !== "playing" && playerState.state !== "buffering" && <Pressable onPress={()=>{
+        {!isPlaying && !isBuffering && <Pressable onPress={()=>{
           PlaySong()
         }} style={{
           backgroundColor:"white",
-          padding:15,
-          height:60,
-          width:60,
-          borderRadius:1000,
-          alignItems:"center",
-          justifyContent:"center",
+          padding: 15,
+          height: 60,
+          width: 60,
+          borderRadius: 1000,
+          alignItems: "center",
+          justifyContent: "center",
         }}>
-          <FontAwesome6 name={"play"} size={20} color={"black"}/>
+          <FontAwesome6 name={"play"} size={iconSize} color={iconColor}/>
         </Pressable>}
-        {playerState.state === "playing" &&  <Pressable onPress={()=>{
+        {isPlaying &&  <Pressable onPress={()=>{
           PauseSong()
         }} style={{
           backgroundColor:"white",
-          padding:15,
-          height:60,
-          width:60,
-          borderRadius:1000,
-          alignItems:"center",
-          justifyContent:"center",
-        }}><FontAwesome6 name={"pause"} size={20} color={"black"}/></Pressable>}
-        {playerState.state === "buffering" && <ActivityIndicator size={"large"} color={"white"}/>}
+          padding: 15,
+          height: 60,
+          width: 60,
+          borderRadius: 1000,
+          alignItems: "center",
+          justifyContent: "center",
+        }}><FontAwesome6 name={"pause"} size={iconSize} color={iconColor}/></Pressable>}
+        {isBuffering && <ActivityIndicator size={"large"} color={"white"}/>}
       </>}
     </>
   );

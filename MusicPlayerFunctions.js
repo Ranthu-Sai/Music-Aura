@@ -1,4 +1,4 @@
-import TrackPlayer, { setRepeatMode } from "react-native-track-player";
+import TrackPlayer from "react-native-track-player";
 import { GetPlaybackQuality } from "./LocalStorage/AppSettings";
 import NetInfo from "@react-native-community/netinfo";
 import { ToastAndroid, DeviceEventEmitter, InteractionManager } from "react-native";
@@ -1313,7 +1313,7 @@ async function SkipToTrack(trackIndex) {
   }
 }
 async function SetRepeatMode(mode) {
-  await setRepeatMode(mode)
+  await TrackPlayer.setRepeatMode(mode)
 }
 
 async function getIndexQuality() {
@@ -1338,7 +1338,7 @@ async function AddOneSongToPlaylist(song) {
   try {
     console.log('🎵 AddOneSongToPlaylist called with song:', song?.title || 'Unknown');
 
-    // Import the bottom sheet playlist selector manager for better UX
+    // Import the bottom sheet playlist selector manager
     const { PlaylistSelectorBottomSheetManager } = require('./Utils/PlaylistSelectorBottomSheetManager');
 
     // Validate song object
@@ -1378,10 +1378,9 @@ async function AddOneSongToPlaylist(song) {
       artistID: song.artistID || song.primary_artists_id || '',
     };
 
-    // Use the PlaylistSelectorBottomSheetManager to show the bottom drawer
-    console.log('📱 Attempting to show PlaylistSelectorBottomSheet...');
+    // Use the PlaylistSelectorBottomSheetManager to show the selection interface
+    console.log('📱 Attempting to show playlist selector...');
     const result = PlaylistSelectorBottomSheetManager.show(formattedSong);
-    console.log('📱 PlaylistSelectorBottomSheetManager.show result:', result);
     return result;
   } catch (error) {
     console.error('❌ Error showing playlist selector bottom sheet:', error);

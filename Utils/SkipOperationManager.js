@@ -18,7 +18,7 @@ class SkipOperationManager {
         this.abortController = null;
         this.consecutiveSkipErrors = 0;
         this.maxConsecutiveErrors = 3;
-        this.debounceDelay = 300; // ms
+        this.debounceDelay = 150; // ms
     }
 
     /**
@@ -75,14 +75,15 @@ class SkipOperationManager {
             this.skipDebounceTimer = null;
         }
 
-        // If already skipping, queue this skip or ignore based on immediate flag
-        if (this.isSkipping) {
-            console.log('⏭️ Skip blocked - operation already in progress');
-            return false;
-        }
-
         // Cancel any in-flight fetch operations
         this.cancelInFlightOperations();
+
+        // If already skipping, we reset the state to allow the new skip to take over
+        // The previous operation should respect the abort signal we just sent via cancelInFlightOperations
+        if (this.isSkipping) {
+            console.log('⏭️ Overriding existing skip operation');
+            this.isSkipping = false;
+        }
 
         // Execute immediately or with debounce
         if (immediate) {

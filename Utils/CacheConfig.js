@@ -16,9 +16,9 @@ export const CACHE_TTL = {
     LIBRARY_DATA: 10 * 60 * 1000,        // 10 minutes - library screens
     ARTIST_DATA: 10 * 60 * 1000,         // 10 minutes - artist details
 
-    // Stream URL caches (longer TTL as specified by user)
-    YTMUSIC_STREAM: 3 * 60 * 60 * 1000,  // 3 hours - YouTube Music stream URLs
-    DAB_STREAM: 3 * 60 * 60 * 1000,      // 3 hours - DAB stream URLs
+    // Stream URL caches (Reduced TTL to 30 mins to avoid 403 Forbidden errors)
+    YTMUSIC_STREAM: 30 * 60 * 1000,  // 30 minutes - YouTube Music stream URLs
+    DAB_STREAM: 30 * 60 * 1000,      // 30 minutes - DAB stream URLs
 
     // UI State caches
     SCROLL_POSITION: 30 * 60 * 1000,     // 30 minutes - scroll positions

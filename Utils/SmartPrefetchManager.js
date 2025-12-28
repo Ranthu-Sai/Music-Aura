@@ -56,7 +56,7 @@ class SmartPrefetchManager {
      * Initialize the prefetch manager with correct event listeners
      */
     initialize() {
-        if (this.isInitialized) {return;}
+        if (this.isInitialized) { return; }
 
         // Record initialization time
         this.initializationTime = Date.now();
@@ -193,8 +193,8 @@ class SmartPrefetchManager {
             if (this.needsStream(currentTrack)) {
                 console.log(`🔄 Auto-recovery: fetching stream for: ${currentTrack.title}`);
 
-                // Fetch stream on-demand
-                const streamData = await this.fetchOnDemand(currentTrack.id);
+                // Fetch stream on-demand with forced fresh (bypass cache on error)
+                const streamData = await this.fetchOnDemand(currentTrack.id, true);
 
                 if (streamData && streamData.url) {
                     // Replace current track with valid URL
@@ -365,7 +365,7 @@ class SmartPrefetchManager {
             const queue = await TrackPlayer.getQueue();
 
             // Safety check
-            if (failedIndex >= queue.length) {return;}
+            if (failedIndex >= queue.length) { return; }
 
             // Remove the failed track (safe)
             await this._safeRemove(failedIndex);
@@ -384,7 +384,7 @@ class SmartPrefetchManager {
 
             if (nextTrack && this.needsStream(nextTrack)) {
                 // Fetch stream on-demand for next track
-                const streamData = await this.fetchOnDemand(nextTrack.id);
+                const streamData = await this.fetchOnDemand(nextTrack.id, true);
                 if (streamData && streamData.url) {
                     const nextIndex = failedIndex < newQueue.length ? failedIndex : 0;
                     await this._replaceAndPlayTrack(nextIndex, nextTrack, streamData);
@@ -411,12 +411,12 @@ class SmartPrefetchManager {
     async _safeRemove(indexOrIndexes) {
         try {
             const queue = await TrackPlayer.getQueue();
-            if (!Array.isArray(queue) || queue.length === 0) {return;}
+            if (!Array.isArray(queue) || queue.length === 0) { return; }
 
             const indexes = Array.isArray(indexOrIndexes) ? indexOrIndexes.slice() : [indexOrIndexes];
             // Filter and dedupe
             const valid = Array.from(new Set(indexes)).filter(i => Number.isInteger(i) && i >= 0 && i < queue.length);
-            if (valid.length === 0) {return;}
+            if (valid.length === 0) { return; }
 
             // Sort descending to avoid shifting issues
             valid.sort((a, b) => b - a);
@@ -427,7 +427,7 @@ class SmartPrefetchManager {
             // due to race conditions when queue changes concurrently.
             if (msg && msg.toLowerCase().includes('out of bounds')) {
                 // debug log only in development - avoid console warning noise in production
-                if (__DEV__) {console.debug('Safe remove ignored out-of-bounds:', msg);}
+                if (__DEV__) { console.debug('Safe remove ignored out-of-bounds:', msg); }
                 return;
             }
             console.warn('Safe remove failed:', msg);
@@ -452,13 +452,13 @@ class SmartPrefetchManager {
      * Check if track needs stream fetching
      */
     needsStream(track) {
-        if (!track) {return false;}
+        if (!track) { return false; }
 
         // Check if it's a YouTube track needing stream
         const isYTMusic = track.id && typeof track.id === 'string' &&
             track.id.length === 11 && !track.isLocalMusic;
 
-        if (!isYTMusic) {return false;}
+        if (!isYTMusic) { return false; }
 
         // Check if URL is placeholder or missing
         const url = track.url || '';
@@ -481,10 +481,11 @@ class SmartPrefetchManager {
      */
     async _cleanupOldTracks(currentIndex) {
         try {
-            // Only cleanup if we have more than 5 songs before current
-            if (currentIndex <= 5) {return;}
+            // INCREASED LIMIT: Only cleanup if we have more than 20 songs before current
+            // This allows users to scroll back further without "queue disappearing"
+            if (currentIndex <= 20) { return; }
 
-            const tracksToRemove = currentIndex - 5;
+            const tracksToRemove = currentIndex - 20;
 
             // Remove tracks from the beginning of the queue
             const removeIndices = [];
@@ -497,9 +498,9 @@ class SmartPrefetchManager {
                 await this._safeRemove(removeIndices);
 
                 // Update current track index after removal
-                this.currentTrackIndex = 5; // After cleanup, current is always at index 5
+                this.currentTrackIndex = 20; // After cleanup, current is always at index 20
 
-                console.log(`✅ Queue cleaned. Current track now at index 5`);
+                console.log(`✅ Queue cleaned. Current track now at index 20`);
             }
         } catch (error) {
             console.error('Queue cleanup error:', error.message);
@@ -526,7 +527,7 @@ class SmartPrefetchManager {
      */
     getPrefetchedStream(trackId) {
         const cached = this.prefetchedTracks.get(trackId);
-        if (!cached) {return null;}
+        if (!cached) { return null; }
 
         // Check if expired
         if (Date.now() - cached.timestamp > CACHE_TTL_MS) {
@@ -540,14 +541,16 @@ class SmartPrefetchManager {
     /**
      * On-demand fetch for random song selection (with retry)
      */
-    async fetchOnDemand(trackId) {
-        console.log(`🎯 On-demand fetch for: ${trackId}`);
+    async fetchOnDemand(trackId, forceFresh = false) {
+        console.log(`🎯 On-demand fetch for: ${trackId}${forceFresh ? ' (FORCE FRESH)' : ''}`);
 
-        // Check prefetch cache first
-        const cached = this.getPrefetchedStream(trackId);
-        if (cached) {
-            console.log(`✅ Using prefetched stream for: ${trackId}`);
-            return cached;
+        // Check prefetch cache first (unless forceFresh)
+        if (!forceFresh) {
+            const cached = this.getPrefetchedStream(trackId);
+            if (cached) {
+                console.log(`✅ Using prefetched stream for: ${trackId}`);
+                return cached;
+            }
         }
 
         // Fetch with retry
@@ -555,7 +558,7 @@ class SmartPrefetchManager {
             try {
                 console.log(`🔄 Fetch attempt ${attempt}/${MAX_RETRY_ATTEMPTS} for: ${trackId}`);
 
-                const streamData = await youtubeStreamingService.getStreamUrl(trackId);
+                const streamData = await youtubeStreamingService.getStreamUrl(trackId, forceFresh);
 
                 if (streamData && streamData.url) {
                     // Cache it

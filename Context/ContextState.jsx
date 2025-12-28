@@ -9,6 +9,7 @@ import { Repeats } from "../Utils/Repeats";
 import { GetLanguageValue } from "../LocalStorage/Languages";
 // import { SetQueueSongs } from "../LocalStorage/storeQueue";
 import { EachSongMenuModal } from "../Component/Global/EachSongMenuModal";
+import PlaylistSelector from "../Component/Global/PlaylistSelector";
 import { GetFontSizeValue, GetTheme, SetLastSong, GetLastSong } from "../LocalStorage/AppSettings";
 
 
@@ -26,10 +27,10 @@ const themes = {
         secondaryText: 'white',
     },
     Dark: {
-        background: 'rgb(34,39,34)',
+        background: 'rgb(20,25,20)',
         text: 'white',
-        secondaryBackground: 'rgb(236,236,236)',
-        secondaryText: 'rgb(26,26,26)',
+        secondaryBackground: 'rgb(40,45,40)',
+        secondaryText: 'white',
     },
     Blue: {
         background: 'rgb(0,0,50)',
@@ -281,7 +282,7 @@ const ContextState = (props) => {
                     if (/^[A-Za-z0-9_-]{11}$/.test(currentTrack.id)) {
                         // YouTube Music track
                         const { getYTMusicStreamUrl } = require('../Api/YTMusicStream');
-                        streamData = await getYTMusicStreamUrl(currentTrack.id);
+                        streamData = await getYTMusicStreamUrl(currentTrack.id, true);
                     } else if (currentTrack.source === 'saavn' || currentTrack.id.startsWith('saavn_')) {
                         // Saavn track - try to get fresh stream
                         // Assuming Saavn has a similar function, adjust as needed
@@ -586,6 +587,7 @@ const ContextState = (props) => {
     return <Context.Provider value={{ currentPlaying, Repeat, setRepeat, updateTrack, Index, setIndex, QueueIndex, setQueueIndex, setVisible, Queue, fontSize, setFontSize, theme, setTheme, currentThemeColors, lyricsCacheRef, ensureMinimumQueue, queueVisible, setQueueVisible, openQueue, closeQueue }}>
         {props.children}
         <EachSongMenuModal setVisible={setVisible} Visible={Visible} />
+        <PlaylistSelector />
     </Context.Provider>
 }
 

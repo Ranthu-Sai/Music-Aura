@@ -11,7 +11,7 @@ import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityI
 import ReactNativeBlobUtil from "react-native-blob-util";
 import { GetDownloadPath } from "../../LocalStorage/AppSettings";
 import DeviceInfo from "react-native-device-info";
-import { AddSongsToQueue, getIndexQuality } from "../../MusicPlayerFunctions";
+import { AddSongsToQueue, getIndexQuality, AddOneSongToPlaylist } from "../../MusicPlayerFunctions";
 import Context from "../../Context/Context";
 
 import youtubeStreamingService from "../../Utils/YouTubeStreamingService";
@@ -44,7 +44,7 @@ export const EachSongMenuModal = ({ Visible, setVisible }) => {
       // Find an mp3 link in the array if available, otherwise pick highest index
       if (Array.isArray(Visible.url)) {
         const mp3Item = Visible.url.find(it => isMp3Link(it?.url));
-        if (mp3Item?.url) {return { url: mp3Item.url, isMp3: true };}
+        if (mp3Item?.url) { return { url: mp3Item.url, isMp3: true }; }
         // default to 320kbps index when present else last
         const candidate = Visible.url[4]?.url || Visible.url[Visible.url.length - 1]?.url;
         return { url: candidate, isMp3: isMp3Link(candidate) };
@@ -77,12 +77,12 @@ export const EachSongMenuModal = ({ Visible, setVisible }) => {
     // Decide extension and mime based on URL and format info
     const deriveExt = () => {
       const lower = (downloadLink || '').toLowerCase();
-      if (isMp3 || lower.includes('.mp3')) {return 'mp3';}
-      if (lower.includes('.m4a') || lower.includes('audio/mp4')) {return 'm4a';}
-      if (lower.includes('.webm') || lower.includes('audio/webm') || lower.includes('codecs="opus"')) {return 'webm';}
-      if (lower.includes('audio/mpeg')) {return 'mp3';}
+      if (isMp3 || lower.includes('.mp3')) { return 'mp3'; }
+      if (lower.includes('.m4a') || lower.includes('audio/mp4')) { return 'm4a'; }
+      if (lower.includes('.webm') || lower.includes('audio/webm') || lower.includes('codecs="opus"')) { return 'webm'; }
+      if (lower.includes('audio/mpeg')) { return 'mp3'; }
       // Default to webm for YouTube stream URLs
-      if (downloadLink.includes('googlevideo.com')) {return 'webm';}
+      if (downloadLink.includes('googlevideo.com')) { return 'webm'; }
       return 'mp3';
     }
     const ext = deriveExt();
@@ -98,7 +98,7 @@ export const EachSongMenuModal = ({ Visible, setVisible }) => {
     try {
       const parent = finalPath.substring(0, finalPath.lastIndexOf('/'))
       const exists = await ReactNativeBlobUtil.fs.isDir(parent)
-      if (!exists) {await ReactNativeBlobUtil.fs.mkdir(parent)}
+      if (!exists) { await ReactNativeBlobUtil.fs.mkdir(parent) }
     } catch (e) {
       // console.log('Error creating directory:', e);
     }
@@ -322,6 +322,10 @@ export const EachSongMenuModal = ({ Visible, setVisible }) => {
           paddingHorizontal: 10,
         }}>
           <EachModalButton text={"Add to Queue"} icon={<MaterialCommunityIcons name={"playlist-music-outline"} size={25} color={"white"} />} Onpress={addSongToQueue} />
+          <EachModalButton text={"Playlist"} icon={<MaterialCommunityIcons name={"playlist-plus"} size={25} color={"white"} />} Onpress={() => {
+            setVisible({ visible: false });
+            AddOneSongToPlaylist(Visible);
+          }} />
           <EachModalButton text={"Download"} Onpress={getPermission} icon={<AntDesign name={"download"} size={25} color={"white"} />} />
         </View>
         <Spacer />

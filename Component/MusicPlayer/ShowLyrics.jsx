@@ -1,4 +1,4 @@
-import { Dimensions, Modal, Pressable, ScrollView, Text, View, FlatList } from "react-native";
+import { Dimensions, Modal, Pressable, ScrollView, Text, View, FlatList, Share } from "react-native";
 import { Heading } from "../Global/Heading";
 import { Spacer } from "../Global/Spacer";
 import { LoadingComponent } from "../Global/Loading";
@@ -67,6 +67,22 @@ export const ShowLyrics = ({ ShowDailog, Loading, Lyric, setShowDailog, currentS
       switchToTimeSynced();
     }
   }, [Lyric?.timed_lyrics]);
+
+  const handleShareLyrics = async () => {
+    try {
+      if (!Lyric?.lyrics) return;
+      const lyricsText = Lyric.lyrics.replaceAll("<br>", "\n");
+      const songTitle = cleanSongTitle(currentSong?.title);
+      const songArtist = currentSong?.artist || 'Unknown Artist';
+
+      await Share.share({
+        message: `Lyrics for ${songTitle} by ${songArtist}:\n\n${lyricsText}\n\nShared from Music Aura`,
+        title: `Lyrics: ${songTitle}`,
+      });
+    } catch (error) {
+      console.error('Error sharing lyrics:', error);
+    }
+  };
 
   // Switch to time-synced lyrics mode
   const switchToTimeSynced = () => {
@@ -372,9 +388,7 @@ export const ShowLyrics = ({ ShowDailog, Loading, Lyric, setShowDailog, currentS
           </>}
         </View>
         <LinearGradient start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} colors={['rgba(0,0,0,0.07)', 'rgba(0,0,0,0.7)', 'rgb(0,0,0)', 'rgb(7,7,7)']} style={{ flexDirection: "row", gap: 4, position: "absolute", alignItems: "center", justifyContent: "center", height: 120, paddingTop: 70, bottom: 0, width: width + 20 }}>
-          <Pressable onPress={() => {
-            setShowDailog(false)
-          }} style={{
+          <Pressable onPress={handleShareLyrics} style={{
             flex: 1,
             backgroundColor: "rgb(255,255,255)",
             alignItems: "center",
@@ -386,7 +400,7 @@ export const ShowLyrics = ({ ShowDailog, Loading, Lyric, setShowDailog, currentS
             <Text style={{
               color: "black",
               fontWeight: "500",
-            }}>Close</Text>
+            }}>Share</Text>
           </Pressable>
           <Pressable onPress={() => Clipboard.setString(Lyric?.lyrics?.replaceAll("<br>", "\n") ?? "")} style={{
             flex: 1,
