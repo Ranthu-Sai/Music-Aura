@@ -16,14 +16,12 @@ const QueueBottomSheet = React.forwardRef((props, ref) => {
   const handleClose = () => {
     if (bottomSheetRef.current) {
       bottomSheetRef.current.close();
-      setIndex(-1);
     }
   };
 
   const handleOpen = () => {
     if (bottomSheetRef.current) {
       bottomSheetRef.current.expand();
-      setIndex(0);
     }
   };
 
@@ -49,9 +47,13 @@ const QueueBottomSheet = React.forwardRef((props, ref) => {
             <View style={styles.titleRow}>
               <Icon name="playlist-music" size={24} color="white" style={{ marginRight: 8 }} />
               <PlainText text={"Next in Queue"} style={{ fontWeight: 'bold', fontSize: 18 }} />
-              {index === 0 && (
-                <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
-                  <AntDesign name="closecircle" size={24} color="rgba(255,255,255,0.3)" />
+              {index >= 0 && (
+                <TouchableOpacity 
+                  activeOpacity={0.7}
+                  onPress={handleClose} 
+                  style={styles.closeButton}
+                >
+                  <AntDesign name="closecircle" size={26} color="rgba(255,255,255,0.5)" />
                 </TouchableOpacity>
               )}
             </View>

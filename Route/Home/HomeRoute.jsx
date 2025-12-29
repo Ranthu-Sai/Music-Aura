@@ -14,7 +14,7 @@ import { AboutProject } from "../Library/AboutProject";
 const Stack = createNativeStackNavigator();
 export const HomeRoute = () => {
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false, animation: 'fade_from_bottom' }}>
+    <Stack.Navigator screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
       <Stack.Screen name="HomePage" component={Home} />
       <Stack.Screen name="Playlist" component={Playlist} options={{ gestureEnabled: true }} />
       <Stack.Screen name={"Album"} component={Album} options={{ gestureEnabled: true }} />

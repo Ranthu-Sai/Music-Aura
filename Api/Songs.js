@@ -20,6 +20,163 @@ function parseDuration(durationText) {
   return 0;
 }
 
+async function getSaavnSuggestions(query) {
+  try {
+    const url = `https://www.jiosaavn.com/api.php?__call=autocomplete.get&_format=json&_marker=0&ctx=wap6dot0&api_version=4&query=${encodeURIComponent(query)}`;
+    const response = await axios.get(url);
+    const suggestions = [];
+    const quickResults = [];
+
+    if (response.data) {
+      if (response.data.albums && response.data.albums.data) {
+        response.data.albums.data.slice(0, 2).forEach(album => suggestions.push(album.title));
+      }
+      if (response.data.songs && response.data.songs.data) {
+        response.data.songs.data.slice(0, 5).forEach(song => {
+          suggestions.push(song.title);
+          quickResults.push({
+            id: song.id,
+            name: song.title,
+            title: song.title,
+            artist: song.description,
+            image: [{ url: song.image }],
+            source: 'saavn'
+          });
+        });
+      }
+      if (response.data.playlists && response.data.playlists.data) {
+        response.data.playlists.data.slice(0, 2).forEach(playlist => suggestions.push(playlist.title));
+      }
+    }
+    return { suggestions, quickResults };
+  } catch (error) {
+    return { suggestions: [], quickResults: [] };
+  }
+}
+
+async function getYTMusicSuggestions(query) {
+  try {
+    const data = await getYTSearchSongData(query, 1, 3);
+    const quickResults = (data?.data?.results || []).map(song => ({
+      ...song,
+      source: 'ytmusic'
+    }));
+
+    const response = await fetch('https://music.youtube.com/youtubei/v1/search/get_search_suggestions?key=AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Origin': 'https://music.youtube.com',
+      },
+      body: JSON.stringify({
+        context: {
+          client: {
+            clientName: 'WEB_REMIX',
+            clientVersion: '1.20241204.01.00',
+            hl: 'en',
+            gl: 'US',
+          },
+        },
+        input: query,
+      }),
+    });
+
+    const suggestions = [];
+    if (response.ok) {
+      const json = await response.json();
+      const items = json?.contents?.[0]?.searchSuggestionsSectionRenderer?.contents || [];
+      items.forEach(item => {
+        const text = item?.searchSuggestionRenderer?.suggestion?.runs?.[0]?.text;
+        if (text) suggestions.push(text);
+      });
+    }
+
+    return { suggestions, quickResults };
+  } catch (error) {
+    return { suggestions: [], quickResults: [] };
+  }
+}
+
+async function getYoutubeSuggestions(query) {
+  try {
+    const url = `https://suggestqueries.google.com/complete/search?client=firefox&ds=yt&q=${encodeURIComponent(query)}`;
+    const [suggestionsResponse, videoData] = await Promise.all([
+      axios.get(url),
+      getYTSearchVideoData(query, 1, 2)
+    ]);
+    
+    const suggestions = suggestionsResponse.data?.[1] || [];
+    const quickResults = (videoData?.data?.results || []).map(video => ({
+      ...video,
+      source: 'youtube'
+    }));
+
+    return { suggestions, quickResults };
+  } catch (error) {
+    return { suggestions: [], quickResults: [] };
+  }
+}
+
+async function getSearchSuggestions(query) {
+  if (!query) return { suggestions: [], quickResults: [] };
+  
+  try {
+    const [saavn, ytMusic, youtube] = await Promise.all([
+      getSaavnSuggestions(query),
+      getYTMusicSuggestions(query),
+      getYoutubeSuggestions(query)
+    ]);
+
+    // Combine suggestions using a round-robin approach to ensure variety from all sources
+    const combinedSuggestions = [];
+    const maxSuggestions = 12;
+    const suggestionSources = [saavn.suggestions, ytMusic.suggestions, youtube.suggestions];
+    
+    let j = 0;
+    while (combinedSuggestions.length < maxSuggestions) {
+      let addedInThisRound = false;
+      for (const source of suggestionSources) {
+        if (source[j]) {
+          if (!combinedSuggestions.includes(source[j])) {
+            combinedSuggestions.push(source[j]);
+          }
+          addedInThisRound = true;
+        }
+        if (combinedSuggestions.length >= maxSuggestions) break;
+      }
+      if (!addedInThisRound) break;
+      j++;
+    }
+
+    // Combine quick results using round-robin as well
+    const combinedQuickResults = [];
+    const maxQuickResults = 6;
+    const quickResultSources = [saavn.quickResults, ytMusic.quickResults, youtube.quickResults];
+
+    let k = 0;
+    while (combinedQuickResults.length < maxQuickResults) {
+      let addedInThisRound = false;
+      for (const source of quickResultSources) {
+        if (source[k]) {
+          combinedQuickResults.push(source[k]);
+          addedInThisRound = true;
+        }
+        if (combinedQuickResults.length >= maxQuickResults) break;
+      }
+      if (!addedInThisRound) break;
+      k++;
+    }
+
+    return {
+      suggestions: combinedSuggestions,
+      quickResults: combinedQuickResults
+    };
+  } catch (error) {
+    return { suggestions: [], quickResults: [] };
+  }
+}
+
 async function getSearchSongData(searchText, page, limit) {
   const baseUrl = "https://www.jiosaavn.com/api.php";
   const defaultParams = {
@@ -889,7 +1046,7 @@ async function getSongData(id) {
   throw new Error('All song data API instances failed');
 }
 
-export { getSearchSongData, getLyricsSongData, getYTSearchSongData, getYTSearchVideoData, getSongData, getYTLyricsSongData, getYTSearchAlbumData, getYTSearchPlaylistData }
+export { getSearchSongData, getLyricsSongData, getYTSearchSongData, getYTSearchVideoData, getSongData, getYTLyricsSongData, getYTSearchAlbumData, getYTSearchPlaylistData, getSearchSuggestions }
 
 
 

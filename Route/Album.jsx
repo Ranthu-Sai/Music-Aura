@@ -36,18 +36,21 @@ export const Album = ({ route }) => {
       if (albumType.includes('podcast') || albumType.includes('show') || albumName.includes('podcast') || albumName.includes('episode')) {
         data = { data: { name: data?.data?.name || 'Unavailable', image: data?.data?.image || [], year: data?.data?.year || '', songs: [] } };
       }
-      // Check if songs are sample or empty
-      if (!data.data.songs || data.data.songs.length === 0 || data.data.songs.some(song => song.name.toLowerCase().includes('sample') || song.name.toLowerCase().includes('trailer'))) {
-        // Try fetching as song
+      // Check if songs are empty or if we need to try fetching as a song
+      if (!data.data.songs || data.data.songs.length === 0) {
+        // Try fetching as song - some IDs might be for songs but appear as albums in search
         const songData = await getSongData(id)
-        const song = songData.data[0]
-        data = {
-          data: {
-            name: song.name,
-            image: song.image,
-            year: song.year,
-            songs: [song],
-          },
+        if (songData && songData.data && songData.data[0]) {
+          const song = songData.data[0]
+          data = {
+            data: {
+              name: song.name,
+              image: song.image,
+              year: song.year,
+              songs: [song],
+              primaryArtist: FormatArtist(song.artists?.primary)
+            },
+          }
         }
       }
       if (data?.data?.songs?.length > 0) {

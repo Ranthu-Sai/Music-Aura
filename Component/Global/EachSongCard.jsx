@@ -11,7 +11,7 @@ import FormatTitleAndArtist from "../../Utils/FormatTitleAndArtist";
 import { EachSongMenuButton } from "../MusicPlayer/EachSongMenuButton";
 
 
-export const EachSongCard = memo(function EachSongCard({ title, artist, image, id, url, duration, language, artistID, isLibraryLiked, width, titleandartistwidth, isFromPlaylist, Data, index, albumName, releaseDate, albumId, isHighlighted, playlistId }) {
+export const EachSongCard = memo(function EachSongCard({ title, artist, image, id, url, duration, language, artistID, isLibraryLiked, width, titleandartistwidth, isFromPlaylist, Data, index, albumName, releaseDate, albumId, isHighlighted, playlistId, isHistory, onRemove }) {
   const width1 = Dimensions.get("window").width;
   const { updateTrack, setVisible, lyricsCacheRef } = useContext(Context)
   const currentPlaying = useActiveTrack()
@@ -159,32 +159,10 @@ export const EachSongCard = memo(function EachSongCard({ title, artist, image, i
           opacity: isLoading ? 0.5 : 1,
         }}>
           <FastImage source={(() => {
-            // Primary match: by ID
-            let isCurrentSong = id === currentPlaying?.id;
-
-            // Fallback for YouTube Music: match by title AND artist if IDs don't match
-            // This prevents multiple songs with same name but different artists from showing the animation
-            if (!isCurrentSong && currentPlaying?.title && title && currentPlaying?.artist && artist) {
-              const normalize = (str) => str?.toLowerCase().replace(/[^\w\s]/g, '').trim();
-              const currentTitle = normalize(currentPlaying.title);
-              const cardTitle = normalize(title);
-              const currentArtist = normalize(currentPlaying.artist);
-              const cardArtist = normalize(artist);
-
-              // Match if both title and artist are essentially the same
-              if (currentTitle && cardTitle && currentTitle === cardTitle &&
-                currentArtist && cardArtist && (currentArtist.includes(cardArtist) || cardArtist.includes(currentArtist))) {
-                isCurrentSong = true;
-              }
-            }
+            // Strictly match by ID only for Saavn and other sources to avoid duplicates with same name
+            const isCurrentSong = id === currentPlaying?.id;
 
             const isPlaying = playerState.state === "playing";
-
-            // Debug logging
-            if (isCurrentSong) {
-              const idMatch = id === currentPlaying?.id;
-              console.log(`🎵 Playing icon: "${title}" | ID match: ${idMatch} | Title fallback: ${!idMatch && !!currentPlaying?.title} | State: ${playerState.state}`);
-            }
 
             if (isCurrentSong && isPlaying) {
               return require("../../Images/playing.gif");
@@ -210,7 +188,7 @@ export const EachSongCard = memo(function EachSongCard({ title, artist, image, i
         <EachSongMenuButton Onpress={() => {
           setVisible({
             visible: true,
-            title, artist, image, id, url, duration, language, playlistId, albumId, albumName, navigation
+            title, artist, image, id, url, duration, language, playlistId, albumId, albumName, navigation, isHistory, onRemove
           })
         }} />
       </View>

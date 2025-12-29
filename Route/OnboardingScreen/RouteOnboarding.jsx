@@ -7,7 +7,7 @@ import { Slide4 } from "./Slide4";
 const Stack = createNativeStackNavigator();
 export const RouteOnboarding = () => {
   return (
-    <Stack.Navigator screenOptions={{headerShown:false,animation:'fade_from_bottom'}}>
+    <Stack.Navigator screenOptions={{headerShown:false,animation:'slide_from_right'}}>
       <Stack.Screen  name="Slide1" component={Slide1} />
       <Stack.Screen  name="Slide2" component={Slide2} />
       <Stack.Screen  name="Slide3" component={Slide3} />

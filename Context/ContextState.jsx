@@ -135,11 +135,18 @@ const ContextState = (props) => {
     const updateTrack = useCallback(async () => {
         try {
             const tracks = await TrackPlayer.getQueue();
-            // await SetQueueSongs(tracks)
-            const ids = tracks.filter(e => e && e.id).map((e) => e.id)
-            const queuesId = Queue.filter(e => e && e.id).map((e) => e.id)
-            if (JSON.stringify(ids) !== JSON.stringify(queuesId)) {
-                setQueue(tracks)
+            
+            // Fast comparison using IDs and length
+            if (tracks.length !== Queue.length) {
+                setQueue(tracks);
+                return;
+            }
+
+            for (let i = 0; i < tracks.length; i++) {
+                if (tracks[i]?.id !== Queue[i]?.id) {
+                    setQueue(tracks);
+                    break;
+                }
             }
         } catch (error) {
             // Error silently handled

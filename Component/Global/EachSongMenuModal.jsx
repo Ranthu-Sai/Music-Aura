@@ -109,6 +109,25 @@ export const EachSongMenuModal = ({ Visible, setVisible }) => {
             setVisible({ visible: false });
             AddOneSongToPlaylist(Visible);
           }} />
+          {/* Show Remove from History if in history context */}
+          {Visible.isHistory && (
+            <EachModalButton
+              text={"Remove"}
+              colors={["#FFB347", "#FFCC33"]}
+              icon={<MaterialCommunityIcons name={"history"} size={25} color={"white"} />}
+              Onpress={async () => {
+                const historyManager = require('../../Utils/HistoryManager').default;
+                const success = await historyManager.removeFromHistory(Visible.id);
+                if (success) {
+                  ToastAndroid.show("Removed from history", ToastAndroid.SHORT);
+                  if (Visible.onRemove) { Visible.onRemove(); }
+                } else {
+                  ToastAndroid.show("Failed to remove", ToastAndroid.SHORT);
+                }
+                setVisible({ visible: false });
+              }}
+            />
+          )}
           {/* Show Remove from Playlist if in a local playlist */}
           {Visible.playlistId && (
             <EachModalButton

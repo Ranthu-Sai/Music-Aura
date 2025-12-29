@@ -45,7 +45,7 @@ class HistoryManager {
     this.pausedDuration = 0; // Total time spent paused
     this.pauseStartTime = null; // When the current pause started
     this.lastSavedDuration = 0;
-    this.minListenDuration = 10000; // 10 seconds minimum to count as "listened"
+    this.minListenDuration = 5000; // 5 seconds minimum to count as "listened"
     this.hasCountedPlay = false; // Flag to ensure we only count play once per session
     this.isBackgroundMode = false; // Track if app is in background
   }
@@ -81,6 +81,13 @@ class HistoryManager {
 
       // Stop previous tracking
       await this.stopTracking();
+
+      // User requested 1s delay before starting tracking to ensure metadata is stable
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      // Add to history immediately so it shows up in "Recently Played" right away
+      // but don't count it as a "play" until minListenDuration is reached
+      await this.addToHistory(song, 0, false);
 
       // FIXED: Check if this song was recently played to continue cumulative tracking
       const history = await this.getHistory();
@@ -680,6 +687,32 @@ class HistoryManager {
       return true;
     } catch (error) {
       console.error('HistoryManager: Error refreshing statistics:', error);
+      return false;
+    }
+  }
+
+  // Clear all history
+  async clearHistory() {
+    try {
+      await AsyncStorage.removeItem(HISTORY_STORAGE_KEY);
+      await this.refreshAllStats();
+      return true;
+    } catch (error) {
+      console.error('HistoryManager: Error clearing history:', error);
+      return false;
+    }
+  }
+
+  // Remove specific song from history
+  async removeFromHistory(songId) {
+    try {
+      const history = await this.getHistory();
+      const newHistory = history.filter(item => item && item.id !== songId);
+      await AsyncStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(newHistory));
+      await this.syncWeeklyStats(); // Update stats to reflect removal
+      return true;
+    } catch (error) {
+      console.error('HistoryManager: Error removing from history:', error);
       return false;
     }
   }

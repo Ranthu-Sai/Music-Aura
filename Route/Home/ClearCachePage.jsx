@@ -9,19 +9,23 @@ import Context from "../../Context/Context";
 import { GetCacheSizes, ClearSelectedCache, ClearAllCache } from "../../LocalStorage/ClearCache";
 import MaterialIcons from "react-native-vector-icons/MaterialIcons";
 import LinearGradient from "react-native-linear-gradient";
-import Animated, { FadeInDown, FadeInRight, Layout } from "react-native-reanimated";
+import Animated, { FadeInDown, FadeInRight, Layout, FadeOut } from "react-native-reanimated";
 import { Spacer } from "../../Component/Global/Spacer";
 import Icon from "react-native-vector-icons/MaterialCommunityIcons";
 import { getAppStorageDynamics } from "../../Utils/StorageUtils";
+import { InteractionManager } from "react-native";
 
 const { width } = Dimensions.get('window');
 
 function formatBytes(bytes) {
-  if (!bytes || bytes === 0) return '0 B';
+  if (bytes === 0) return '0 B';
+  if (!bytes) return '0 B';
   const k = 1024;
   const sizes = ['B', 'KB', 'MB', 'GB'];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+  // For very small but non-zero values, ensure we don't show 0.0 B
+  const val = parseFloat((bytes / Math.pow(k, i)).toFixed(1));
+  return (val === 0 && bytes > 0 ? '1' : val) + ' ' + sizes[i];
 }
 
 function CacheCard({ item, isSelected, onToggle, size, currentThemeColors, delay }) {
@@ -30,7 +34,7 @@ function CacheCard({ item, isSelected, onToggle, size, currentThemeColors, delay
   return (
     <Animated.View
       entering={FadeInRight.delay(delay).duration(400)}
-      layout={Layout.springify()}
+      layout={Layout.duration(300)}
     >
       <Pressable
         onPress={onToggle}
@@ -80,32 +84,37 @@ export const ClearCachePage = ({ navigation }) => {
 
   const cacheOptions = [
     { key: 'SEARCH_HISTORY', label: 'Search History', icon: 'history' },
+    { key: 'RECENTLY_PLAYED', label: 'Recently Played', icon: 'update' },
     { key: 'SONG_CACHE', label: 'Song Cache', icon: 'cached' },
-    { key: 'OFFLINE_DOWNLOADS', label: 'Offline Downloads', icon: 'file-download-off' },
+    { key: 'OFFLINE_DOWNLOADS', label: 'Offline Downloads', icon: 'get-app' },
     { key: 'LIKED_SONGS', label: 'Liked Songs', icon: 'favorite-outline' },
     { key: 'LIKED_PLAYLISTS', label: 'Liked Playlists', icon: 'playlist-add-check' },
+    { key: 'USER_PLAYLISTS', label: 'User Playlists', icon: 'playlist-play' },
     { key: 'QUEUE', label: 'Playback Queue', icon: 'queue-music' },
     { key: 'LAST_SONG', label: 'Last Played Info', icon: 'play-circle-outline' },
-    { key: 'IMAGE_CACHE', label: 'Image Cache', icon: 'image-outline' },
+    { key: 'IMAGE_CACHE', label: 'Image Cache', icon: 'image' },
   ];
 
   const loadData = useCallback(async () => {
-    try {
-      const sizes = await GetCacheSizes();
-      setCacheSizes(sizes);
+    // Wait for screen transitions to finish before doing heavy I/O
+    InteractionManager.runAfterInteractions(async () => {
+      try {
+        const sizes = await GetCacheSizes();
+        setCacheSizes(sizes);
 
-      const total = sizes.TOTAL || 0;
-      const downloads = sizes.OFFLINE_DOWNLOADS || 0;
-      const cache = total - downloads; // Everything else is 'Cached Memory'
+        const total = sizes.TOTAL || 0;
+        const downloads = sizes.OFFLINE_DOWNLOADS || 0;
+        const cache = total - downloads; 
 
-      setStorage({
-        total: total,
-        d: downloads,
-        c: cache
-      });
-    } catch (error) {
-      console.error("Error loading clear cache data:", error);
-    }
+        setStorage({
+          total: total,
+          d: downloads,
+          c: cache
+        });
+      } catch (error) {
+        console.error("Error loading clear cache data:", error);
+      }
+    });
   }, []);
 
   useEffect(() => {

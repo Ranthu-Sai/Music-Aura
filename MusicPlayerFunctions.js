@@ -54,6 +54,17 @@ async function removeDuplicateTracks() {
   }
 }
 
+// Remove a specific track from the queue by its TrackPlayer index
+async function removeFromQueue(index) {
+  try {
+    if (typeof index !== 'number' || index < 0) return;
+    await TrackPlayer.remove(index);
+    console.log(`🗑️ Removed track at index ${index} from queue`);
+  } catch (error) {
+    console.error('Error removing track from queue:', error);
+  }
+}
+
 // Helper to extract artwork URL from various formats
 const extractArtwork = (song) => {
   // Direct artwork/image string
@@ -1403,4 +1414,5 @@ export {
   getIndexQuality,
   AddOneSongToPlaylist,
   PlaySongWithRelated,
+  removeFromQueue
 }

@@ -1,9 +1,9 @@
 import { MainWrapper } from "../Layout/MainWrapper";
 import { SearchBar } from "../Component/Global/SearchBar";
 import Tabs from "../Component/Global/Tabs/Tabs";
-import { useEffect, useState } from "react";
-import { getSearchSongData, getYTSearchSongData, getYTSearchVideoData, getYTSearchAlbumData, getYTSearchPlaylistData } from "../Api/Songs";
-import { View } from "react-native";
+import { useEffect, useState, useCallback } from "react";
+import { getSearchSongData, getYTSearchSongData, getYTSearchVideoData, getYTSearchAlbumData, getYTSearchPlaylistData, getSearchSuggestions } from "../Api/Songs";
+import { View, Keyboard } from "react-native";
 import SongDisplay from "../Component/SearchPage/SongDisplay";
 import { LoadingComponent } from "../Component/Global/Loading";
 import { getSearchPlaylistData } from "../Api/Playlist";
@@ -14,23 +14,54 @@ import { Spacer } from "../Component/Global/Spacer";
 import SearchHistoryDisplay from "../Component/SearchPage/SearchHistoryDisplay";
 import { GetSearchHistory, AddSearchHistory, RemoveSearchHistoryItem, ClearSearchHistory } from "../LocalStorage/SearchHistory";
 import ContentTypeToggle from "../Component/Global/ContentTypeToggle";
+import SearchSuggestions from "../Component/SearchPage/SearchSuggestions";
 
 export const SearchPage = ({ navigation }) => {
   const [ActiveTab, setActiveTab] = useState(0)
   const [engine, setEngine] = useState(0) // 0: Saavn, 1: YT Music, 2: Youtube
   const [query, setQuery] = useState("");
-  const [submittedQuery, setSubmittedQuery] = useState("");
   const [SearchText, setSearchText] = useState("")
   const [Loading, setLoading] = useState(false)
   const [LoadingMore, setLoadingMore] = useState(false)
   const [Data, setData] = useState({ data: { results: [] } });
   const [hasMore, setHasMore] = useState(true)
   const [searchHistory, setSearchHistory] = useState([]);
-  const [currentPage, setCurrentPage] = useState(1); // Track current page
-  const [consecutiveDuplicatePages, setConsecutiveDuplicatePages] = useState(0); // Track pages with no unique results
+  const [currentPage, setCurrentPage] = useState(1);
+  const [consecutiveDuplicatePages, setConsecutiveDuplicatePages] = useState(0);
+
+  const [suggestions, setSuggestions] = useState([]);
+  const [quickResults, setQuickResults] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+
   const limit = 100
+
+  // Fetch suggestions
+  useEffect(() => {
+    if (query.trim().length > 0 && !SearchText) {
+      const fetchSuggestions = async () => {
+        // Find matches in search history
+        const historyMatches = searchHistory.filter(h => 
+          h.toLowerCase().includes(query.toLowerCase()) && h.toLowerCase() !== query.toLowerCase()
+        ).slice(0, 3);
+
+        const res = await getSearchSuggestions(query);
+        
+        // Combine history matches with API suggestions, history first
+        const combinedSuggestions = [...new Set([...historyMatches, ...res.suggestions])];
+        
+        setSuggestions(combinedSuggestions);
+        setQuickResults(res.quickResults);
+        setShowSuggestions(true);
+      };
+      const timeoutId = setTimeout(fetchSuggestions, 300);
+      return () => clearTimeout(timeoutId);
+    } else {
+      setShowSuggestions(false);
+    }
+  }, [query, SearchText, searchHistory]);
+
   async function fetchSearchData(text, pageNum = 1, append = false) {
-    if (SearchText !== "") {
+    if (text !== "") {
       try {
         if (!append) {
           setLoading(true)
@@ -61,16 +92,13 @@ export const SearchPage = ({ navigation }) => {
           data = await getYTSearchVideoData(text, pageNum, limit)
         }
 
-        // Check if data is valid
         if (data && data.data && Array.isArray(data.data.results)) {
-          // Check if results are empty - stop loading immediately for YT Music and YouTube
           if (data.data.results.length === 0) {
             if (!append) {
               setData({ data: { results: [] } })
             }
             setHasMore(false)
           } else if (append) {
-            // Filter out duplicates based on song ID
             const existingIds = new Set((Data?.data?.results || []).map(item => item.id));
             const newUniqueResults = data.data.results.filter(item => !existingIds.has(item.id));
 
@@ -81,30 +109,23 @@ export const SearchPage = ({ navigation }) => {
               },
             }))
 
-            // Track consecutive pages with no unique results
             if (newUniqueResults.length === 0) {
               const newCount = consecutiveDuplicatePages + 1;
               setConsecutiveDuplicatePages(newCount);
-
-              // Stop loading after 10 consecutive pages with no unique results
               if (newCount >= 10) {
                 setHasMore(false);
               } else {
                 setHasMore(data.data.results.length > 0);
               }
             } else {
-              // Reset counter when we find unique results
               setConsecutiveDuplicatePages(0);
               setHasMore(data.data.results.length > 0);
             }
           } else {
             setData(data)
-            // Disable pagination for YT Music (engine 1) as it doesn't support it
-            // Keep pagination enabled for Saavn (0) and YouTube (2)
             setHasMore(engine !== 1 && data.data.results.length > 0)
           }
         } else {
-          // No valid data returned
           if (!append) {
             setData({ data: { results: [] } })
           }
@@ -124,6 +145,7 @@ export const SearchPage = ({ navigation }) => {
       setLoading(false)
     }
   }
+
   const loadMore = () => {
     if (!LoadingMore && hasMore) {
       const nextPage = currentPage + 1;
@@ -131,36 +153,18 @@ export const SearchPage = ({ navigation }) => {
       fetchSearchData(SearchText, nextPage, true);
     }
   };
+
   useEffect(() => {
     if (SearchText) {
-      setHasMore(false);
-      setCurrentPage(1); // Reset to page 1 for new search
-      setConsecutiveDuplicatePages(0); // Reset duplicate counter
-      fetchSearchData(SearchText, 1, false)
-    } else {
-      setData({ data: { results: [] } })
-      setLoading(false)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [SearchText]);
-  useEffect(() => {
-    const timeoutId = setTimeout(() => setSearchText(query), 350)
-    return () => {
-      clearTimeout(timeoutId)
-    }
-  }, [query]);
-  useEffect(() => {
-    if (SearchText) {
-      // Clear old data immediately to prevent showing wrong engine's data
+      // Clear data immediately to show fresh results for the new engine/tab
       setData({ data: { results: [] } });
-      setLoading(true);
       setHasMore(false);
-      setCurrentPage(1); // Reset to page 1 for new tab/engine
-      setConsecutiveDuplicatePages(0); // Reset duplicate counter
+      setCurrentPage(1);
+      setConsecutiveDuplicatePages(0);
       fetchSearchData(SearchText, 1, false)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ActiveTab, engine])
+  }, [SearchText, ActiveTab, engine]);
 
   useEffect(() => {
     GetSearchHistory().then(history => {
@@ -168,24 +172,26 @@ export const SearchPage = ({ navigation }) => {
     });
   }, []);
 
-  useEffect(() => {
-    if (submittedQuery && submittedQuery.trim()) {
-      AddSearchHistory(submittedQuery.trim()).then(history => {
-        if (history) {
-          setSearchHistory(history);
-        }
-      });
-    }
-  }, [submittedQuery]);
-
   const handleSearchSubmit = (searchQuery) => {
-    setSubmittedQuery(searchQuery);
+    if (!searchQuery.trim()) return;
+    setSearchText(searchQuery);
     setQuery(searchQuery);
+    setShowSuggestions(false);
+    Keyboard.dismiss();
+    AddSearchHistory(searchQuery.trim()).then(history => {
+      if (history) setSearchHistory(history);
+    });
+  };
+
+  const handleSuggestionPress = (suggestion, fillOnly = false) => {
+    setQuery(suggestion);
+    if (!fillOnly) {
+      handleSearchSubmit(suggestion);
+    }
   };
 
   const handleSelectHistory = (historyQuery) => {
-    setSubmittedQuery(historyQuery);
-    setQuery(historyQuery);
+    handleSearchSubmit(historyQuery);
   };
 
   const handleRemoveHistory = async (historyQuery) => {
@@ -197,6 +203,23 @@ export const SearchPage = ({ navigation }) => {
     const newHistory = await ClearSearchHistory();
     setSearchHistory(newHistory || []);
   };
+
+  const handleSongPress = (song) => {
+    // Switch engine based on result source
+    if (song.source === 'saavn') {
+      setEngine(0);
+    } else if (song.source === 'ytmusic') {
+      setEngine(1);
+    } else if (song.source === 'youtube') {
+      setEngine(2);
+    }
+    
+    // Always switch to Songs tab when clicking a song suggestion
+    setActiveTab(0);
+    
+    handleSearchSubmit(song.title || song.name);
+  };
+
   return (
     <MainWrapper>
       <Spacer height={5} />
@@ -204,51 +227,74 @@ export const SearchPage = ({ navigation }) => {
         navigation={navigation}
         value={query}
         onChange={(text) => {
-          setQuery(text)
+          setQuery(text);
+          if (SearchText && text !== SearchText) {
+            setSearchText(""); 
+          }
         }}
         onSubmit={handleSearchSubmit}
       />
       <Spacer height={5} />
-      <View style={{
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "flex-start",
-        paddingHorizontal: 10,
-      }}>
-        <ContentTypeToggle activeTab={ActiveTab} setActiveTab={setActiveTab} />
-        <View style={{ marginLeft: 15 }}>
-          <Tabs tabs={["Saavn", "YT Music", "Youtube"]} setState={setEngine} state={engine} />
+
+      {SearchText ? (
+        <View style={{
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "flex-start",
+          paddingHorizontal: 10,
+        }}>
+          <ContentTypeToggle activeTab={ActiveTab} setActiveTab={setActiveTab} />
+          <View style={{ marginLeft: 15 }}>
+            <Tabs tabs={["Saavn", "YT Music", "Youtube"]} setState={setEngine} state={engine} />
+          </View>
         </View>
-      </View>
+      ) : null}
+
       <Spacer height={5} />
+
       {Loading && <LoadingComponent loading={Loading} />}
-      {!Loading && !SearchText && (
-        <SearchHistoryDisplay
-          history={searchHistory}
-          onSelectQuery={handleSelectHistory}
-          onRemoveQuery={handleRemoveHistory}
-          onClearHistory={handleClearHistory}
-        />
+
+      {!Loading && (
+        <View style={{ flex: 1 }}>
+          {SearchText ? (
+            <View style={{ paddingHorizontal: 10, flex: 1 }}>
+              {engine === 0 ? (
+                <>
+                  {ActiveTab === 0 && <SongDisplay data={Data} limit={limit} Searchtext={SearchText} loadMore={loadMore} hasMore={hasMore} loadingMore={LoadingMore} />}
+                  {ActiveTab === 1 && <AlbumsDisplay data={Data} limit={limit} Searchtext={SearchText} loadMore={loadMore} hasMore={hasMore} loadingMore={LoadingMore} />}
+                  {ActiveTab === 2 && <PlaylistDisplay data={Data} limit={limit} Searchtext={SearchText} loadMore={loadMore} hasMore={hasMore} loadingMore={LoadingMore} />}
+                </>
+              ) : engine === 1 ? (
+                <>
+                  {ActiveTab === 0 && <SongDisplay data={Data} limit={limit} Searchtext={SearchText} loadMore={loadMore} hasMore={hasMore} loadingMore={LoadingMore} />}
+                  {ActiveTab === 1 && <AlbumsDisplay data={Data} limit={limit} Searchtext={SearchText} loadMore={loadMore} hasMore={hasMore} loadingMore={LoadingMore} />}
+                  {ActiveTab === 2 && <PlaylistDisplay data={Data} limit={limit} Searchtext={SearchText} loadMore={loadMore} hasMore={hasMore} loadingMore={LoadingMore} />}
+                </>
+              ) : (
+                <SongDisplay data={Data} limit={limit} Searchtext={SearchText} loadMore={loadMore} hasMore={hasMore} loadingMore={LoadingMore} />
+              )}
+            </View>
+          ) : (
+            <>
+              {showSuggestions ? (
+                <SearchSuggestions
+                  suggestions={suggestions}
+                  quickResults={quickResults}
+                  onSuggestionPress={handleSuggestionPress}
+                  onSongPress={handleSongPress}
+                />
+              ) : (
+                <SearchHistoryDisplay
+                  history={searchHistory}
+                  onSelectQuery={handleSelectHistory}
+                  onRemoveQuery={handleRemoveHistory}
+                  onClearHistory={handleClearHistory}
+                />
+              )}
+            </>
+          )}
+        </View>
       )}
-      {!Loading && SearchText && <View style={{
-        paddingHorizontal: 10,
-      }}>
-        {engine === 0 ? (
-          <>
-            {ActiveTab === 0 && <SongDisplay data={Data} limit={limit} Searchtext={SearchText} loadMore={loadMore} hasMore={hasMore} loadingMore={LoadingMore} />}
-            {ActiveTab === 1 && <AlbumsDisplay data={Data} limit={limit} Searchtext={SearchText} loadMore={loadMore} hasMore={hasMore} loadingMore={LoadingMore} />}
-            {ActiveTab === 2 && <PlaylistDisplay data={Data} limit={limit} Searchtext={SearchText} loadMore={loadMore} hasMore={hasMore} loadingMore={LoadingMore} />}
-          </>
-        ) : engine === 1 ? (
-          <>
-            {ActiveTab === 0 && <SongDisplay data={Data} limit={limit} Searchtext={SearchText} loadMore={loadMore} hasMore={hasMore} loadingMore={LoadingMore} />}
-            {ActiveTab === 1 && <AlbumsDisplay data={Data} limit={limit} Searchtext={SearchText} loadMore={loadMore} hasMore={hasMore} loadingMore={LoadingMore} />}
-            {ActiveTab === 2 && <PlaylistDisplay data={Data} limit={limit} Searchtext={SearchText} loadMore={loadMore} hasMore={hasMore} loadingMore={LoadingMore} />}
-          </>
-        ) : (
-          <SongDisplay data={Data} limit={limit} Searchtext={SearchText} loadMore={loadMore} hasMore={hasMore} loadingMore={LoadingMore} />
-        )}
-      </View>}
     </MainWrapper>
   );
 };

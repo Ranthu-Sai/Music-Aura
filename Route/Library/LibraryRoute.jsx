@@ -8,7 +8,7 @@ import { DownloadedSongsPage } from "./DownloadedSongsPage";
 const Stack = createNativeStackNavigator();
 export const LibraryRoute = () => {
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false, animation: 'fade_from_bottom' }}>
+    <Stack.Navigator screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
       <Stack.Screen name="LibraryPage" component={Library} />
       <Stack.Screen name="Playlist" component={Playlist} options={{ gestureEnabled: true }} />
       <Stack.Screen name={"LikedSongs"} component={LikedSongPage} />
