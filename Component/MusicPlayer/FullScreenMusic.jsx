@@ -27,6 +27,7 @@ import AntDesign from "react-native-vector-icons/AntDesign";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 import { useNavigation } from "@react-navigation/native";
 import { DeviceEventEmitter, Share, ToastAndroid } from "react-native";
+import { MarqueeText } from "../Global/MarqueeText";
 
 export const FullScreenMusic = ({ color, Index, setIndex }) => {
   const pan = Gesture.Pan();
@@ -349,7 +350,7 @@ export const FullScreenMusic = ({ color, Index, setIndex }) => {
             {/* Info Row */}
             <Spacer height={30} />
             <View style={{ width: '85%', alignItems: 'flex-start', justifyContent: 'center' }}>
-              <Heading text={decodeHtml(currentPlaying?.title) || "Unknown"} style={{ textAlign: "left", fontSize: 22 }} nospace={true} numberOfLines={1} />
+              <MarqueeText text={decodeHtml(currentPlaying?.title) || "Unknown"} style={{ textAlign: "left", fontSize: 22 }} nospace={true} />
               <SmallText text={decodeHtml(currentPlaying?.artist) || "Unknown Artist"} style={{ textAlign: "left", opacity: 0.6 }} maxLine={1} />
             </View>
 

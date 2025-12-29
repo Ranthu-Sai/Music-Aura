@@ -1,4 +1,4 @@
-import { Pressable, View } from "react-native";
+import { Pressable, View, TouchableOpacity } from "react-native";
 import FastImage from "react-native-fast-image";
 import { PlainText } from "../Global/PlainText";
 import { SmallText } from "../Global/SmallText";
@@ -6,6 +6,8 @@ import { memo } from "react";
 import { SkipToTrack } from "../../MusicPlayerFunctions";
 import { useActiveTrack, usePlaybackState } from "react-native-track-player";
 import TrackPlayer from "react-native-track-player";
+import AntDesign from "react-native-vector-icons/AntDesign";
+import { DownloadSong } from "../../Utils/DownloadHelper";
 
 // Helper to normalize artwork value to a URL string
 const resolveArtworkUri = (image) => {
@@ -63,7 +65,8 @@ const resolveArtworkUri = (image) => {
   return null;
 };
 
-export const EachSongQueue = memo(function EachSongQueue({ title, artist, index, image, id }) {
+export const EachSongQueue = memo(function EachSongQueue({ song, index }) {
+  const { title, artist, id, image } = song;
   const playerState = usePlaybackState()
   const currentPlaying = useActiveTrack()
   const resolved = resolveArtworkUri(image);
@@ -92,12 +95,12 @@ export const EachSongQueue = memo(function EachSongQueue({ title, artist, index,
         flexDirection: 'row',
         gap: 12,
         alignItems: "center",
-        padding: 8,
+        paddingVertical: 8,
+        paddingLeft: 6,
+        paddingRight: 0,
         borderRadius: 12,
         marginVertical: 4,
         backgroundColor: id === currentPlaying?.id ? 'rgba(255,255,255,0.1)' : 'transparent',
-        borderWidth: 1,
-        borderColor: id === currentPlaying?.id ? 'rgba(255,255,255,0.15)' : 'transparent',
       }}
     >
       <View style={{ position: 'relative' }}>
@@ -142,6 +145,13 @@ export const EachSongQueue = memo(function EachSongQueue({ title, artist, index,
           numberOfLines={1}
         />
       </View>
+
+      <TouchableOpacity
+        onPress={() => DownloadSong(song)}
+        style={{ padding: 8 }}
+      >
+        <AntDesign name="download" size={22} color="white" />
+      </TouchableOpacity>
     </Pressable>
   );
 })

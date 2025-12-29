@@ -11,7 +11,7 @@ import FormatTitleAndArtist from "../../Utils/FormatTitleAndArtist";
 import { EachSongMenuButton } from "../MusicPlayer/EachSongMenuButton";
 
 
-export const EachSongCard = memo(function EachSongCard({ title, artist, image, id, url, duration, language, artistID, isLibraryLiked, width, titleandartistwidth, isFromPlaylist, Data, index, albumName, releaseDate, albumId, isHighlighted }) {
+export const EachSongCard = memo(function EachSongCard({ title, artist, image, id, url, duration, language, artistID, isLibraryLiked, width, titleandartistwidth, isFromPlaylist, Data, index, albumName, releaseDate, albumId, isHighlighted, playlistId }) {
   const width1 = Dimensions.get("window").width;
   const { updateTrack, setVisible, lyricsCacheRef } = useContext(Context)
   const currentPlaying = useActiveTrack()
@@ -21,37 +21,40 @@ export const EachSongCard = memo(function EachSongCard({ title, artist, image, i
 
   // Normalize artwork formats (string, array, object) to a single URI
   const normalizeArtwork = (img) => {
-    if (!img) {return null;}
-    if (typeof img === 'string' && img.trim().length > 0) {return img;}
+    if (!img) { return null; }
+    if (typeof img === 'string' && img.trim().length > 0) { return img; }
 
     // If it's an array, find the best quality URL
     if (Array.isArray(img) && img.length > 0) {
       // Create a copy and reverse to search from highest quality
       const reversed = [...img].reverse();
       for (const item of reversed) {
-        if (!item) {continue;}
-        if (typeof item === 'string' && item.trim().length > 0) {return item;}
-        if (item.url && typeof item.url === 'string' && item.url.trim().length > 0) {return item.url;}
-        if (item.uri && typeof item.uri === 'string' && item.uri.trim().length > 0) {return item.uri;}
-        if (item.link && typeof item.link === 'string' && item.link.trim().length > 0) {return item.link;}
+        if (!item) { continue; }
+        if (typeof item === 'string' && item.trim().length > 0) { return item; }
+        if (item.url && typeof item.url === 'string' && item.url.trim().length > 0) { return item.url; }
+        if (item.uri && typeof item.uri === 'string' && item.uri.trim().length > 0) { return item.uri; }
+        if (item.link && typeof item.link === 'string' && item.link.trim().length > 0) { return item.link; }
       }
     }
 
     // If it's an object, check common fields
     if (typeof img === 'object') {
-      if (img.url && typeof img.url === 'string' && img.url.trim().length > 0) {return img.url;}
-      if (img.uri && typeof img.uri === 'string' && img.uri.trim().length > 0) {return img.uri;}
-      if (img.link && typeof img.link === 'string' && img.link.trim().length > 0) {return img.link;}
+      if (img.url && typeof img.url === 'string' && img.url.trim().length > 0) { return img.url; }
+      if (img.uri && typeof img.uri === 'string' && img.uri.trim().length > 0) { return img.uri; }
+      if (img.link && typeof img.link === 'string' && img.link.trim().length > 0) { return img.link; }
       if (img.thumbnail) {
-        if (typeof img.thumbnail === 'string' && img.thumbnail.trim().length > 0) {return img.thumbnail;}
-        if (img.thumbnail.url && typeof img.thumbnail.url === 'string' && img.thumbnail.url.trim().length > 0) {return img.thumbnail.url;}
-        if (img.thumbnail.uri && typeof img.thumbnail.uri === 'string' && img.thumbnail.uri.trim().length > 0) {return img.thumbnail.uri;}
+        if (typeof img.thumbnail === 'string' && img.thumbnail.trim().length > 0) { return img.thumbnail; }
+        if (img.thumbnail.url && typeof img.thumbnail.url === 'string' && img.thumbnail.url.trim().length > 0) { return img.thumbnail.url; }
+        if (img.thumbnail.uri && typeof img.thumbnail.uri === 'string' && img.thumbnail.uri.trim().length > 0) { return img.thumbnail.uri; }
       }
     }
     return null;
   };
 
-  const artworkUri = normalizeArtwork(image) || 'https://via.placeholder.com/60x60/cccccc/000000?text=No+Img';
+  const artworkUri = normalizeArtwork(image) ||
+    ((url && (url.startsWith('/') || url.startsWith('file://')))
+      ? 'https://img.icons8.com/ios-filled/100/1DB954/music-track.png'
+      : 'https://via.placeholder.com/60x60/cccccc/000000?text=No+Img');
 
   const handleAlbumPress = () => {
     if (albumId) {
@@ -60,7 +63,7 @@ export const EachSongCard = memo(function EachSongCard({ title, artist, image, i
   };
 
   const AddSongToPlayer = useCallback(async () => {
-    if (isLoading) {return;}
+    if (isLoading) { return; }
     setIsLoading(true);
     try {
       if (lyricsCacheRef?.current) { lyricsCacheRef.current = {}; }
@@ -170,7 +173,7 @@ export const EachSongCard = memo(function EachSongCard({ title, artist, image, i
 
               // Match if both title and artist are essentially the same
               if (currentTitle && cardTitle && currentTitle === cardTitle &&
-                  currentArtist && cardArtist && (currentArtist.includes(cardArtist) || cardArtist.includes(currentArtist))) {
+                currentArtist && cardArtist && (currentArtist.includes(cardArtist) || cardArtist.includes(currentArtist))) {
                 isCurrentSong = true;
               }
             }
@@ -179,8 +182,8 @@ export const EachSongCard = memo(function EachSongCard({ title, artist, image, i
 
             // Debug logging
             if (isCurrentSong) {
-                const idMatch = id === currentPlaying?.id;
-                console.log(`🎵 Playing icon: "${title}" | ID match: ${idMatch} | Title fallback: ${!idMatch && !!currentPlaying?.title} | State: ${playerState.state}`);
+              const idMatch = id === currentPlaying?.id;
+              console.log(`🎵 Playing icon: "${title}" | ID match: ${idMatch} | Title fallback: ${!idMatch && !!currentPlaying?.title} | State: ${playerState.state}`);
             }
 
             if (isCurrentSong && isPlaying) {
@@ -202,35 +205,12 @@ export const EachSongCard = memo(function EachSongCard({ title, artist, image, i
           }}>
             <PlainText text={FormatTitleAndArtist(title)} style={{ width: titleandartistwidth ? titleandartistwidth : width1 * 0.67 }} />
             <SmallText text={FormatTitleAndArtist(artist)} style={{ width: titleandartistwidth ? titleandartistwidth : width1 * 0.67 }} />
-            {((albumName || releaseDate) && !isFromPlaylist) && (
-              <Pressable onPress={handleAlbumPress} style={{ marginTop: 2 }}>
-                <SmallText
-                  text={`${albumName ? albumName : ''}${albumName && releaseDate ? ' • ' : ''}${releaseDate ? releaseDate : ''}`}
-                  style={{
-                    width: titleandartistwidth ? titleandartistwidth : width1 * 0.67,
-                    color: albumId ? '#3498db' : '#CCCCCC', // Highlight if clickable
-                    fontSize: 12,
-                    textDecorationLine: albumId ? 'underline' : 'none',
-                  }}
-                />
-              </Pressable>
-            )}
-            {(isFromPlaylist && releaseDate) && (
-              <SmallText
-                text={releaseDate}
-                style={{
-                  width: titleandartistwidth ? titleandartistwidth : width1 * 0.67,
-                  color: '#CCCCCC',
-                  fontSize: 12,
-                }}
-              />
-            )}
           </View>
         </Pressable>
         <EachSongMenuButton Onpress={() => {
           setVisible({
             visible: true,
-            title, artist, image, id, url, duration, language,
+            title, artist, image, id, url, duration, language, playlistId, albumId, albumName, navigation
           })
         }} />
       </View>

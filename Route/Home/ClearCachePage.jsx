@@ -3,83 +3,114 @@ import { PaddingConatiner } from "../../Layout/PaddingConatiner";
 import { Heading } from "../../Component/Global/Heading";
 import { PlainText } from "../../Component/Global/PlainText";
 import { SmallText } from "../../Component/Global/SmallText";
-import { Pressable, ScrollView, ToastAndroid, View, Alert } from "react-native";
-import { useEffect, useState, useContext } from "react";
+import { TouchableOpacity, Pressable, ScrollView, ToastAndroid, View, Alert, StyleSheet, Dimensions, ActivityIndicator } from "react-native";
+import { useEffect, useState, useContext, useCallback } from "react";
 import Context from "../../Context/Context";
 import { GetCacheSizes, ClearSelectedCache, ClearAllCache } from "../../LocalStorage/ClearCache";
 import MaterialIcons from "react-native-vector-icons/MaterialIcons";
+import LinearGradient from "react-native-linear-gradient";
+import Animated, { FadeInDown, FadeInRight, Layout } from "react-native-reanimated";
+import { Spacer } from "../../Component/Global/Spacer";
+import Icon from "react-native-vector-icons/MaterialCommunityIcons";
+import { getAppStorageDynamics } from "../../Utils/StorageUtils";
 
-function EachCacheOption({ item, isSelected, onToggle, size, currentThemeColors }) {
+const { width } = Dimensions.get('window');
+
+function formatBytes(bytes) {
+  if (!bytes || bytes === 0) return '0 B';
+  const k = 1024;
+  const sizes = ['B', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+}
+
+function CacheCard({ item, isSelected, onToggle, size, currentThemeColors, delay }) {
+  const percentage = Math.min(100, (size / (10 * 1024 * 1024)) * 100); // Normalize against 10MB for visual
+
   return (
-    <Pressable
-      onPress={onToggle}
-      style={{
-        backgroundColor: isSelected ? currentThemeColors.primary + '20' : currentThemeColors.background,
-        padding: 15,
-        borderRadius: 10,
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "space-between",
-        marginBottom: 10,
-        borderWidth: isSelected ? 2 : 1,
-        borderColor: isSelected ? currentThemeColors.primary : currentThemeColors.background,
-      }}
+    <Animated.View
+      entering={FadeInRight.delay(delay).duration(400)}
+      layout={Layout.springify()}
     >
-      <View style={{ flexDirection: "row", alignItems: "center", flex: 1 }}>
-        <MaterialIcons
-          name={item.icon}
-          size={24}
-          color={isSelected ? currentThemeColors.primary : currentThemeColors.text}
-          style={{ marginRight: 12 }}
-        />
-        <View style={{ flex: 1 }}>
-          <PlainText text={item.label} />
-          <SmallText text={formatBytes(size)} />
+      <Pressable
+        onPress={onToggle}
+        style={({ pressed }) => [
+          styles.cacheCard,
+          {
+            backgroundColor: isSelected ? 'rgba(29, 185, 84, 0.1)' : 'rgba(255,255,255,0.03)',
+            borderColor: isSelected ? '#1DB954' : 'rgba(255,255,255,0.05)',
+            opacity: pressed ? 0.8 : 1
+          }
+        ]}
+      >
+        <View style={styles.cardLeft}>
+          <View style={[styles.iconBox, { backgroundColor: isSelected ? '#1DB95422' : 'rgba(255,255,255,0.05)' }]}>
+            <MaterialIcons
+              name={item.icon}
+              size={22}
+              color={isSelected ? '#1DB954' : 'white'}
+            />
+          </View>
+          <View style={{ flex: 1, marginLeft: 15 }}>
+            <PlainText text={item.label} style={{ fontWeight: '600' }} />
+            <View style={styles.miniBarContainer}>
+              <View style={[styles.miniBarFill, { width: `${Math.max(2, percentage)}%`, backgroundColor: isSelected ? '#1DB954' : 'rgba(255,255,255,0.2)' }]} />
+            </View>
+          </View>
         </View>
-      </View>
-      <MaterialIcons
-        name={isSelected ? "check-box" : "check-box-outline-blank"}
-        size={24}
-        color={isSelected ? currentThemeColors.primary : currentThemeColors.secondaryText}
-      />
-    </Pressable>
+        <View style={styles.cardRight}>
+          <SmallText text={formatBytes(size)} style={{ marginRight: 10, opacity: 0.6 }} />
+          <MaterialIcons
+            name={isSelected ? "check-circle" : "radio-button-unchecked"}
+            size={22}
+            color={isSelected ? '#1DB954' : 'rgba(255,255,255,0.3)'}
+          />
+        </View>
+      </Pressable>
+    </Animated.View>
   );
 }
 
-function formatBytes(bytes) {
-  if (bytes === 0) {
-    return '0 Bytes';
-  }
-  const k = 1024;
-  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
-}
-
-
 export const ClearCachePage = ({ navigation }) => {
-  const { currentThemeColors } = useContext(Context);
+  const { currentThemeColors, activeTrack } = useContext(Context);
   const [cacheSizes, setCacheSizes] = useState({});
+  const [storage, setStorage] = useState({ total: 0, d: 0, c: 0 });
   const [selectedCache, setSelectedCache] = useState([]);
   const [loading, setLoading] = useState(false);
 
   const cacheOptions = [
     { key: 'SEARCH_HISTORY', label: 'Search History', icon: 'history' },
-    { key: 'LIKED_SONGS', label: 'Liked Songs', icon: 'favorite' },
+    { key: 'SONG_CACHE', label: 'Song Cache', icon: 'cached' },
+    { key: 'OFFLINE_DOWNLOADS', label: 'Offline Downloads', icon: 'file-download-off' },
+    { key: 'LIKED_SONGS', label: 'Liked Songs', icon: 'favorite-outline' },
     { key: 'LIKED_PLAYLISTS', label: 'Liked Playlists', icon: 'playlist-add-check' },
-    { key: 'QUEUE', label: 'Queue', icon: 'queue-music' },
-    { key: 'LAST_SONG', label: 'Last Played Song', icon: 'play-circle-outline' },
-    { key: 'IMAGE_CACHE', label: 'Image Cache', icon: 'image' },
+    { key: 'QUEUE', label: 'Playback Queue', icon: 'queue-music' },
+    { key: 'LAST_SONG', label: 'Last Played Info', icon: 'play-circle-outline' },
+    { key: 'IMAGE_CACHE', label: 'Image Cache', icon: 'image-outline' },
   ];
 
-  async function loadCacheSizes() {
-    const sizes = await GetCacheSizes();
-    setCacheSizes(sizes);
-  }
+  const loadData = useCallback(async () => {
+    try {
+      const sizes = await GetCacheSizes();
+      setCacheSizes(sizes);
+
+      const total = sizes.TOTAL || 0;
+      const downloads = sizes.OFFLINE_DOWNLOADS || 0;
+      const cache = total - downloads; // Everything else is 'Cached Memory'
+
+      setStorage({
+        total: total,
+        d: downloads,
+        c: cache
+      });
+    } catch (error) {
+      console.error("Error loading clear cache data:", error);
+    }
+  }, []);
 
   useEffect(() => {
-    loadCacheSizes();
-  }, []);
+    loadData();
+  }, [loadData]);
 
   function toggleCacheSelection(key) {
     if (selectedCache.includes(key)) {
@@ -89,63 +120,27 @@ export const ClearCachePage = ({ navigation }) => {
     }
   }
 
-  function selectAll() {
-    setSelectedCache(cacheOptions.map(opt => opt.key));
-  }
-
-  function deselectAll() {
-    setSelectedCache([]);
-  }
-
   async function handleClearSelected() {
     if (selectedCache.length === 0) {
-      ToastAndroid.show("Please select at least one item to clear", ToastAndroid.SHORT);
+      ToastAndroid.show("Select categories to clear", ToastAndroid.SHORT);
       return;
     }
 
     Alert.alert(
-      "Clear Selected Cache",
-      `Are you sure you want to clear ${selectedCache.length} selected item(s)? This action cannot be undone.`,
+      "Confirm Cleanup",
+      `Clear cache for ${selectedCache.length} selected categories?`,
       [
         { text: "Cancel", style: "cancel" },
         {
-          text: "Clear",
+          text: "Clear Now",
           style: "destructive",
           onPress: async () => {
             setLoading(true);
             const success = await ClearSelectedCache(selectedCache);
             if (success) {
-              ToastAndroid.show("Selected cache cleared successfully", ToastAndroid.SHORT);
+              ToastAndroid.show("Cleanup successful", ToastAndroid.SHORT);
               setSelectedCache([]);
-              await loadCacheSizes();
-            } else {
-              ToastAndroid.show("Error clearing cache", ToastAndroid.SHORT);
-            }
-            setLoading(false);
-          },
-        },
-      ],
-    );
-  }
-
-  async function handleClearAll() {
-    Alert.alert(
-      "Clear All Cache",
-      "Are you sure you want to clear all cache data? This will remove all search history, liked songs, playlists, and queue. This action cannot be undone.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Clear All",
-          style: "destructive",
-          onPress: async () => {
-            setLoading(true);
-            const success = await ClearAllCache();
-            if (success) {
-              ToastAndroid.show("All cache cleared successfully", ToastAndroid.SHORT);
-              setSelectedCache([]);
-              await loadCacheSizes();
-            } else {
-              ToastAndroid.show("Error clearing cache", ToastAndroid.SHORT);
+              await loadData();
             }
             setLoading(false);
           },
@@ -157,108 +152,228 @@ export const ClearCachePage = ({ navigation }) => {
   return (
     <MainWrapper>
       <PaddingConatiner>
-        <Heading text={"CLEAR CACHE"} />
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 20 }}>
-          {/* Total Cache Size */}
-          <View style={{
-            backgroundColor: currentThemeColors.primary + '20',
-            padding: 20,
-            borderRadius: 10,
-            marginBottom: 15,
-            alignItems: "center",
-          }}>
-            <SmallText text="Total Cache Size" />
-            <PlainText text={formatBytes(cacheSizes.TOTAL || 0)} />
-          </View>
-
-          {/* Selection Controls */}
-          <View style={{
-            flexDirection: "row",
-            justifyContent: "space-between",
-            marginBottom: 15,
-          }}>
-            <Pressable
-              onPress={selectAll}
-              style={{
-                backgroundColor: currentThemeColors.background,
-                padding: 10,
-                borderRadius: 8,
-                flex: 1,
-                marginRight: 5,
-                alignItems: "center",
-              }}
+        <Heading text={"Clear Cache"} />
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: activeTrack ? 140 : 100 }}
+        >
+          {/* Dynamic Storage Dashboard */}
+          <Animated.View entering={FadeInDown.duration(600)} style={styles.dashboard}>
+            <LinearGradient
+              colors={['#1DB95433', 'transparent']}
+              start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+              style={styles.dashboardGradient}
             >
-              <PlainText text="Select All" />
-            </Pressable>
-            <Pressable
-              onPress={deselectAll}
-              style={{
-                backgroundColor: currentThemeColors.background,
-                padding: 10,
-                borderRadius: 8,
-                flex: 1,
-                marginLeft: 5,
-                alignItems: "center",
-              }}
+              <View style={styles.dashboardHeader}>
+                <View>
+                  <PlainText text="Storage Dashboard" style={styles.dashboardTitle} />
+                  <SmallText text={`Total usage: ${formatBytes(storage.total)}`} style={{ opacity: 0.6 }} />
+                </View>
+                <TouchableOpacity onPress={loadData} style={styles.refreshIcon}>
+                  <Icon name="refresh" size={20} color="#1DB954" />
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.storageBars}>
+                <View style={styles.barContainer}>
+                  <View style={styles.barLabelRow}>
+                    <SmallText text="Offline Downloads" />
+                    <SmallText text={formatBytes(storage.d)} />
+                  </View>
+                  <View style={styles.barBg}>
+                    <Animated.View style={[styles.barFill, { width: `${(storage.d / (storage.total || 1)) * 100}%`, backgroundColor: '#1DB954' }]} />
+                  </View>
+                </View>
+                <View style={styles.barContainer}>
+                  <View style={styles.barLabelRow}>
+                    <SmallText text="Cached Memory" />
+                    <SmallText text={formatBytes(storage.c)} />
+                  </View>
+                  <View style={styles.barBg}>
+                    <Animated.View style={[styles.barFill, { width: `${(storage.c / (storage.total || 1)) * 100}%`, backgroundColor: '#4776E6' }]} />
+                  </View>
+                </View>
+              </View>
+            </LinearGradient>
+          </Animated.View>
+
+          <View style={styles.controlsRow}>
+            <TouchableOpacity
+              onPress={() => setSelectedCache(cacheOptions.map(o => o.key))}
+              style={styles.controlBtn}
             >
-              <PlainText text="Deselect All" />
-            </Pressable>
+              <PlainText text="Select All" style={styles.controlText} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => setSelectedCache([])}
+              style={styles.controlBtn}
+            >
+              <PlainText text="Deselect All" style={styles.controlText} />
+            </TouchableOpacity>
           </View>
 
-          {/* Cache Options */}
-          <View style={{ marginBottom: 15 }}>
-            {cacheOptions.map(item => {
-              const isSelected = selectedCache.includes(item.key);
-              const size = cacheSizes[item.key] || 0;
-              return (
-                <EachCacheOption
-                  key={item.key}
-                  item={item}
-                  isSelected={isSelected}
-                  onToggle={() => toggleCacheSelection(item.key)}
-                  size={size}
-                  currentThemeColors={currentThemeColors}
-                />
-              );
-            })}
+          <View style={{ marginBottom: 20 }}>
+            {cacheOptions.map((item, index) => (
+              <CacheCard
+                key={item.key}
+                item={item}
+                delay={index * 50}
+                isSelected={selectedCache.includes(item.key)}
+                onToggle={() => toggleCacheSelection(item.key)}
+                size={cacheSizes[item.key] || 0}
+                currentThemeColors={currentThemeColors}
+              />
+            ))}
           </View>
 
-          {/* Action Buttons */}
-          <Pressable
+          <Spacer height={10} />
+
+          <TouchableOpacity
             onPress={handleClearSelected}
             disabled={loading || selectedCache.length === 0}
-            style={{
-              backgroundColor: selectedCache.length > 0 ? currentThemeColors.primary : currentThemeColors.background,
-              padding: 15,
-              borderRadius: 10,
-              alignItems: "center",
-              marginBottom: 10,
-              opacity: loading || selectedCache.length === 0 ? 0.5 : 1,
-            }}
+            style={[styles.mainActionBtn, { opacity: selectedCache.length > 0 ? 1 : 0.5 }]}
           >
-            <PlainText text={`Clear Selected (${selectedCache.length})`} />
-          </Pressable>
+            {loading ? <ActivityIndicator color="black" /> : (
+              <>
+                <MaterialIcons name="delete-sweep" size={24} color="black" />
+                <PlainText text={`Clean ${selectedCache.length} Categories`} style={styles.actionBtnText} />
+              </>
+            )}
+          </TouchableOpacity>
 
-          <Pressable
-            onPress={handleClearAll}
-            disabled={loading}
-            style={{
-              backgroundColor: currentThemeColors.background,
-              padding: 15,
-              borderRadius: 10,
-              alignItems: "center",
-              marginBottom: 10,
-              borderWidth: 1,
-              borderColor: 'red',
-              opacity: loading ? 0.5 : 1,
-            }}
-          >
-            <PlainText text="Clear All Cache" />
-          </Pressable>
+          <Animated.View entering={FadeInDown.delay(600)} style={styles.footerNote}>
+            <MaterialIcons name="info-outline" size={14} color="rgba(255,255,255,0.4)" />
+            <SmallText text="Settings and custom playlists are never deleted." style={{ marginLeft: 5, opacity: 0.4 }} />
+          </Animated.View>
 
-          <SmallText text="*Note: Clearing cache will remove stored data permanently. Settings and user preferences will not be affected." />
         </ScrollView>
       </PaddingConatiner>
     </MainWrapper>
   );
 };
+
+const styles = StyleSheet.create({
+  dashboard: {
+    borderRadius: 24,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    marginTop: 15,
+    marginBottom: 20,
+  },
+  dashboardGradient: {
+    padding: 20,
+  },
+  dashboardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 20,
+  },
+  dashboardTitle: {
+    fontSize: 20,
+    fontWeight: '900',
+    letterSpacing: -0.5,
+  },
+  refreshIcon: {
+    padding: 8,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 12,
+  },
+  storageBars: {
+    gap: 12,
+  },
+  barContainer: {},
+  barLabelRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 6,
+  },
+  barBg: {
+    height: 6,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  barFill: {
+    height: '100%',
+    borderRadius: 3,
+  },
+  controlsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 15,
+    gap: 10,
+  },
+  controlBtn: {
+    flex: 1,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    padding: 10,
+    borderRadius: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+  },
+  controlText: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    opacity: 0.8,
+  },
+  cacheCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+    borderRadius: 20,
+    marginBottom: 10,
+    borderWidth: 1,
+  },
+  cardLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  iconBox: {
+    padding: 10,
+    borderRadius: 12,
+  },
+  miniBarContainer: {
+    height: 4,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 2,
+    marginTop: 8,
+    width: '100%',
+  },
+  miniBarFill: {
+    height: '100%',
+    borderRadius: 2,
+  },
+  cardRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: 10,
+  },
+  mainActionBtn: {
+    backgroundColor: '#1DB954',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 18,
+    borderRadius: 20,
+    gap: 12,
+    elevation: 5,
+  },
+  actionBtnText: {
+    color: 'black',
+    fontWeight: '900',
+    fontSize: 16,
+  },
+  footerNote: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 20,
+    paddingBottom: 20,
+  }
+});

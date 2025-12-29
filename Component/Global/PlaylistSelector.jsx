@@ -215,11 +215,14 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   input: {
-    backgroundColor: '#262626',
+    backgroundColor: '#333',
     borderRadius: 8,
     padding: 12,
     color: 'white',
     fontSize: 16,
+    fontWeight: 'bold', // Thick name while typing
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
   },
   formButtons: {
     flexDirection: 'row',
@@ -228,36 +231,39 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   formButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 20,
-    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 25,
+    borderRadius: 10,
   },
   cancelButton: {
     backgroundColor: 'rgba(255,255,255,0.1)',
   },
   saveButton: {
-    backgroundColor: '#6CC04A',
+    backgroundColor: '#1DB954',
   },
   saveButtonText: {
     color: 'black',
-    fontWeight: 'bold',
+    fontWeight: '900',
   },
   playlistItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 15,
-    paddingHorizontal: 10,
+    paddingVertical: 18,
+    paddingHorizontal: 12,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.05)',
+    borderBottomColor: 'rgba(255,255,255,0.08)',
   },
   playlistName: {
     marginLeft: 15,
-    fontSize: 16,
+    fontSize: 17,
+    fontWeight: 'bold', // Visible thick name
+    color: 'white',
     flex: 1,
   },
   songCount: {
     fontSize: 12,
-    color: '#888',
+    color: '#aaa',
+    fontWeight: '600',
   },
   emptyContainer: {
     padding: 30,

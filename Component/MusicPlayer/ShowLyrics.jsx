@@ -12,7 +12,7 @@ import FormatTitleAndArtist from '../../Utils/FormatTitleAndArtist';
 
 // Helper function to clean song title - extract only the core song name
 const cleanSongTitle = (title) => {
-  if (!title) {return 'Unknown Song';}
+  if (!title) { return 'Unknown Song'; }
 
   let cleaned = FormatTitleAndArtist(title);
 
@@ -186,7 +186,7 @@ export const ShowLyrics = ({ ShowDailog, Loading, Lyric, setShowDailog, currentS
   };
 
   return (
-    <Modal transparent={true} visible={ShowDailog} statusBarTranslucent={true} >
+    <Modal transparent={true} visible={ShowDailog} statusBarTranslucent={true} onRequestClose={() => setShowDailog(false)}>
       <View style={{
         backgroundColor: "rgba(0,0,0,1)",
         flex: 1,

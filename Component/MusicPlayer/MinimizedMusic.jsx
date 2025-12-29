@@ -1,8 +1,9 @@
 import { View, Pressable } from "react-native";
 import { useTheme } from "@react-navigation/native";
-import React, { memo } from "react";
+import React, { memo, useEffect } from "react";
 import { PlainText } from "../Global/PlainText";
-import Animated, { FadeIn } from "react-native-reanimated";
+import { MarqueeText } from "../Global/MarqueeText";
+import Animated, { FadeIn, useAnimatedStyle, useSharedValue, withRepeat, withTiming, Easing, cancelAnimation, useDerivedValue } from "react-native-reanimated";
 import { GestureDetector, Gesture, GestureHandlerRootView } from "react-native-gesture-handler";
 import { PlayPauseButton } from "./PlayPauseButton";
 import { NextSongButton } from "./NextSongButton";
@@ -10,119 +11,226 @@ import { PreviousSongButton } from "./PreviousSongButton";
 import { LikeSongButton } from "./LikeSongButton";
 import FastImage from "react-native-fast-image";
 import YTArtworkUtils from "../../Utils/YTMusicArtworkUtils";
-import { useActiveTrack, useProgress } from "react-native-track-player";
+import { useActiveTrack, useProgress, usePlaybackState, State } from "react-native-track-player";
 import { PlayNextSong, PlayPreviousSong } from "../../MusicPlayerFunctions";
-import FormatTitleAndArtist from "../../Utils/FormatTitleAndArtist";
+
+const AnimatedFastImage = Animated.createAnimatedComponent(FastImage);
 
 export const MinimizedMusic = memo(({ setIndex, color }) => {
-  const { position, duration } = useProgress()
-  const theme = useTheme();
-  const pan = Gesture.Pan();
-  pan.onFinalize((e) => {
-    if (e.translationX > 100) {
-      PlayPreviousSong()
-    } else if (e.translationX < -100) {
-      PlayNextSong()
-    } else {
-      setIndex(1)
-    }
-  })
+    const { position, duration } = useProgress();
+    const playbackState = usePlaybackState();
+    const theme = useTheme();
 
-  function TotalCompletedInpercent() {
-    return (position / duration) * 100
-  }
+    const isPlaying = playbackState.state === State.Playing || playbackState.state === "playing";
 
-  const formatTime = (seconds) => {
-    if (!seconds || isNaN(seconds)) {
-      return "0:00";
-    }
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
-  };
+    // 1. Clockwise Continuous Rotation logic
+    const discRotation = useSharedValue(0);
 
-  const currentPlaying = useActiveTrack()
-  if (!currentPlaying) {
-    return null;
-  }
+    useEffect(() => {
+        if (isPlaying) {
+            // Continuous clockwise rotation
+            discRotation.value = withRepeat(
+                withTiming(360, {
+                    duration: 12000,
+                    easing: Easing.linear,
+                }),
+                -1,
+                false
+            );
+        } else {
+            // Pause at current position
+            cancelAnimation(discRotation);
+        }
+    }, [isPlaying, discRotation]);
 
-  return (
-    <GestureHandlerRootView style={{ flex: 1, backgroundColor: 'transparent' }}>
-      <View style={{
-        marginHorizontal: 10,
-        marginBottom: 10,
-        borderRadius: 16,
-        overflow: 'hidden',
-        backgroundColor: '#1a1a1a',
-        elevation: 15,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.44,
-        shadowRadius: 10.32,
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.1)',
-      }}>
-        <View style={{ height: 2.5, width: "100%", backgroundColor: "rgba(255,255,255,0.05)" }}>
-          <View style={{ height: "100%", width: `${TotalCompletedInpercent()}%`, backgroundColor: theme.colors.primary || '#6CC04A' }} />
-        </View>
+    const discAnimatedStyle = useAnimatedStyle(() => ({
+        transform: [{ rotate: `${discRotation.value}deg` }],
+    }));
 
-        <Animated.View
-          entering={FadeIn}
-          style={{
-            flexDirection: 'row',
-            justifyContent: "space-between",
-            height: 68,
-            paddingHorizontal: 10,
-            alignItems: "center",
-          }}>
-          <GestureDetector gesture={pan}>
-            <Pressable onPress={() => setIndex(1)} style={{
-              flexDirection: "row",
-              flex: 1,
-              alignItems: "center",
-              height: '100%',
+    // 2. Horizontal Progress Logic (at the bottom)
+    const progressPercent = useDerivedValue(() => {
+        if (!duration || duration <= 0) return 0;
+        const p = (position / duration) * 100;
+        return isNaN(p) ? 0 : p;
+    });
+
+    const animatedProgressStyle = useAnimatedStyle(() => ({
+        width: `${progressPercent.value}%`,
+    }));
+
+    const formatTime = (seconds) => {
+        if (!seconds || isNaN(seconds)) return "0:00";
+        const mins = Math.floor(seconds / 60);
+        const secs = Math.floor(seconds % 60);
+        return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+    };
+
+    /**
+     * ULTRA CLEAN TITLE LOGIC
+     * Aggressively removes all non-song-title parts
+     */
+    const getCleanTitle = (title) => {
+        if (!title) return "";
+        let clean = title;
+
+        // 1. Split by common separators and take the first part (Song Name)
+        // Common separators: " - ", " | ", " : ", " ; "
+        const separators = [" - ", " | ", " : ", " ; "];
+        for (const sep of separators) {
+            if (clean.includes(sep)) {
+                clean = clean.split(sep)[0];
+            }
+        }
+
+        // 2. Remove everything in brackets or parentheses
+        clean = clean.replace(/[\(\[].*?[\)\]]/g, '');
+
+        // 3. Remove known garbage words/suffixes
+        const garbage = [
+            /\s+from\s+.*/gi,
+            /\s+feat\..*/gi,
+            /\s+ft\..*/gi,
+            /\s*\-\s*Topic/g,
+            /\s+Official\s+Video.*/gi,
+            /\s+Full\s+Video.*/gi,
+            /\s+Lyric\s+Video.*/gi,
+            /\s+Music\s+Video.*/gi,
+            /\s+Original\s+Sound.*/gi,
+            /\s+Lyrical.*/gi
+        ];
+
+        garbage.forEach(pattern => {
+            clean = clean.replace(pattern, '');
+        });
+
+        // 4. Final trim and space cleanup
+        return clean.replace(/\s\s+/g, ' ').trim();
+    };
+
+    const pan = Gesture.Pan();
+    pan.onFinalize((e) => {
+        if (e.translationX > 80) {
+            PlayPreviousSong();
+        } else if (e.translationX < -80) {
+            PlayNextSong();
+        } else {
+            setIndex(1);
+        }
+    });
+
+    const currentPlaying = useActiveTrack();
+    if (!currentPlaying) return null;
+
+    const progressColor = '#1DB954';
+
+    return (
+        <GestureHandlerRootView style={{ height: 85, backgroundColor: 'transparent' }}>
+            <View style={{
+                marginHorizontal: 10,
+                marginBottom: 10,
+                borderRadius: 20,
+                overflow: 'hidden',
+                backgroundColor: '#0c0c0c',
+                height: 72,
+                elevation: 12,
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 6 },
+                shadowOpacity: 0.4,
+                shadowRadius: 8,
+                borderWidth: 1,
+                borderColor: 'rgba(255,255,255,0.08)',
             }}>
-              <FastImage
-                source={{
-                  uri: (() => {
-                    const art = currentPlaying?.artwork || currentPlaying?.thumbnail || "https://htmlcolorcodes.com/assets/images/colors/gray-color-solid-background-1920x1080.png";
-                    return YTArtworkUtils.upgradeArtworkQuality(art);
-                  })(),
-                }}
-                resizeMode={FastImage.resizeMode.cover}
-                style={{
-                  height: 48,
-                  width: 48,
-                  borderRadius: 12,
-                  backgroundColor: 'rgba(255,255,255,0.05)',
-                }}
-              />
-              <View style={{
-                flex: 1,
-                justifyContent: "center",
-                paddingHorizontal: 12,
-              }}>
-                <PlainText
-                  text={FormatTitleAndArtist(currentPlaying?.title ?? "").split(' (')[0].split(' [')[0].split(' - ')[0]}
-                  numberOfLine={1}
-                  style={{ fontSize: 14, fontWeight: '700' }}
-                />
-                <PlainText
-                  text={`${formatTime(position)} / ${formatTime(duration)}`}
-                  style={{ fontSize: 10, opacity: 0.6, marginTop: 1 }}
-                />
-              </View>
-            </Pressable>
-          </GestureDetector>
+                {/* Main Content Area */}
+                <Animated.View
+                    entering={FadeIn}
+                    style={{
+                        flexDirection: 'row',
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        height: 68,
+                        paddingHorizontal: 10,
+                    }}>
 
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
-            <LikeSongButton size={22} />
-            <PreviousSongButton size={22} />
-            <PlayPauseButton isFullScreen={false} size={28} />
-            <NextSongButton size={22} />
-          </View>
-        </Animated.View>
-      </View>
-    </GestureHandlerRootView>
-  );
+                    <GestureDetector gesture={pan}>
+                        <Pressable onPress={() => setIndex(1)} style={{
+                            flexDirection: "row",
+                            flex: 1,
+                            alignItems: "center",
+                            height: '100%',
+                        }}>
+                            {/* Spinning Artwork Disc */}
+                            <View style={{ width: 50, height: 50, alignItems: 'center', justifyContent: 'center' }}>
+                                <AnimatedFastImage
+                                    source={{
+                                        uri: (() => {
+                                            const art = currentPlaying?.artwork || currentPlaying?.thumbnail || "https://htmlcolorcodes.com/assets/images/colors/gray-color-solid-background-1920x1080.png";
+                                            return YTArtworkUtils.upgradeArtworkQuality(art);
+                                        })(),
+                                    }}
+                                    resizeMode={FastImage.resizeMode.cover}
+                                    style={[
+                                        {
+                                            height: 46,
+                                            width: 46,
+                                            borderRadius: 23,
+                                            backgroundColor: '#111',
+                                            borderWidth: 1,
+                                            borderColor: 'rgba(255,255,255,0.1)',
+                                        },
+                                        discAnimatedStyle
+                                    ]}
+                                />
+                            </View>
+
+                            {/* Song Info (Ultra Clean Title) */}
+                            <View style={{
+                                flex: 1,
+                                justifyContent: "center",
+                                paddingHorizontal: 12,
+                                overflow: 'hidden'
+                            }}>
+                                <MarqueeText
+                                    text={getCleanTitle(currentPlaying?.title ?? "")}
+                                    style={{ fontSize: 13, fontWeight: 'bold', color: 'white' }}
+                                    nospace={true}
+                                />
+                                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 1 }}>
+                                    <PlainText
+                                        text={`${formatTime(position)} / ${formatTime(duration)}`}
+                                        style={{ fontSize: 10, opacity: 0.6, color: '#999' }}
+                                    />
+                                </View>
+                            </View>
+                        </Pressable>
+                    </GestureDetector>
+
+                    {/* Playback Controls */}
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                        <LikeSongButton size={22} />
+                        <PreviousSongButton size={22} />
+                        <PlayPauseButton isFullScreen={false} size={28} />
+                        <NextSongButton size={22} />
+                    </View>
+                </Animated.View>
+
+                {/* GREEN PROGRESS BAR AT THE BOTTOM */}
+                <View style={{
+                    position: 'absolute',
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    height: 3,
+                    backgroundColor: 'rgba(255,255,255,0.05)',
+                }}>
+                    <Animated.View style={[
+                        {
+                            height: '100%',
+                            backgroundColor: progressColor,
+                        },
+                        animatedProgressStyle
+                    ]} />
+                </View>
+            </View>
+        </GestureHandlerRootView>
+    );
 });

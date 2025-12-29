@@ -4,6 +4,28 @@ import { getYTMusicPlaylistData as getYTMusicPlaylistDataFromService } from "./Y
 import YTArtworkUtils from "../Utils/YTMusicArtworkUtils";
 
 async function getPlaylistData(id) {
+    // Check if it's a user-created local playlist
+    if (typeof id === 'string' && id.startsWith('playlist_')) {
+        const { GetUserPlaylists } = require('../LocalStorage/StoreUserPlaylists');
+        const playlists = await GetUserPlaylists();
+        const playlist = playlists.find(p => p.id === id);
+        if (playlist) {
+            return {
+                data: {
+                    id: playlist.id,
+                    name: playlist.name,
+                    image: playlist.image,
+                    songs: playlist.songs.map(s => ({
+                        ...s,
+                        name: s.title,
+                        artists: { primary: [{ name: s.artist }] },
+                    })),
+                    source: 'local',
+                }
+            };
+        }
+    }
+
     // Check if it's a YouTube Music playlist (starts with VL, RDAMPL, OLAK, or other YTM playlist IDs)
     // Use the YouTubeMusicService-based implementation (Api/YTMusic.js) because it reliably returns tracks.
     if (id.startsWith('VL') || id.startsWith('RDAMPL') || id.startsWith('OLAK') || id.startsWith('PL')) {
