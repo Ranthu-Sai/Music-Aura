@@ -7,14 +7,25 @@ import { AppRegistry, LogBox, Alert } from 'react-native';
 import App from './App';
 import appJson from './app.json';
 const appName = appJson.name;
-import TrackPlayer from "react-native-track-player";
+import TrackPlayer, { Event } from "react-native-track-player";
 import { PlaybackService } from "./service";
 import { CacheManager } from './Utils/NavigationCacheManager';
 import smartPrefetchManager from './Utils/SmartPrefetchManager';
 import { hideLogs } from './Utils/LogControl';
+import { PlayNextSong, PlayPreviousSong } from './MusicPlayerFunctions';
+import { PermissionsAndroid, Platform } from 'react-native';
+import DeviceInfo from 'react-native-device-info';
 
 // Hide logs immediately
 hideLogs();
+
+// Request notification permission for Android 13+
+if (Platform.OS === 'android') {
+  const systemVersion = parseFloat(DeviceInfo.getSystemVersion());
+  if (systemVersion >= 13) {
+    PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS).catch(() => {});
+  }
+}
 
 // Fallback for console logging in production
 if (!__DEV__) {
@@ -50,16 +61,7 @@ const errorHandler = (error, isFatal) => {
   try {
     console.error('Global caught error:', error, 'isFatal:', isFatal);
     // Optional: send to remote logging here
-    if (isFatal) {
-      // Show a simple alert to the user but DO NOT rethrow to avoid killing the app
-      try {
-        Alert.alert('Unexpected error', 'An unexpected error occurred. The app will try to continue.', [
-          { text: 'OK' },
-        ]);
-      } catch (aErr) {
-        // ignore alert failures
-      }
-    }
+    // Removed user-facing error dialog to prevent interruption
   } catch (logErr) {
     // ignore logging failure
   }

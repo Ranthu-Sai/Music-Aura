@@ -11,7 +11,7 @@ import FormatTitleAndArtist from "../../Utils/FormatTitleAndArtist";
 import { EachSongMenuButton } from "../MusicPlayer/EachSongMenuButton";
 
 
-export const EachSongCard = memo(function EachSongCard({ title, artist, image, id, url, duration, language, artistID, isLibraryLiked, width, titleandartistwidth, isFromPlaylist, Data, index, albumName, releaseDate, albumId, isHighlighted, playlistId, isHistory, onRemove }) {
+export const EachSongCard = memo(function EachSongCard({ title, artist, image, id, url, duration, language, artistID, isLibraryLiked, width, titleandartistwidth, isFromPlaylist, Data, index, albumName, releaseDate, albumId, isHighlighted, playlistId, isHistory, onRemove, source }) {
   const width1 = Dimensions.get("window").width;
   const { updateTrack, setVisible, lyricsCacheRef } = useContext(Context)
   const currentPlaying = useActiveTrack()
@@ -52,7 +52,7 @@ export const EachSongCard = memo(function EachSongCard({ title, artist, image, i
   };
 
   const artworkUri = normalizeArtwork(image) ||
-    ((url && (url.startsWith('/') || url.startsWith('file://')))
+    ((url && typeof url === 'string' && (url.startsWith('/') || url.startsWith('file://')))
       ? 'https://img.icons8.com/ios-filled/100/1DB954/music-track.png'
       : 'https://via.placeholder.com/60x60/cccccc/000000?text=No+Img');
 
@@ -181,14 +181,14 @@ export const EachSongCard = memo(function EachSongCard({ title, artist, image, i
           <View style={{
             flex: 1,
           }}>
-            <PlainText text={FormatTitleAndArtist(title)} style={{ width: titleandartistwidth ? titleandartistwidth : width1 * 0.67 }} />
+            <PlainText text={FormatTitleAndArtist(title, artist)} style={{ width: titleandartistwidth ? titleandartistwidth : width1 * 0.67 }} />
             <SmallText text={FormatTitleAndArtist(artist)} style={{ width: titleandartistwidth ? titleandartistwidth : width1 * 0.67 }} />
           </View>
         </Pressable>
         <EachSongMenuButton Onpress={() => {
           setVisible({
             visible: true,
-            title, artist, image, id, url, duration, language, playlistId, albumId, albumName, navigation, isHistory, onRemove
+            title, artist, image, id, url, duration, language, playlistId, albumId, albumName, navigation, isHistory, onRemove, source
           })
         }} />
       </View>

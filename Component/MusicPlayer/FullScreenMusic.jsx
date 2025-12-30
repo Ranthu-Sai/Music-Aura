@@ -28,6 +28,9 @@ import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityI
 import { useNavigation } from "@react-navigation/native";
 import { DeviceEventEmitter, Share, ToastAndroid } from "react-native";
 import { MarqueeText } from "../Global/MarqueeText";
+import FormatTitleAndArtist from "../../Utils/FormatTitleAndArtist";
+import { DownloadSong } from "../../Utils/DownloadHelper";
+import { StorageManager } from "../../Utils/StorageManager";
 
 export const FullScreenMusic = ({ color, Index, setIndex }) => {
   const pan = Gesture.Pan();
@@ -79,6 +82,20 @@ export const FullScreenMusic = ({ color, Index, setIndex }) => {
     } catch (error) {
       console.error('Error sharing:', error);
     }
+  };
+
+  const handleDownload = async () => {
+    setShowMenu(false);
+    if (!currentPlaying) return;
+
+    // Check if it's already a local/downloaded file
+    const isLocal = currentPlaying.url && (currentPlaying.url.startsWith('/') || currentPlaying.url.startsWith('file://'));
+    if (isLocal || currentPlaying.source === 'downloaded') {
+      ToastAndroid.show("Song is already offline", ToastAndroid.SHORT);
+      return;
+    }
+
+    await DownloadSong(currentPlaying);
   };
 
   const startSleepTimer = (minutes) => {
@@ -252,20 +269,6 @@ export const FullScreenMusic = ({ color, Index, setIndex }) => {
     }
   }
 
-  const decodeHtml = (text) => {
-    if (!text) return "";
-    return text.toString()
-      .replace(/&quot;/g, "\"")
-      .replace(/&amp;/g, "&")
-      .replace(/&#039;/g, "'")
-      .replace(/&lt;/g, "<")
-      .replace(/&gt;/g, ">")
-      .replace(/&trade;/g, "™")
-      .replace(/&copy;/g, "©")
-      .replace(/&reg;/g, "®")
-      .replace(/&ndash;/g, "–")
-      .replace(/&mdash;/g, "—");
-  };
 
   const fallbackArtwork = "https://htmlcolorcodes.com/assets/images/colors/gray-color-solid-background-1920x1080.png";
 
@@ -331,6 +334,10 @@ export const FullScreenMusic = ({ color, Index, setIndex }) => {
                     <MaterialCommunityIcons name="timer-outline" size={24} color="white" />
                     <PlainText text="Sleep Timer" />
                   </TouchableOpacity>
+                  <TouchableOpacity onPress={handleDownload} style={styles.menuItem}>
+                    <MaterialCommunityIcons name="download" size={24} color="white" />
+                    <PlainText text="Download Song" />
+                  </TouchableOpacity>
                   <TouchableOpacity onPress={() => { setShowMenu(false); handleShare(); }} style={styles.menuItem}>
                     <MaterialCommunityIcons name="share-variant" size={24} color="white" />
                     <PlainText text="Share Song" />
@@ -350,8 +357,8 @@ export const FullScreenMusic = ({ color, Index, setIndex }) => {
             {/* Info Row */}
             <Spacer height={30} />
             <View style={{ width: '85%', alignItems: 'flex-start', justifyContent: 'center' }}>
-              <MarqueeText text={decodeHtml(currentPlaying?.title) || "Unknown"} style={{ textAlign: "left", fontSize: 22 }} nospace={true} />
-              <SmallText text={decodeHtml(currentPlaying?.artist) || "Unknown Artist"} style={{ textAlign: "left", opacity: 0.6 }} maxLine={1} />
+              <MarqueeText text={FormatTitleAndArtist(currentPlaying?.title, currentPlaying?.artist) || "Unknown"} style={{ textAlign: "left", fontSize: 22 }} nospace={true} />
+              <SmallText text={FormatTitleAndArtist(currentPlaying?.artist) || "Unknown Artist"} style={{ textAlign: "left", opacity: 0.6 }} maxLine={1} />
             </View>
 
             {/* Progress */}

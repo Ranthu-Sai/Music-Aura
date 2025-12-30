@@ -1,4 +1,4 @@
-import Animated, { FadeIn } from "react-native-reanimated";
+import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
 import { View } from "react-native";
 import { MainWrapper } from "../Layout/MainWrapper";
 import { useTheme } from "@react-navigation/native";
@@ -21,7 +21,7 @@ export const InitialScreen = ({ navigation }) => {
   }, [InitialCall]);
   return (
     <MainWrapper>
-      <View style={{
+      <Animated.View exiting={FadeOut.duration(300)} style={{
         flex: 1,
         alignItems: "center",
         justifyContent: "center",
@@ -35,7 +35,7 @@ export const InitialScreen = ({ navigation }) => {
           fontSize: 15,
           color: theme.colors.primary,
         }}>Music for free</Animated.Text>
-      </View>
+      </Animated.View>
     </MainWrapper>
   );
 };

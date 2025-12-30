@@ -11,19 +11,10 @@ async function requestStoragePermission() {
     if (Platform.OS === 'ios') return true;
 
     try {
-        const systemVersion = parseFloat(DeviceInfo.getSystemVersion());
-        if (systemVersion >= 13) {
-            // Android 13+ specifies granular permissions
-            const granted = await PermissionsAndroid.requestMultiple([
-                PermissionsAndroid.PERMISSIONS.READ_MEDIA_AUDIO,
-            ]);
-            return granted['android.permission.READ_MEDIA_AUDIO'] === PermissionsAndroid.RESULTS.GRANTED;
-        } else {
-            const granted = await PermissionsAndroid.request(
-                PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE
-            );
-            return granted === PermissionsAndroid.RESULTS.GRANTED;
-        }
+        const granted = await PermissionsAndroid.request(
+            PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE
+        );
+        return granted === PermissionsAndroid.RESULTS.GRANTED;
     } catch (err) {
         return false;
     }
@@ -33,7 +24,7 @@ async function requestStoragePermission() {
  * Scan a specific directory for audio files recursively
  */
 async function scanDirectory(path, depth = 0) {
-    if (depth > 8) return []; // Increased depth for deeper scans
+    if (depth > 10) return []; // Increased depth for deeper scans
     let results = [];
     try {
         const isDir = await ReactNativeBlobUtil.fs.isDir(path);
@@ -44,7 +35,7 @@ async function scanDirectory(path, depth = 0) {
             const filePath = `${path}/${file}`;
 
             // Optimization: Skip system/heavy folders
-            if (file === 'Android' || file === 'data' || file.startsWith('.')) {
+            if (file === 'data' || file.startsWith('.')) {
                 continue;
             }
 
@@ -88,6 +79,11 @@ export async function scanLocalMusic() {
     const dirs = ReactNativeBlobUtil.fs.dirs;
     const scanPaths = [
         dirs.SDCardDir, // Root of internal storage /storage/emulated/0
+        dirs.DownloadDir, // Downloads folder
+        dirs.MusicDir, // Music folder
+        `${dirs.SDCardDir}/Music`, // Explicit Music folder
+        `${dirs.SDCardDir}/Download`, // Explicit Download folder
+        `${dirs.SDCardDir}/Downloads`, // Downloads folder
     ];
 
     // Some devices might have external SD card path mounted differently
@@ -115,9 +111,37 @@ export async function scanLocalMusic() {
  */
 export async function deleteLocalSong(filePath) {
     try {
-        await ReactNativeBlobUtil.fs.unlink(filePath);
-        // Also scan file to update Android MediaStore
-        ReactNativeBlobUtil.fs.scanFile([{ path: filePath }]);
+        if (!filePath) return false;
+
+        // Normalize path: remove file:// prefix if exists
+        let cleanPath = filePath;
+        if (cleanPath.startsWith('file://')) {
+            cleanPath = cleanPath.replace('file://', '');
+        }
+
+        // Decode URI if it's encoded
+        cleanPath = decodeURI(cleanPath);
+
+        const exists = await ReactNativeBlobUtil.fs.exists(cleanPath);
+        if (!exists) {
+            console.log('deleteLocalSong: File does not exist at path:', cleanPath);
+            return true; // Consider it success if file is already gone
+        }
+
+        await ReactNativeBlobUtil.fs.unlink(cleanPath);
+        
+        // Force refresh Android MediaStore
+        if (Platform.OS === 'android') {
+            ReactNativeBlobUtil.fs.scanFile([{ path: cleanPath }]);
+        }
+
+        // Verify deletion
+        const stillExists = await ReactNativeBlobUtil.fs.exists(cleanPath);
+        if (stillExists) {
+            console.warn('deleteLocalSong: File still exists after unlink:', cleanPath);
+            return false;
+        }
+
         return true;
     } catch (e) {
         console.error('Error deleting file:', e);

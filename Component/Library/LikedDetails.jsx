@@ -17,14 +17,18 @@ export const LikedDetails = ({name, Data, dontShowPlayButton}) => {
     const ForPlayer = []
     Data.map((e)=>{
       if (e){
+        // Handle case where url might be a string (downloaded) or an array of quality objects
+        const songUrl = Array.isArray(e?.url) ? e?.url[quality]?.url || e?.url[0]?.url : e?.url;
+        
         ForPlayer.push({
-          url:e?.url[quality].url,
-          title:e?.title,
-          artist:e?.artist,
-          artwork:e.artwork,
-          duration:e?.duration,
-          id:e?.id,
-          language:e?.language,
+          url: songUrl,
+          title: e?.title,
+          artist: e?.artist,
+          artwork: e.artwork,
+          duration: e?.duration,
+          id: e?.id,
+          language: e?.language,
+          source: e?.language === 'local' ? 'downloaded' : undefined
         })
       }
     })

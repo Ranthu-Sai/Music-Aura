@@ -2,18 +2,27 @@ import { Dimensions, Pressable, TextInput, View, Keyboard } from "react-native";
 import { useTheme } from "@react-navigation/native";
 import Entypo from "react-native-vector-icons/Entypo";
 import Ionicons from "react-native-vector-icons/Ionicons";
-import { useState, useEffect } from "react";
+import { forwardRef, useImperativeHandle, useRef, useState, useEffect } from "react";
 
-export const SearchBar = ({ onChange, onSubmit, navigation, value }) => {
+export const SearchBar = forwardRef(({ onChange, onSubmit, navigation }, ref) => {
   const width = Dimensions.get("window").width
   const theme = useTheme()
   const [searchText, setSearchText] = useState("")
+  const inputRef = useRef()
 
-  useEffect(() => {
-    if (value !== undefined && value !== searchText) {
-      setSearchText(value);
+  useImperativeHandle(ref, () => ({
+    setText: (text) => {
+      setSearchText(text);
+      inputRef.current?.setNativeProps({ text });
     }
-  }, [value, searchText]);
+  }), []);
+
+  // Notify parent immediately
+  useEffect(() => {
+    if (onChange) {
+      onChange(searchText);
+    }
+  }, [searchText, onChange]);
 
   const handleSubmit = () => {
     if (searchText.trim() && onSubmit) {
@@ -51,10 +60,9 @@ export const SearchBar = ({ onChange, onSubmit, navigation, value }) => {
             flex: 1,
             paddingVertical: 8,
           }}
-          value={searchText}
+          ref={inputRef}
           onChangeText={(text) => {
             setSearchText(text)
-            onChange(text)
           }}
           onSubmitEditing={handleSubmit}
           returnKeyType="search"
@@ -87,4 +95,4 @@ export const SearchBar = ({ onChange, onSubmit, navigation, value }) => {
       </View>
     </View>
   );
-};
+});

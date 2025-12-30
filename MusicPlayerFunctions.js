@@ -12,6 +12,7 @@ import autoRecommendations from "./Utils/AutoRecommendations";
 import skipOperationManager from "./Utils/SkipOperationManager";
 import streamFetchManager from "./Utils/StreamFetchManager";
 import smartPrefetchManager from "./Utils/SmartPrefetchManager";
+import FormatTitleAndArtist from "./Utils/FormatTitleAndArtist";
 
 let isPlayerInitialized = false;
 
@@ -468,6 +469,8 @@ async function PlayOneSong(song) {
     const songForPlayback = {
       ...updatedSong,
       url: playbackUrl,
+      title: FormatTitleAndArtist(updatedSong.title, updatedSong.artist),
+      artist: FormatTitleAndArtist(updatedSong.artist),
       currentPlayingQuality: currentQuality,
       artwork: playingArtwork && playingArtwork.trim() !== '' ? playingArtwork : undefined, // Ensure never empty string
     };
@@ -478,64 +481,6 @@ async function PlayOneSong(song) {
 
     // Signal that this is a single song playback (enable auto-recommendations)
     DeviceEventEmitter.emit('playback-mode-changed', { isPlaylist: false });
-
-    // Auto-recommendations for individual YouTube Music song plays (search results, single songs)
-    // This builds the initial queue - continuous monitor will refill when low
-    // Reuse isYouTubeSong variable from line 161 (already declared)
-
-    if (isYouTubeSong) {
-      // Attempt a quick, non-blocking recommendation fetch so notification Next works
-      (async () => {
-        try {
-          // Race the recommendation build against a short timeout so we don't block
-          const quickFetch = queueManager.buildQueueFromRecommendations(song.id, 'ytmusic', 8);
-          const recs = await Promise.race([
-            quickFetch,
-            new Promise(resolve => setTimeout(() => resolve(null), 600)),
-          ]);
-
-          if (recs && Array.isArray(recs) && recs.length > 0) {
-            const filteredRecs = recs.filter(rec => rec.id !== song.id);
-            if (filteredRecs.length > 0) {
-              await AddSongsToQueue(filteredRecs);
-              console.log(`✅ Quick-added ${filteredRecs.length} recommended songs to queue`);
-            }
-          }
-        } catch (e) {
-          console.warn('Quick recommendation fetch failed (non-fatal):', e?.message || e);
-        }
-      })();
-
-      // Also schedule the heavier fetch after interactions as a fallback
-      InteractionManager.runAfterInteractions(() => {
-        setTimeout(async () => {
-          try {
-            console.log('🎵 Building queue from YTMusic recommendations for (deferred):', song.id);
-            const recommendations = await queueManager.buildQueueFromRecommendations(song.id, 'ytmusic', 20);
-
-            if (recommendations && recommendations.length > 0) {
-              const filteredRecs = recommendations.filter(rec => rec.id !== song.id);
-              if (filteredRecs.length > 0) {
-                await AddSongsToQueue(filteredRecs);
-                console.log(`✅ Added ${filteredRecs.length} recommended songs to queue (deferred)`);
-              }
-            }
-          } catch (error) {
-            console.error('Error building queue from recommendations (deferred):', error);
-          }
-        }, 1500);
-      });
-    }
-
-    // Trigger prefetch for next song in queue (if any)
-    setTimeout(() => {
-      queueManager.prefetchNextTrack().catch(err =>
-        console.error('Error prefetching next track:', err)
-      );
-    }, 3000); // Wait 3 seconds (after recommendations load)
-
-    // Set up continuous queue monitoring - fetch more when near end
-    queueManager.startContinuousQueueMonitor(song.id);
   } catch (error) {
     console.error('Error playing song:', error);
   }
@@ -653,10 +598,21 @@ async function PlaySongWithRelated(videoId, artwork, songData = {}) {
     // Emit event to open queue when song is played from anywhere
     DeviceEventEmitter.emit('songPlayed', { songId: videoId });
 
+    // Stop and Reset auto-recommendations before starting fresh
+    if (autoRecommendations && typeof autoRecommendations.stop === 'function') {
+      autoRecommendations.stop();
+    }
+
     // Build queue based on song type
     if (song.isYouTubeSong) {
       // Start auto-recommendations for YouTube Music songs
-      autoRecommendations.start(videoId);
+      if (autoRecommendations && typeof autoRecommendations.start === 'function') {
+        autoRecommendations.start(videoId);
+      }
+      // Start continuous monitor to refill queue when low
+      if (queueManager && typeof queueManager.startContinuousQueueMonitor === 'function') {
+        queueManager.startContinuousQueueMonitor(videoId);
+      }
     } else {
       // Build queue for JioSaavn songs using recommendations API
       (async () => {
@@ -807,12 +763,16 @@ async function AddPlaylist(songs, startSongId = null) {
       }
 
       const artworkUrl = extractArtwork(song) || extractArtwork(updatedSong);
+      const enhancedArtwork = enhanceYTMusicArtwork(artworkUrl, 'playing');
+      const finalArtwork = getPrimaryArtworkUrl(enhancedArtwork) || artworkUrl || undefined;
 
       return {
         ...updatedSong,
         url: playbackUrl || updatedSong.url,
-        artwork: artworkUrl,
-        image: artworkUrl,
+        title: FormatTitleAndArtist(updatedSong.title, updatedSong.artist),
+        artist: FormatTitleAndArtist(updatedSong.artist),
+        artwork: finalArtwork,
+        image: finalArtwork,
         currentPlayingQuality: currentQuality,
       };
     }));
@@ -974,8 +934,11 @@ async function AddSongsToQueue(songs) {
         isYTMusic: true,
         source: 'ytmusic',
         currentPlayingQuality: currentQuality,
-        // Ensure artwork is set correctly using helper
-        artwork: extractArtwork(song),
+        // Use cleaned title and artist
+        title: FormatTitleAndArtist(song.title, song.artist),
+        artist: FormatTitleAndArtist(song.artist),
+        // Ensure artwork is enhanced for notification
+        artwork: getPrimaryArtworkUrl(enhanceYTMusicArtwork(extractArtwork(song), 'playing')),
         image: extractArtwork(song),
         duration: song.duration,
       };
@@ -990,6 +953,12 @@ async function AddSongsToQueue(songs) {
         processedSong.url = song.download_url[qualityIndex]?.url || song.download_url.find(d => d?.url)?.url || song.url;
       }
       processedSong.currentPlayingQuality = currentQuality;
+      // Format title and artist for consistency
+      processedSong.title = FormatTitleAndArtist(song.title, song.artist);
+      processedSong.artist = FormatTitleAndArtist(song.artist);
+      // Ensure artwork is set
+      processedSong.artwork = getPrimaryArtworkUrl(enhanceYTMusicArtwork(extractArtwork(song), 'playing'));
+      processedSong.image = extractArtwork(song);
     }
 
     processedSongs.push(processedSong);
@@ -1306,6 +1275,7 @@ async function SkipToTrack(trackIndex) {
         console.log('✅ Track replaced for random selection');
       } else {
         console.error('❌ Failed to get stream for random track');
+        ToastAndroid.show('Failed to load stream', ToastAndroid.SHORT);
         return;
       }
     }

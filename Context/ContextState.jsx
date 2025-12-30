@@ -135,7 +135,7 @@ const ContextState = (props) => {
     const updateTrack = useCallback(async () => {
         try {
             const tracks = await TrackPlayer.getQueue();
-            
+
             // Fast comparison using IDs and length
             if (tracks.length !== Queue.length) {
                 setQueue(tracks);
@@ -292,76 +292,10 @@ const ContextState = (props) => {
         }
         return 0;
     }, [updateTrack]);
-
     useTrackPlayerEvents(events, async (event) => {
-        if (event.type === Event.PlaybackError) {
-            const now = Date.now();
-
-            // Simple rate-limiting / circuit breaker: avoid repeated retries
-            if (now - lastPlaybackErrorTime > 5000) {
-                playbackErrorCount = 0;
-            }
-            lastPlaybackErrorTime = now;
-            playbackErrorCount++;
-
-            if (playbackErrorCount > 3) {
-                console.error('PlaybackError circuit breaker tripped — skipping track to prevent loop.');
-                try { await TrackPlayer.skipToNext(); } catch (_) { }
-                playbackErrorCount = 0;
-                return;
-            }
-
-            // Auto-retry: Get fresh stream URL and retry playback (best-effort)
-            try {
-                const currentTrack = await TrackPlayer.getActiveTrack();
-                if (currentTrack && currentTrack.id) {
-                    let streamData = null;
-                    if (/^[A-Za-z0-9_-]{11}$/.test(currentTrack.id)) {
-                        // YouTube Music track
-                        const { getYTMusicStreamUrl } = require('../Api/YTMusicStream');
-                        streamData = await getYTMusicStreamUrl(currentTrack.id, true);
-                    } else if (currentTrack.source === 'saavn' || currentTrack.id.startsWith('saavn_')) {
-                        // Saavn track - try to get fresh stream
-                        // Assuming Saavn has a similar function, adjust as needed
-                        // For now, skip retry for Saavn if no function
-                        console.warn('PlaybackError for Saavn track, skipping retry');
-                        throw new Error('No retry for Saavn');
-                    }
-
-                    if (streamData && streamData.url) {
-                        // Update track with fresh URL
-                        try {
-                            const activeIndex = await TrackPlayer.getActiveTrackIndex();
-                            if (typeof activeIndex === 'number' && activeIndex >= 0) {
-                                await TrackPlayer.updateMetadataForTrack(activeIndex, {
-                                    url: streamData.url,
-                                    headers: streamData.headers,
-                                });
-                            } else {
-                                await TrackPlayer.updateNowPlayingMetadata({
-                                    ...currentTrack,
-                                    url: streamData.url,
-                                    headers: streamData.headers,
-                                });
-                            }
-                        } catch (metaErr) {
-                            console.warn('Failed to update track metadata, will attempt play anyway', metaErr);
-                        }
-
-                        // Retry playback
-                        await TrackPlayer.play();
-                        return;
-                    }
-                }
-            } catch (retryError) {
-                console.warn('PlaybackError retry failed:', retryError?.message || retryError);
-            }
-
-            // If we reach here, retry didn't work — skip to next track
-            try {
-                await TrackPlayer.skipToNext();
-            } catch (_) { }
-        }
+        // PlaybackError handling is now centrally managed by SmartPrefetchManager
+        // which handles track replacement and recovery for YouTube Music tracks.
+        // ContextState only provides UI updates through useActiveTrack() and local state.
 
         // Handle audio focus interruptions from other apps
         if (event.type === Event.RemoteDuck) {
@@ -457,17 +391,35 @@ const ContextState = (props) => {
                 hasSetupRef.current = true;
             }
 
-            // Try to get current track from TrackPlayer
+            // Try to get current track and queue from TrackPlayer (with retry to handle background service connection)
             let song = null;
-            try {
-                song = await TrackPlayer.getActiveTrack();
-                if (song && song.id) {
-                    console.log('✅ Found active track:', song.title);
-                }
-            } catch (_) { }
+            let queue = [];
+            let retryCount = 0;
+            const maxRetries = 5;
 
-            // If no active track, try to restore from saved last song
-            if (!song || !song.id) {
+            while (retryCount < maxRetries) {
+                try {
+                    song = await TrackPlayer.getActiveTrack();
+                    queue = await TrackPlayer.getQueue();
+                    if ((song && song.id) || (queue && queue.length > 0)) {
+                        break;
+                    }
+                } catch (_) { }
+
+                // Wait 100ms before next retry
+                await new Promise(resolve => setTimeout(resolve, 100));
+                retryCount++;
+            }
+
+            if (song && song.id) {
+                console.log('✅ Found active track after connection:', song.title);
+            } else if (queue && queue.length > 0) {
+                console.log(`✅ Found existing queue (${queue.length} songs) but no active track yet`);
+            }
+
+            // If no active track AND queue is empty, try to restore from saved last song
+            // Checking queue length prevents resetting the player if it's already loaded or playing
+            if ((!song || !song.id) && (!queue || queue.length === 0)) {
                 console.log('📍 No active track, attempting to restore last song...');
                 const lastSong = await GetLastSong();
 

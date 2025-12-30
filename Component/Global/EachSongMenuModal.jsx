@@ -1,5 +1,5 @@
 import Modal from "react-native-modal";
-import { Dimensions, Pressable, ToastAndroid, View } from "react-native";
+import { Dimensions, Pressable, ToastAndroid, View, Share, Alert } from "react-native";
 import FastImage from "react-native-fast-image";
 import { PlainText } from "./PlainText";
 import { SmallText } from "./SmallText";
@@ -11,6 +11,7 @@ import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityI
 import { AddSongsToQueue, getIndexQuality, AddOneSongToPlaylist } from "../../MusicPlayerFunctions";
 import Context from "../../Context/Context";
 import { DownloadSong } from "../../Utils/DownloadHelper";
+import Clipboard from '@react-native-clipboard/clipboard';
 
 export const EachSongMenuModal = ({ Visible, setVisible }) => {
   const { updateTrack } = useContext(Context);
@@ -44,6 +45,25 @@ export const EachSongMenuModal = ({ Visible, setVisible }) => {
   }
 
   const size = Dimensions.get("window").height;
+
+  const onShare = async () => {
+    try {
+      await Share.share({
+        message: `Check out this song: ${Visible.title} by ${Visible.artist}\nShared from Music Aura`,
+      });
+      setVisible({ visible: false });
+    } catch (error) {
+      console.error('Share error:', error);
+    }
+  };
+
+  const showInfo = () => {
+    Alert.alert(
+      "Song Information",
+      `Title: ${Visible.title}\nArtist: ${Visible.artist}\nAlbum: ${Visible.albumName || 'N/A'}\nDuration: ${Math.floor(Visible.duration / 60)}:${(Visible.duration % 60).toString().padStart(2, '0')}\nSource: ${Visible.source || 'Online'}`,
+      [{ text: "OK" }]
+    );
+  };
 
   return (
     <Modal
@@ -104,72 +124,123 @@ export const EachSongMenuModal = ({ Visible, setVisible }) => {
           gap: 10,
           paddingHorizontal: 10,
         }}>
-          <EachModalButton text={"Add to Queue"} icon={<MaterialCommunityIcons name={"playlist-music-outline"} size={25} color={"white"} />} Onpress={addSongToQueue} />
+          <EachModalButton text={"Queue"} icon={<MaterialCommunityIcons name={"playlist-music-outline"} size={25} color={"white"} />} Onpress={addSongToQueue} />
           <EachModalButton text={"Playlist"} icon={<MaterialCommunityIcons name={"playlist-plus"} size={25} color={"white"} />} Onpress={() => {
             setVisible({ visible: false });
             AddOneSongToPlaylist(Visible);
           }} />
-          {/* Show Remove from History if in history context */}
+          <EachModalButton text={"Share"} icon={<AntDesign name={"sharealt"} size={25} color={"white"} />} Onpress={onShare} />
+          <EachModalButton text={"Info"} icon={<AntDesign name={"infocirlceo"} size={25} color={"white"} />} Onpress={showInfo} />
+        </View>
+        <Spacer />
+        <View style={{
+          flexDirection: "row",
+          gap: 10,
+          paddingHorizontal: 10,
+        }}>
+          {/* Show Delete from Downloads if it's a downloaded song */}
+          {Visible.source === 'downloaded' && (
+            <EachModalButton
+              text={"Delete"}
+              colors={["#e53935", "#e35d5b"]}
+              icon={<MaterialCommunityIcons name={"delete-forever"} size={25} color={"white"} />}
+              Onpress={async () => {
+                const { StorageManager } = require('../../Utils/StorageManager');
+                const { DeviceEventEmitter } = require('react-native');
+                const ReactNativeBlobUtil = require('react-native-blob-util').default;
+                try {
+                  const songPath = await StorageManager.getSongPath(Visible.id);
+                  await StorageManager.removeDownloadedSongMetadata(Visible.id);
+                  
+                  // Verification check
+                  let deletedSuccessfully = true;
+                  if (songPath) {
+                    const exists = await ReactNativeBlobUtil.fs.exists(songPath) || 
+                                 await ReactNativeBlobUtil.fs.exists(decodeURI(songPath));
+                    if (exists) deletedSuccessfully = false;
+                  }
+
+                  DeviceEventEmitter.emit('downloadedSongRemoved', Visible.id);
+                  
+                  if (deletedSuccessfully) {
+                    ToastAndroid.show("Song deleted from storage", ToastAndroid.SHORT);
+                  } else {
+                    ToastAndroid.show("Removed from list, but file may still exist in storage", ToastAndroid.LONG);
+                  }
+
+                  if (Visible.onRemove) { Visible.onRemove(); }
+                } catch (error) {
+                  ToastAndroid.show("Failed to delete song", ToastAndroid.SHORT);
+                }
+                setVisible({ visible: false });
+              }}
+            />
+          )}
+
+          {/* Show Delete from History if in history context */}
           {Visible.isHistory && (
             <EachModalButton
-              text={"Remove"}
+              text={"Delete"}
               colors={["#FFB347", "#FFCC33"]}
               icon={<MaterialCommunityIcons name={"history"} size={25} color={"white"} />}
               Onpress={async () => {
                 const historyManager = require('../../Utils/HistoryManager').default;
                 const success = await historyManager.removeFromHistory(Visible.id);
                 if (success) {
-                  ToastAndroid.show("Removed from history", ToastAndroid.SHORT);
+                  ToastAndroid.show("Deleted from history", ToastAndroid.SHORT);
                   if (Visible.onRemove) { Visible.onRemove(); }
                 } else {
-                  ToastAndroid.show("Failed to remove", ToastAndroid.SHORT);
+                  ToastAndroid.show("Failed to delete", ToastAndroid.SHORT);
                 }
                 setVisible({ visible: false });
               }}
             />
           )}
-          {/* Show Remove from Playlist if in a local playlist */}
+          {/* Show Delete from Playlist if in a local playlist */}
           {Visible.playlistId && (
             <EachModalButton
-              text={"Remove"}
+              text={"Delete"}
               colors={["#FFB347", "#FFCC33"]}
               icon={<MaterialCommunityIcons name={"playlist-remove"} size={25} color={"white"} />}
               Onpress={async () => {
                 const { RemoveFromPlaylist } = require('../../LocalStorage/StoreUserPlaylists');
                 const success = await RemoveFromPlaylist(Visible.playlistId, Visible.id);
                 if (success) {
-                  ToastAndroid.show("Song removed from playlist", ToastAndroid.SHORT);
-                  // Since we can't easily trigger a re-render of the Playlist screen from here, 
-                  // we notify the user. He might need to navigate back/forward to see it.
+                  ToastAndroid.show("Song deleted from playlist", ToastAndroid.SHORT);
+                  if (Visible.onRemove) { Visible.onRemove(); }
                 } else {
-                  ToastAndroid.show("Failed to remove song", ToastAndroid.SHORT);
+                  ToastAndroid.show("Failed to delete song", ToastAndroid.SHORT);
                 }
                 setVisible({ visible: false });
               }}
             />
           )}
           {/* Show Delete instead of Download if local file */}
-          {(Visible.url && (Visible.url.startsWith('/') || Visible.url.startsWith('file://'))) ? (
+          {(Visible.url && typeof Visible.url === 'string' && (Visible.url.startsWith('/') || Visible.url.startsWith('file://')) && Visible.source !== 'downloaded') ? (
             <EachModalButton
               text={"Delete"}
               colors={["#e53935", "#e35d5b"]}
               icon={<AntDesign name={"delete"} size={25} color={"white"} />}
               Onpress={async () => {
                 const { deleteLocalSong } = require('../../Utils/LocalMusicScanner');
+                const { DeviceEventEmitter } = require('react-native');
                 const success = await deleteLocalSong(Visible.url);
                 if (success) {
-                  ToastAndroid.show("File deleted. Please refresh list.", ToastAndroid.SHORT);
+                  DeviceEventEmitter.emit('localSongDeleted', Visible.id);
+                  ToastAndroid.show("Song deleted from storage", ToastAndroid.SHORT);
+                  if (Visible.onRemove) { Visible.onRemove(); }
                 } else {
                   ToastAndroid.show("Failed to delete file", ToastAndroid.SHORT);
                 }
                 setVisible({ visible: false });
               }}
             />
-          ) : (
+          ) : (Visible.source !== 'downloaded' && !Visible.isHistory && !Visible.playlistId) ? (
             <EachModalButton text={"Download"} Onpress={getPermission} icon={<AntDesign name={"download"} size={25} color={"white"} />} />
-          )}
+          ) : null}
+
           {Visible.albumId && (
-            <EachModalButton text={"Go to Album"} icon={<MaterialCommunityIcons name={"album"} size={25} color={"white"} />} Onpress={() => {
+            <EachModalButton text={"Album"} icon={<MaterialCommunityIcons name={"album"} size={25} color={"white"} />} Onpress={() => {
               setVisible({ visible: false });
               Visible.navigation.navigate('Album', { id: Visible.albumId, image: Visible.image });
             }} />

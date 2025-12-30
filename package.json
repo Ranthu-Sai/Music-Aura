@@ -32,6 +32,7 @@
     "react-native-device-info": "^10.13.1",
     "react-native-element-dropdown": "^2.10.2",
     "react-native-fast-image": "^8.6.3",
+    "react-native-fs": "^2.20.0",
     "react-native-gesture-handler": "2.14.1",
     "react-native-linear-gradient": "^2.8.3",
     "react-native-modal": "^13.0.1",

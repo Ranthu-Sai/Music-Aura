@@ -14,6 +14,8 @@ import YTArtworkUtils from "../../Utils/YTMusicArtworkUtils";
 import { useActiveTrack, useProgress, usePlaybackState, State } from "react-native-track-player";
 import { PlayNextSong, PlayPreviousSong } from "../../MusicPlayerFunctions";
 
+import FormatTitleAndArtist from "../../Utils/FormatTitleAndArtist";
+
 const AnimatedFastImage = Animated.createAnimatedComponent(FastImage);
 
 export const MinimizedMusic = memo(({ setIndex, color }) => {
@@ -63,48 +65,6 @@ export const MinimizedMusic = memo(({ setIndex, color }) => {
         const mins = Math.floor(seconds / 60);
         const secs = Math.floor(seconds % 60);
         return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
-    };
-
-    /**
-     * ULTRA CLEAN TITLE LOGIC
-     * Aggressively removes all non-song-title parts
-     */
-    const getCleanTitle = (title) => {
-        if (!title) return "";
-        let clean = title;
-
-        // 1. Split by common separators and take the first part (Song Name)
-        // Common separators: " - ", " | ", " : ", " ; "
-        const separators = [" - ", " | ", " : ", " ; "];
-        for (const sep of separators) {
-            if (clean.includes(sep)) {
-                clean = clean.split(sep)[0];
-            }
-        }
-
-        // 2. Remove everything in brackets or parentheses
-        clean = clean.replace(/[\(\[].*?[\)\]]/g, '');
-
-        // 3. Remove known garbage words/suffixes
-        const garbage = [
-            /\s+from\s+.*/gi,
-            /\s+feat\..*/gi,
-            /\s+ft\..*/gi,
-            /\s*\-\s*Topic/g,
-            /\s+Official\s+Video.*/gi,
-            /\s+Full\s+Video.*/gi,
-            /\s+Lyric\s+Video.*/gi,
-            /\s+Music\s+Video.*/gi,
-            /\s+Original\s+Sound.*/gi,
-            /\s+Lyrical.*/gi
-        ];
-
-        garbage.forEach(pattern => {
-            clean = clean.replace(pattern, '');
-        });
-
-        // 4. Final trim and space cleanup
-        return clean.replace(/\s\s+/g, ' ').trim();
     };
 
     const pan = Gesture.Pan();
@@ -190,7 +150,7 @@ export const MinimizedMusic = memo(({ setIndex, color }) => {
                                 overflow: 'hidden'
                             }}>
                                 <MarqueeText
-                                    text={getCleanTitle(currentPlaying?.title ?? "")}
+                                    text={FormatTitleAndArtist(currentPlaying?.title ?? "", currentPlaying?.artist)}
                                     style={{ fontSize: 13, fontWeight: 'bold', color: 'white' }}
                                     nospace={true}
                                 />

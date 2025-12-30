@@ -1,5 +1,6 @@
 import { MainWrapper } from "../../Layout/MainWrapper";
 import { ScrollView, View, RefreshControl } from "react-native";
+import Animated, { FadeIn } from "react-native-reanimated";
 import { Heading } from "../../Component/Global/Heading";
 import { HorizontalScrollSongs } from "../../Component/Global/HorizontalScrollSongs";
 import { RouteHeading } from "../../Component/Home/RouteHeading";
@@ -33,8 +34,8 @@ export const Home = () => {
     const name = (a?.name || a?.title || '').toLowerCase();
     const type = (a?.type || '').toLowerCase();
     // Exclude if explicitly typed as podcast/show or name hints podcast content
-    if (type.includes('podcast') || type.includes('show')) {return false;}
-    if (name.includes('podcast') || name.includes('episode')) {return false;}
+    if (type.includes('podcast') || type.includes('show')) { return false; }
+    if (name.includes('podcast') || name.includes('episode')) { return false; }
     return true;
   });
   const albumData = [];
@@ -111,9 +112,8 @@ export const Home = () => {
     <MainWrapper>
       <LoadingComponent loading={Loading} />
       {!Loading && (
-        <View>
+        <Animated.View entering={FadeIn.duration(400)}>
           <ScrollView
-            style={{ zIndex: -1 }}
             onScroll={(e) => {
               if (e.nativeEvent.contentOffset.y > 200 && !showHeader) {
                 setShowHeader(true);
@@ -281,7 +281,7 @@ export const Home = () => {
             </PaddingConatiner>
           </ScrollView>
           <TopHeader showHeader={showHeader} />
-        </View>
+        </Animated.View>
       )}
     </MainWrapper>
   );

@@ -1,7 +1,7 @@
 import { MainWrapper } from "../Layout/MainWrapper";
 import { SearchBar } from "../Component/Global/SearchBar";
 import Tabs from "../Component/Global/Tabs/Tabs";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { getSearchSongData, getYTSearchSongData, getYTSearchVideoData, getYTSearchAlbumData, getYTSearchPlaylistData, getSearchSuggestions } from "../Api/Songs";
 import { View, Keyboard } from "react-native";
 import SongDisplay from "../Component/SearchPage/SongDisplay";
@@ -33,27 +33,39 @@ export const SearchPage = ({ navigation }) => {
   const [quickResults, setQuickResults] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
 
+  const searchBarRef = useRef(null);
+
   const limit = 100
 
-  // Fetch suggestions
+  // Fetch suggestions with debounce
   useEffect(() => {
     if (query.trim().length > 0 && !SearchText) {
-      const fetchSuggestions = async () => {
-        // Find matches in search history
-        const historyMatches = searchHistory.filter(h => 
-          h.toLowerCase().includes(query.toLowerCase()) && h.toLowerCase() !== query.toLowerCase()
-        ).slice(0, 3);
-
-        const res = await getSearchSuggestions(query);
-        
-        // Combine history matches with API suggestions, history first
-        const combinedSuggestions = [...new Set([...historyMatches, ...res.suggestions])];
-        
-        setSuggestions(combinedSuggestions);
-        setQuickResults(res.quickResults);
+      // Show history matches immediately for perceived speed
+      const historyMatches = searchHistory.filter(h =>
+        h.toLowerCase().includes(query.toLowerCase()) && h.toLowerCase() !== query.toLowerCase()
+      ).slice(0, 3);
+      
+      if (historyMatches.length > 0) {
+        setSuggestions(prev => {
+          const others = prev.filter(p => !historyMatches.includes(p));
+          return [...historyMatches, ...others];
+        });
         setShowSuggestions(true);
-      };
-      const timeoutId = setTimeout(fetchSuggestions, 300);
+      }
+
+      const timeoutId = setTimeout(async () => {
+        try {
+          const res = await getSearchSuggestions(query);
+          
+          const combinedSuggestions = [...new Set([...historyMatches, ...res.suggestions])];
+
+          setSuggestions(combinedSuggestions);
+          setQuickResults(res.quickResults);
+          setShowSuggestions(true);
+        } catch (error) {
+          console.error("Suggestions error:", error);
+        }
+      }, 300);
       return () => clearTimeout(timeoutId);
     } else {
       setShowSuggestions(false);
@@ -172,7 +184,7 @@ export const SearchPage = ({ navigation }) => {
     });
   }, []);
 
-  const handleSearchSubmit = (searchQuery) => {
+  const handleSearchSubmit = useCallback((searchQuery) => {
     if (!searchQuery.trim()) return;
     setSearchText(searchQuery);
     setQuery(searchQuery);
@@ -181,16 +193,19 @@ export const SearchPage = ({ navigation }) => {
     AddSearchHistory(searchQuery.trim()).then(history => {
       if (history) setSearchHistory(history);
     });
-  };
+  }, []);
 
-  const handleSuggestionPress = (suggestion, fillOnly = false) => {
+  const handleSuggestionPress = useCallback((suggestion, fillOnly = false) => {
     setQuery(suggestion);
+    searchBarRef.current?.setText(suggestion);
     if (!fillOnly) {
       handleSearchSubmit(suggestion);
     }
-  };
+  }, [handleSearchSubmit]);
 
   const handleSelectHistory = (historyQuery) => {
+    setQuery(historyQuery);
+    searchBarRef.current?.setText(historyQuery);
     handleSearchSubmit(historyQuery);
   };
 
@@ -213,25 +228,27 @@ export const SearchPage = ({ navigation }) => {
     } else if (song.source === 'youtube') {
       setEngine(2);
     }
-    
+
     // Always switch to Songs tab when clicking a song suggestion
     setActiveTab(0);
-    
+
     handleSearchSubmit(song.title || song.name);
   };
+
+  const handleQueryChange = useCallback((text) => {
+    setQuery(text);
+    if (SearchText && text !== SearchText) {
+      setSearchText("");
+    }
+  }, [SearchText]);
 
   return (
     <MainWrapper>
       <Spacer height={5} />
       <SearchBar
+        ref={searchBarRef}
         navigation={navigation}
-        value={query}
-        onChange={(text) => {
-          setQuery(text);
-          if (SearchText && text !== SearchText) {
-            setSearchText(""); 
-          }
-        }}
+        onChange={handleQueryChange}
         onSubmit={handleSearchSubmit}
       />
       <Spacer height={5} />

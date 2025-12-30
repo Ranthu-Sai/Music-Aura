@@ -27,7 +27,7 @@ class AutoRecommendations {
         this.currentVideoId = null;
         this.continuation = null;
         this.lastQueueLength = 0;
-        this.fetchThreshold = 3; // Fetch when 3 songs left
+        this.fetchThreshold = 5; // Fetch when 5 songs left
     }
 
     /**
@@ -106,7 +106,7 @@ class AutoRecommendations {
             this.continuation = result.continuation;
 
             // Format songs for TrackPlayer
-            const formattedSongs = result.items.slice(0, 20).map(song => {
+            const formattedSongs = result.items.slice(0, 30).map(song => {
                 const artistNames = song.artists?.map(a => a.name).join(', ') || song.artist || 'Unknown';
                 const songId = song.videoId || song.id;
                 const artworkUrl = upgradeArtworkQuality(song.thumbnail || song.thumbnails?.[0]?.url || '');
@@ -172,7 +172,7 @@ class AutoRecommendations {
      * Handle track change event
      */
     async onTrackChanged() {
-        if (!this.isEnabled) {return;}
+        if (!this.isEnabled) { return; }
 
         // Check if we need to fetch more
         await this.checkAndFetch();
@@ -184,13 +184,13 @@ class AutoRecommendations {
     initializeListeners() {
         // Debounced track change handler to prevent excessive processing during rapid skips
         const debouncedTrackHandler = debounce(async (event) => {
-            if (this.isEnabled && event.nextTrack !== undefined) {
+            if (this.isEnabled && event.track) {
                 await this.onTrackChanged();
             }
-        }, 500); // 500ms debounce for auto-recommendations
+        }, 300); // 300ms debounce for auto-recommendations
 
         // Listen for track changes
-        TrackPlayer.addEventListener(Event.PlaybackTrackChanged, debouncedTrackHandler);
+        TrackPlayer.addEventListener(Event.PlaybackActiveTrackChanged, debouncedTrackHandler);
     }
 }
 

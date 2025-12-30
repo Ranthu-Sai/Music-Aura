@@ -56,11 +56,14 @@ async function getSaavnSuggestions(query) {
 
 async function getYTMusicSuggestions(query) {
   try {
-    const data = await getYTSearchSongData(query, 1, 3);
-    const quickResults = (data?.data?.results || []).map(song => ({
-      ...song,
-      source: 'ytmusic'
-    }));
+    let quickResults = [];
+    if (query.trim().length > 2) {
+      const data = await getYTSearchSongData(query, 1, 3);
+      quickResults = (data?.data?.results || []).map(song => ({
+        ...song,
+        source: 'ytmusic'
+      }));
+    }
 
     const response = await fetch('https://music.youtube.com/youtubei/v1/search/get_search_suggestions?key=AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30', {
       method: 'POST',
@@ -100,39 +103,60 @@ async function getYTMusicSuggestions(query) {
 
 async function getYoutubeSuggestions(query) {
   try {
+    let quickResults = [];
+    let suggestionsResponse;
     const url = `https://suggestqueries.google.com/complete/search?client=firefox&ds=yt&q=${encodeURIComponent(query)}`;
-    const [suggestionsResponse, videoData] = await Promise.all([
-      axios.get(url),
-      getYTSearchVideoData(query, 1, 2)
-    ]);
-    
-    const suggestions = suggestionsResponse.data?.[1] || [];
-    const quickResults = (videoData?.data?.results || []).map(video => ({
-      ...video,
-      source: 'youtube'
-    }));
 
+    if (query.trim().length > 2) {
+      const [sRes, videoData] = await Promise.all([
+        axios.get(url),
+        getYTSearchVideoData(query, 1, 2)
+      ]);
+      suggestionsResponse = sRes;
+      quickResults = (videoData?.data?.results || []).map(video => ({
+        ...video,
+        source: 'youtube'
+      }));
+    } else {
+      suggestionsResponse = await axios.get(url);
+    }
+
+    const suggestions = suggestionsResponse.data?.[1] || [];
     return { suggestions, quickResults };
   } catch (error) {
     return { suggestions: [], quickResults: [] };
   }
 }
 
+const suggestionCache = new Map();
+
 async function getSearchSuggestions(query) {
   if (!query) return { suggestions: [], quickResults: [] };
-  
+
+  const cacheKey = query.trim().toLowerCase();
+  if (suggestionCache.has(cacheKey)) {
+    return suggestionCache.get(cacheKey);
+  }
+
   try {
-    const [saavn, ytMusic, youtube] = await Promise.all([
+    // Set a timeout for the Promise.all to ensure we don't wait forever
+    const suggestionPromises = [
       getSaavnSuggestions(query),
       getYTMusicSuggestions(query),
       getYoutubeSuggestions(query)
-    ]);
+    ];
+
+    const results = await Promise.allSettled(suggestionPromises);
+
+    const saavn = results[0].status === 'fulfilled' ? results[0].value : { suggestions: [], quickResults: [] };
+    const ytMusic = results[1].status === 'fulfilled' ? results[1].value : { suggestions: [], quickResults: [] };
+    const youtube = results[2].status === 'fulfilled' ? results[2].value : { suggestions: [], quickResults: [] };
 
     // Combine suggestions using a round-robin approach to ensure variety from all sources
     const combinedSuggestions = [];
     const maxSuggestions = 12;
     const suggestionSources = [saavn.suggestions, ytMusic.suggestions, youtube.suggestions];
-    
+
     let j = 0;
     while (combinedSuggestions.length < maxSuggestions) {
       let addedInThisRound = false;
@@ -168,10 +192,19 @@ async function getSearchSuggestions(query) {
       k++;
     }
 
-    return {
+    const finalResult = {
       suggestions: combinedSuggestions,
       quickResults: combinedQuickResults
     };
+
+    // Keep cache size manageable (max 100 entries)
+    if (suggestionCache.size > 100) {
+      const firstKey = suggestionCache.keys().next().value;
+      suggestionCache.delete(firstKey);
+    }
+    suggestionCache.set(cacheKey, finalResult);
+
+    return finalResult;
   } catch (error) {
     return { suggestions: [], quickResults: [] };
   }
@@ -292,25 +325,25 @@ async function getYTSearchSongData(searchText, page, limit) {
 
             // Extract thumbnail - try multiple possible paths for robustness
             const thumbnails =
-                musicItem.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails ||
-                musicItem.thumbnailRenderer?.musicThumbnailRenderer?.thumbnail?.thumbnails ||
-                musicItem.thumbnail?.thumbnail?.thumbnails ||
-                musicItem.thumbnail?.thumbnails ||
-                musicItem.thumbnailRenderer?.thumbnail?.thumbnails ||
-                musicItem.thumbnails || [];
+              musicItem.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails ||
+              musicItem.thumbnailRenderer?.musicThumbnailRenderer?.thumbnail?.thumbnails ||
+              musicItem.thumbnail?.thumbnail?.thumbnails ||
+              musicItem.thumbnail?.thumbnails ||
+              musicItem.thumbnailRenderer?.thumbnail?.thumbnails ||
+              musicItem.thumbnails || [];
 
             let thumbnail = thumbnails[thumbnails.length - 1]?.url || thumbnails[0]?.url;
 
             // Handle missing thumbnails with a reliable construct
             if (!thumbnail && videoId) {
-                thumbnail = `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
+              thumbnail = `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
             } else if (!thumbnail) {
-                thumbnail = 'https://via.placeholder.com/544x544/cccccc/000000?text=No+Img';
+              thumbnail = 'https://via.placeholder.com/544x544/cccccc/000000?text=No+Img';
             }
 
             // Ensure protocol
             if (thumbnail.startsWith('//')) {
-                thumbnail = 'https:' + thumbnail;
+              thumbnail = 'https:' + thumbnail;
             }
 
             // Upgrade thumbnail quality using YTArtworkUtils
@@ -961,15 +994,15 @@ async function getYTSearchVideoData(searchText, page, limit) {
 
             // Extract thumbnail - try multiple paths for robustness
             const thumbnails = videoRenderer.thumbnail?.thumbnails ||
-                               videoRenderer.thumbnails ||
-                               [];
+              videoRenderer.thumbnails ||
+              [];
             let thumbnail = thumbnails[thumbnails.length - 1]?.url ||
-                            thumbnails[0]?.url ||
-                            `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
+              thumbnails[0]?.url ||
+              `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
 
             // Ensure protocol
             if (thumbnail.startsWith('//')) {
-                thumbnail = 'https:' + thumbnail;
+              thumbnail = 'https:' + thumbnail;
             }
 
             // Upgrade thumbnail quality using YTArtworkUtils

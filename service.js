@@ -25,43 +25,8 @@ export const PlaybackService = async function () {
 
       TrackPlayer.addEventListener(Event.RemoteNext, async () => {
         try {
-          // Optimistic immediate skip so notification updates quickly
-          const queue = await TrackPlayer.getQueue();
-          const current = await TrackPlayer.getCurrentTrack();
-          const nextIndex = (typeof current === 'number') ? current + 1 : 0;
-
-          // If next exists, try a fast cached replacement before skip
-          if (queue && queue.length > nextIndex) {
-            const next = queue[nextIndex];
-            try {
-              // Try to require smartPrefetchManager only if present (avoid hard dependency in headless)
-              const spm = (function tryRequire() {
-                try { return require('./Utils/SmartPrefetchManager'); } catch (e) { return null; }
-              })();
-              if (spm && typeof spm.getPrefetchedStream === 'function') {
-                const cached = spm.getPrefetchedStream(next.id);
-                if (cached && cached.url) {
-                  // Replace track quickly so TrackPlayer shows correct metadata/url
-                  await spm.replaceTrackAndWait(nextIndex, next, cached);
-                }
-              }
-            } catch (e) {
-              console.warn('Quick prefetch replace failed (non-fatal)', e);
-            }
-          }
-
-          // Perform an immediate skip to next so notification updates
-          try {
-            await TrackPlayer.skipToNext();
-            await TrackPlayer.play();
-          } catch (skipErr) {
-            console.warn('Immediate skipToNext failed, trying TrackPlayer.skip()', skipErr);
-            try { await TrackPlayer.skip(nextIndex); await TrackPlayer.play(); } catch (e2) { console.error('Fallback skip failed', e2); }
-          }
-
-          // NOTE: Removed PlayNextSong() call to prevent double-skip
-          // TrackPlayer.skipToNext() already handles the skip operation
-          // PlayNextSong().catch(e => console.warn('PlayNextSong background failed', e));
+          await TrackPlayer.skipToNext();
+          await TrackPlayer.play();
         } catch (err) {
           console.error('RemoteNext handler failed', err);
         }
@@ -69,17 +34,8 @@ export const PlaybackService = async function () {
 
       TrackPlayer.addEventListener(Event.RemotePrevious, async () => {
         try {
-          // Immediate previous for responsive notification behavior
-          try {
-            await TrackPlayer.skipToPrevious();
-            await TrackPlayer.play();
-          } catch (skipErr) {
-            console.warn('Immediate skipToPrevious failed, falling back to PlayPreviousSong', skipErr);
-            await PlayPreviousSong();
-          }
-
-          // Run higher-level logic in background to maintain queue/history
-          PlayPreviousSong().catch(e => console.warn('PlayPreviousSong background failed', e));
+          await TrackPlayer.skipToPrevious();
+          await TrackPlayer.play();
         } catch (err) {
           console.error('RemotePrevious handler failed', err);
         }

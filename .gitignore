@@ -69,7 +69,6 @@ yarn-error.log
 # VS Code & IDE files
 .fetch-client/
 .history/
-.qodo/
 
 # Environment variables
 .env
