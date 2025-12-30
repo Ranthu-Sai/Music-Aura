@@ -71,6 +71,7 @@ export const SearchBar = forwardRef(({ onChange, onSubmit, navigation }, ref) =>
         {searchText.length > 0 && (
           <Pressable onPress={() => {
             setSearchText("")
+            inputRef.current?.setNativeProps({ text: "" })
             onChange("")
           }} style={{
             padding: 8,
