@@ -42,10 +42,10 @@ export const SearchBar = forwardRef(({ onChange, onSubmit, navigation }, ref) =>
       <View style={{
         flex: 1,
         paddingHorizontal: 5,
-        backgroundColor: "rgba(255,255,255,0.1)",
+        backgroundColor: "rgba(255,255,255,0.08)",
         borderWidth: 1,
-        borderColor: "rgba(255,255,255,0.3)",
-        borderRadius: 10,
+        borderColor: "rgba(255,255,255,0.15)",
+        borderRadius: 12,
         flexDirection: "row",
         alignItems: "center",
       }}>
@@ -55,10 +55,11 @@ export const SearchBar = forwardRef(({ onChange, onSubmit, navigation }, ref) =>
           placeholderTextColor={"rgba(255,255,255,0.5)"}
           style={{
             color: "white",
-            fontSize: 25,
+            fontSize: 20,
             fontFamily: "roboto",
             flex: 1,
-            paddingVertical: 8,
+            paddingVertical: 12,
+            paddingHorizontal: 10,
           }}
           ref={inputRef}
           onChangeText={(text) => {

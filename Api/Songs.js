@@ -25,30 +25,16 @@ async function getSaavnSuggestions(query) {
     const url = `https://www.jiosaavn.com/api.php?__call=autocomplete.get&_format=json&_marker=0&ctx=wap6dot0&api_version=4&query=${encodeURIComponent(query)}`;
     const response = await axios.get(url);
     const suggestions = [];
-    const quickResults = [];
 
     if (response.data) {
       if (response.data.albums && response.data.albums.data) {
-        response.data.albums.data.slice(0, 2).forEach(album => suggestions.push(album.title));
+        response.data.albums.data.slice(0, 5).forEach(album => suggestions.push(album.title));
       }
       if (response.data.songs && response.data.songs.data) {
-        response.data.songs.data.slice(0, 5).forEach(song => {
-          suggestions.push(song.title);
-          quickResults.push({
-            id: song.id,
-            name: song.title,
-            title: song.title,
-            artist: song.description,
-            image: [{ url: song.image }],
-            source: 'saavn'
-          });
-        });
-      }
-      if (response.data.playlists && response.data.playlists.data) {
-        response.data.playlists.data.slice(0, 2).forEach(playlist => suggestions.push(playlist.title));
+        response.data.songs.data.slice(0, 15).forEach(song => suggestions.push(song.title));
       }
     }
-    return { suggestions, quickResults };
+    return { suggestions, quickResults: [] };
   } catch (error) {
     return { suggestions: [], quickResults: [] };
   }
@@ -56,46 +42,27 @@ async function getSaavnSuggestions(query) {
 
 async function getYTMusicSuggestions(query) {
   try {
-    let quickResults = [];
-    if (query.trim().length > 2) {
-      const data = await getYTSearchSongData(query, 1, 3);
-      quickResults = (data?.data?.results || []).map(song => ({
-        ...song,
-        source: 'ytmusic'
-      }));
-    }
-
-    const response = await fetch('https://music.youtube.com/youtubei/v1/search/get_search_suggestions?key=AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30', {
-      method: 'POST',
+    const response = await axios.post('https://music.youtube.com/youtubei/v1/search/get_search_suggestions?key=AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30', {
+      context: { client: { clientName: 'WEB_REMIX', clientVersion: '1.20241204.01.00', hl: 'en', gl: 'US' } },
+      input: query,
+    }, {
       headers: {
         'Content-Type': 'application/json',
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
         'Origin': 'https://music.youtube.com',
       },
-      body: JSON.stringify({
-        context: {
-          client: {
-            clientName: 'WEB_REMIX',
-            clientVersion: '1.20241204.01.00',
-            hl: 'en',
-            gl: 'US',
-          },
-        },
-        input: query,
-      }),
     });
 
     const suggestions = [];
-    if (response.ok) {
-      const json = await response.json();
-      const items = json?.contents?.[0]?.searchSuggestionsSectionRenderer?.contents || [];
+    if (response.status === 200) {
+      const items = response.data?.contents?.[0]?.searchSuggestionsSectionRenderer?.contents || [];
       items.forEach(item => {
         const text = item?.searchSuggestionRenderer?.suggestion?.runs?.[0]?.text;
         if (text) suggestions.push(text);
       });
     }
 
-    return { suggestions, quickResults };
+    return { suggestions, quickResults: [] };
   } catch (error) {
     return { suggestions: [], quickResults: [] };
   }
@@ -103,26 +70,10 @@ async function getYTMusicSuggestions(query) {
 
 async function getYoutubeSuggestions(query) {
   try {
-    let quickResults = [];
-    let suggestionsResponse;
     const url = `https://suggestqueries.google.com/complete/search?client=firefox&ds=yt&q=${encodeURIComponent(query)}`;
-
-    if (query.trim().length > 2) {
-      const [sRes, videoData] = await Promise.all([
-        axios.get(url),
-        getYTSearchVideoData(query, 1, 2)
-      ]);
-      suggestionsResponse = sRes;
-      quickResults = (videoData?.data?.results || []).map(video => ({
-        ...video,
-        source: 'youtube'
-      }));
-    } else {
-      suggestionsResponse = await axios.get(url);
-    }
-
+    const suggestionsResponse = await axios.get(url);
     const suggestions = suggestionsResponse.data?.[1] || [];
-    return { suggestions, quickResults };
+    return { suggestions, quickResults: [] };
   } catch (error) {
     return { suggestions: [], quickResults: [] };
   }
@@ -139,23 +90,26 @@ async function getSearchSuggestions(query) {
   }
 
   try {
-    // Set a timeout for the Promise.all to ensure we don't wait forever
-    const suggestionPromises = [
-      getSaavnSuggestions(query),
-      getYTMusicSuggestions(query),
-      getYoutubeSuggestions(query)
-    ];
+    // Set a timeout for individual promises to ensure slow APIs don't hold up the results
+    const withTimeout = (promise, ms) => Promise.race([
+      promise,
+      new Promise(resolve => setTimeout(() => resolve({ suggestions: [], quickResults: [] }), ms))
+    ]);
 
-    const results = await Promise.allSettled(suggestionPromises);
+    const results = await Promise.allSettled([
+      withTimeout(getSaavnSuggestions(query), 1800),
+      withTimeout(getYTMusicSuggestions(query), 1800),
+      withTimeout(getYoutubeSuggestions(query), 1800)
+    ]);
 
     const saavn = results[0].status === 'fulfilled' ? results[0].value : { suggestions: [], quickResults: [] };
     const ytMusic = results[1].status === 'fulfilled' ? results[1].value : { suggestions: [], quickResults: [] };
     const youtube = results[2].status === 'fulfilled' ? results[2].value : { suggestions: [], quickResults: [] };
 
-    // Combine suggestions using a round-robin approach to ensure variety from all sources
+    // Combine suggestions with a prioritized approach
     const combinedSuggestions = [];
-    const maxSuggestions = 12;
-    const suggestionSources = [saavn.suggestions, ytMusic.suggestions, youtube.suggestions];
+    const maxSuggestions = 40;
+    const suggestionSources = [ytMusic.suggestions, youtube.suggestions, saavn.suggestions];
 
     let j = 0;
     while (combinedSuggestions.length < maxSuggestions) {
@@ -173,28 +127,9 @@ async function getSearchSuggestions(query) {
       j++;
     }
 
-    // Combine quick results using round-robin as well
-    const combinedQuickResults = [];
-    const maxQuickResults = 6;
-    const quickResultSources = [saavn.quickResults, ytMusic.quickResults, youtube.quickResults];
-
-    let k = 0;
-    while (combinedQuickResults.length < maxQuickResults) {
-      let addedInThisRound = false;
-      for (const source of quickResultSources) {
-        if (source[k]) {
-          combinedQuickResults.push(source[k]);
-          addedInThisRound = true;
-        }
-        if (combinedQuickResults.length >= maxQuickResults) break;
-      }
-      if (!addedInThisRound) break;
-      k++;
-    }
-
     const finalResult = {
       suggestions: combinedSuggestions,
-      quickResults: combinedQuickResults
+      quickResults: []
     };
 
     // Keep cache size manageable (max 100 entries)
@@ -248,31 +183,21 @@ async function getYTSearchSongData(searchText, page, limit) {
   // STRATEGY 1: Try YouTube Music InnerTube API (actual YT Music content)
   // This is the API used by music.youtube.com - returns actual music, not random videos
   try {
-    const innerTubeResponse = await fetch('https://music.youtube.com/youtubei/v1/search?key=AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30', {
-      method: 'POST',
+    const response = await axios.post('https://music.youtube.com/youtubei/v1/search?key=AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30', {
+      context: { client: { clientName: 'WEB_REMIX', clientVersion: '1.20241204.01.00', hl: 'en', gl: 'US' } },
+      query: searchText,
+      params: 'EgWKAQIIAWoKEAMQBBAJEAoQBQ==', // Filter for songs
+    }, {
       headers: {
         'Content-Type': 'application/json',
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
         'Origin': 'https://music.youtube.com',
         'Referer': 'https://music.youtube.com/search',
       },
-      body: JSON.stringify({
-        context: {
-          client: {
-            clientName: 'WEB_REMIX',
-            clientVersion: '1.20241204.01.00',
-            hl: 'en',
-            gl: 'US',
-          },
-        },
-        query: searchText,
-        params: 'EgWKAQIIAWoKEAMQBBAJEAoQBQ==', // Filter for songs
-      }),
-      timeout: 15000,
     });
 
-    if (innerTubeResponse.ok) {
-      const data = await innerTubeResponse.json();
+    if (response.status === 200) {
+      const data = response.data;
 
       // Parse YouTube Music response structure
       const contents = data?.contents?.tabbedSearchResultsRenderer?.tabs?.[0]?.tabRenderer?.content?.sectionListRenderer?.contents;
@@ -408,8 +333,55 @@ async function getYTSearchSongData(searchText, page, limit) {
     // YouTube Music API failed
   }
 
-  // Return empty results instead of falling back to regular YouTube videos
-  // This ensures YT Music only shows actual music content
+  // Fallback: If no results found with strict filter, try a broader search
+  try {
+    const broadSearch = await axios.post('https://music.youtube.com/youtubei/v1/search?key=AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30', {
+      context: { client: { clientName: 'WEB_REMIX', clientVersion: '1.20241204.01.00', hl: 'en', gl: 'US' } },
+      query: searchText,
+    }, {
+      headers: {
+        'Content-Type': 'application/json',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Origin': 'https://music.youtube.com',
+      },
+    });
+
+    if (broadSearch.status === 200) {
+        const data = broadSearch.data;
+        const songs = [];
+        const contents = data?.contents?.tabbedSearchResultsRenderer?.tabs?.[0]?.tabRenderer?.content?.sectionListRenderer?.contents || [];
+        
+        for (const section of contents) {
+          const musicShelf = section.musicShelfRenderer;
+          if (musicShelf && musicShelf.contents) {
+            for (const item of musicShelf.contents) {
+              const musicItem = item.musicResponsiveListItemRenderer;
+              const videoId = musicItem?.playlistItemData?.videoId || musicItem?.overlay?.musicItemThumbnailOverlayRenderer?.content?.musicPlayButtonRenderer?.playNavigationEndpoint?.watchEndpoint?.videoId;
+              if (!videoId) continue;
+              const title = musicItem.flexColumns?.[0]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]?.text;
+              const artist = musicItem.flexColumns?.[1]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]?.text;
+              const thumbnail = musicItem.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails?.[0]?.url || `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
+
+              songs.push({
+                id: videoId,
+                name: title,
+                title: title,
+                image: [{ url: thumbnail }, { url: thumbnail }, { url: thumbnail }],
+                artist: artist || 'Unknown',
+                artists: { primary: [{name: artist || 'Unknown'}] },
+                url: videoId,
+                downloadUrl: videoId,
+                source: 'ytmusic',
+              });
+              if (songs.length >= limit) break;
+            }
+          }
+          if (songs.length >= limit) break;
+        }
+        if (songs.length > 0) return { data: { results: songs } };
+    }
+  } catch (e) {}
+
   return { data: { results: [] } };
 }
 
@@ -938,30 +910,20 @@ async function getYTLyricsSongData(artist, title, preferredLanguage, isYouTubeMu
 async function getYTSearchVideoData(searchText, page, limit) {
   // Use YouTube InnerTube API (primary)
   try {
-    const innerTubeResponse = await fetch('https://www.youtube.com/youtubei/v1/search?key=AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8', {
-      method: 'POST',
+    const response = await axios.post('https://www.youtube.com/youtubei/v1/search?key=AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8', {
+      context: { client: { clientName: 'WEB', clientVersion: '2.20241204.01.00', hl: 'en', gl: 'US' } },
+      query: searchText,
+    }, {
       headers: {
         'Content-Type': 'application/json',
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
         'Origin': 'https://www.youtube.com',
         'Referer': 'https://www.youtube.com/results',
       },
-      body: JSON.stringify({
-        context: {
-          client: {
-            clientName: 'WEB',
-            clientVersion: '2.20241204.01.00',
-            hl: 'en',
-            gl: 'US',
-          },
-        },
-        query: searchText,
-      }),
-      timeout: 15000,
     });
 
-    if (innerTubeResponse.ok) {
-      const data = await innerTubeResponse.json();
+    if (response.status === 200) {
+      const data = response.data;
 
       // Parse YouTube InnerTube response structure
       const contents = data?.contents?.twoColumnSearchResultsRenderer?.primaryContents?.sectionListRenderer?.contents;
@@ -1021,6 +983,7 @@ async function getYTSearchVideoData(searchText, page, limit) {
               downloadUrl: videoId,
               duration: duration,
               language: 'en',
+              source: 'youtube',
             });
 
             if (videos.length >= limit) {

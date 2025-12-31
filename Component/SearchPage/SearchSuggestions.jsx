@@ -1,38 +1,33 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
-import { useTheme, useNavigation } from '@react-navigation/native';
+import React, { useMemo } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, ActivityIndicator } from 'react-native';
+import { useTheme } from '@react-navigation/native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import Feather from 'react-native-vector-icons/Feather';
 
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
 /**
- * SearchSuggestions with Quick Results
- * Shows text suggestions + top 3 song results like OuterTune
+ * Modern High-End Search Suggestions Page
+ * Pure minimalist design focusing on text-based suggestions.
  */
 const SearchSuggestions = ({
     suggestions = [],
-    quickResults = [],
     onSuggestionPress,
-    onSongPress
+    isLoading = false
 }) => {
-    const { colors } = useTheme();
-    const navigation = useNavigation();
+    const { colors, dark } = useTheme();
 
-    const handleSongPress = (song) => {
-        if (onSongPress) {
-            onSongPress(song);
-        }
-    };
-
-    // Fill suggestion arrow press - fills input but doesn't search
     const handleFillPress = (item) => {
-        if (onSuggestionPress) {
-            onSuggestionPress(item, true); // second param = fillOnly
-        }
+        if (onSuggestionPress) onSuggestionPress(item, true);
     };
 
-    if ((!suggestions || suggestions.length === 0) && (!quickResults || quickResults.length === 0)) {
-        return null;
-    }
+    // Deep list of optimized text suggestions
+    const textSuggestions = useMemo(() => {
+        // Remove duplicates and empty strings
+        return [...new Set(suggestions.filter(s => s && s.trim().length > 0))].slice(0, 25);
+    }, [suggestions]);
+
+    if (!textSuggestions.length && !isLoading) return null;
 
     return (
         <ScrollView
@@ -41,68 +36,36 @@ const SearchSuggestions = ({
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
         >
-            {/* Text Suggestions */}
-            {suggestions.slice(0, 10).map((item, index) => (
-                <TouchableOpacity
-                    key={`suggestion-${index}`}
-                    style={[styles.suggestionItem, { borderBottomColor: colors.border }]}
-                    onPress={() => onSuggestionPress && onSuggestionPress(item)}
-                >
-                    <Ionicons name="search" size={20} color={colors.text} style={{ opacity: 0.5, marginRight: 15 }} />
-                    <Text style={[styles.suggestionText, { color: colors.text }]} numberOfLines={1}>
-                        {item}
-                    </Text>
+            <View style={styles.list}>
+                {textSuggestions.map((item, index) => (
                     <TouchableOpacity
-                        onPress={() => handleFillPress(item)}
-                        style={styles.fillButton}
-                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                        key={`suggest-${index}`}
+                        style={styles.item}
+                        onPress={() => onSuggestionPress && onSuggestionPress(item)}
+                        activeOpacity={0.6}
                     >
-                        <Feather name="arrow-up-right" size={18} color={colors.text} style={{ opacity: 0.5 }} />
-                    </TouchableOpacity>
-                </TouchableOpacity>
-            ))}
+                        <View style={[styles.iconBg, { backgroundColor: dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' }]}>
+                            <Ionicons name="search" size={16} color={colors.text} style={{ opacity: 0.5 }} />
+                        </View>
+                        
+                        <Text style={[styles.label, { color: colors.text }]} numberOfLines={1}>
+                            {item}
+                        </Text>
 
-            {/* Quick Results Section */}
-            {quickResults && quickResults.length > 0 && (
-                <View style={styles.quickResultsSection}>
-                    {quickResults.slice(0, 6).map((song, index) => (
                         <TouchableOpacity
-                            key={`quick-${song.id || index}`}
-                            style={[styles.songItem, { borderBottomColor: colors.border }]}
-                            onPress={() => handleSongPress(song)}
+                            onPress={() => handleFillPress(item)}
+                            style={styles.fillButton}
+                            hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
                         >
-                            <Image
-                                source={{ uri: song.image?.[0]?.url || song.artwork || song.thumbnail }}
-                                style={styles.songImage}
-                            />
-                            <View style={styles.songInfo}>
-                                <Text
-                                    style={[styles.songTitle, { color: colors.text }]}
-                                    numberOfLines={1}
-                                >
-                                    {song.name || song.title}
-                                </Text>
-                                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                    {song.source && (
-                                        <View style={[styles.sourceBadge, { backgroundColor: song.source === 'ytmusic' ? '#FF0000' : song.source === 'youtube' ? '#FF0000' : '#24D366' }]}>
-                                            <Text style={styles.sourceText}>
-                                                {song.source === 'ytmusic' ? 'YTM' : song.source === 'youtube' ? 'YT' : 'Saavn'}
-                                            </Text>
-                                        </View>
-                                    )}
-                                    <Text
-                                        style={[styles.songArtist, { color: colors.text, flex: 1 }]}
-                                        numberOfLines={1}
-                                    >
-                                        {song.artist || song.primaryArtists || 'Unknown Artist'}
-                                    </Text>
-                                </View>
-                            </View>
-                            <TouchableOpacity style={styles.moreButton}>
-                                <Text style={{ color: colors.text, opacity: 0.5, fontSize: 18 }}>⋮</Text>
-                            </TouchableOpacity>
+                            <Feather name="arrow-up-left" size={20} color={colors.text} style={{ opacity: 0.3 }} />
                         </TouchableOpacity>
-                    ))}
+                    </TouchableOpacity>
+                ))}
+            </View>
+
+            {isLoading && textSuggestions.length === 0 && (
+                <View style={styles.loader}>
+                    <ActivityIndicator size="small" color={colors.primary} />
                 </View>
             )}
         </ScrollView>
@@ -112,67 +75,43 @@ const SearchSuggestions = ({
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        paddingHorizontal: 15,
     },
     contentContainer: {
-        paddingBottom: 120, // Extra space for mini player and bottom navigation
+        paddingHorizontal: 15,
+        paddingBottom: 150,
+        paddingTop: 10,
     },
-    suggestionItem: {
+    list: {
+        borderRadius: 12,
+    },
+    item: {
         flexDirection: 'row',
         alignItems: 'center',
         paddingVertical: 14,
-        borderBottomWidth: StyleSheet.hairlineWidth,
+        paddingHorizontal: 5,
     },
-    suggestionText: {
-        fontSize: 16,
+    iconBg: {
+        width: 36,
+        height: 36,
+        borderRadius: 10,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: 15,
+    },
+    label: {
+        fontSize: 17,
         flex: 1,
+        fontWeight: '500',
+        letterSpacing: -0.2,
     },
     fillButton: {
         padding: 5,
+        marginLeft: 10,
     },
-    quickResultsSection: {
-        marginTop: 8,
-    },
-    songItem: {
-        flexDirection: 'row',
+    loader: {
+        marginTop: 50,
         alignItems: 'center',
-        paddingVertical: 10,
-        borderBottomWidth: StyleSheet.hairlineWidth,
-    },
-    songImage: {
-        width: 48,
-        height: 48,
-        borderRadius: 4,
-        backgroundColor: '#333',
-    },
-    songInfo: {
-        flex: 1,
-        marginLeft: 12,
-        justifyContent: 'center',
-    },
-    songTitle: {
-        fontSize: 15,
-        fontWeight: '500',
-        marginBottom: 2,
-    },
-    songArtist: {
-        fontSize: 13,
-        opacity: 0.7,
-    },
-    sourceBadge: {
-        paddingHorizontal: 4,
-        paddingVertical: 1,
-        borderRadius: 3,
-        marginRight: 6,
-    },
-    sourceText: {
-        color: '#FFF',
-        fontSize: 10,
-        fontWeight: 'bold',
-    },
-    moreButton: {
-        padding: 8,
-    },
+    }
 });
 
 export default React.memo(SearchSuggestions);

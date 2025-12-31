@@ -32,44 +32,53 @@ export const SearchPage = ({ navigation }) => {
   const [suggestions, setSuggestions] = useState([]);
   const [quickResults, setQuickResults] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [isSuggesting, setIsSuggesting] = useState(false);
 
   const searchBarRef = useRef(null);
 
   const limit = 100
 
-  // Fetch suggestions with debounce
+  // Fetch suggestions with robust visibility logic
   useEffect(() => {
-    if (query.trim().length > 0 && !SearchText) {
-      // Show history matches immediately for perceived speed
-      const historyMatches = searchHistory.filter(h =>
-        h.toLowerCase().includes(query.toLowerCase()) && h.toLowerCase() !== query.toLowerCase()
-      ).slice(0, 3);
-      
-      if (historyMatches.length > 0) {
-        setSuggestions(prev => {
-          const others = prev.filter(p => !historyMatches.includes(p));
-          return [...historyMatches, ...others];
-        });
-        setShowSuggestions(true);
-      }
-
-      const timeoutId = setTimeout(async () => {
-        try {
-          const res = await getSearchSuggestions(query);
-          
-          const combinedSuggestions = [...new Set([...historyMatches, ...res.suggestions])];
-
-          setSuggestions(combinedSuggestions);
-          setQuickResults(res.quickResults);
-          setShowSuggestions(true);
-        } catch (error) {
-          console.error("Suggestions error:", error);
-        }
-      }, 300);
-      return () => clearTimeout(timeoutId);
-    } else {
+    const trimmedQuery = query.trim();
+    
+    // If query is too short or we've already submitted a search, hide suggestions
+    if (trimmedQuery.length === 0 || SearchText) {
       setShowSuggestions(false);
+      setSuggestions([]);
+      setQuickResults([]);
+      return;
     }
+
+    // 1. Instant local matching (Zero Lag) - Keeps UI populated while waiting for API
+    const historyMatches = searchHistory
+      .filter(h => h.toLowerCase().includes(trimmedQuery.toLowerCase()) && h.toLowerCase() !== trimmedQuery.toLowerCase())
+      .slice(0, 5);
+    
+    // Always show suggestions if we have a query, even if results are empty initially
+    setShowSuggestions(true);
+    setSuggestions(historyMatches);
+
+    // 2. Debounced API fetch
+    setIsSuggesting(true);
+    const timeoutId = setTimeout(async () => {
+      try {
+        const res = await getSearchSuggestions(trimmedQuery);
+        
+        // Only update if the query hasn't changed since the request started
+        setSuggestions(prev => {
+          const merged = [...new Set([...historyMatches, ...res.suggestions])].slice(0, 50);
+          return merged;
+        });
+        setQuickResults(res.quickResults);
+      } catch (error) {
+        console.error("Suggestions error:", error);
+      } finally {
+        setIsSuggesting(false);
+      }
+    }, 100); // Ultra-fast 100ms debounce for lag-free text suggestions
+    
+    return () => clearTimeout(timeoutId);
   }, [query, SearchText, searchHistory]);
 
   async function fetchSearchData(text, pageNum = 1, append = false) {
@@ -219,21 +228,39 @@ export const SearchPage = ({ navigation }) => {
     setSearchHistory(newHistory || []);
   };
 
-  const handleSongPress = (song) => {
+  const handleSongPress = useCallback((song) => {
+    if (!song) return;
+    
     // Switch engine based on result source
+    let targetEngine = -1;
     if (song.source === 'saavn') {
-      setEngine(0);
+      targetEngine = 0;
     } else if (song.source === 'ytmusic') {
-      setEngine(1);
+      targetEngine = 1;
     } else if (song.source === 'youtube') {
-      setEngine(2);
+      targetEngine = 2;
+    }
+
+    if (targetEngine !== -1) {
+      setEngine(targetEngine);
     }
 
     // Always switch to Songs tab when clicking a song suggestion
     setActiveTab(0);
 
-    handleSearchSubmit(song.title || song.name);
-  };
+    // Get a clean title and artist
+    const title = song.title || song.name || "";
+    const artist = song.artist || (song.artists?.primary?.[0]?.name) || "";
+    
+    // Use title + artist for a more accurate redirected search
+    const searchQuery = (title && artist) ? `${title} ${artist}` : title;
+
+    if (searchQuery) {
+        setQuery(searchQuery);
+        searchBarRef.current?.setText(searchQuery);
+        handleSearchSubmit(searchQuery);
+    }
+  }, [handleSearchSubmit]);
 
   const handleQueryChange = useCallback((text) => {
     setQuery(text);
@@ -296,9 +323,8 @@ export const SearchPage = ({ navigation }) => {
               {showSuggestions ? (
                 <SearchSuggestions
                   suggestions={suggestions}
-                  quickResults={quickResults}
                   onSuggestionPress={handleSuggestionPress}
-                  onSongPress={handleSongPress}
+                  isLoading={isSuggesting}
                 />
               ) : (
                 <SearchHistoryDisplay
