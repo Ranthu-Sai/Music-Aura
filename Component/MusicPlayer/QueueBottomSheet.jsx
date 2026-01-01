@@ -53,7 +53,7 @@ const QueueBottomSheet = React.forwardRef((props, ref) => {
                   onPress={handleClose} 
                   style={styles.closeButton}
                 >
-                  <AntDesign name="closecircle" size={26} color="rgba(255,255,255,0.5)" />
+                  <AntDesign name="closecircle" size={32} color="rgba(255,255,255,0.7)" />
                 </TouchableOpacity>
               )}
             </View>

@@ -9,7 +9,7 @@ export const PlayPauseButton = ({isFullScreen, size, color}) => {
   const playbackState = usePlaybackState();
   const playerState = playbackState.state;
   
-  const iconSize = size || (isFullScreen ? 20 : 25);
+  const iconSize = size || (isFullScreen ? 28 : 25);
   const iconColor = color || (isFullScreen ? "black" : theme.colors.text);
 
   const isPlaying = playerState === State.Playing;

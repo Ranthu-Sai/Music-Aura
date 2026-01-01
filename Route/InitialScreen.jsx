@@ -1,5 +1,5 @@
 import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
-import { View } from "react-native";
+import { View, StatusBar } from "react-native";
 import { MainWrapper } from "../Layout/MainWrapper";
 import { useTheme } from "@react-navigation/native";
 import { useEffect, useCallback } from "react";
@@ -16,16 +16,18 @@ export const InitialScreen = ({ navigation }) => {
     }
   }, [navigation]);
   useEffect(() => {
-    const timer = setTimeout(() => { InitialCall() }, 720)
+    const timer = setTimeout(() => { InitialCall() }, 500)
     return () => clearTimeout(timer)
   }, [InitialCall]);
   return (
-    <MainWrapper>
-      <Animated.View exiting={FadeOut.duration(300)} style={{
-        flex: 1,
-        alignItems: "center",
-        justifyContent: "center",
-      }}>
+    <View style={{ flex: 1, backgroundColor: '#101010' }}>
+      <StatusBar hidden={true} />
+      <MainWrapper>
+        <Animated.View exiting={FadeOut.duration(300)} style={{
+          flex: 1,
+          alignItems: "center",
+          justifyContent: "center",
+        }}>
         <Animated.Text entering={FadeIn.delay(100).duration(300)} style={{
           fontSize: 40,
           color: theme.colors.text,
@@ -36,6 +38,7 @@ export const InitialScreen = ({ navigation }) => {
           color: theme.colors.primary,
         }}>Music for free</Animated.Text>
       </Animated.View>
-    </MainWrapper>
+      </MainWrapper>
+    </View>
   );
 };

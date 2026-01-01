@@ -4,23 +4,50 @@ import { PlainText } from "./PlainText";
 import { SmallText } from "./SmallText";
 import FastImage from "react-native-fast-image";
 import { AddSongsToQueue, getIndexQuality, PlaySongWithRelated } from "../../MusicPlayerFunctions";
-import { memo, useContext, useState, useCallback } from "react";
+import React, { memo, useContext, useState, useCallback, useMemo } from "react";
 import Context from "../../Context/Context";
 import { useActiveTrack, usePlaybackState } from "react-native-track-player";
 import FormatTitleAndArtist from "../../Utils/FormatTitleAndArtist";
 import { EachSongMenuButton } from "../MusicPlayer/EachSongMenuButton";
 
 
+const SongStatusImage = memo(({ id, artworkUri }) => {
+  const currentPlaying = useActiveTrack();
+  const playerState = usePlaybackState();
+
+  const isCurrentSong = id === currentPlaying?.id;
+  const isPlaying = playerState.state === "playing" || playerState.state === 3; // State.Playing
+
+  const source = useMemo(() => {
+    if (isCurrentSong && isPlaying) {
+      return require("../../Images/playing.gif");
+    } else if (isCurrentSong && !isPlaying) {
+      return require("../../Images/songPaused.gif");
+    }
+    return { uri: artworkUri };
+  }, [isCurrentSong, isPlaying, artworkUri]);
+
+  return (
+    <FastImage
+      source={source}
+      resizeMode={FastImage.resizeMode.cover}
+      style={{
+        height: 60,
+        width: 60,
+        borderRadius: 8,
+      }}
+    />
+  );
+});
+
 export const EachSongCard = memo(function EachSongCard({ title, artist, image, id, url, duration, language, artistID, isLibraryLiked, width, titleandartistwidth, isFromPlaylist, Data, index, albumName, releaseDate, albumId, isHighlighted, playlistId, isHistory, onRemove, source }) {
   const width1 = Dimensions.get("window").width;
   const { updateTrack, setVisible, lyricsCacheRef } = useContext(Context)
-  const currentPlaying = useActiveTrack()
-  const playerState = usePlaybackState()
   const navigation = useNavigation();
   const [isLoading, setIsLoading] = useState(false);
 
   // Normalize artwork formats (string, array, object) to a single URI
-  const normalizeArtwork = (img) => {
+  const normalizeArtwork = useCallback((img) => {
     if (!img) { return null; }
     if (typeof img === 'string' && img.trim().length > 0) { return img; }
 
@@ -49,12 +76,12 @@ export const EachSongCard = memo(function EachSongCard({ title, artist, image, i
       }
     }
     return null;
-  };
+  }, []);
 
-  const artworkUri = normalizeArtwork(image) ||
+  const artworkUri = useMemo(() => normalizeArtwork(image) ||
     ((url && typeof url === 'string' && (url.startsWith('/') || url.startsWith('file://')))
       ? 'https://img.icons8.com/ios-filled/100/1DB954/music-track.png'
-      : 'https://via.placeholder.com/60x60/cccccc/000000?text=No+Img');
+      : 'https://via.placeholder.com/60x60/cccccc/000000?text=No+Img'), [image, url, normalizeArtwork]);
 
   const handleAlbumPress = () => {
     if (albumId) {
@@ -158,26 +185,7 @@ export const EachSongCard = memo(function EachSongCard({ title, artist, image, i
           flex: 1,
           opacity: isLoading ? 0.5 : 1,
         }}>
-          <FastImage source={(() => {
-            // Strictly match by ID only for Saavn and other sources to avoid duplicates with same name
-            const isCurrentSong = id === currentPlaying?.id;
-
-            const isPlaying = playerState.state === "playing";
-
-            if (isCurrentSong && isPlaying) {
-              return require("../../Images/playing.gif");
-            } else if (isCurrentSong && !isPlaying) {
-              return require("../../Images/songPaused.gif");
-            } else {
-              return { uri: artworkUri };
-            }
-          })()}
-            resizeMode={FastImage.resizeMode.cover}
-            style={{
-              height: 60,
-              width: 60,
-              borderRadius: 8,
-            }} />
+          <SongStatusImage id={id} artworkUri={artworkUri} />
           <View style={{
             flex: 1,
           }}>

@@ -18,12 +18,59 @@ import FormatTitleAndArtist from "../../Utils/FormatTitleAndArtist";
 
 const AnimatedFastImage = Animated.createAnimatedComponent(FastImage);
 
+const MiniProgressBar = memo(({ progressColor }) => {
+    const { position, duration } = useProgress(1000);
+    const progressPercent = useDerivedValue(() => {
+        if (!duration || duration <= 0) return 0;
+        const p = (position / duration) * 100;
+        return isNaN(p) ? 0 : p;
+    });
+
+    const animatedProgressStyle = useAnimatedStyle(() => ({
+        width: `${progressPercent.value}%`,
+    }));
+
+    return (
+        <View style={{
+            position: 'absolute',
+            bottom: 0,
+            left: 0,
+            right: 0,
+            height: 3,
+            backgroundColor: 'rgba(255,255,255,0.05)',
+        }}>
+            <Animated.View style={[
+                {
+                    height: '100%',
+                    backgroundColor: progressColor,
+                },
+                animatedProgressStyle
+            ]} />
+        </View>
+    );
+});
+
+const MiniTimeDisplay = memo(() => {
+    const { position, duration } = useProgress(1000);
+    const formatTime = (seconds) => {
+        if (!seconds || isNaN(seconds)) return "0:00";
+        const mins = Math.floor(seconds / 60);
+        const secs = Math.floor(seconds % 60);
+        return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+    };
+    return (
+        <PlainText
+            text={`${formatTime(position)} / ${formatTime(duration)}`}
+            style={{ fontSize: 10, opacity: 0.6, color: '#999' }}
+        />
+    );
+});
+
 export const MinimizedMusic = memo(({ setIndex, color }) => {
-    const { position, duration } = useProgress();
     const playbackState = usePlaybackState();
     const theme = useTheme();
 
-    const isPlaying = playbackState.state === State.Playing || playbackState.state === "playing";
+    const isPlaying = playbackState.state === State.Playing || playbackState.state === "playing" || playbackState.state === 3;
 
     // 1. Clockwise Continuous Rotation logic
     const discRotation = useSharedValue(0);
@@ -48,24 +95,6 @@ export const MinimizedMusic = memo(({ setIndex, color }) => {
     const discAnimatedStyle = useAnimatedStyle(() => ({
         transform: [{ rotate: `${discRotation.value}deg` }],
     }));
-
-    // 2. Horizontal Progress Logic (at the bottom)
-    const progressPercent = useDerivedValue(() => {
-        if (!duration || duration <= 0) return 0;
-        const p = (position / duration) * 100;
-        return isNaN(p) ? 0 : p;
-    });
-
-    const animatedProgressStyle = useAnimatedStyle(() => ({
-        width: `${progressPercent.value}%`,
-    }));
-
-    const formatTime = (seconds) => {
-        if (!seconds || isNaN(seconds)) return "0:00";
-        const mins = Math.floor(seconds / 60);
-        const secs = Math.floor(seconds % 60);
-        return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
-    };
 
     const pan = Gesture.Pan();
     pan.onFinalize((e) => {
@@ -155,10 +184,7 @@ export const MinimizedMusic = memo(({ setIndex, color }) => {
                                     nospace={true}
                                 />
                                 <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 1 }}>
-                                    <PlainText
-                                        text={`${formatTime(position)} / ${formatTime(duration)}`}
-                                        style={{ fontSize: 10, opacity: 0.6, color: '#999' }}
-                                    />
+                                    <MiniTimeDisplay />
                                 </View>
                             </View>
                         </Pressable>
@@ -174,22 +200,7 @@ export const MinimizedMusic = memo(({ setIndex, color }) => {
                 </Animated.View>
 
                 {/* GREEN PROGRESS BAR AT THE BOTTOM */}
-                <View style={{
-                    position: 'absolute',
-                    bottom: 0,
-                    left: 0,
-                    right: 0,
-                    height: 3,
-                    backgroundColor: 'rgba(255,255,255,0.05)',
-                }}>
-                    <Animated.View style={[
-                        {
-                            height: '100%',
-                            backgroundColor: progressColor,
-                        },
-                        animatedProgressStyle
-                    ]} />
-                </View>
+                <MiniProgressBar progressColor={progressColor} />
             </View>
         </GestureHandlerRootView>
     );

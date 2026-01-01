@@ -21,7 +21,7 @@ const events = [
 ];
 const themes = {
     Default: {
-        background: 'black',
+        background: '#101010',
         text: 'white',
         secondaryBackground: 'rgb(30,30,30)',
         secondaryText: 'rgba(255,255,255,0.7)',
@@ -558,13 +558,13 @@ const ContextState = (props) => {
         }
     }, [AddRecommendedSongs]);
 
-    const openQueue = () => {
+    const openQueue = useCallback(() => {
         setQueueVisible(true);
-    };
+    }, []);
 
-    const closeQueue = () => {
+    const closeQueue = useCallback(() => {
         setQueueVisible(false);
-    };
+    }, []);
 
     useEffect(() => {
         InitialSetup();
@@ -573,11 +573,59 @@ const ContextState = (props) => {
         // Deliberately empty dependency array so setup is not re-run on queue updates
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
-    return <Context.Provider value={{ currentPlaying, Repeat, setRepeat, updateTrack, Index, setIndex, QueueIndex, setQueueIndex, setVisible, Queue, fontSize, setFontSize, theme, setTheme, currentThemeColors, lyricsCacheRef, ensureMinimumQueue, queueVisible, setQueueVisible, openQueue, closeQueue }}>
-        {props.children}
-        <EachSongMenuModal setVisible={setVisible} Visible={Visible} />
-        <PlaylistSelector />
-    </Context.Provider>
+    const contextValue = useMemo(() => ({
+        currentPlaying,
+        Repeat,
+        setRepeat,
+        updateTrack,
+        Index,
+        setIndex,
+        QueueIndex,
+        setQueueIndex,
+        setVisible,
+        Queue,
+        fontSize,
+        setFontSize,
+        theme,
+        setTheme,
+        currentThemeColors,
+        lyricsCacheRef,
+        ensureMinimumQueue,
+        queueVisible,
+        setQueueVisible,
+        openQueue,
+        closeQueue
+    }), [
+        currentPlaying,
+        Repeat,
+        setRepeat,
+        updateTrack,
+        Index,
+        setIndex,
+        QueueIndex,
+        setQueueIndex,
+        setVisible,
+        Queue,
+        fontSize,
+        setFontSize,
+        theme,
+        setTheme,
+        currentThemeColors,
+        lyricsCacheRef,
+        ensureMinimumQueue,
+        queueVisible,
+        setQueueVisible,
+        openQueue,
+        closeQueue
+    ]);
+
+    return (
+        <Context.Provider value={contextValue}>
+            {props.children}
+            <EachSongMenuModal setVisible={setVisible} Visible={Visible} />
+            <PlaylistSelector />
+        </Context.Provider>
+    );
 }
 
 export default ContextState

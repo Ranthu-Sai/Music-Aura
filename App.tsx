@@ -32,11 +32,14 @@ function App() {
   useEffect(() => {
     // CodePush removed
   }, [])
-  return <GestureHandlerRootView style={{ flex: 1 }}>
+  return <GestureHandlerRootView style={{ flex: 1, backgroundColor: '#101010' }}>
     <ContextState>
       <BottomSheetModalProvider>
         <NavigationContainer theme={MyTheme}>
-          <Stack.Navigator screenOptions={{ headerShown: false }}>
+          <Stack.Navigator screenOptions={{ 
+            headerShown: false,
+            contentStyle: { backgroundColor: '#101010' }
+          }}>
             <Stack.Screen name="Initial" component={InitialScreen} />
             <Stack.Screen name="Onboarding" component={RouteOnboarding} />
             <Stack.Screen name="MainRoute" component={RootRoute} />

@@ -123,42 +123,20 @@ export const FullScreenMusic = ({ color, Index, setIndex }) => {
     ToastAndroid.show("Sleep timer cancelled", ToastAndroid.SHORT);
   };
 
-  // Lyrics logic
+  // Lyrics cleanup logic on song change
   useEffect(() => {
-    if (currentPlaying?.id && !lyricsFetchInProgress) {
+    if (currentPlaying?.id) {
       const cacheKey = currentPlaying?.id || `${currentPlaying?.artist}-${currentPlaying?.title}`;
-      const hasLyrics = lyricsCacheRef?.current?.[cacheKey] || Lyric?.lyrics || Lyric?.timed_lyrics;
+      const hasLyrics = lyricsCacheRef?.current?.[cacheKey];
       if (!hasLyrics) {
         setLyric({});
         setLoading(false);
         setShowDailog(false);
+      } else {
+        setLyric(hasLyrics);
       }
     }
-  }, [currentPlaying?.id, currentPlaying?.artist, currentPlaying?.title, lyricsFetchInProgress, Lyric?.lyrics, Lyric?.timed_lyrics, lyricsCacheRef]);
-
-  useEffect(() => {
-    if (!currentPlaying?.id) return;
-    const cacheKey = currentPlaying?.id || `${currentPlaying?.artist}-${currentPlaying?.title}`;
-    if (lyricsCacheRef?.current?.[cacheKey]) return;
-
-    const preloadLyrics = async () => {
-      try {
-        const preferredLanguage = await GetLanguageValue();
-        const languageToUse = preferredLanguage || currentPlaying?.language || 'en';
-        let artistForLookup = currentPlaying.artist;
-        let titleForLookup = currentPlaying.title;
-        const isYouTubeMusic = /^[a-zA-Z0-9_-]{11}$/.test(currentPlaying.id);
-        const Lyrics = await getYTLyricsSongData(artistForLookup, titleForLookup, languageToUse, isYouTubeMusic);
-        if (Lyrics.success && lyricsCacheRef?.current) {
-          lyricsCacheRef.current[cacheKey] = Lyrics.data;
-        } else if (lyricsCacheRef?.current) {
-          lyricsCacheRef.current[cacheKey] = { lyrics: "No Lyrics Found" };
-        }
-      } catch (e) { }
-    };
-    const timeoutId = setTimeout(preloadLyrics, 500);
-    return () => clearTimeout(timeoutId);
-  }, [currentPlaying?.id, currentPlaying?.artist, currentPlaying?.title, currentPlaying?.language, lyricsCacheRef]);
+  }, [currentPlaying?.id, currentPlaying?.artist, currentPlaying?.title, lyricsCacheRef]);
 
   // Queue event listener
   useEffect(() => {
@@ -236,23 +214,26 @@ export const FullScreenMusic = ({ color, Index, setIndex }) => {
 
   async function GetLyrics() {
     if (!currentPlaying?.id) return;
+    const cacheKey = currentPlaying?.id || `${currentPlaying?.artist}-${currentPlaying?.title}`;
+    const cached = lyricsCacheRef?.current?.[cacheKey];
+
+    if (cached) {
+      setLyric(cached);
+      setShowDailog(true);
+      return;
+    }
+
+    // Not cached, initiate fetch
     setShowDailog(true);
     setLoading(true);
     setLyricsFetchInProgress(true);
-    const cacheKey = currentPlaying?.id || `${currentPlaying?.artist}-${currentPlaying?.title}`;
-    const cached = lyricsCacheRef?.current?.[cacheKey];
-    if (cached) {
-      setTimeout(() => {
-        setLyric(cached);
-        setLoading(false);
-        setLyricsFetchInProgress(false);
-      }, 200);
-      return;
-    }
     try {
       const preferredLanguage = await GetLanguageValue();
       const languageToUse = preferredLanguage || currentPlaying?.language || 'en';
-      const Lyrics = await getYTLyricsSongData(currentPlaying.artist, currentPlaying.title, languageToUse, true);
+      const isYouTubeMusic = /^[a-zA-Z0-9_-]{11}$/.test(currentPlaying.id);
+      
+      const Lyrics = await getYTLyricsSongData(currentPlaying.artist, currentPlaying.title, languageToUse, isYouTubeMusic);
+      
       if (Lyrics.success) {
         if (lyricsCacheRef?.current) lyricsCacheRef.current[cacheKey] = Lyrics.data;
         setLyric(Lyrics.data);
@@ -288,7 +269,7 @@ export const FullScreenMusic = ({ color, Index, setIndex }) => {
           <LinearGradient colors={['rgba(0,0,0,0.2)', 'rgba(0,0,0,0.95)']} style={{ flex: 1, alignItems: "center" }}>
 
             {/* Header */}
-            <View style={{ width: "90%", marginTop: 15, height: 60, alignItems: "center", justifyContent: "space-between", flexDirection: "row" }}>
+            <View style={{ width: "90%", marginTop: 35, height: 60, alignItems: "center", justifyContent: "space-between", flexDirection: "row" }}>
               <TouchableOpacity onPress={() => setShowMenu(true)} style={{ padding: 10 }}>
                 <MaterialCommunityIcons name="dots-vertical" size={26} color="white" />
               </TouchableOpacity>
@@ -371,31 +352,46 @@ export const FullScreenMusic = ({ color, Index, setIndex }) => {
               />
             )}
 
-            {/* Controls */}
-            <Spacer height={20} />
+            {/* Controls Row */}
+            <Spacer height={25} />
             <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", width: "85%" }}>
-              <LikeSongButton size={30} />
+              <RepeatSongButton size={28} />
               <View style={{ flexDirection: "row", alignItems: "center", gap: 30 }}>
-                <PreviousSongButton size={36} />
+                <PreviousSongButton size={38} />
                 <PlayPauseButton isFullScreen={true} />
-                <NextSongButton size={36} />
+                <NextSongButton size={38} />
               </View>
-              <TouchableOpacity onPress={() => queueBottomSheetRef.current?.open()} style={{ padding: 10, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 15 }}>
-                <MaterialCommunityIcons name="playlist-music-outline" size={30} color="white" />
-              </TouchableOpacity>
+              <LikeSongButton size={28} />
             </View>
 
-            {/* Bottom Actions */}
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', width: '85%', marginTop: 25, padding: 12, backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 20 }}>
-              <RepeatSongButton size={22} />
-              <TouchableOpacity onPress={handlePlaybackRate}>
-                <PlainText text={`${playbackRate}x`} style={{ fontWeight: 'bold', color: playbackRate !== 1 ? '#1DB954' : 'white' }} />
-              </TouchableOpacity>
+            {/* Bottom Action Pill Bar */}
+            <Spacer height={10} />
+            <View style={{ 
+              flexDirection: 'row', 
+              justifyContent: 'space-between', 
+              alignItems: 'center',
+              width: '90%', 
+              paddingHorizontal: 20,
+              paddingVertical: 14, 
+              backgroundColor: 'rgba(255,255,255,0.08)', 
+              borderRadius: 25,
+              borderWidth: 1,
+              borderColor: 'rgba(255,255,255,0.05)'
+            }}>
               <TouchableOpacity onPress={() => setShowSleepModal(true)}>
                 <MaterialCommunityIcons name="timer-outline" size={24} color={sleepTime > 0 ? '#1DB954' : 'white'} />
               </TouchableOpacity>
+
+              <TouchableOpacity onPress={handlePlaybackRate} style={{ alignItems: 'center', width: 40 }}>
+                <PlainText text={`${playbackRate}x`} style={{ fontSize: 13, fontWeight: 'bold', color: playbackRate !== 1 ? '#1DB954' : 'white' }} />
+              </TouchableOpacity>
+
               <TouchableOpacity onPress={handleShare}>
                 <MaterialCommunityIcons name="share-variant-outline" size={24} color="white" />
+              </TouchableOpacity>
+
+              <TouchableOpacity onPress={() => queueBottomSheetRef.current?.open()}>
+                <MaterialCommunityIcons name="playlist-music-outline" size={26} color="white" />
               </TouchableOpacity>
             </View>
 

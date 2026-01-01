@@ -26,7 +26,57 @@ export const Album = ({ route }) => {
   async function fetchAlbumData() {
     try {
       setLoading(true)
-      let data = await getAlbumData(id)
+      const { id, isSong } = route.params
+      let data = { data: { songs: [] } };
+
+      const fetchAsSong = async (songId) => {
+        try {
+          const songData = await getSongData(songId)
+          let song = null;
+          if (songData && songData.data && Array.isArray(songData.data) && songData.data[0]) {
+            song = songData.data[0]
+          } else if (songData && songData[songId]) {
+            song = songData[songId]
+          } else if (songData && typeof songData === 'object' && !songData.data) {
+            song = songData;
+          }
+
+          if (song && (song.name || song.title)) {
+            return {
+              data: {
+                name: song.name || song.title,
+                image: song.image,
+                year: song.year,
+                songs: [song],
+                primaryArtist: FormatArtist(song.artists?.primary || song.artist)
+              },
+            };
+          }
+        } catch (e) {
+          // Song fetch failed
+        }
+        return null;
+      };
+
+      if (isSong) {
+        const sData = await fetchAsSong(id);
+        if (sData) {
+          data = sData;
+        }
+      }
+
+      // If we still don't have songs, try fetching as album
+      if (!data.data.songs || data.data.songs.length === 0) {
+        try {
+          data = await getAlbumData(id)
+        } catch (albumErr) {
+          // If album call fails, try song data as fallback
+          const sData = await fetchAsSong(id);
+          if (sData) {
+            data = sData;
+          }
+        }
+      }
 
       // Add 1 second delay to ensure correct song results
       await new Promise(resolve => setTimeout(resolve, 1000));
@@ -36,24 +86,12 @@ export const Album = ({ route }) => {
       if (albumType.includes('podcast') || albumType.includes('show') || albumName.includes('podcast') || albumName.includes('episode')) {
         data = { data: { name: data?.data?.name || 'Unavailable', image: data?.data?.image || [], year: data?.data?.year || '', songs: [] } };
       }
-      // Check if songs are empty or if we need to try fetching as a song
+      // Final fallback check if still empty
       if (!data.data.songs || data.data.songs.length === 0) {
-        // Try fetching as song - some IDs might be for songs but appear as albums in search
-        const songData = await getSongData(id)
-        if (songData && songData.data && songData.data[0]) {
-          const song = songData.data[0]
-          data = {
-            data: {
-              name: song.name,
-              image: song.image,
-              year: song.year,
-              songs: [song],
-              primaryArtist: FormatArtist(song.artists?.primary)
-            },
-          }
+        const sData = await fetchAsSong(id);
+        if (sData) {
+          data = sData;
         }
-      }
-      if (data?.data?.songs?.length > 0) {
       }
       setData(data)
 

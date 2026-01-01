@@ -137,7 +137,7 @@ export const LanguageDetailPage = ({route}) => {
               data={Data?.data?.albums ?? []}
               keyExtractor={(item, index) => item?.id?.toString() ?? `album-${index}`}
               renderItem={(item)=>(
-                <EachAlbumCard image={item?.item?.image[2]?.link ?? ""} artists={item.item.artists} name={item.item.name} id={item.item.id}/>
+                <EachAlbumCard image={item?.item?.image[2]?.link ?? ""} artists={item.item.artists} name={item.item.name} id={item.item.id} isSong={true}/>
               )}
             />
             <PaddingConatiner>

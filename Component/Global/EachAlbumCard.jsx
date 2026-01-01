@@ -31,7 +31,7 @@ function resolveImageUri(image) {
   return null;
 }
 
-export const EachAlbumCard = memo(function EachAlbumCard({ image, name, artists, id, mainContainerStyle, Search }) {
+export const EachAlbumCard = memo(function EachAlbumCard({ image, name, artists, id, mainContainerStyle, Search, isSong }) {
   const navigation = useNavigation()
   const initialUri = resolveImageUri(image) || 'https://via.placeholder.com/150x150/cccccc/000000?text=No+Image'
   const [imageUri, setImageUri] = useState(initialUri)
@@ -73,7 +73,7 @@ export const EachAlbumCard = memo(function EachAlbumCard({ image, name, artists,
       if ((id || "").includes('playlist')) {
         navigation.navigate("Playlist", { id, image: imageUri, name, follower: "" })
       } else {
-        navigation.navigate("Album", { id, image: imageUri })
+        navigation.navigate("Album", { id, image: imageUri, isSong: isSong })
       }
     }} android_ripple={{ color: 'rgba(0,0,0,0)' }} style={{
       borderRadius: 8,

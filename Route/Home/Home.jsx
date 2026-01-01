@@ -1,5 +1,5 @@
 import { MainWrapper } from "../../Layout/MainWrapper";
-import { ScrollView, View, RefreshControl } from "react-native";
+import { ScrollView, View, RefreshControl, FlatList } from "react-native";
 import Animated, { FadeIn } from "react-native-reanimated";
 import { Heading } from "../../Component/Global/Heading";
 import { HorizontalScrollSongs } from "../../Component/Global/HorizontalScrollSongs";
@@ -8,10 +8,10 @@ import { PaddingConatiner } from "../../Layout/PaddingConatiner";
 import { EachAlbumCard } from "../../Component/Global/EachAlbumCard";
 import { RenderTopCharts } from "../../Component/Home/RenderTopCharts";
 import { LoadingComponent } from "../../Component/Global/Loading";
-import { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useMemo, useCallback } from "react";
 import { useIsFocused } from "@react-navigation/native";
 import { getHomePageData } from "../../Api/HomePage";
-import { getAllPlaylists } from "../../Api/Playlist";
+import { getAllPlaylists, getSearchPlaylistData } from "../../Api/Playlist";
 import { EachPlaylistCard } from "../../Component/Global/EachPlaylistCard";
 import { EachTrendingSongCard } from "../../Component/Global/EachTrendingSongCard";
 import { GetLanguageValue } from "../../LocalStorage/Languages";
@@ -25,32 +25,46 @@ export const Home = () => {
   const [showHeader, setShowHeader] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [allPlaylists, setAllPlaylists] = useState([]);
+  const [viralHitsId, setViralHitsId] = useState(null);
+  const [trendingLangId, setTrendingLangId] = useState(null);
   const isFocused = useIsFocused();
   const refreshTimerRef = useRef(null);
   const activeTrack = useActiveTrack();
 
   // Filter out podcast / non-music entries heuristically before grouping
-  const rawAlbums = (Data?.data?.albums ?? []).filter(a => {
-    const name = (a?.name || a?.title || '').toLowerCase();
-    const type = (a?.type || '').toLowerCase();
-    // Exclude if explicitly typed as podcast/show or name hints podcast content
-    if (type.includes('podcast') || type.includes('show')) { return false; }
-    if (name.includes('podcast') || name.includes('episode')) { return false; }
-    return true;
-  });
-  const albumData = [];
-  for (let i = 0; i < rawAlbums.length; i = i + 2) {
-    if (i === rawAlbums.length - 1 && rawAlbums.length % 2 !== 0) {
-      albumData.push([rawAlbums[i]]);
-    } else {
-      albumData.push([rawAlbums[i], rawAlbums[i + 1]]);
-    }
-  }
+  const rawAlbums = useMemo(() => {
+    return (Data?.data?.albums ?? []).filter(a => {
+      const name = (a?.name || a?.title || '').toLowerCase();
+      const type = (a?.type || '').toLowerCase();
+      if (type.includes('podcast') || type.includes('show')) { return false; }
+      if (name.includes('podcast') || name.includes('episode')) { return false; }
+      return true;
+    });
+  }, [Data]);
 
-  const allPlaylistsData = [];
-  for (let i = 0; i < allPlaylists.length; i = i + 8) {
-    allPlaylistsData.push(allPlaylists.slice(i, i + 8));
-  }
+  const albumData = useMemo(() => {
+    const list = [];
+    for (let i = 0; i < rawAlbums.length; i = i + 2) {
+      if (i === rawAlbums.length - 1 && rawAlbums.length % 2 !== 0) {
+        list.push([rawAlbums[i]]);
+      } else {
+        list.push([rawAlbums[i], rawAlbums[i + 1]]);
+      }
+    }
+    return list;
+  }, [rawAlbums]);
+
+  const allPlaylistsData = useMemo(() => {
+    const list = [];
+    for (let i = 0; i < allPlaylists.length; i = i + 8) {
+      list.push(allPlaylists.slice(i, i + 8));
+    }
+    return list;
+  }, [allPlaylists]);
+
+  const trendingSongs = useMemo(() => Data?.data?.trending?.songs ?? [], [Data]);
+  const playlists = useMemo(() => Data?.data?.playlists ?? [], [Data]);
+  const trendingAlbums = useMemo(() => Data?.data?.trending?.albums ?? [], [Data]);
 
   async function fetchHomePageData(silent = false) {
     try {
@@ -61,18 +75,25 @@ export const Home = () => {
       const data = await getHomePageData(Languages);
       const playlists = await getAllPlaylists(Languages);
 
-      // Filter albums by selected language
-      if (data?.data?.albums && Languages && Languages !== 'All') {
-        const languageLower = Languages.toLowerCase();
-        data.data.albums = data.data.albums.filter(album => {
-          const albumLanguage = (album?.language || '').toLowerCase();
-          // Keep albums that match the selected language or have no language specified
-          return !albumLanguage || albumLanguage === languageLower || albumLanguage === 'unknown';
-        });
-      }
-
       setData(data);
       setAllPlaylists(playlists?.data?.results || []);
+
+      // Fetch Viral Hits and Trending ID for replacement
+      if (Languages && Languages !== 'All') {
+        try {
+          const viralSearch = await getSearchPlaylistData(`Viral hits ${Languages}`, 1, 1);
+          if (viralSearch?.data?.results?.[0]?.id) {
+            setViralHitsId(viralSearch.data.results[0].id);
+          }
+          
+          const trendingSearch = await getSearchPlaylistData(`Trending ${Languages}`, 1, 1);
+          if (trendingSearch?.data?.results?.[0]?.id) {
+            setTrendingLangId(trendingSearch.data.results[0].id);
+          }
+        } catch (err) {
+          console.warn("Home: Failed to fetch viral/trending hits", err);
+        }
+      }
     } catch (e) {
       // Error fetching home page data
     } finally {
@@ -86,6 +107,17 @@ export const Home = () => {
     setRefreshing(true);
     await fetchHomePageData();
     setRefreshing(false);
+  };
+
+  const getChartId = (index) => {
+    const chart = Data?.data?.charts?.[index];
+    if (!chart) return null;
+    
+    const title = (chart.title || chart.name || '').toLowerCase();
+    if (title.includes('2000s') && viralHitsId) {
+      return viralHitsId;
+    }
+    return chart.id;
   };
 
   useEffect(() => {
@@ -130,21 +162,16 @@ export const Home = () => {
             <RouteHeading showSearch={false} showSettings={true} />
             <DisplayTopGenres />
             <PaddingConatiner>
-              <Heading text={"Trending Songs"} />
+              <Heading text={"Top Trending Songs"} />
             </PaddingConatiner>
-            <ScrollView
+            <FlatList
               horizontal
               showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{
-                paddingLeft: 10,
-                paddingRight: 10,
-              }}
-            >
-              {(Data?.data?.trending?.songs ?? []).map((item, index) => (
-                <View
-                  key={item?.id?.toString() ?? `trending-song-${index}`}
-                  style={{ marginRight: 12 }}
-                >
+              data={trendingSongs}
+              keyExtractor={(item, index) => item?.id?.toString() ?? `trending-song-${index}`}
+              contentContainerStyle={{ paddingHorizontal: 10 }}
+              renderItem={({ item }) => (
+                <View style={{ marginRight: 12 }}>
                   <EachTrendingSongCard
                     image={
                       item?.image?.[2]?.url ||
@@ -166,25 +193,20 @@ export const Home = () => {
                     artistID={item.primary_artists_id}
                   />
                 </View>
-              ))}
-            </ScrollView>
+              )}
+            />
             <PaddingConatiner>
-              <HorizontalScrollSongs id={Data?.data?.charts?.[0]?.id} />
+              <HorizontalScrollSongs id={getChartId(0)} />
               <Heading text={"Recommended Playlists"} />
             </PaddingConatiner>
-            <ScrollView
+            <FlatList
               horizontal
               showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{
-                paddingLeft: 10,
-                paddingRight: 10,
-              }}
-            >
-              {(Data?.data?.playlists ?? []).map((item, index) => (
-                <View
-                  key={item?.id?.toString() ?? `playlist-${index}`}
-                  style={{ marginRight: 12 }}
-                >
+              data={playlists}
+              keyExtractor={(item, index) => item?.id?.toString() ?? `playlist-${index}`}
+              contentContainerStyle={{ paddingHorizontal: 10 }}
+              renderItem={({ item }) => (
+                <View style={{ marginRight: 12 }}>
                   <EachPlaylistCard
                     name={item.title}
                     follower={item.subtitle}
@@ -196,24 +218,19 @@ export const Home = () => {
                     id={item.id}
                   />
                 </View>
-              ))}
-            </ScrollView>
+              )}
+            />
             <PaddingConatiner>
               <Heading text={"Trending Albums"} />
             </PaddingConatiner>
-            <ScrollView
+            <FlatList
               horizontal
               showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{
-                paddingLeft: 10,
-                paddingRight: 10,
-              }}
-            >
-              {(Data?.data?.trending?.albums ?? []).map((item, index) => (
-                <View
-                  key={item?.id?.toString() ?? `trending-album-${index}`}
-                  style={{ marginRight: 12 }}
-                >
+              data={trendingAlbums}
+              keyExtractor={(item, index) => item?.id?.toString() ?? `trending-album-${index}`}
+              contentContainerStyle={{ paddingHorizontal: 10 }}
+              renderItem={({ item }) => (
+                <View style={{ marginRight: 12 }}>
                   <EachAlbumCard
                     image={item.image[2].url || item.image[2].link}
                     artists={item.artists}
@@ -221,10 +238,10 @@ export const Home = () => {
                     id={item.id}
                   />
                 </View>
-              ))}
-            </ScrollView>
+              )}
+            />
             <PaddingConatiner>
-              <HorizontalScrollSongs id={Data?.data?.charts?.[1]?.id} />
+              <HorizontalScrollSongs id={getChartId(1)} />
             </PaddingConatiner>
             <PaddingConatiner>
               <Heading text={"Top Charts"} />
@@ -239,22 +256,19 @@ export const Home = () => {
               <RenderTopCharts playlist={Data?.data?.charts || []} />
             </ScrollView>
             <PaddingConatiner>
-              <HorizontalScrollSongs id={Data?.data?.charts?.[3]?.id} />
+              <HorizontalScrollSongs id={getChartId(3)} />
             </PaddingConatiner>
             <PaddingConatiner>
               <Heading text={"Recommended Albums"} />
             </PaddingConatiner>
-            <ScrollView
+            <FlatList
               horizontal
               showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{
-                paddingLeft: 10,
-                paddingRight: 10,
-              }}
-            >
-              {albumData.map((e, i) => (
+              data={albumData}
+              keyExtractor={(e, i) => `album-row-${i}`}
+              contentContainerStyle={{ paddingHorizontal: 10 }}
+              renderItem={({ item: e, index: i }) => (
                 <View
-                  key={`album-row-${i}`}
                   style={{
                     gap: 15,
                     marginRight: 12,
@@ -274,10 +288,13 @@ export const Home = () => {
                     </View>
                   ))}
                 </View>
-              ))}
-            </ScrollView>
+              )}
+            />
             <PaddingConatiner>
-              <HorizontalScrollSongs id={Data?.data?.charts?.[2]?.id} />
+              <HorizontalScrollSongs id={getChartId(2)} />
+            </PaddingConatiner>
+            <PaddingConatiner>
+              <HorizontalScrollSongs id={trendingLangId} />
             </PaddingConatiner>
           </ScrollView>
           <TopHeader showHeader={showHeader} />

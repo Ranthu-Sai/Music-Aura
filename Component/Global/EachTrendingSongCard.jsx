@@ -2,7 +2,7 @@ import { Pressable, View } from "react-native";
 import { PlainText } from "./PlainText";
 import { SmallText } from "./SmallText";
 import FastImage from "react-native-fast-image";
-import { memo, useContext, useState, useCallback } from "react";
+import React, { memo, useContext, useState, useCallback, useMemo } from "react";
 import { PlaySongWithRelated } from "../../MusicPlayerFunctions";
 import Context from "../../Context/Context";
 import FormatTitleAndArtist from "../../Utils/FormatTitleAndArtist";
@@ -10,18 +10,38 @@ import FormatArtist from "../../Utils/FormatArtists";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 import { useActiveTrack, usePlaybackState } from "react-native-track-player";
 
+const TrendingSongStatusIcon = memo(({ id }) => {
+  const currentPlaying = useActiveTrack();
+  const playerState = usePlaybackState();
+
+  const isCurrentSong = id === currentPlaying?.id;
+  const isPlaying = playerState.state === "playing" || playerState.state === 3;
+
+  const getIconName = () => {
+    if (isCurrentSong) {
+      return isPlaying ? "pause" : "play";
+    }
+    return "play";
+  };
+
+  return (
+    <View style={{
+      backgroundColor: 'rgba(0,0,0,0.5)',
+      borderRadius: 20,
+      padding: 8,
+    }}>
+      <MaterialCommunityIcons name={getIconName()} size={24} color="white" />
+    </View>
+  );
+});
+
 export const EachTrendingSongCard = memo(function EachTrendingSongCard({ image, name, artists, id, url, duration, language }) {
   const { updateTrack, lyricsCacheRef } = useContext(Context);
   const [isLoading, setIsLoading] = useState(false);
   const [imageUri, setImageUri] = useState(image || 'https://via.placeholder.com/150x150/cccccc/000000?text=No+Image')
-  const currentPlaying = useActiveTrack();
-  const playerState = usePlaybackState();
 
-  const artistsNames = FormatArtist(artists);
-  const formattedName = FormatTitleAndArtist(name || "");
-
-  const isCurrentSong = id === currentPlaying?.id;
-  const isPlaying = playerState.state === "playing";
+  const artistsNames = useMemo(() => FormatArtist(artists), [artists]);
+  const formattedName = useMemo(() => FormatTitleAndArtist(name || ""), [name]);
 
   const PlaySong = useCallback(async () => {
     if (isLoading) {
@@ -47,13 +67,6 @@ export const EachTrendingSongCard = memo(function EachTrendingSongCard({ image, 
     }
   }, [isLoading, id, image, updateTrack, lyricsCacheRef, url, duration, language, name, artistsNames]);
 
-  const getIconName = () => {
-    if (isCurrentSong) {
-      return isPlaying ? "pause" : "play";
-    }
-    return "play";
-  };
-
   return (
     <Pressable onPress={PlaySong} disabled={isLoading} style={{
       borderRadius: 8,
@@ -72,13 +85,7 @@ export const EachTrendingSongCard = memo(function EachTrendingSongCard({ image, 
         justifyContent: 'center',
         alignItems: 'center',
       }}>
-        <View style={{
-          backgroundColor: 'rgba(0,0,0,0.5)',
-          borderRadius: 20,
-          padding: 8,
-        }}>
-          <MaterialCommunityIcons name={getIconName()} size={24} color="white" />
-        </View>
+        <TrendingSongStatusIcon id={id} />
       </FastImage>
       <View style={{
         padding: 8,

@@ -13,11 +13,14 @@ export const RootRoute = () => {
   const theme = useTheme()
   return (
     <>
-      <Tab.Navigator tabBar={(props) => <CustomTabBar {...props}/>} screenOptions={{tabBarShowLabel:false,tabBarLabelStyle:{
-        fontWeight:"bold",
-        },tabBarInactiveTintColor:theme.colors.textSecondary,tabBarActiveTintColor:theme.colors.primary,headerShown:false, tabBarStyle: {
-          backgroundColor:theme.colors.background,
-          borderColor:"rgba(28,27,27,0)"}}}>
+      <Tab.Navigator 
+        tabBar={(props) => <CustomTabBar {...props}/>} 
+        sceneContainerStyle={{ backgroundColor: theme.colors.background }}
+        screenOptions={{tabBarShowLabel:false,tabBarLabelStyle:{
+          fontWeight:"bold",
+          },tabBarInactiveTintColor:theme.colors.textSecondary,tabBarActiveTintColor:theme.colors.primary,headerShown:false, tabBarStyle: {
+            backgroundColor:theme.colors.background,
+            borderColor:"rgba(28,27,27,0)"}}}>
         <Tab.Screen  options={{
           // eslint-disable-next-line react/no-unstable-nested-components
           tabBarIcon: ({ color, size, focused }) => (

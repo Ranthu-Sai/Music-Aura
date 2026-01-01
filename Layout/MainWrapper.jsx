@@ -4,9 +4,16 @@ import { StatusBar } from "react-native";
 import Context from "../Context/Context";
 export const MainWrapper = memo(function MainWrapper({children}) {
   const { currentThemeColors } = useContext(Context);
+  const bgColor = currentThemeColors?.background || '#101010';
+  
   return (
-    <SafeAreaView style={{flex:1,backgroundColor: currentThemeColors.background}}>
-        <StatusBar backgroundColor={currentThemeColors.background} animated={true}/>
+    <SafeAreaView style={{flex:1, backgroundColor: bgColor}}>
+        <StatusBar 
+          backgroundColor={bgColor} 
+          barStyle="light-content" 
+          translucent={true}
+          animated={true}
+        />
         {children}
     </SafeAreaView>
   );
