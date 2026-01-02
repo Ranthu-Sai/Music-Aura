@@ -1,13 +1,13 @@
 import React, { useEffect, useState, useContext, useRef } from "react";
 import { View, Text, StyleSheet, Animated, Easing, Dimensions } from "react-native";
 import { useTheme } from "@react-navigation/native";
-import Context from "../../Context/Context";
+import { ThemeContext } from "../../Context/Context";
 
 import { Spacer } from "./Spacer";
 
 export const MarqueeText = ({ text, style, nospace }) => {
     const theme = useTheme();
-    const { fontSize } = useContext(Context);
+    const { fontSize } = useContext(ThemeContext);
     const { width: screenWidth } = Dimensions.get('window');
 
     const [containerWidth, setContainerWidth] = useState(0);

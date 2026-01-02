@@ -9,12 +9,12 @@ import { Spacer } from "./Spacer";
 import AntDesign from "react-native-vector-icons/AntDesign";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 import { AddSongsToQueue, getIndexQuality, AddOneSongToPlaylist } from "../../MusicPlayerFunctions";
-import Context from "../../Context/Context";
+import { ActionsContext } from "../../Context/Context";
 import { DownloadSong } from "../../Utils/DownloadHelper";
 import Clipboard from '@react-native-clipboard/clipboard';
 
 export const EachSongMenuModal = ({ Visible, setVisible }) => {
-  const { updateTrack } = useContext(Context);
+  const { updateTrack } = useContext(ActionsContext);
 
   const getPermission = async () => {
     setVisible({ visible: false });

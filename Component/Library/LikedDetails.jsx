@@ -5,13 +5,13 @@ import LinearGradient from "react-native-linear-gradient";
 import { useTheme } from "@react-navigation/native";
 import { AddPlaylist, getIndexQuality } from "../../MusicPlayerFunctions";
 import { useContext } from "react";
-import Context from "../../Context/Context";
+import { ActionsContext } from "../../Context/Context";
 import { PlayButton } from "../Playlist/PlayButton";
 
 
 
 export const LikedDetails = ({name, Data, dontShowPlayButton}) => {
-  const {updateTrack} = useContext(Context)
+  const {updateTrack} = useContext(ActionsContext)
   async function AddToPlayer(){
     const quality = await getIndexQuality()
     const ForPlayer = []

@@ -4,7 +4,7 @@ import { SmallText } from "./SmallText";
 import FastImage from "react-native-fast-image";
 import React, { memo, useContext, useState, useCallback, useMemo } from "react";
 import { PlaySongWithRelated } from "../../MusicPlayerFunctions";
-import Context from "../../Context/Context";
+import { ActionsContext } from "../../Context/Context";
 import FormatTitleAndArtist from "../../Utils/FormatTitleAndArtist";
 import FormatArtist from "../../Utils/FormatArtists";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
@@ -36,7 +36,7 @@ const TrendingSongStatusIcon = memo(({ id }) => {
 });
 
 export const EachTrendingSongCard = memo(function EachTrendingSongCard({ image, name, artists, id, url, duration, language }) {
-  const { updateTrack, lyricsCacheRef } = useContext(Context);
+  const { updateTrack, lyricsCacheRef } = useContext(ActionsContext);
   const [isLoading, setIsLoading] = useState(false);
   const [imageUri, setImageUri] = useState(image || 'https://via.placeholder.com/150x150/cccccc/000000?text=No+Image')
 

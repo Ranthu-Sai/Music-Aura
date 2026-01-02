@@ -1,11 +1,11 @@
 import { Text } from "react-native";
 import { useTheme } from "@react-navigation/native";
 import { useContext } from "react";
-import Context from "../../Context/Context";
+import { ThemeContext } from "../../Context/Context";
 
 export const SmallText = ({text, color, style, maxLine, selectable}) => {
   const theme = useTheme()
-  const { fontSize } = useContext(Context);
+  const { fontSize } = useContext(ThemeContext);
   let Size = 10;
   if (fontSize === "Medium"){
     Size = 10

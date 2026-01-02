@@ -3,12 +3,13 @@ import { BackHandler, StyleSheet } from "react-native";
 import BottomSheet, { BottomSheetView } from '@gorhom/bottom-sheet';
 import { MinimizedMusic } from "./MinimizedMusic";
 import { FullScreenMusic } from "./FullScreenMusic";
-import Context from "../../Context/Context";
+import Context, { ActionsContext } from "../../Context/Context";
 import { useActiveTrack } from "react-native-track-player";
 
 const BottomSheetMusic = ({ color }) => {
   const bottomSheetRef = useRef(null)
-  const { Index, setIndex } = useContext(Context)
+  const { Index } = useContext(Context)
+  const { setIndex } = useContext(ActionsContext)
   const activeTrack = useActiveTrack()
 
   useEffect(() => {

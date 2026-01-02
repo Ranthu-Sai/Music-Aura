@@ -2,14 +2,15 @@ import React, { memo, useContext, useEffect, useState, useCallback, useMemo } fr
 import { BottomSheetFlatList } from "@gorhom/bottom-sheet";
 import { EachSongQueue } from "./EachSongQueue";
 import { GetQueueSongs } from "../../LocalStorage/storeQueue";
-import Context from "../../Context/Context";
+import Context, { ActionsContext } from "../../Context/Context";
 import { ActivityIndicator, View, ToastAndroid, InteractionManager } from "react-native";
 import { useActiveTrack, usePlaybackState } from "react-native-track-player";
 import TrackPlayer from "react-native-track-player";
 import { removeFromQueue } from "../../MusicPlayerFunctions";
 
 export const QueueRenderSongs = memo(function QueueRenderSongs({ Index }) {
-  const { Queue, ensureMinimumQueue, updateTrack } = useContext(Context)
+  const { Queue } = useContext(Context)
+  const { ensureMinimumQueue, updateTrack } = useContext(ActionsContext)
   const activeTrack = useActiveTrack();
   const playbackState = usePlaybackState();
   const [displayedSongs, setDisplayedSongs] = useState([])

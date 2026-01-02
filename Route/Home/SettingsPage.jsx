@@ -15,7 +15,6 @@ import {
 import { useEffect, useState, useContext, useCallback } from "react";
 import { SmallText } from "../../Component/Global/SmallText";
 import DeviceInfo from "react-native-device-info";
-import Context from "../../Context/Context";
 import Icon from "react-native-vector-icons/MaterialCommunityIcons";
 import LinearGradient from "react-native-linear-gradient";
 import Animated, { FadeInDown, FadeInRight } from "react-native-reanimated";
@@ -112,8 +111,11 @@ const EachDropDownSetting = ({ data, text, placeholder, OnChange, currentThemeCo
   );
 }
 
+import Context, { ThemeContext } from "../../Context/Context";
+
 export const SettingsPage = ({ navigation }) => {
-  const { setFontSize, setTheme, currentThemeColors, activeTrack } = useContext(Context);
+  const { setFontSize, setTheme, currentThemeColors } = useContext(ThemeContext);
+  const { activeTrack } = useContext(Context);
   const [Font, setFont] = useState('Medium');
   const [Playback, setPlayback] = useState('320kbps');
   const [Download, setDownload] = useState('Music');

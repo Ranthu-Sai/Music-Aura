@@ -4,13 +4,13 @@ import { useNavigation } from "@react-navigation/native";
 import Icon from "react-native-vector-icons/MaterialCommunityIcons";
 import LinearGradient from "react-native-linear-gradient";
 import { useContext } from "react";
-import Context from "../../Context/Context";
+import { ThemeContext } from "../../Context/Context";
 
 export const EachLibraryCard = ({ iconName, text, navigate, colors }) => {
   const width = Dimensions.get("window").width;
   const containerWidth = width * 0.44;
   const navigation = useNavigation();
-  const { currentThemeColors } = useContext(Context);
+  const { currentThemeColors } = useContext(ThemeContext);
 
   // Default gradient if none provided
   const backgroundColors = colors || [

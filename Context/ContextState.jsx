@@ -1,4 +1,4 @@
-import Context from "./Context";
+import Context, { ThemeContext, ActionsContext } from "./Context";
 import { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import TrackPlayer, { Event, useTrackPlayerEvents, RepeatMode } from "react-native-track-player";
 import { getRecommendedSongs, getYTMusicRecommendedSongs } from "../Api/Recommended";
@@ -573,58 +573,53 @@ const ContextState = (props) => {
         // Deliberately empty dependency array so setup is not re-run on queue updates
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
-    const contextValue = useMemo(() => ({
-        currentPlaying,
-        Repeat,
-        setRepeat,
-        updateTrack,
-        Index,
-        setIndex,
-        QueueIndex,
-        setQueueIndex,
-        setVisible,
-        Queue,
+    const themeValue = useMemo(() => ({
         fontSize,
         setFontSize,
         theme,
         setTheme,
-        currentThemeColors,
-        lyricsCacheRef,
-        ensureMinimumQueue,
-        queueVisible,
+        currentThemeColors
+    }), [fontSize, theme, currentThemeColors]);
+
+    const actionValue = useMemo(() => ({
+        setRepeat,
+        updateTrack,
+        setIndex,
+        setQueueIndex,
+        setVisible,
         setQueueVisible,
         openQueue,
-        closeQueue
+        closeQueue,
+        ensureMinimumQueue,
+        lyricsCacheRef
+    }), [updateTrack, setIndex, setQueueIndex, setVisible, setQueueVisible, openQueue, closeQueue, ensureMinimumQueue, lyricsCacheRef]);
+
+    const playerValue = useMemo(() => ({
+        currentPlaying,
+        Repeat,
+        Index,
+        QueueIndex,
+        Queue,
+        queueVisible,
     }), [
         currentPlaying,
         Repeat,
-        setRepeat,
-        updateTrack,
         Index,
-        setIndex,
         QueueIndex,
-        setQueueIndex,
-        setVisible,
         Queue,
-        fontSize,
-        setFontSize,
-        theme,
-        setTheme,
-        currentThemeColors,
-        lyricsCacheRef,
-        ensureMinimumQueue,
         queueVisible,
-        setQueueVisible,
-        openQueue,
-        closeQueue
     ]);
 
     return (
-        <Context.Provider value={contextValue}>
-            {props.children}
-            <EachSongMenuModal setVisible={setVisible} Visible={Visible} />
-            <PlaylistSelector />
-        </Context.Provider>
+        <ThemeContext.Provider value={themeValue}>
+            <ActionsContext.Provider value={actionValue}>
+                <Context.Provider value={playerValue}>
+                    {props.children}
+                    <EachSongMenuModal setVisible={setVisible} Visible={Visible} />
+                    <PlaylistSelector />
+                </Context.Provider>
+            </ActionsContext.Provider>
+        </ThemeContext.Provider>
     );
 }
 

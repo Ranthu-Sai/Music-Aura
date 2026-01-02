@@ -5,7 +5,7 @@ import { PlainText } from "../../Component/Global/PlainText";
 import { SmallText } from "../../Component/Global/SmallText";
 import { TouchableOpacity, Pressable, ScrollView, ToastAndroid, View, Alert, StyleSheet, Dimensions, ActivityIndicator } from "react-native";
 import { useEffect, useState, useContext, useCallback } from "react";
-import Context from "../../Context/Context";
+import Context, { ThemeContext } from "../../Context/Context";
 import { GetCacheSizes, ClearSelectedCache, ClearAllCache } from "../../LocalStorage/ClearCache";
 import MaterialIcons from "react-native-vector-icons/MaterialIcons";
 import LinearGradient from "react-native-linear-gradient";
@@ -76,7 +76,8 @@ function CacheCard({ item, isSelected, onToggle, size, currentThemeColors, delay
 }
 
 export const ClearCachePage = ({ navigation }) => {
-  const { currentThemeColors, activeTrack } = useContext(Context);
+  const { currentThemeColors } = useContext(ThemeContext);
+  const { activeTrack } = useContext(Context);
   const [cacheSizes, setCacheSizes] = useState({});
   const [storage, setStorage] = useState({ total: 0, d: 0, c: 0 });
   const [selectedCache, setSelectedCache] = useState([]);

@@ -7,7 +7,7 @@ import LinearGradient from "react-native-linear-gradient";
 import { useTheme, useNavigation } from "@react-navigation/native";
 import { AddPlaylist, getIndexQuality } from "../../MusicPlayerFunctions";
 import { useContext } from "react";
-import Context from "../../Context/Context";
+import Context, { ActionsContext } from "../../Context/Context";
 import { LikedPlaylist } from "./LikedPlaylist";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
@@ -16,7 +16,7 @@ import FormatTitleAndArtist from "../../Utils/FormatTitleAndArtist";
 
 
 export const PlaylistDetails = ({ name, listener, notReleased, Data, Loading, id, image, follower }) => {
-  const { updateTrack } = useContext(Context)
+  const { updateTrack } = useContext(ActionsContext)
   const navigation = useNavigation();
   async function AddToPlayer() {
     if (!Data?.data?.songs) return;

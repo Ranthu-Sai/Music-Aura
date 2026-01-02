@@ -5,7 +5,7 @@ import { SmallText } from "./SmallText";
 import FastImage from "react-native-fast-image";
 import { AddSongsToQueue, getIndexQuality, PlaySongWithRelated } from "../../MusicPlayerFunctions";
 import React, { memo, useContext, useState, useCallback, useMemo } from "react";
-import Context from "../../Context/Context";
+import { ActionsContext } from "../../Context/Context";
 import { useActiveTrack, usePlaybackState } from "react-native-track-player";
 import FormatTitleAndArtist from "../../Utils/FormatTitleAndArtist";
 import { EachSongMenuButton } from "../MusicPlayer/EachSongMenuButton";
@@ -42,7 +42,7 @@ const SongStatusImage = memo(({ id, artworkUri }) => {
 
 export const EachSongCard = memo(function EachSongCard({ title, artist, image, id, url, duration, language, artistID, isLibraryLiked, width, titleandartistwidth, isFromPlaylist, Data, index, albumName, releaseDate, albumId, isHighlighted, playlistId, isHistory, onRemove, source }) {
   const width1 = Dimensions.get("window").width;
-  const { updateTrack, setVisible, lyricsCacheRef } = useContext(Context)
+  const { updateTrack, setVisible, lyricsCacheRef } = useContext(ActionsContext)
   const navigation = useNavigation();
   const [isLoading, setIsLoading] = useState(false);
 

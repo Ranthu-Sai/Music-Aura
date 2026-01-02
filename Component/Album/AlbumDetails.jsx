@@ -8,14 +8,12 @@ import { useTheme } from "@react-navigation/native";
 import { AddPlaylist, getIndexQuality } from "../../MusicPlayerFunctions";
 import { PlayButton } from "../Playlist/PlayButton";
 import { useContext } from "react";
-import Context from "../../Context/Context";
+import { ActionsContext } from "../../Context/Context";
 import FormatArtist from "../../Utils/FormatArtists";
 import FormatTitleAndArtist from "../../Utils/FormatTitleAndArtist";
 
-
-
 export const AlbumDetails = ({ name, artist, year, songCount, duration, Data }) => {
-  const { updateTrack } = useContext(Context)
+  const { updateTrack } = useContext(ActionsContext)
 
   async function AddToPlayer() {
     const quality = await getIndexQuality()

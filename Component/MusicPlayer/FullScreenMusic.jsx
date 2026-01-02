@@ -1,6 +1,6 @@
-import { Dimensions, ImageBackground, View, TouchableOpacity, Modal, Pressable } from "react-native";
+import { Dimensions, ImageBackground, View, TouchableOpacity, Modal, Pressable, StyleSheet } from "react-native";
 import FastImage from "react-native-fast-image";
-import React, { useContext, useState, useEffect, useRef } from "react";
+import React, { useContext, useState, useEffect, useRef, memo, useCallback } from "react";
 import LinearGradient from "react-native-linear-gradient";
 import { Heading } from "../Global/Heading";
 import { SmallText } from "../Global/SmallText";
@@ -19,7 +19,7 @@ import { getYTLyricsSongData, getSongData } from "../../Api/Songs";
 import YTArtworkUtils from "../../Utils/YTMusicArtworkUtils";
 import { GetLanguageValue } from "../../LocalStorage/Languages";
 import { ShowLyrics } from "./ShowLyrics";
-import Context from "../../Context/Context";
+import Context, { ActionsContext } from "../../Context/Context";
 import TrackPlayer, { useActiveTrack } from "react-native-track-player";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { PlayNextSong, PlayPreviousSong, AddOneSongToPlaylist } from "../../MusicPlayerFunctions";
@@ -31,6 +31,90 @@ import { MarqueeText } from "../Global/MarqueeText";
 import FormatTitleAndArtist from "../../Utils/FormatTitleAndArtist";
 import { DownloadSong } from "../../Utils/DownloadHelper";
 import { StorageManager } from "../../Utils/StorageManager";
+
+// Isolated Sleep Timer Display component to prevent FullScreenMusic re-renders every second
+const SleepTimerBadge = memo(({ sleepTime, setSleepTime, sleepTimerRef }) => {
+  const isTimerActive = sleepTime > 0;
+
+  useEffect(() => {
+    if (isTimerActive && !sleepTimerRef.current) {
+      sleepTimerRef.current = setInterval(async () => {
+        setSleepTime((prev) => {
+          if (prev <= 1) {
+            if (sleepTimerRef.current) clearInterval(sleepTimerRef.current);
+            sleepTimerRef.current = null;
+            TrackPlayer.pause();
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => {
+      // Don't clear here, let it run until finished or cancelled
+    };
+  }, [isTimerActive, setSleepTime, sleepTimerRef]);
+
+  if (sleepTime <= 0) return null;
+
+  return (
+    <SmallText
+      text={`Ends in ${Math.floor(sleepTime / 60)}:${(sleepTime % 60).toString().padStart(2, '0')}`}
+      style={{ color: '#1DB954', marginTop: -5, fontWeight: 'bold' }}
+    />
+  );
+});
+
+// Isolated Playback Rate Button to prevent FullScreenMusic re-renders on rate change
+const PlaybackRateButton = memo(({ rate, setRate }) => {
+  const handlePlaybackRate = async () => {
+    const nextRates = [1, 1.25, 1.5, 2, 0.5, 0.75];
+    const currentIndex = nextRates.indexOf(rate);
+    const nextRate = nextRates[(currentIndex + 1) % nextRates.length];
+    setRate(nextRate);
+    await TrackPlayer.setRate(nextRate);
+    ToastAndroid.show(`Playback speed: ${nextRate}x`, ToastAndroid.SHORT);
+  };
+
+  return (
+    <TouchableOpacity onPress={handlePlaybackRate} style={{ alignItems: 'center', width: 40 }}>
+      <PlainText text={`${rate}x`} style={{ fontSize: 13, fontWeight: 'bold', color: rate !== 1 ? '#1DB954' : 'white' }} />
+    </TouchableOpacity>
+  );
+});
+
+const ArtworkSection = memo(({ artwork, width, pan }) => {
+  return (
+    <GestureDetector gesture={pan}>
+      <View style={{ width: width * 0.85, height: width * 0.85, borderRadius: 30, elevation: 20, shadowOffset: { height: 10, width: 0 }, shadowOpacity: 0.5, shadowRadius: 15, overflow: "hidden" }}>
+        <FastImage source={{ uri: artwork }} style={{ width: "100%", height: "100%" }} resizeMode="cover" />
+      </View>
+    </GestureDetector>
+  );
+});
+
+const InfoSection = memo(({ title, artist }) => {
+  return (
+    <View style={{ width: '85%', alignItems: 'flex-start', justifyContent: 'center' }}>
+      <MarqueeText text={FormatTitleAndArtist(title, artist) || "Unknown"} style={{ textAlign: "left", fontSize: 22 }} nospace={true} />
+      <SmallText text={FormatTitleAndArtist(artist) || "Unknown Artist"} style={{ textAlign: "left", opacity: 0.6 }} maxLine={1} />
+    </View>
+  );
+});
+
+const ControlsSection = memo(() => {
+  return (
+    <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", width: "85%" }}>
+      <RepeatSongButton size={28} />
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 30 }}>
+        <PreviousSongButton size={38} />
+        <PlayPauseButton isFullScreen={true} />
+        <NextSongButton size={38} />
+      </View>
+      <LikeSongButton size={28} />
+    </View>
+  );
+});
 
 export const FullScreenMusic = ({ color, Index, setIndex }) => {
   const pan = Gesture.Pan();
@@ -46,7 +130,7 @@ export const FullScreenMusic = ({ color, Index, setIndex }) => {
 
   const { width, height } = Dimensions.get("window");
   const currentPlaying = useActiveTrack();
-  const { lyricsCacheRef } = useContext(Context);
+  const { lyricsCacheRef } = useContext(ActionsContext);
   const navigation = useNavigation();
 
   const [ShowDailog, setShowDailog] = useState(false);
@@ -60,15 +144,6 @@ export const FullScreenMusic = ({ color, Index, setIndex }) => {
   const [showSleepModal, setShowSleepModal] = useState(false);
   const [sleepTime, setSleepTime] = useState(0);
   const sleepTimerRef = useRef(null);
-
-  const handlePlaybackRate = async () => {
-    const nextRates = [1, 1.25, 1.5, 2, 0.5, 0.75];
-    const currentIndex = nextRates.indexOf(playbackRate);
-    const nextRate = nextRates[(currentIndex + 1) % nextRates.length];
-    setPlaybackRate(nextRate);
-    await TrackPlayer.setRate(nextRate);
-    ToastAndroid.show(`Playback speed: ${nextRate}x`, ToastAndroid.SHORT);
-  };
 
   const handleShare = async () => {
     try {
@@ -88,7 +163,6 @@ export const FullScreenMusic = ({ color, Index, setIndex }) => {
     setShowMenu(false);
     if (!currentPlaying) return;
 
-    // Check if it's already a local/downloaded file
     const isLocal = currentPlaying.url && (currentPlaying.url.startsWith('/') || currentPlaying.url.startsWith('file://'));
     if (isLocal || currentPlaying.source === 'downloaded') {
       ToastAndroid.show("Song is already offline", ToastAndroid.SHORT);
@@ -99,25 +173,20 @@ export const FullScreenMusic = ({ color, Index, setIndex }) => {
   };
 
   const startSleepTimer = (minutes) => {
-    if (sleepTimerRef.current) clearInterval(sleepTimerRef.current);
+    if (sleepTimerRef.current) {
+        clearInterval(sleepTimerRef.current);
+        sleepTimerRef.current = null;
+    }
     setSleepTime(minutes * 60);
     setShowSleepModal(false);
     ToastAndroid.show(`Sleep timer set for ${minutes} minutes`, ToastAndroid.SHORT);
-
-    sleepTimerRef.current = setInterval(async () => {
-      setSleepTime((prev) => {
-        if (prev <= 1) {
-          clearInterval(sleepTimerRef.current);
-          TrackPlayer.pause();
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
   };
 
   const cancelSleepTimer = () => {
-    if (sleepTimerRef.current) clearInterval(sleepTimerRef.current);
+    if (sleepTimerRef.current) {
+        clearInterval(sleepTimerRef.current);
+        sleepTimerRef.current = null;
+    }
     setSleepTime(0);
     setShowSleepModal(false);
     ToastAndroid.show("Sleep timer cancelled", ToastAndroid.SHORT);
@@ -223,7 +292,6 @@ export const FullScreenMusic = ({ color, Index, setIndex }) => {
       return;
     }
 
-    // Not cached, initiate fetch
     setShowDailog(true);
     setLoading(true);
     setLyricsFetchInProgress(true);
@@ -250,15 +318,14 @@ export const FullScreenMusic = ({ color, Index, setIndex }) => {
     }
   }
 
-
   const fallbackArtwork = "https://htmlcolorcodes.com/assets/images/colors/gray-color-solid-background-1920x1080.png";
 
-  const resolveArtwork = () => {
+  const resolveArtwork = useCallback(() => {
     if (!currentPlaying?.artwork) return fallbackArtwork;
     const raw = currentPlaying.artwork;
     if (typeof raw === 'string' && raw.trim() === "") return fallbackArtwork;
     return YTArtworkUtils.upgradeArtworkQuality(raw);
-  };
+  }, [currentPlaying?.artwork]);
 
   return (
     <View style={{ backgroundColor: "black", flex: 1 }}>
@@ -327,42 +394,18 @@ export const FullScreenMusic = ({ color, Index, setIndex }) => {
               </Pressable>
             </Modal>
 
-            {/* Artwork */}
             <Spacer height={20} />
-            <GestureDetector gesture={pan}>
-              <View style={{ width: width * 0.85, height: width * 0.85, borderRadius: 30, elevation: 20, shadowOffset: { height: 10, width: 0 }, shadowOpacity: 0.5, shadowRadius: 15, overflow: "hidden" }}>
-                <FastImage source={{ uri: resolveArtwork() }} style={{ width: "100%", height: "100%" }} resizeMode="cover" />
-              </View>
-            </GestureDetector>
+            <ArtworkSection artwork={resolveArtwork()} width={width} pan={pan} />
 
-            {/* Info Row */}
             <Spacer height={30} />
-            <View style={{ width: '85%', alignItems: 'flex-start', justifyContent: 'center' }}>
-              <MarqueeText text={FormatTitleAndArtist(currentPlaying?.title, currentPlaying?.artist) || "Unknown"} style={{ textAlign: "left", fontSize: 22 }} nospace={true} />
-              <SmallText text={FormatTitleAndArtist(currentPlaying?.artist) || "Unknown Artist"} style={{ textAlign: "left", opacity: 0.6 }} maxLine={1} />
-            </View>
+            <InfoSection title={currentPlaying?.title} artist={currentPlaying?.artist} />
 
-            {/* Progress */}
             <Spacer height={10} />
             <ProgressBar />
-            {sleepTime > 0 && (
-              <SmallText
-                text={`Ends in ${Math.floor(sleepTime / 60)}:${(sleepTime % 60).toString().padStart(2, '0')}`}
-                style={{ color: '#1DB954', marginTop: -5, fontWeight: 'bold' }}
-              />
-            )}
+            <SleepTimerBadge sleepTime={sleepTime} setSleepTime={setSleepTime} sleepTimerRef={sleepTimerRef} />
 
-            {/* Controls Row */}
             <Spacer height={25} />
-            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", width: "85%" }}>
-              <RepeatSongButton size={28} />
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 30 }}>
-                <PreviousSongButton size={38} />
-                <PlayPauseButton isFullScreen={true} />
-                <NextSongButton size={38} />
-              </View>
-              <LikeSongButton size={28} />
-            </View>
+            <ControlsSection />
 
             {/* Bottom Action Pill Bar */}
             <Spacer height={10} />
@@ -382,9 +425,7 @@ export const FullScreenMusic = ({ color, Index, setIndex }) => {
                 <MaterialCommunityIcons name="timer-outline" size={24} color={sleepTime > 0 ? '#1DB954' : 'white'} />
               </TouchableOpacity>
 
-              <TouchableOpacity onPress={handlePlaybackRate} style={{ alignItems: 'center', width: 40 }}>
-                <PlainText text={`${playbackRate}x`} style={{ fontSize: 13, fontWeight: 'bold', color: playbackRate !== 1 ? '#1DB954' : 'white' }} />
-              </TouchableOpacity>
+              <PlaybackRateButton rate={playbackRate} setRate={setPlaybackRate} />
 
               <TouchableOpacity onPress={handleShare}>
                 <MaterialCommunityIcons name="share-variant-outline" size={24} color="white" />
@@ -404,7 +445,7 @@ export const FullScreenMusic = ({ color, Index, setIndex }) => {
   );
 };
 
-const styles = {
+const styles = StyleSheet.create({
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -413,4 +454,5 @@ const styles = {
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255,255,255,0.05)'
   }
-};
+});
+

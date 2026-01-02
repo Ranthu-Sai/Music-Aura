@@ -9,14 +9,14 @@ import AntDesign from "react-native-vector-icons/AntDesign";
 import useAllSongsManager from "../../Component/Offline/AllSongsManager";
 import { PermissionsAndroid, Platform } from "react-native";
 import FastImage from "react-native-fast-image";
-import Context from "../../Context/Context";
+import { ActionsContext } from "../../Context/Context";
 
 export const AllSongsPage = () => {
     const AnimatedRef = useAnimatedRef()
     const width = Dimensions.get("window").width
     const theme = useTheme()
     const navigation = useNavigation();
-    const { setVisible } = useContext(Context);
+    const { setVisible } = useContext(ActionsContext);
 
     const [activeTab, setActiveTab] = useState('downloads'); // 'downloads' or 'local'
     const [searchQuery, setSearchQuery] = useState('');

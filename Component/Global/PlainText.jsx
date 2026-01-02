@@ -1,11 +1,11 @@
 import { Dimensions, Text } from "react-native";
 import { useTheme } from "@react-navigation/native";
 import { useContext } from "react";
-import Context from "../../Context/Context";
+import { ThemeContext } from "../../Context/Context";
 
 export const PlainText = ({text,style, numberOfLine}) => {
   const theme = useTheme()
-  const { fontSize } = useContext(Context);
+  const { fontSize } = useContext(ThemeContext);
   const width = Dimensions.get('window').width;
   let Size = width * 0.035;
   if (fontSize === "Medium"){

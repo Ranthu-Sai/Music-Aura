@@ -1,67 +1,103 @@
-import React from "react";
+import React, { useEffect } from "react";
 import {
   Dimensions,
   View,
   StyleSheet,
   TouchableOpacity,
-  Text
+  Text,
+  StatusBar
 } from "react-native";
-import { MainWrapper } from "../../Layout/MainWrapper";
 import Animated, {
-  FadeInDown,
-  FadeInUp,
   FadeIn,
-  RotateInUpRight,
-  ZoomIn
+  useSharedValue,
+  useAnimatedStyle,
+  withRepeat,
+  withTiming,
+  Easing,
+  interpolate,
+  Extrapolate
 } from "react-native-reanimated";
 import FastImage from "react-native-fast-image";
 import LinearGradient from "react-native-linear-gradient";
 import Icon from "react-native-vector-icons/MaterialCommunityIcons";
 
-const { width } = Dimensions.get("window");
+const { width, height } = Dimensions.get("window");
 
 export const Slide4 = ({ navigation }) => {
-  return (
-    <MainWrapper>
-      <View style={styles.container}>
-        {/* Background Decorative Elements */}
-        <Animated.View entering={RotateInUpRight.delay(200).duration(2000)} style={styles.bgCircle1} />
-        <Animated.View entering={ZoomIn.delay(400).duration(1500)} style={styles.bgCircle2} />
+  const glowValue = useSharedValue(0);
 
-        <View style={styles.topSection}>
-          <Animated.View entering={ZoomIn.duration(1000)} style={styles.imageWrapper}>
-            <View style={styles.imageInnerGlow}>
+  useEffect(() => {
+    glowValue.value = withRepeat(
+      withTiming(1, { duration: 2500, easing: Easing.inOut(Easing.ease) }),
+      -1,
+      true
+    );
+  }, [glowValue]);
+
+  const animatedBackAura = useAnimatedStyle(() => {
+    const scale = interpolate(glowValue.value, [0, 1], [1, 1.2], Extrapolate.CLAMP);
+    const opacity = interpolate(glowValue.value, [0, 1], [0.2, 0.4], Extrapolate.CLAMP);
+    return {
+      transform: [{ scale }],
+      opacity,
+    };
+  });
+
+  const animatedTitleGlow = useAnimatedStyle(() => ({
+    textShadowRadius: 10 + (glowValue.value * 20),
+    opacity: 0.8 + (glowValue.value * 0.2),
+  }));
+
+  const animatedLogoGlow = useAnimatedStyle(() => ({
+    shadowRadius: 20 + (glowValue.value * 20),
+    borderColor: `rgba(29, 185, 84, ${0.1 + (glowValue.value * 0.3)})`,
+  }));
+
+  return (
+    <View style={styles.container}>
+      <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
+      
+      <View style={styles.contentContainer}>
+        {/* Animated Background Aura */}
+        <Animated.View style={[styles.backgroundAura, animatedBackAura]} />
+
+        <View style={styles.centerSection}>
+          <Animated.View entering={FadeIn.duration(1000)} style={styles.imageWrapper}>
+            <Animated.View style={[styles.imageInnerGlow, animatedLogoGlow]}>
               <FastImage
                 source={require("../../Images/letsgo.gif")}
                 style={styles.image}
                 resizeMode="cover"
               />
-            </View>
-            {/* Floating Icons */}
-            <Animated.View entering={FadeIn.delay(1200)} style={[styles.floatingIcon, { top: -20, right: -10 }]}>
-              <Icon name="music-node" size={24} color="#1DB954" />
             </Animated.View>
-            <Animated.View entering={FadeIn.delay(1400)} style={[styles.floatingIcon, { bottom: 20, left: -30 }]}>
-              <Icon name="headphones" size={28} color="#4776E6" />
+            
+            {/* Floating Decorative Elements */}
+            <Animated.View entering={FadeIn.delay(1200)} style={[styles.floatingIcon, { top: -10, right: -20 }]}>
+              <Icon name="music" size={20} color="#1DB954" />
             </Animated.View>
-          </Animated.View>
-        </View>
-
-        <View style={styles.contentSection}>
-          <Animated.View entering={FadeInUp.delay(500).duration(800)}>
-            <Text style={styles.overTitle}>Configuration Complete</Text>
-            <Text style={styles.mainTitle}>You're all set!</Text>
+            <Animated.View entering={FadeIn.delay(1400)} style={[styles.floatingIcon, { bottom: 30, left: -40 }]}>
+              <Icon name="check-decagram" size={24} color="#4776E6" />
+            </Animated.View>
           </Animated.View>
 
-          <Animated.View entering={FadeInDown.delay(800).duration(800)}>
-            <Text style={styles.description}>
-              Dive into a personalized world of melodies. Your Music Aura is ready to shine.
-            </Text>
-          </Animated.View>
+          <View style={styles.textContent}>
+            <Animated.Text entering={FadeIn.delay(200).duration(800)} style={styles.overTitle}>
+              Configuration Complete
+            </Animated.Text>
+            <Animated.Text 
+              entering={FadeIn.delay(400).duration(800)} 
+              style={[styles.mainTitle, animatedTitleGlow]}
+            >
+              You're all set!
+            </Animated.Text>
+            <Animated.Text entering={FadeIn.delay(600).duration(800)} style={styles.description}>
+              Dive into a personalized world of melodies.{"\n"}Your Music Aura is ready to shine.
+            </Animated.Text>
+          </View>
         </View>
 
         <View style={styles.footer}>
-          <Animated.View entering={FadeInUp.delay(1000).duration(800)} style={styles.buttonWrapper}>
+          <Animated.View entering={FadeIn.delay(1000).duration(800)} style={styles.buttonWrapper}>
             <TouchableOpacity
               style={styles.getStartedButton}
               activeOpacity={0.8}
@@ -75,7 +111,7 @@ export const Slide4 = ({ navigation }) => {
               >
                 <Text style={styles.buttonText}>Get Started</Text>
                 <View style={styles.btnIconCircle}>
-                  <Icon name="play" size={20} color="black" />
+                  <Icon name="rocket-launch" size={22} color="black" />
                 </View>
               </LinearGradient>
             </TouchableOpacity>
@@ -84,46 +120,42 @@ export const Slide4 = ({ navigation }) => {
               style={styles.backLink}
               onPress={() => navigation.replace("Slide3")}
             >
-              <Text style={styles.backLinkText}>Change basic info</Text>
+              <Text style={styles.backLinkText}>Edit profile details</Text>
             </TouchableOpacity>
           </Animated.View>
         </View>
       </View>
-    </MainWrapper>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingHorizontal: 30,
-    justifyContent: 'space-between',
-    paddingTop: 80,
-    paddingBottom: 50,
+    backgroundColor: '#080808',
   },
-  bgCircle1: {
+  contentContainer: {
+    flex: 1,
+    paddingHorizontal: 25,
+  },
+  backgroundAura: {
     position: 'absolute',
-    top: -50,
-    left: -50,
-    width: 200,
-    height: 200,
-    borderRadius: 100,
-    backgroundColor: 'rgba(29, 185, 84, 0.05)',
+    top: height * 0.1,
+    alignSelf: 'center',
+    width: width * 0.9,
+    height: width * 0.9,
+    borderRadius: (width * 0.9) / 2,
+    backgroundColor: 'rgba(71, 118, 230, 0.1)',
+    filter: 'blur(80px)',
   },
-  bgCircle2: {
-    position: 'absolute',
-    bottom: 150,
-    right: -30,
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: 'rgba(71, 118, 230, 0.05)',
-  },
-  topSection: {
+  centerSection: {
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
   },
   imageWrapper: {
     position: 'relative',
+    marginBottom: 50,
   },
   imageInnerGlow: {
     padding: 12,
@@ -131,6 +163,10 @@ const styles = StyleSheet.create({
     borderRadius: 120,
     borderWidth: 2,
     borderColor: 'rgba(29, 185, 84, 0.2)',
+    shadowColor: '#1DB954',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.5,
+    elevation: 25,
   },
   image: {
     height: 200,
@@ -139,55 +175,59 @@ const styles = StyleSheet.create({
   },
   floatingIcon: {
     position: 'absolute',
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    padding: 10,
-    borderRadius: 15,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    padding: 12,
+    borderRadius: 18,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.1)',
+    elevation: 5,
   },
-  contentSection: {
+  textContent: {
     alignItems: 'center',
-    marginVertical: 40,
   },
   overTitle: {
-    fontSize: 12,
+    fontSize: 14,
     color: '#1DB954',
     fontWeight: '900',
     textTransform: 'uppercase',
-    letterSpacing: 3,
+    letterSpacing: 4,
     textAlign: 'center',
-    marginBottom: 10,
+    marginBottom: 12,
+    opacity: 0.9,
   },
   mainTitle: {
-    fontSize: 40,
+    fontSize: 48,
     color: 'white',
     fontWeight: '900',
     textAlign: 'center',
     letterSpacing: -1,
+    textShadowColor: '#1DB954',
+    textShadowOffset: { width: 0, height: 0 },
   },
   description: {
-    fontSize: 16,
+    fontSize: 18,
     color: 'rgba(255,255,255,0.5)',
     textAlign: 'center',
-    marginTop: 20,
-    lineHeight: 24,
-    paddingHorizontal: 20,
+    marginTop: 25,
+    lineHeight: 28,
+    fontWeight: '500',
+    paddingHorizontal: 10,
   },
   footer: {
-    width: '100%',
+    paddingBottom: 50,
   },
   buttonWrapper: {
     alignItems: 'center',
   },
   getStartedButton: {
     width: '100%',
-    height: 70,
+    height: 75,
     borderRadius: 25,
     overflow: 'hidden',
-    elevation: 10,
+    elevation: 12,
     shadowColor: '#1DB954',
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.4,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.5,
     shadowRadius: 15,
   },
   gradient: {
@@ -195,30 +235,29 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 25,
-  },
-  btnIconCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(0,0,0,0.1)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginLeft: 15,
   },
   buttonText: {
     color: 'black',
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: '900',
     letterSpacing: 0.5,
+  },
+  btnIconCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0,0,0,0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 20,
   },
   backLink: {
     marginTop: 25,
   },
   backLinkText: {
-    color: 'rgba(255,255,255,0.3)',
-    fontSize: 14,
-    fontWeight: '600',
+    color: 'rgba(255,255,255,0.4)',
+    fontSize: 15,
+    fontWeight: '700',
     textDecorationLine: 'underline',
   }
 });

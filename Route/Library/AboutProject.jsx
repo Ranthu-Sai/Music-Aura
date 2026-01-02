@@ -8,14 +8,13 @@ import { PlainText } from "../../Component/Global/PlainText";
 import { Heading } from "../../Component/Global/Heading";
 import { SmallText } from "../../Component/Global/SmallText";
 import { Spacer } from "../../Component/Global/Spacer";
-import Context from "../../Context/Context";
-import { useActiveTrack } from "react-native-track-player";
+import Context, { ThemeContext } from "../../Context/Context";
 
 const { width } = Dimensions.get("window");
 
 export const AboutProject = ({ navigation }) => {
-  const { currentThemeColors } = useContext(Context);
-  const activeTrack = useActiveTrack();
+  const { currentThemeColors } = useContext(ThemeContext);
+  const { activeTrack } = useContext(Context);
 
   const openURL = (url) => {
     if (url) {

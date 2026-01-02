@@ -1,7 +1,7 @@
 import { useTheme } from "@react-navigation/native";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 import { useContext } from "react";
-import Context from "../../Context/Context";
+import Context, { ActionsContext } from "../../Context/Context";
 import { Pressable } from "react-native";
 import { Repeats } from "../../Utils/Repeats";
 import { RepeatMode } from 'react-native-track-player';
@@ -10,7 +10,8 @@ import { SetRepeatMode } from "../../MusicPlayerFunctions";
 
 export const RepeatSongButton = ({size}) => {
   const theme = useTheme()
-  const {Repeat, setRepeat} = useContext(Context)
+  const {Repeat} = useContext(Context)
+  const {setRepeat} = useContext(ActionsContext)
   function onRepeatPress(){
     if (Repeat === Repeats.NoRepeat){
       setRepeat(Repeats.RepeatAll)

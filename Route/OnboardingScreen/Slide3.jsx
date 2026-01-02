@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Dimensions,
   TextInput,
@@ -7,59 +7,103 @@ import {
   TouchableOpacity,
   Text,
   KeyboardAvoidingView,
-  Platform
+  Platform,
+  StatusBar
 } from "react-native";
-import { MainWrapper } from "../../Layout/MainWrapper";
-import Animated, { FadeInDown, FadeInUp, FadeIn } from "react-native-reanimated";
+import Animated, { 
+  FadeIn, 
+  FadeOut, 
+  useSharedValue, 
+  useAnimatedStyle, 
+  withRepeat, 
+  withTiming, 
+  Easing,
+  interpolate,
+  Extrapolate
+} from "react-native-reanimated";
 import FastImage from "react-native-fast-image";
 import LinearGradient from "react-native-linear-gradient";
 import { SetUserNameValue } from "../../LocalStorage/StoreUserName";
 import Icon from "react-native-vector-icons/MaterialCommunityIcons";
 
-const { width } = Dimensions.get("window");
+const { width, height } = Dimensions.get("window");
 
 export const Slide3 = ({ navigation }) => {
   const [name, setName] = useState("");
+  const glowValue = useSharedValue(0);
+
+  useEffect(() => {
+    glowValue.value = withRepeat(
+      withTiming(1, { duration: 2500, easing: Easing.inOut(Easing.ease) }),
+      -1,
+      true
+    );
+  }, [glowValue]);
 
   const handleNext = async () => {
     if (name.trim() === "") {
-      // eslint-disable-next-line no-alert
       alert("Please enter your name!");
     } else {
       await SetUserNameValue(name.trim());
-      navigation.replace("Slide4"); // Go to Slide 4 now instead of MainRoute
+      navigation.replace("Slide4");
     }
   };
 
+  const animatedGlow = useAnimatedStyle(() => {
+    const scale = interpolate(glowValue.value, [0, 1], [1, 1.05], Extrapolate.CLAMP);
+    const opacity = interpolate(glowValue.value, [0, 1], [0.3, 0.6], Extrapolate.CLAMP);
+    return {
+      transform: [{ scale }],
+      opacity,
+    };
+  });
+
+  const animatedTextGlow = useAnimatedStyle(() => ({
+    textShadowRadius: 10 + (glowValue.value * 15),
+    opacity: 0.8 + (glowValue.value * 0.2),
+  }));
+
   return (
-    <MainWrapper>
+    <View style={styles.container}>
+      <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
+      
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={{ flex: 1 }}
       >
-        <View style={styles.container}>
-          {/* Top Decorative Element */}
-          <Animated.View entering={FadeIn.duration(1000)} style={styles.topBlob} />
+        <View style={styles.contentContainer}>
+          {/* Animated Background Aura */}
+          <Animated.View style={[styles.backgroundAura, animatedGlow]} />
 
-          <Animated.View entering={FadeInUp.delay(100).duration(800)} style={styles.imageContainer}>
-            <View style={styles.imageGlow}>
-              <FastImage
-                source={require("../../Images/GiveName.gif")}
-                style={styles.image}
-                resizeMode="cover"
-              />
-            </View>
-          </Animated.View>
-
-          <View style={styles.content}>
-            <Animated.View entering={FadeInDown.delay(300).duration(800)}>
-              <Text style={styles.title}>Personalize your experience</Text>
-              <Text style={styles.subtitle}>What should we call you?</Text>
+          <View style={styles.centerSection}>
+            <Animated.View entering={FadeIn.duration(1000)} style={styles.imageWrapper}>
+              <View style={styles.imageGlow}>
+                <FastImage
+                  source={require("../../Images/GiveName.gif")}
+                  style={styles.image}
+                  resizeMode="cover"
+                />
+              </View>
             </Animated.View>
 
-            <Animated.View entering={FadeInDown.delay(500).duration(800)} style={styles.inputWrapper}>
-              <View style={styles.inputContainer}>
-                <Icon name="account-outline" size={24} color="rgba(255,255,255,0.5)" style={styles.inputIcon} />
+            <View style={styles.textContent}>
+              <Animated.Text entering={FadeIn.delay(200).duration(800)} style={styles.topLabel}>
+                Personalize your experience
+              </Animated.Text>
+              <Animated.Text 
+                entering={FadeIn.delay(400).duration(800)} 
+                style={[styles.mainTitle, animatedTextGlow]}
+              >
+                What's your name?
+              </Animated.Text>
+            </View>
+
+            <Animated.View entering={FadeIn.delay(600).duration(800)} style={styles.inputContainer}>
+              <LinearGradient
+                colors={['rgba(255,255,255,0.08)', 'rgba(255,255,255,0.03)']}
+                style={styles.inputGradient}
+              >
+                <Icon name="account-circle-outline" size={24} color="#1DB954" style={styles.inputIcon} />
                 <TextInput
                   placeholder="Enter your name"
                   placeholderTextColor="rgba(255,255,255,0.3)"
@@ -67,159 +111,182 @@ export const Slide3 = ({ navigation }) => {
                   onChangeText={setName}
                   selectionColor="#1DB954"
                   style={styles.input}
+                  autoFocus={false}
                 />
-              </View>
+              </LinearGradient>
             </Animated.View>
           </View>
 
           <View style={styles.footer}>
-            <Animated.View entering={FadeInDown.delay(700).duration(800)} style={styles.buttonRow}>
+            <Animated.View entering={FadeIn.delay(800).duration(800)} style={styles.footerRow}>
               <TouchableOpacity
-                style={styles.backButton}
+                style={styles.backBtn}
                 onPress={() => navigation.replace("Slide2")}
               >
-                <Icon name="chevron-left" size={28} color="white" />
+                <Icon name="chevron-left" size={32} color="white" />
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={styles.nextButton}
+                style={styles.nextBtn}
                 onPress={handleNext}
+                activeOpacity={0.8}
               >
                 <LinearGradient
                   colors={['#1DB954', '#1ed760']}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
-                  style={styles.gradientButton}
+                  style={styles.nextGradient}
                 >
-                  <Text style={styles.buttonText}>Continue</Text>
-                  <Icon name="arrow-right" size={20} color="black" style={{ marginLeft: 8 }} />
+                  <Text style={styles.nextText}>Continue</Text>
+                  <View style={styles.arrowCircle}>
+                    <Icon name="arrow-right" size={18} color="black" />
+                  </View>
                 </LinearGradient>
               </TouchableOpacity>
             </Animated.View>
           </View>
         </View>
       </KeyboardAvoidingView>
-    </MainWrapper>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#080808',
+  },
+  contentContainer: {
+    flex: 1,
     paddingHorizontal: 25,
-    justifyContent: 'space-between',
-    paddingTop: 60,
-    paddingBottom: 40,
   },
-  topBlob: {
+  backgroundAura: {
     position: 'absolute',
-    top: -100,
-    right: -100,
-    width: 250,
-    height: 250,
-    borderRadius: 125,
-    backgroundColor: 'rgba(29, 185, 84, 0.1)',
+    top: height * 0.1,
+    alignSelf: 'center',
+    width: width * 0.8,
+    height: width * 0.8,
+    borderRadius: (width * 0.8) / 2,
+    backgroundColor: 'rgba(29, 185, 84, 0.15)',
+    filter: 'blur(60px)',
   },
-  imageContainer: {
+  centerSection: {
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 20,
+  },
+  imageWrapper: {
+    marginBottom: 40,
   },
   imageGlow: {
     padding: 10,
     backgroundColor: 'rgba(255,255,255,0.03)',
     borderRadius: 110,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
+    borderColor: 'rgba(255,255,255,0.08)',
+    shadowColor: '#1DB954',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.4,
+    shadowRadius: 20,
+    elevation: 20,
   },
   image: {
     height: 200,
     width: 200,
     borderRadius: 100,
   },
-  content: {
+  textContent: {
     alignItems: 'center',
-    marginTop: 10,
+    marginBottom: 40,
   },
-  title: {
+  topLabel: {
     color: '#1DB954',
     fontSize: 14,
     fontWeight: '900',
     textTransform: 'uppercase',
     letterSpacing: 2,
-    textAlign: 'center',
-    marginBottom: 8,
+    marginBottom: 10,
+    opacity: 0.9,
   },
-  subtitle: {
+  mainTitle: {
     color: 'white',
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: '900',
     textAlign: 'center',
-    marginBottom: 30,
     letterSpacing: -0.5,
-  },
-  inputWrapper: {
-    width: '100%',
-    alignItems: 'center',
+    textShadowColor: '#1DB954',
+    textShadowOffset: { width: 0, height: 0 },
   },
   inputContainer: {
+    width: '100%',
+    maxWidth: 400,
+  },
+  inputGradient: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    borderRadius: 20,
+    paddingHorizontal: 20,
+    height: 70,
+    borderRadius: 25,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.1)',
-    width: width * 0.85,
-    paddingHorizontal: 15,
-    height: 65,
   },
   inputIcon: {
-    marginRight: 12,
+    marginRight: 15,
   },
   input: {
     flex: 1,
     color: 'white',
     fontSize: 18,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   footer: {
-    width: '100%',
+    paddingBottom: 40,
   },
-  buttonRow: {
+  footerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 15,
   },
-  backButton: {
+  backBtn: {
     width: 65,
     height: 65,
-    borderRadius: 20,
+    borderRadius: 25,
     backgroundColor: 'rgba(255,255,255,0.05)',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: 'rgba(255,255,255,0.08)',
   },
-  nextButton: {
+  nextBtn: {
     flex: 1,
-    height: 65,
-    borderRadius: 20,
+    height: 70,
+    borderRadius: 25,
     overflow: 'hidden',
-    elevation: 8,
+    elevation: 10,
     shadowColor: '#1DB954',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.4,
+    shadowRadius: 15,
   },
-  gradientButton: {
+  nextGradient: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  buttonText: {
+  nextText: {
     color: 'black',
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '900',
     letterSpacing: 0.5,
+  },
+  arrowCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(0,0,0,0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 15,
   }
 });
