@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Dimensions,
   TextInput,
@@ -8,23 +8,47 @@ import {
   Text,
   KeyboardAvoidingView,
   Platform,
+  StatusBar,
+  ScrollView,
   ToastAndroid
 } from "react-native";
-import { MainWrapper } from "../../Layout/MainWrapper";
-import Animated, { FadeInDown, FadeInUp, FadeIn } from "react-native-reanimated";
+import Animated, { 
+  FadeInDown,
+  useSharedValue, 
+  useAnimatedStyle, 
+  withRepeat, 
+  withTiming, 
+  Easing,
+  interpolate,
+  Extrapolate
+} from "react-native-reanimated";
 import FastImage from "react-native-fast-image";
 import LinearGradient from "react-native-linear-gradient";
 import { SetUserNameValue } from "../../LocalStorage/StoreUserName";
 import Icon from "react-native-vector-icons/MaterialCommunityIcons";
+import { MainWrapper } from "../../Layout/MainWrapper";
 
-const { width } = Dimensions.get("window");
+const { width, height } = Dimensions.get("window");
 
 export const ChangeName = ({ navigation }) => {
   const [name, setName] = useState("");
+  const glowValue = useSharedValue(0);
+
+  useEffect(() => {
+    glowValue.value = withRepeat(
+      withTiming(1, { duration: 3000, easing: Easing.inOut(Easing.ease) }),
+      -1,
+      true
+    );
+  }, [glowValue]);
+
+  const animatedSymbol = useAnimatedStyle(() => ({
+    transform: [{ scale: 1 + glowValue.value * 0.05 }],
+    opacity: 0.8 + glowValue.value * 0.2,
+  }));
 
   const handleConfirm = async () => {
     if (name.trim() === "") {
-      // eslint-disable-next-line no-alert
       alert("Please enter your name!");
     } else {
       await SetUserNameValue(name.trim());
@@ -37,75 +61,101 @@ export const ChangeName = ({ navigation }) => {
     }
   };
 
+  const animatedGlow = useAnimatedStyle(() => {
+    const scale = interpolate(glowValue.value, [0, 1], [1, 1.2], Extrapolate.CLAMP);
+    const opacity = interpolate(glowValue.value, [0, 1], [0.1, 0.3], Extrapolate.CLAMP);
+    return {
+      transform: [{ scale }],
+      opacity,
+    };
+  });
+
   return (
     <MainWrapper>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={{ flex: 1 }}
-      >
-        <View style={styles.container}>
-          {/* Top Decorative Element */}
-          <Animated.View entering={FadeIn.duration(1000)} style={styles.topBlob} />
+      <View style={styles.container}>
+        <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
+        
+        {/* Background Decorative Elements */}
+        <Animated.View style={[styles.backgroundAura, animatedGlow]} />
+        <View style={styles.topRightBlob} />
+        <View style={styles.bottomLeftBlob} />
 
-          <Animated.View entering={FadeInUp.delay(100).duration(800)} style={styles.imageContainer}>
-            <View style={styles.imageGlow}>
-              <FastImage
-                source={require("../../Images/GiveName.gif")}
-                style={styles.image}
-                resizeMode="cover"
-              />
-            </View>
-          </Animated.View>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : null}
+          style={{ flex: 1 }}
+        >
+          <ScrollView 
+            contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
+            <View style={styles.mainContent}>
+              <Animated.View entering={FadeInDown.duration(1000).springify()} style={styles.imageWrapper}>
+                <View style={styles.imageContainer}>
+                  <FastImage
+                    source={require("../../Images/GiveName.gif")}
+                    style={styles.image}
+                    resizeMode="cover"
+                  />
+                </View>
+              </Animated.View>
 
-          <View style={styles.content}>
-            <Animated.View entering={FadeInDown.delay(300).duration(800)}>
-              <Text style={styles.title}>Personalize your experience</Text>
-              <Text style={styles.subtitle}>What should I call you?</Text>
-            </Animated.View>
-
-            <Animated.View entering={FadeInDown.delay(500).duration(800)} style={styles.inputWrapper}>
-              <View style={styles.inputContainer}>
-                <Icon name="account-outline" size={24} color="rgba(255,255,255,0.5)" style={styles.inputIcon} />
-                <TextInput
-                  placeholder="Enter your name"
-                  placeholderTextColor="rgba(255,255,255,0.3)"
-                  value={name}
-                  onChangeText={setName}
-                  selectionColor="#1DB954"
-                  style={styles.input}
-                />
+              <View style={styles.textSection}>
+                <View style={styles.titleRow}>
+                  <Animated.View style={animatedSymbol}>
+                    <Icon name="star-four-points-outline" size={22} color="#1DB954" />
+                  </Animated.View>
+                  <Animated.Text entering={FadeInDown.delay(400).duration(800)} style={styles.titleText}>
+                    Enter your name
+                  </Animated.Text>
+                </View>
               </View>
-            </Animated.View>
-          </View>
+
+              <Animated.View entering={FadeInDown.delay(600).duration(800)} style={styles.inputWrapper}>
+                <View style={styles.inputContainerStyle}>
+                  <TextInput
+                    placeholder="Type your name here..."
+                    placeholderTextColor="rgba(255,255,255,0.3)"
+                    value={name}
+                    onChangeText={setName}
+                    selectionColor="#1DB954"
+                    style={styles.input}
+                    autoFocus={false}
+                  />
+                </View>
+              </Animated.View>
+            </View>
+          </ScrollView>
 
           <View style={styles.footer}>
-            <Animated.View entering={FadeInDown.delay(700).duration(800)} style={styles.buttonRow}>
+            <Animated.View entering={FadeInDown.delay(800).duration(800)} style={styles.footerRow}>
               <TouchableOpacity
-                style={styles.backButton}
+                style={styles.backBtn}
                 onPress={() => navigation.pop()}
-                activeOpacity={0.6}
+                activeOpacity={0.7}
               >
-                <Icon name="chevron-left" size={28} color="white" />
+                <Icon name="arrow-left" size={28} color="white" />
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={styles.nextButton}
+                style={styles.nextBtn}
                 onPress={handleConfirm}
+                activeOpacity={0.8}
               >
                 <LinearGradient
                   colors={['#1DB954', '#1ed760']}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
-                  style={styles.gradientButton}
+                  style={styles.nextGradient}
                 >
-                  <Text style={styles.buttonText}>Change Name</Text>
-                  <Icon name="check" size={20} color="black" style={{ marginLeft: 8 }} />
+                  <Text style={styles.nextText}>Save Changes</Text>
+                  <Icon name="check-circle-outline" size={24} color="black" />
                 </LinearGradient>
               </TouchableOpacity>
             </Animated.View>
           </View>
-        </View>
-      </KeyboardAvoidingView>
+        </KeyboardAvoidingView>
+      </View>
     </MainWrapper>
   );
 };
@@ -113,120 +163,150 @@ export const ChangeName = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingHorizontal: 25,
-    justifyContent: 'space-between',
-    paddingTop: 60,
-    paddingBottom: 40,
   },
-  topBlob: {
+  scrollContent: {
+    flexGrow: 1,
+    justifyContent: 'center',
+  },
+  mainContent: {
+    paddingHorizontal: 30,
+    alignItems: 'center',
+  },
+  backgroundAura: {
     position: 'absolute',
-    top: -100,
-    right: -100,
+    top: height * 0.1,
+    alignSelf: 'center',
+    width: width * 1.4,
+    height: width * 1.4,
+    borderRadius: (width * 1.4) / 2,
+    backgroundColor: 'rgba(29, 185, 84, 0.25)',
+  },
+  topRightBlob: {
+    position: 'absolute',
+    top: -50,
+    right: -50,
     width: 250,
     height: 250,
     borderRadius: 125,
     backgroundColor: 'rgba(29, 185, 84, 0.1)',
   },
-  imageContainer: {
-    alignItems: 'center',
-    marginTop: 20,
+  bottomLeftBlob: {
+    position: 'absolute',
+    bottom: -100,
+    left: -100,
+    width: 350,
+    height: 350,
+    borderRadius: 175,
+    backgroundColor: 'rgba(29, 185, 84, 0.08)',
   },
-  imageGlow: {
-    padding: 10,
-    backgroundColor: 'rgba(255,255,255,0.03)',
+  imageWrapper: {
+    marginBottom: 30,
+    marginTop: -80,
+  },
+  imageContainer: {
+    width: 220,
+    height: 220,
     borderRadius: 110,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
+    overflow: 'hidden',
+    borderWidth: 2,
+    borderColor: 'rgba(29, 185, 84, 0.5)',
+    backgroundColor: '#121212',
+    elevation: 25,
+    shadowColor: '#1DB954',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 30,
   },
   image: {
-    height: 200,
-    width: 200,
-    borderRadius: 100,
+    width: '100%',
+    height: '100%',
   },
-  content: {
+  textSection: {
+    alignItems: 'flex-start',
+    marginBottom: 30,
+    width: '100%',
+  },
+  titleRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 10,
+    gap: 8,
   },
-  title: {
-    color: '#1DB954',
-    fontSize: 14,
-    fontWeight: '900',
-    textTransform: 'uppercase',
-    letterSpacing: 2,
-    textAlign: 'center',
-    marginBottom: 8,
-  },
-  subtitle: {
+  titleText: {
     color: 'white',
     fontSize: 28,
     fontWeight: '900',
-    textAlign: 'center',
-    marginBottom: 30,
-    letterSpacing: -0.5,
+    textAlign: 'left',
+    letterSpacing: 1,
+    textShadowColor: 'rgba(29, 185, 84, 0.5)',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 10,
   },
   inputWrapper: {
     width: '100%',
-    alignItems: 'center',
+    paddingHorizontal: 10,
   },
-  inputContainer: {
+  inputContainerStyle: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: 'rgba(255,255,255,0.08)',
     borderRadius: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-    width: width * 0.85,
-    paddingHorizontal: 15,
-    height: 65,
-  },
-  inputIcon: {
-    marginRight: 12,
+    paddingHorizontal: 22,
+    height: 84,
+    borderWidth: 1.5,
+    borderColor: 'rgba(29, 185, 84, 0.3)',
+    shadowColor: '#1DB954',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    elevation: 5,
   },
   input: {
     flex: 1,
     color: 'white',
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: 24,
+    lineHeight: 28,
+    fontWeight: '700',
+    textAlign: 'left',
+    paddingVertical: 4,
   },
   footer: {
-    width: '100%',
+    paddingHorizontal: 30,
+    paddingBottom: 40,
+    paddingTop: 20,
   },
-  buttonRow: {
+  footerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 15,
   },
-  backButton: {
-    width: 65,
-    height: 65,
-    borderRadius: 20,
+  backBtn: {
+    width: 70,
+    height: 70,
+    borderRadius: 25,
     backgroundColor: 'rgba(255,255,255,0.05)',
     alignItems: 'center',
     justifyContent: 'center',
+    marginRight: 15,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.1)',
   },
-  nextButton: {
+  nextBtn: {
     flex: 1,
-    height: 65,
-    borderRadius: 20,
+    height: 70,
+    borderRadius: 25,
     overflow: 'hidden',
-    elevation: 8,
-    shadowColor: '#1DB954',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
   },
-  gradientButton: {
+  nextGradient: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: 20,
   },
-  buttonText: {
+  nextText: {
     color: 'black',
-    fontSize: 18,
-    fontWeight: '900',
-    letterSpacing: 0.5,
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginRight: 10,
   }
 });
+

@@ -8,11 +8,12 @@ import {
   Text,
   KeyboardAvoidingView,
   Platform,
-  StatusBar
+  StatusBar,
+  ScrollView
 } from "react-native";
 import Animated, { 
   FadeIn, 
-  FadeOut, 
+  FadeInDown,
   useSharedValue, 
   useAnimatedStyle, 
   withRepeat, 
@@ -34,7 +35,7 @@ export const Slide3 = ({ navigation }) => {
 
   useEffect(() => {
     glowValue.value = withRepeat(
-      withTiming(1, { duration: 2500, easing: Easing.inOut(Easing.ease) }),
+      withTiming(1, { duration: 3000, easing: Easing.inOut(Easing.ease) }),
       -1,
       true
     );
@@ -50,34 +51,40 @@ export const Slide3 = ({ navigation }) => {
   };
 
   const animatedGlow = useAnimatedStyle(() => {
-    const scale = interpolate(glowValue.value, [0, 1], [1, 1.05], Extrapolate.CLAMP);
-    const opacity = interpolate(glowValue.value, [0, 1], [0.3, 0.6], Extrapolate.CLAMP);
+    const scale = interpolate(glowValue.value, [0, 1], [1, 1.2], Extrapolate.CLAMP);
+    const opacity = interpolate(glowValue.value, [0, 1], [0.1, 0.3], Extrapolate.CLAMP);
     return {
       transform: [{ scale }],
       opacity,
     };
   });
 
-  const animatedTextGlow = useAnimatedStyle(() => ({
-    textShadowRadius: 10 + (glowValue.value * 15),
-    opacity: 0.8 + (glowValue.value * 0.2),
+  const animatedSymbol = useAnimatedStyle(() => ({
+    transform: [{ scale: 1 + glowValue.value * 0.05 }],
+    opacity: 0.8 + glowValue.value * 0.2,
   }));
 
   return (
     <View style={styles.container}>
       <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
       
+      {/* Background Decorative Elements */}
+      <Animated.View style={[styles.backgroundAura, animatedGlow]} />
+      <View style={styles.topRightBlob} />
+      <View style={styles.bottomLeftBlob} />
+
       <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        behavior={Platform.OS === "ios" ? "padding" : null}
         style={{ flex: 1 }}
       >
-        <View style={styles.contentContainer}>
-          {/* Animated Background Aura */}
-          <Animated.View style={[styles.backgroundAura, animatedGlow]} />
-
-          <View style={styles.centerSection}>
-            <Animated.View entering={FadeIn.duration(1000)} style={styles.imageWrapper}>
-              <View style={styles.imageGlow}>
+        <ScrollView 
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.mainContent}>
+            <Animated.View entering={FadeInDown.duration(1000).springify()} style={styles.imageWrapper}>
+              <View style={styles.imageContainer}>
                 <FastImage
                   source={require("../../Images/GiveName.gif")}
                   style={styles.image}
@@ -86,26 +93,21 @@ export const Slide3 = ({ navigation }) => {
               </View>
             </Animated.View>
 
-            <View style={styles.textContent}>
-              <Animated.Text entering={FadeIn.delay(200).duration(800)} style={styles.topLabel}>
-                Personalize your experience
-              </Animated.Text>
-              <Animated.Text 
-                entering={FadeIn.delay(400).duration(800)} 
-                style={[styles.mainTitle, animatedTextGlow]}
-              >
-                What's your name?
-              </Animated.Text>
+            <View style={styles.textSection}>
+              <View style={styles.titleRow}>
+                <Animated.View style={animatedSymbol}>
+                  <Icon name="star-four-points-outline" size={22} color="#1DB954" />
+                </Animated.View>
+                <Animated.Text entering={FadeInDown.delay(400).duration(800)} style={styles.titleText}>
+                  What's your name?
+                </Animated.Text>
+              </View>
             </View>
 
-            <Animated.View entering={FadeIn.delay(600).duration(800)} style={styles.inputContainer}>
-              <LinearGradient
-                colors={['rgba(255,255,255,0.08)', 'rgba(255,255,255,0.03)']}
-                style={styles.inputGradient}
-              >
-                <Icon name="account-circle-outline" size={24} color="#1DB954" style={styles.inputIcon} />
+            <Animated.View entering={FadeInDown.delay(600).duration(800)} style={styles.inputWrapper}>
+              <View style={styles.inputContainerStyle}>
                 <TextInput
-                  placeholder="Enter your name"
+                  placeholder="Type your name here..."
                   placeholderTextColor="rgba(255,255,255,0.3)"
                   value={name}
                   onChangeText={setName}
@@ -113,38 +115,37 @@ export const Slide3 = ({ navigation }) => {
                   style={styles.input}
                   autoFocus={false}
                 />
+              </View>
+            </Animated.View>
+          </View>
+        </ScrollView>
+
+        <View style={styles.footer}>
+          <Animated.View entering={FadeInDown.delay(800).duration(800)} style={styles.footerRow}>
+            <TouchableOpacity
+              style={styles.backBtn}
+              onPress={() => navigation.replace("Slide2")}
+              activeOpacity={0.7}
+            >
+              <Icon name="arrow-left" size={28} color="white" />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.nextBtn}
+              onPress={handleNext}
+              activeOpacity={0.8}
+            >
+              <LinearGradient
+                colors={['#1DB954', '#1ed760']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.nextGradient}
+              >
+                <Text style={styles.nextText}>Continue</Text>
+                <Icon name="chevron-right" size={24} color="black" />
               </LinearGradient>
-            </Animated.View>
-          </View>
-
-          <View style={styles.footer}>
-            <Animated.View entering={FadeIn.delay(800).duration(800)} style={styles.footerRow}>
-              <TouchableOpacity
-                style={styles.backBtn}
-                onPress={() => navigation.replace("Slide2")}
-              >
-                <Icon name="chevron-left" size={32} color="white" />
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.nextBtn}
-                onPress={handleNext}
-                activeOpacity={0.8}
-              >
-                <LinearGradient
-                  colors={['#1DB954', '#1ed760']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={styles.nextGradient}
-                >
-                  <Text style={styles.nextText}>Continue</Text>
-                  <View style={styles.arrowCircle}>
-                    <Icon name="arrow-right" size={18} color="black" />
-                  </View>
-                </LinearGradient>
-              </TouchableOpacity>
-            </Animated.View>
-          </View>
+            </TouchableOpacity>
+          </Animated.View>
         </View>
       </KeyboardAvoidingView>
     </View>
@@ -156,137 +157,149 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#080808',
   },
-  contentContainer: {
-    flex: 1,
-    paddingHorizontal: 25,
+  scrollContent: {
+    flexGrow: 1,
+    justifyContent: 'center',
+  },
+  mainContent: {
+    paddingHorizontal: 30,
+    alignItems: 'center',
   },
   backgroundAura: {
     position: 'absolute',
     top: height * 0.1,
     alignSelf: 'center',
-    width: width * 0.8,
-    height: width * 0.8,
-    borderRadius: (width * 0.8) / 2,
-    backgroundColor: 'rgba(29, 185, 84, 0.15)',
-    filter: 'blur(60px)',
+    width: width * 1.4,
+    height: width * 1.4,
+    borderRadius: (width * 1.4) / 2,
+    backgroundColor: 'rgba(29, 185, 84, 0.25)',
   },
-  centerSection: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+  topRightBlob: {
+    position: 'absolute',
+    top: -50,
+    right: -50,
+    width: 250,
+    height: 250,
+    borderRadius: 125,
+    backgroundColor: 'rgba(29, 185, 84, 0.1)',
+  },
+  bottomLeftBlob: {
+    position: 'absolute',
+    bottom: -100,
+    left: -100,
+    width: 350,
+    height: 350,
+    borderRadius: 175,
+    backgroundColor: 'rgba(29, 185, 84, 0.08)',
   },
   imageWrapper: {
-    marginBottom: 40,
+    marginBottom: 30,
+    marginTop: -80,
   },
-  imageGlow: {
-    padding: 10,
-    backgroundColor: 'rgba(255,255,255,0.03)',
+  imageContainer: {
+    width: 220,
+    height: 220,
     borderRadius: 110,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
+    overflow: 'hidden',
+    borderWidth: 2,
+    borderColor: 'rgba(29, 185, 84, 0.5)',
+    backgroundColor: '#121212',
+    elevation: 25,
     shadowColor: '#1DB954',
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.4,
-    shadowRadius: 20,
-    elevation: 20,
+    shadowOpacity: 0.8,
+    shadowRadius: 30,
   },
   image: {
-    height: 200,
-    width: 200,
-    borderRadius: 100,
-  },
-  textContent: {
-    alignItems: 'center',
-    marginBottom: 40,
-  },
-  topLabel: {
-    color: '#1DB954',
-    fontSize: 14,
-    fontWeight: '900',
-    textTransform: 'uppercase',
-    letterSpacing: 2,
-    marginBottom: 10,
-    opacity: 0.9,
-  },
-  mainTitle: {
-    color: 'white',
-    fontSize: 32,
-    fontWeight: '900',
-    textAlign: 'center',
-    letterSpacing: -0.5,
-    textShadowColor: '#1DB954',
-    textShadowOffset: { width: 0, height: 0 },
-  },
-  inputContainer: {
     width: '100%',
-    maxWidth: 400,
+    height: '100%',
   },
-  inputGradient: {
+  textSection: {
+    alignItems: 'flex-start',
+    marginBottom: 30,
+    width: '100%',
+  },
+  titleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    height: 70,
-    borderRadius: 25,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    gap: 8,
   },
-  inputIcon: {
-    marginRight: 15,
+  titleText: {
+    color: 'white',
+    fontSize: 28,
+    fontWeight: '900',
+    textAlign: 'left',
+    letterSpacing: 1,
+    textShadowColor: 'rgba(29, 185, 84, 0.5)',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 10,
+  },
+  inputWrapper: {
+    width: '100%',
+    paddingHorizontal: 10,
+  },
+  inputContainerStyle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderRadius: 20,
+    paddingHorizontal: 22,
+    height: 84,
+    borderWidth: 1.5,
+    borderColor: 'rgba(29, 185, 84, 0.3)',
+    shadowColor: '#1DB954',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    elevation: 5,
   },
   input: {
     flex: 1,
     color: 'white',
-    fontSize: 18,
+    fontSize: 24,
+    lineHeight: 28,
     fontWeight: '700',
+    textAlign: 'left',
+    paddingVertical: 4,
   },
   footer: {
+    paddingHorizontal: 30,
     paddingBottom: 40,
+    paddingTop: 20,
   },
   footerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 15,
   },
   backBtn: {
-    width: 65,
-    height: 65,
+    width: 70,
+    height: 70,
     borderRadius: 25,
     backgroundColor: 'rgba(255,255,255,0.05)',
     alignItems: 'center',
     justifyContent: 'center',
+    marginRight: 15,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
+    borderColor: 'rgba(255,255,255,0.1)',
   },
   nextBtn: {
     flex: 1,
     height: 70,
     borderRadius: 25,
     overflow: 'hidden',
-    elevation: 10,
-    shadowColor: '#1DB954',
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.4,
-    shadowRadius: 15,
   },
   nextGradient: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: 20,
   },
   nextText: {
     color: 'black',
     fontSize: 20,
-    fontWeight: '900',
-    letterSpacing: 0.5,
-  },
-  arrowCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(0,0,0,0.1)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginLeft: 15,
+    fontWeight: 'bold',
+    marginRight: 10,
   }
 });
+

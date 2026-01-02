@@ -16,6 +16,9 @@ export const RepeatSongButton = ({size}) => {
     if (Repeat === Repeats.NoRepeat){
       setRepeat(Repeats.RepeatAll)
       SetRepeatMode(RepeatMode.Queue)
+    } else if (Repeat === Repeats.RepeatAll) {
+      setRepeat(Repeats.RepeatOne)
+      SetRepeatMode(RepeatMode.Track)
     } else {
       setRepeat(Repeats.NoRepeat)
       SetRepeatMode(RepeatMode.Off)

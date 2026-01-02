@@ -1,4 +1,4 @@
-import { Dimensions, ImageBackground, View, TouchableOpacity, Modal, Pressable, StyleSheet } from "react-native";
+import { Dimensions, ImageBackground, View, TouchableOpacity, Modal, Pressable, StyleSheet, TextInput, BackHandler } from "react-native";
 import FastImage from "react-native-fast-image";
 import React, { useContext, useState, useEffect, useRef, memo, useCallback } from "react";
 import LinearGradient from "react-native-linear-gradient";
@@ -11,6 +11,8 @@ import { Spacer } from "../Global/Spacer";
 import { NextSongButton } from "./NextSongButton";
 import { PreviousSongButton } from "./PreviousSongButton";
 import { RepeatSongButton } from "./RepeatSongButton";
+import { RepeatMode } from 'react-native-track-player';
+import { SetRepeatMode } from "../../MusicPlayerFunctions";
 import { LikeSongButton } from "./LikeSongButton";
 import { ProgressBar } from "./ProgressBar";
 import { GetLyricsButton } from "./GetLyricsButton";
@@ -102,10 +104,13 @@ const InfoSection = memo(({ title, artist }) => {
   );
 });
 
-const ControlsSection = memo(() => {
+const ControlsSection = memo(({ onOpenRepeatOptions }) => {
+  const { Repeat } = useContext(Context);
   return (
     <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", width: "85%" }}>
-      <RepeatSongButton size={28} />
+      <TouchableOpacity onPress={onOpenRepeatOptions}>
+        <MaterialCommunityIcons name={Repeat} size={28} color="white" />
+      </TouchableOpacity>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 30 }}>
         <PreviousSongButton size={38} />
         <PlayPauseButton isFullScreen={true} />
@@ -139,11 +144,15 @@ export const FullScreenMusic = ({ color, Index, setIndex }) => {
   const [showMenu, setShowMenu] = useState(false);
   const [lyricsFetchInProgress, setLyricsFetchInProgress] = useState(false);
   const queueBottomSheetRef = useRef(null);
+  const [showRepeatModal, setShowRepeatModal] = useState(false);
 
   const [playbackRate, setPlaybackRate] = useState(1);
   const [showSleepModal, setShowSleepModal] = useState(false);
   const [sleepTime, setSleepTime] = useState(0);
   const sleepTimerRef = useRef(null);
+  const [showCustomInput, setShowCustomInput] = useState(false);
+  const [customMinutes, setCustomMinutes] = useState(30);
+  const [endOfTrack, setEndOfTrack] = useState(false);
 
   const handleShare = async () => {
     try {
@@ -179,7 +188,42 @@ export const FullScreenMusic = ({ color, Index, setIndex }) => {
     }
     setSleepTime(minutes * 60);
     setShowSleepModal(false);
+    setShowCustomInput(false);
     ToastAndroid.show(`Sleep timer set for ${minutes} minutes`, ToastAndroid.SHORT);
+  };
+
+  const startCustomSleepTimer = () => {
+    const mins = parseInt(String(customMinutes), 10);
+    if (!Number.isFinite(mins) || mins <= 0) {
+      ToastAndroid.show("Enter a valid number of minutes", ToastAndroid.SHORT);
+      return;
+    }
+    startSleepTimer(mins);
+  };
+
+  const startEndOfTrackTimer = async () => {
+    try {
+      const progress = await TrackPlayer.getProgress();
+      const remaining = Math.max(0, Math.floor((progress?.duration || 0) - (progress?.position || 0)));
+      if (remaining <= 0) {
+        ToastAndroid.show("Track is ending. Pausing soon.", ToastAndroid.SHORT);
+        setShowSleepModal(false);
+        setShowCustomInput(false);
+        // Pause shortly if already at end
+        setTimeout(() => { TrackPlayer.pause(); }, 500);
+        return;
+      }
+      if (sleepTimerRef.current) {
+        clearInterval(sleepTimerRef.current);
+        sleepTimerRef.current = null;
+      }
+      setSleepTime(remaining);
+      setShowSleepModal(false);
+      setShowCustomInput(false);
+      ToastAndroid.show("Sleep timer set for end of track", ToastAndroid.SHORT);
+    } catch (e) {
+      ToastAndroid.show("Unable to set end-of-track timer", ToastAndroid.SHORT);
+    }
   };
 
   const cancelSleepTimer = () => {
@@ -191,6 +235,27 @@ export const FullScreenMusic = ({ color, Index, setIndex }) => {
     setShowSleepModal(false);
     ToastAndroid.show("Sleep timer cancelled", ToastAndroid.SHORT);
   };
+
+  // Handle Android hardware back to close modal or exit full screen
+  useEffect(() => {
+    const onBackPress = () => {
+      if (showSleepModal) {
+        setShowSleepModal(false);
+        return true; // consumed
+      }
+      // If lyrics modal is open, close it
+      if (ShowDailog) {
+        setShowDailog(false);
+        return true;
+      }
+      // Otherwise minimize full screen
+      setIndex(0);
+      return true;
+    };
+
+    const sub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+    return () => sub.remove();
+  }, [showSleepModal, ShowDailog, setIndex]);
 
   // Lyrics cleanup logic on song change
   useEffect(() => {
@@ -206,6 +271,14 @@ export const FullScreenMusic = ({ color, Index, setIndex }) => {
       }
     }
   }, [currentPlaying?.id, currentPlaying?.artist, currentPlaying?.title, lyricsCacheRef]);
+
+  // Reset loading state when lyrics dialog is closed
+  useEffect(() => {
+    if (!ShowDailog) {
+      setLoading(false);
+      setLyricsFetchInProgress(false);
+    }
+  }, [ShowDailog]);
 
   // Queue event listener
   useEffect(() => {
@@ -349,20 +422,96 @@ export const FullScreenMusic = ({ color, Index, setIndex }) => {
             {/* Modals */}
             <Modal visible={showSleepModal} transparent animationType="slide" onRequestClose={() => setShowSleepModal(false)}>
               <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' }} onPress={() => setShowSleepModal(false)}>
-                <View style={{ backgroundColor: '#121212', borderTopLeftRadius: 25, borderTopRightRadius: 25, padding: 24, paddingBottom: 40 }}>
-                  <Heading text="Sleep Timer" style={{ color: 'white', marginBottom: 20 }} />
-                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
+                <View style={{ backgroundColor: '#101010', borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 22, paddingBottom: 26, borderTopWidth: 1, borderColor: 'rgba(255,255,255,0.06)' }}>
+                  {/* Centered title with larger close icon at top-right */}
+                  <View style={{ justifyContent: 'center', alignItems: 'center', marginBottom: 6, marginTop: 6 }}>
+                    <Heading text="Sleep Timer" style={{ color: 'white' }} />
+                    <TouchableOpacity onPress={() => setShowSleepModal(false)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} style={{ position: 'absolute', right: 0 }}>
+                      <MaterialCommunityIcons name="close" size={28} color="#fff" />
+                    </TouchableOpacity>
+                  </View>
+                  <SmallText text="Pause playback automatically after a set time" style={{ opacity: 0.6, marginBottom: 14, textAlign: 'center' }} />
+
+                  {/* Remaining badge if running */}
+                  {sleepTime > 0 && (
+                    <View style={{ backgroundColor: 'rgba(29,185,84,0.12)', borderWidth: 1, borderColor: 'rgba(29,185,84,0.3)', paddingVertical: 10, paddingHorizontal: 14, borderRadius: 12, alignSelf: 'flex-start', marginBottom: 14 }}>
+                      <PlainText text={`Ends in ${Math.floor(sleepTime / 60)}:${(sleepTime % 60).toString().padStart(2, '0')}`} style={{ color: '#1DB954', fontWeight: 'bold' }} />
+                    </View>
+                  )}
+
+                  {/* Presets Row */}
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 12 }}>
                     {[15, 30, 45, 60, 90].map((min) => (
-                      <TouchableOpacity key={min} onPress={() => startSleepTimer(min)} style={{ paddingVertical: 12, paddingHorizontal: 20, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 12, minWidth: 80, alignItems: 'center' }}>
-                        <PlainText text={`${min}m`} />
+                      <TouchableOpacity key={min} onPress={() => { setEndOfTrack(false); startSleepTimer(min); }} style={{ paddingVertical: 10, paddingHorizontal: 16, backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' }}>
+                        <PlainText text={`${min} min`} />
                       </TouchableOpacity>
                     ))}
+                    <TouchableOpacity onPress={() => setEndOfTrack((v) => !v)} style={{ paddingVertical: 10, paddingHorizontal: 16, backgroundColor: endOfTrack ? 'rgba(29,185,84,0.15)' : 'rgba(255,255,255,0.06)', borderRadius: 10, borderWidth: 1, borderColor: endOfTrack ? 'rgba(29,185,84,0.35)' : 'rgba(255,255,255,0.08)' }}>
+                      <PlainText text="End of Track" style={{ color: endOfTrack ? '#1DB954' : 'white' }} />
+                    </TouchableOpacity>
+                  </View>
+
+                  {/* Custom minutes controller (restyled) */}
+                  <View style={{ backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: 14, padding: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)', marginBottom: 12 }}>
+                    <PlainText text="Custom minutes" style={{ opacity: 0.7, marginBottom: 10 }} />
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                      <TouchableOpacity onPress={() => setCustomMinutes((m) => Math.max(1, parseInt(String(m||0),10) - 5))} style={{ paddingVertical: 10, paddingHorizontal: 14, backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 10 }}>
+                        <PlainText text="-5" />
+                      </TouchableOpacity>
+                      <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', marginHorizontal: 10, backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' }}>
+                        <MaterialCommunityIcons name="clock-outline" size={18} color="#bbb" style={{ marginLeft: 10 }} />
+                        <TextInput
+                          value={String(customMinutes)}
+                          onChangeText={(t) => setCustomMinutes((t||'').replace(/[^0-9]/g, ''))}
+                          keyboardType="numeric"
+                          placeholder="Minutes"
+                          placeholderTextColor="#888"
+                          style={{ flex: 1, textAlign: 'center', color: 'white', paddingVertical: 10, paddingHorizontal: 12 }}
+                        />
+                        <PlainText text="min" style={{ opacity: 0.6, marginRight: 12 }} />
+                      </View>
+                      <TouchableOpacity onPress={() => setCustomMinutes((m) => Math.min(999, parseInt(String(m||0),10) + 5))} style={{ paddingVertical: 10, paddingHorizontal: 14, backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 10 }}>
+                        <PlainText text="+5" />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+
+                  {/* Footer Buttons (Close text removed) */}
+                  <View style={{ flexDirection: 'row', gap: 12, marginTop: 6 }}>
+                    <TouchableOpacity onPress={() => {
+                      if (endOfTrack) { startEndOfTrackTimer(); }
+                      else { startCustomSleepTimer(); }
+                    }} style={{ flex: 1, paddingVertical: 14, alignItems: 'center', backgroundColor: '#1DB954', borderRadius: 12 }}>
+                      <PlainText text={endOfTrack ? "Start (End of Track)" : "Start Timer"} style={{ color: 'black', fontWeight: 'bold' }} />
+                    </TouchableOpacity>
                     {sleepTime > 0 && (
-                      <TouchableOpacity onPress={cancelSleepTimer} style={{ paddingVertical: 12, paddingHorizontal: 20, backgroundColor: 'rgba(255,50,50,0.2)', borderRadius: 12, minWidth: '100%', alignItems: 'center', marginTop: 10 }}>
-                        <PlainText text="Cancel Timer" style={{ color: '#ff4444' }} />
+                      <TouchableOpacity onPress={cancelSleepTimer} style={{ paddingVertical: 14, paddingHorizontal: 18, alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 12 }}>
+                        <PlainText text="Cancel" />
                       </TouchableOpacity>
                     )}
                   </View>
+                </View>
+              </Pressable>
+            </Modal>
+
+            {/* Repeat options modal */}
+            <Modal visible={showRepeatModal} transparent animationType="fade" onRequestClose={() => setShowRepeatModal(false)}>
+              <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center' }} onPress={() => setShowRepeatModal(false)}>
+                <View style={{ backgroundColor: '#121212', borderRadius: 16, width: '70%', paddingVertical: 8, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' }}>
+                  <TouchableOpacity onPress={async () => { try { await SetRepeatMode(RepeatMode.Off); } catch(_){} setShowRepeatModal(false); }} style={{ paddingHorizontal: 16, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <PlainText text="Repeat Off" />
+                    <MaterialCommunityIcons name="repeat-off" size={20} color="#fff" />
+                  </TouchableOpacity>
+                  <View style={{ height: 1, backgroundColor: 'rgba(255,255,255,0.06)' }} />
+                  <TouchableOpacity onPress={async () => { try { await SetRepeatMode(RepeatMode.Queue); } catch(_){} setShowRepeatModal(false); }} style={{ paddingHorizontal: 16, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <PlainText text="Repeat All" />
+                    <MaterialCommunityIcons name="repeat" size={20} color="#fff" />
+                  </TouchableOpacity>
+                  <View style={{ height: 1, backgroundColor: 'rgba(255,255,255,0.06)' }} />
+                  <TouchableOpacity onPress={async () => { try { await SetRepeatMode(RepeatMode.Track); } catch(_){} setShowRepeatModal(false); }} style={{ paddingHorizontal: 16, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <PlainText text="Repeat One" />
+                    <MaterialCommunityIcons name="repeat-once" size={20} color="#fff" />
+                  </TouchableOpacity>
                 </View>
               </Pressable>
             </Modal>
@@ -405,7 +554,7 @@ export const FullScreenMusic = ({ color, Index, setIndex }) => {
             <SleepTimerBadge sleepTime={sleepTime} setSleepTime={setSleepTime} sleepTimerRef={sleepTimerRef} />
 
             <Spacer height={25} />
-            <ControlsSection />
+            <ControlsSection onOpenRepeatOptions={() => setShowRepeatModal(true)} />
 
             {/* Bottom Action Pill Bar */}
             <Spacer height={10} />

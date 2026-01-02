@@ -6,33 +6,44 @@ import { SetProgressSong } from "../../MusicPlayerFunctions";
 import { SmallText } from "../Global/SmallText";
 
 export const ProgressBar = () => {
-  const width = Dimensions.get("window").width
-  const { position, duration } = useProgress()
-  function formatTime(val) {
-    const time = parseFloat(val)
-    const minutes = Math.floor(time / 60);
-    const seconds = time - minutes * 60;
-    if (seconds < 10) {
-      return minutes.toString() + ":" + "0" + seconds.toFixed(0).toString()
-    }
-    return minutes.toString() + ":" + seconds.toFixed(0).toString()
+  const width = Dimensions.get("window").width;
+
+  // Align update cadence with mini player for consistent timing UI
+  const { position: rawPosition, duration: rawDuration } = useProgress(1000);
+
+  // Guard against NaN/undefined and clamp values
+  const duration = Number.isFinite(rawDuration) && rawDuration > 0 ? rawDuration : 0;
+  const position = Number.isFinite(rawPosition) && rawPosition > 0 ? Math.min(rawPosition, duration || rawPosition) : 0;
+
+  function formatTime(seconds) {
+    if (!Number.isFinite(seconds) || seconds <= 0) return "0:00";
+    const total = Math.floor(seconds);
+    const minutes = Math.floor(total / 60);
+    const secs = total % 60;
+    return `${minutes}:${secs < 10 ? "0" : ""}${secs}`;
   }
+
+  const sliderValue = Math.max(0, Math.min(position, duration || 0));
+  const sliderMax = duration || 0;
+
   return (
     <>
       <Slider
         onSlidingComplete={(progress) => {
-          SetProgressSong(progress)
+          // Ensure valid seek target
+          const target = Math.max(0, Math.min(progress ?? 0, sliderMax));
+          SetProgressSong(target);
         }}
         style={{ width: width, height: 40 }}
         minimumValue={0}
-        maximumValue={duration}
-        value={(position >= duration) ? 0 : position}
+        maximumValue={sliderMax}
+        value={sliderValue}
         minimumTrackTintColor={"white"}
         maximumTrackTintColor="rgba(44,44,44,1)"
         thumbTintColor={"white"}
       />
       <View style={{ flexDirection: "row", justifyContent: "space-between", width: "90%" }}>
-        <SmallText text={(position >= duration) ? "0:00" : formatTime(position)} />
+        <SmallText text={formatTime(position)} />
         <SmallText text={formatTime(duration)} />
       </View>
     </>
