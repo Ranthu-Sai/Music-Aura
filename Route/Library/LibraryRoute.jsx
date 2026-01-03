@@ -5,6 +5,7 @@ import { LikedSongPage } from "./LikedSongPage";
 import { LikedPlaylistPage } from "./LikedPlaylistPage";
 import { RecentlyPlayedPage } from "./RecentlyPlayedPage";
 import { AllSongsPage } from "./DownloadedSongsPage";
+import { HiddenSongsPage } from "./HiddenSongsPage";
 const Stack = createNativeStackNavigator();
 export const LibraryRoute = () => {
   return (
@@ -15,6 +16,7 @@ export const LibraryRoute = () => {
       <Stack.Screen name={"LikedPlaylists"} component={LikedPlaylistPage} />
       <Stack.Screen name={"RecentlyPlayed"} component={RecentlyPlayedPage} />
       <Stack.Screen name={"DownloadedSongs"} component={AllSongsPage} />
+      <Stack.Screen name={"HiddenSongs"} component={HiddenSongsPage} />
     </Stack.Navigator>
   );
 };

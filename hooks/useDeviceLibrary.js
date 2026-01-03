@@ -26,21 +26,24 @@ export const useDeviceLibrary = (options = {}) => {
   const [hasPermission, setHasPermission] = useState(false);
   const [lastScanTime, setLastScanTime] = useState(null);
 
-  const errorHandler = useRef(new FileOperationErrorHandler()).current;
   const abortController = useRef(null);
 
   // Default options
   const defaultOptions = useMemo(() => ({
     autoScan: false,
+    showHidden: false,
     scanPaths: Platform.select({
       android: [
-        RNFS.ExternalStorageDirectoryPath, // Root external storage
+        RNFS.ExternalStorageDirectoryPath,
         RNFS.ExternalStorageDirectoryPath + '/Music',
         RNFS.ExternalStorageDirectoryPath + '/Download',
+        RNFS.ExternalStorageDirectoryPath + '/Downloads',
         RNFS.ExternalStorageDirectoryPath + '/Documents',
-        '/storage/emulated/0/Music', // Alternative path
+        RNFS.ExternalStorageDirectoryPath + '/WhatsApp/Media/WhatsApp Audio',
+        RNFS.ExternalStorageDirectoryPath + '/Telegram/Telegram Audio',
+        '/storage/emulated/0/Music',
         '/storage/emulated/0/Download',
-        '/storage/emulated/0',
+        '/storage/emulated/0/Downloads',
       ],
       ios: [
         RNFS.DocumentDirectoryPath,
@@ -48,8 +51,8 @@ export const useDeviceLibrary = (options = {}) => {
       ],
       default: []
     }),
-    supportedFormats: ['.mp3', '.m4a', '.aac', '.flac', '.wav', '.ogg'],
-    maxScanDepth: 3,
+    supportedFormats: ['.mp3', '.m4a', '.aac', '.flac', '.wav', '.ogg', '.opus', '.webm'],
+    maxScanDepth: 10,
     batchSize: 10,
     enableArtwork: true,
     cacheMetadata: true,
@@ -93,11 +96,11 @@ export const useDeviceLibrary = (options = {}) => {
       }
     } catch (error) {
       console.error('useDeviceLibrary: Permission request failed:', error);
-      errorHandler.handleError(error, 'permission_request');
+      FileOperationErrorHandler.handleError(error, 'permission_request');
       setHasPermission(false);
       return false;
     }
-  }, [errorHandler]);
+  }, []);
 
   /**
    * Check if permissions are granted
@@ -160,20 +163,29 @@ export const useDeviceLibrary = (options = {}) => {
       }
       
       const items = await RNFS.readDir(directoryPath);
-      console.log('useDeviceLibrary: Found', items.length, 'items in directory');
+      console.log(`useDeviceLibrary: Found ${items.length} items in ${directoryPath}`);
 
       for (const item of items) {
         if (abortController.current?.signal.aborted) break;
 
+        // Skip hidden files and directories
+        if (item.name.startsWith('.')) continue;
+
+        // Skip Android directory and some other system/heavy folders
+        if (item.name === 'Android' || item.name === 'data' || item.name === 'obb') continue;
+
+        // Skip Music Aura folder where downloaded songs are stored
+        if (item.name === 'Music Aura') continue;
+
         if (item.isFile()) {
-          const extension = item.name.toLowerCase().substring(item.name.lastIndexOf('.'));
-          console.log('useDeviceLibrary: Checking file:', item.name, 'extension:', extension);
-          if (defaultOptions.supportedFormats.includes(extension)) {
-            console.log('useDeviceLibrary: Found audio file:', item.path);
-            audioFiles.push(item.path);
+          const lastDotIndex = item.name.lastIndexOf('.');
+          if (lastDotIndex !== -1) {
+            const extension = item.name.substring(lastDotIndex).toLowerCase();
+            if (defaultOptions.supportedFormats.includes(extension)) {
+              audioFiles.push(item.path);
+            }
           }
         } else if (item.isDirectory() && depth < defaultOptions.maxScanDepth) {
-          console.log('useDeviceLibrary: Scanning subdirectory:', item.path);
           // Recursively scan subdirectories
           const subFiles = await scanDirectory(item.path, depth + 1);
           audioFiles.push(...subFiles);
@@ -247,55 +259,113 @@ export const useDeviceLibrary = (options = {}) => {
       const allAudioFiles = [];
       console.log('useDeviceLibrary: Starting scan with paths:', defaultOptions.scanPaths);
 
-      // Scan all configured paths
+      // Scan all configured paths and update UI incrementally
       for (const scanPath of defaultOptions.scanPaths) {
-        console.log('useDeviceLibrary: Scanning path:', scanPath);
         if (abortController.current?.signal.aborted) break;
-
         try {
           const files = await scanDirectory(scanPath);
-          console.log('useDeviceLibrary: Found', files.length, 'files in', scanPath);
-          allAudioFiles.push(...files);
+          if (files.length > 0) {
+            console.log(`useDeviceLibrary: Found ${files.length} files in ${scanPath}`);
+            files.forEach(f => allAudioFiles.push(f));
+            
+            // De-duplicate and update UI with basic tracks found so far
+            const uniqueFiles = [...new Set(allAudioFiles)];
+            const currentBasicTracks = uniqueFiles.map(filePath => {
+              const fileName = filePath.split('/').pop().split('\\').pop();
+              const title = fileName.replace(/\.[^/.]+$/, "");
+              return {
+                id: localTracksMetadataProcessor.generateTrackId(filePath),
+                filePath,
+                title,
+                artist: 'Unknown Artist',
+                album: 'Unknown Album',
+                isLocal: true,
+                type: 'local',
+                isProcessed: false
+              };
+            });
+            
+            setTracks(prev => {
+              const trackMap = new Map(prev.map(t => [t.id, t]));
+              currentBasicTracks.forEach(t => {
+                if (!trackMap.has(t.id)) trackMap.set(t.id, t);
+              });
+              return Array.from(trackMap.values()).sort((a, b) => (a.title || '').localeCompare(b.title || ''));
+            });
+          }
         } catch (error) {
           console.warn(`useDeviceLibrary: Failed to scan path ${scanPath}:`, error);
         }
       }
 
+      // De-duplicate files by path
+      const uniqueFiles = [...new Set(allAudioFiles)];
+      allAudioFiles.length = 0;
+      allAudioFiles.push(...uniqueFiles);
+
       console.log('useDeviceLibrary: Total audio files found:', allAudioFiles.length);
 
       if (allAudioFiles.length === 0) {
         console.log('useDeviceLibrary: No audio files found');
-        setTracks([]);
+        // Only clear tracks if this was a manual refresh/force scan
+        // This prevents clearing cached results if an auto-scan fails temporarily
+        setTracks(prev => prev.length > 0 ? prev : []);
         setLastScanTime(Date.now());
-        return;
+        return [];
       }
 
       setScanProgress({ current: 0, total: allAudioFiles.length });
 
-      // Process files in batches
-      console.log('useDeviceLibrary: Processing', allAudioFiles.length, 'files...');
-      const { processedTracks, errors } = await processFilesBatch(
-        allAudioFiles,
-        (current, total) => {
-          setScanProgress({ current, total });
-        }
-      );
+      // Create basic track objects immediately from file paths
+      console.log('useDeviceLibrary: Creating basic track objects and checking cache...');
+      const basicTracks = allAudioFiles.map(filePath => {
+        const trackId = localTracksMetadataProcessor.generateTrackId(filePath);
+        const fileName = filePath.split('/').pop().split('\\').pop();
+        const title = fileName.replace(/\.[^/.]+$/, "");
+        
+        // Attempt to merge cached metadata if available
+        const cached = localTracksMetadataManager.getMetadataSync ? localTracksMetadataManager.getMetadataSync(trackId) : null;
+        
+        return {
+          id: trackId,
+          filePath,
+          title: cached?.title || title,
+          artist: cached?.artist || 'Unknown Artist',
+          album: cached?.album || 'Unknown Album',
+          artwork: cached?.artwork || null,
+          duration: cached?.duration || 0,
+          isLocal: true,
+          type: 'local',
+          isProcessed: !!cached?.isProcessed,
+          lastModified: cached?.lastModified || 0
+        };
+      });
 
-      console.log('useDeviceLibrary: Processing complete. Tracks:', processedTracks.length, 'Errors:', errors.length);
+      // Filter out hidden files
+      console.log('useDeviceLibrary: Filtering hidden files...');
+      const { getHiddenFiles } = require('../LocalStorage/HiddenLocalFiles');
+      const hiddenFiles = await getHiddenFiles();
+      console.log('useDeviceLibrary: Hidden files count:', hiddenFiles.length);
+      
+      // Only filter if showHidden option is not enabled
+      const visibleTracks = defaultOptions.showHidden 
+        ? basicTracks 
+        : basicTracks.filter(track => !hiddenFiles.includes(track.filePath));
+      console.log('useDeviceLibrary: Visible tracks after filtering:', visibleTracks.length, 'of', basicTracks.length);
 
-      // Sort tracks by title
-      processedTracks.sort((a, b) => (a.title || '').localeCompare(b.title || ''));
-
-      setTracks(processedTracks);
+      // Show basic results immediately
+      visibleTracks.sort((a, b) => (a.title || '').localeCompare(b.title || ''));
+      setTracks(visibleTracks);
       setLastScanTime(Date.now());
 
-      if (errors.length > 0) {
-        console.warn(`useDeviceLibrary: ${errors.length} files failed to process`);
-      }
+      // Start background metadata extraction via the manager (matches Orbit's logic)
+      console.log('useDeviceLibrary: Starting background sync for', visibleTracks.length, 'tracks');
+      localTracksMetadataManager.sync(visibleTracks);
 
+      return visibleTracks;
     } catch (error) {
       console.error('useDeviceLibrary: Scan failed:', error);
-      errorHandler.handleError(error, 'library_scan');
+      FileOperationErrorHandler.handleError(error, 'library_scan', { showToast: false });
       setError(error);
     } finally {
       setIsScanning(false);
@@ -309,7 +379,6 @@ export const useDeviceLibrary = (options = {}) => {
     requestPermissions, 
     scanDirectory, 
     processFilesBatch, 
-    errorHandler,
     defaultOptions
   ]);
 
@@ -389,41 +458,64 @@ export const useDeviceLibrary = (options = {}) => {
     return stats;
   }, [tracks, lastScanTime, isScanning]);
 
-  // Initialize on mount
+  // Initialize on mount or when autoScan/checkPermissions change
   useEffect(() => {
+    let isMounted = true;
+
     const initializeHook = async () => {
       try {
-        console.log('useDeviceLibrary: Initializing...');
-        console.log('useDeviceLibrary: RNFS paths:', {
-          ExternalStorageDirectoryPath: RNFS.ExternalStorageDirectoryPath,
-          DocumentDirectoryPath: RNFS.DocumentDirectoryPath,
-          LibraryDirectoryPath: RNFS.LibraryDirectoryPath,
-        });
-
-        // Initialize metadata manager
+        console.log('useDeviceLibrary: Initializing metadata manager...');
         await localTracksMetadataManager.initialize();
-        console.log('useDeviceLibrary: Metadata manager initialized');
+
+        if (!isMounted) return;
+
+        // Load cached tracks immediately
+        const cachedTracks = await localTracksMetadataManager.getAllMetadata();
+        console.log('useDeviceLibrary: Loaded', cachedTracks.length, 'tracks from cache');
+        if (cachedTracks.length > 0) {
+          // Sort cached tracks before setting
+          cachedTracks.sort((a, b) => (a.title || '').localeCompare(b.title || ''));
+          setTracks(cachedTracks);
+        }
 
         const hasPerm = await checkPermissions();
-        console.log('useDeviceLibrary: Permissions checked, hasPermission:', hasPerm);
+        console.log('useDeviceLibrary: Permission state:', hasPerm);
+
         if (defaultOptions.autoScan && hasPerm) {
-          console.log('useDeviceLibrary: Auto-scanning enabled, starting scan...');
+          console.log('useDeviceLibrary: Auto-scan enabled, starting scan...');
           scanLibrary();
-        } else {
-          console.log('useDeviceLibrary: Auto-scan disabled or no permissions');
         }
       } catch (error) {
         console.error('useDeviceLibrary: Initialization error:', error);
-        setError(error);
+        if (isMounted) setError(error);
       }
     };
 
     initializeHook();
 
+    // Subscribe to metadata updates from manager
+    const unsubscribe = localTracksMetadataManager.subscribe((updatedTracks) => {
+      if (isMounted && updatedTracks && updatedTracks.length > 0) {
+        setTracks(prevTracks => {
+          // Merge updated metadata into existing tracks
+          const updatedMap = new Map(updatedTracks.map(t => [t.id, t]));
+          return prevTracks.map(track => {
+            if (updatedMap.has(track.id)) {
+              return { ...track, ...updatedMap.get(track.id) };
+            }
+            return track;
+          });
+        });
+      }
+    });
+
     return () => {
+      isMounted = false;
+      unsubscribe();
       stopScan();
     };
-  }, [checkPermissions, defaultOptions.autoScan, scanLibrary, stopScan]);
+    // Specifically NOT including scanLibrary in dependencies to avoid cycles and aborts
+  }, [checkPermissions, defaultOptions.autoScan]);
 
   console.log('useDeviceLibrary: Returning hook result');
 

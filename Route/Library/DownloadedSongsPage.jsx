@@ -6,6 +6,7 @@ import { EachSongCard } from "../../Component/Global/EachSongCard";
 import { Dimensions, View, ActivityIndicator, Text, TouchableOpacity, ToastAndroid, Linking, Alert, ScrollView, TextInput } from "react-native";
 import { useTheme, useNavigation } from "@react-navigation/native";
 import AntDesign from "react-native-vector-icons/AntDesign";
+import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 import useAllSongsManager from "../../Component/Offline/AllSongsManager";
 import { PermissionsAndroid, Platform } from "react-native";
 import FastImage from "react-native-fast-image";
@@ -20,6 +21,7 @@ export const AllSongsPage = () => {
 
     const [activeTab, setActiveTab] = useState('downloads'); // 'downloads' or 'local'
     const [searchQuery, setSearchQuery] = useState('');
+    const [showHidden, setShowHidden] = useState(false);
 
     const loadAllSongsRef = useRef();
 
@@ -53,7 +55,8 @@ export const AllSongsPage = () => {
         onSongsChanged,
         onDownloadStatusChanged: (songId, isDownloaded) => {
             console.log(`AllSongsPage: Song ${songId} download status changed:`, isDownloaded);
-        }
+        },
+        showHidden: showHidden
     });
 
     const handleRefresh = useCallback(async () => {
@@ -61,7 +64,7 @@ export const AllSongsPage = () => {
             if (activeTab === 'downloads') {
                 await loadDownloadedSongs();
             } else {
-                await loadLocalSongs();
+                await loadLocalSongs(true);
             }
             ToastAndroid.show(`Refreshed ${activeTab} songs`, ToastAndroid.SHORT);
         } else {
@@ -184,6 +187,7 @@ export const AllSongsPage = () => {
                     backgroundColor: 'rgba(255,255,255,0.05)',
                     borderRadius: 12,
                     padding: 4,
+                    alignItems: 'center',
                 }}>
                     <TouchableOpacity
                         onPress={() => setActiveTab('downloads')}
@@ -217,6 +221,30 @@ export const AllSongsPage = () => {
                             fontSize: 14
                         }}>Device Files</Text>
                     </TouchableOpacity>
+                    
+                    {/* Show Hidden Files Toggle - Only visible for local tab */}
+                    {activeTab === 'local' && (
+                        <TouchableOpacity
+                            onPress={() => {
+                                navigation.navigate('HiddenSongs');
+                            }}
+                            style={{
+                                paddingHorizontal: 12,
+                                paddingVertical: 10,
+                                marginLeft: 4,
+                                backgroundColor: 'transparent',
+                                borderRadius: 10,
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                            }}
+                        >
+                            <MaterialCommunityIcons 
+                                name="eye-off" 
+                                size={22} 
+                                color='rgba(255,255,255,0.5)' 
+                            />
+                        </TouchableOpacity>
+                    )}
                 </View>
 
                 <View style={{ paddingHorizontal: 10, marginTop: 20 }}>

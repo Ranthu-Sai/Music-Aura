@@ -11,10 +11,20 @@ async function requestStoragePermission() {
     if (Platform.OS === 'ios') return true;
 
     try {
-        const granted = await PermissionsAndroid.request(
-            PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE
-        );
-        return granted === PermissionsAndroid.RESULTS.GRANTED;
+        const permissions = [];
+        if (Platform.Version >= 33) {
+            permissions.push(PermissionsAndroid.PERMISSIONS.READ_MEDIA_AUDIO);
+        } else {
+            permissions.push(PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE);
+        }
+
+        const granted = await PermissionsAndroid.requestMultiple(permissions);
+        
+        if (Platform.Version >= 33) {
+            return granted[PermissionsAndroid.PERMISSIONS.READ_MEDIA_AUDIO] === PermissionsAndroid.RESULTS.GRANTED;
+        } else {
+            return granted[PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE] === PermissionsAndroid.RESULTS.GRANTED;
+        }
     } catch (err) {
         return false;
     }
@@ -36,6 +46,11 @@ async function scanDirectory(path, depth = 0) {
 
             // Optimization: Skip system/heavy folders
             if (file === 'data' || file.startsWith('.')) {
+                continue;
+            }
+
+            // Skip Music Aura folder where downloaded songs are stored
+            if (file === 'Music Aura') {
                 continue;
             }
 
@@ -107,11 +122,33 @@ export async function scanLocalMusic() {
 }
 
 /**
+ * Check if file is deletable (not in protected system directories)
+ */
+export function isFileDeletable(filePath) {
+    const protectedPaths = [
+        '/Alarms',
+        '/Notifications',
+        '/Ringtones',
+        '/Podcasts',
+        '/system',
+        '/Android/data',
+        '/Android/obb'
+    ];
+    
+    return !protectedPaths.some(protectedPath => filePath.includes(protectedPath));
+}
+
+/**
  * Delete a local file
  */
 export async function deleteLocalSong(filePath) {
     try {
-        if (!filePath) return false;
+        console.log('deleteLocalSong: Starting deletion for path:', filePath);
+        
+        if (!filePath) {
+            console.error('deleteLocalSong: No file path provided');
+            return { success: false, error: 'No file path provided' };
+        }
 
         // Normalize path: remove file:// prefix if exists
         let cleanPath = filePath;
@@ -120,31 +157,142 @@ export async function deleteLocalSong(filePath) {
         }
 
         // Decode URI if it's encoded
-        cleanPath = decodeURI(cleanPath);
-
-        const exists = await ReactNativeBlobUtil.fs.exists(cleanPath);
-        if (!exists) {
-            console.log('deleteLocalSong: File does not exist at path:', cleanPath);
-            return true; // Consider it success if file is already gone
+        try {
+            cleanPath = decodeURI(cleanPath);
+        } catch (decodeError) {
+            console.warn('deleteLocalSong: Failed to decode URI:', decodeError);
         }
 
-        await ReactNativeBlobUtil.fs.unlink(cleanPath);
+        console.log('deleteLocalSong: Normalized path:', cleanPath);
+
+        const exists = await ReactNativeBlobUtil.fs.exists(cleanPath);
+        console.log('deleteLocalSong: File exists:', exists);
+        
+        if (!exists) {
+            console.log('deleteLocalSong: File does not exist at path:', cleanPath);
+            // Still try to clean up metadata cache
+            try {
+                const { localTracksMetadataProcessor } = require('./LocalTracksMetadataProcessor');
+                const { localTracksMetadataManager } = require('./LocalTracksMetadataManager');
+                const trackId = localTracksMetadataProcessor.generateTrackId(cleanPath);
+                await localTracksMetadataManager.removeMetadata(trackId);
+                console.log('deleteLocalSong: Cleaned up metadata for non-existent file');
+            } catch (metaError) {
+                console.warn('deleteLocalSong: Failed to remove metadata for non-existent file:', metaError);
+            }
+            return { success: true, alreadyDeleted: true };
+        }
+
+        // Generate track ID before deleting
+        const { localTracksMetadataProcessor } = require('./LocalTracksMetadataProcessor');
+        const { localTracksMetadataManager } = require('./LocalTracksMetadataManager');
+        const trackId = localTracksMetadataProcessor.generateTrackId(cleanPath);
+
+        // Check if file is deletable (not in protected directories)
+        if (!isFileDeletable(cleanPath)) {
+            console.warn('deleteLocalSong: File is in protected/system directory:', cleanPath);
+            return { 
+                success: false, 
+                error: 'Cannot delete files in system directories (Alarms, Ringtones, Notifications, etc.). Please use your device file manager.',
+                isProtected: true
+            };
+        }
+
+        console.log('deleteLocalSong: Attempting to unlink file...');
+        
+        // Check if it's a directory
+        try {
+            const stat = await ReactNativeBlobUtil.fs.stat(cleanPath);
+            console.log('deleteLocalSong: File stat:', stat);
+            
+            if (stat.type === 'directory') {
+                console.error('deleteLocalSong: Path is a directory, not a file');
+                return {
+                    success: false,
+                    error: 'Cannot delete directories. Please delete individual files.'
+                };
+            }
+        } catch (statError) {
+            console.warn('deleteLocalSong: Could not stat file:', statError);
+        }
+        
+        // Try direct deletion
+        try {
+            await ReactNativeBlobUtil.fs.unlink(cleanPath);
+            console.log('deleteLocalSong: Unlink successful');
+        } catch (unlinkError) {
+            console.error('deleteLocalSong: Direct unlink failed:', unlinkError);
+            
+            // Parse error to provide better message
+            const errorMsg = unlinkError.message || unlinkError.toString();
+            if (errorMsg.includes('EACCES') || errorMsg.includes('Permission denied')) {
+                return {
+                    success: false,
+                    error: 'Permission denied. Try using your device file manager or grant storage permissions.'
+                };
+            } else if (errorMsg.includes('EISDIR')) {
+                return {
+                    success: false,
+                    error: 'Cannot delete folders, only files.'
+                };
+            } else if (errorMsg.includes('EBUSY')) {
+                return {
+                    success: false,
+                    error: 'File is currently in use.'
+                };
+            }
+            
+            throw unlinkError;
+        }
         
         // Force refresh Android MediaStore
         if (Platform.OS === 'android') {
-            ReactNativeBlobUtil.fs.scanFile([{ path: cleanPath }]);
+            try {
+                await ReactNativeBlobUtil.fs.scanFile([{ path: cleanPath, mime: 'audio/*' }]);
+                console.log('deleteLocalSong: MediaStore scan completed');
+            } catch (scanError) {
+                console.warn('deleteLocalSong: MediaStore scan failed:', scanError);
+            }
         }
 
-        // Verify deletion
+        // Verify deletion with a small delay
+        await new Promise(resolve => setTimeout(resolve, 150));
         const stillExists = await ReactNativeBlobUtil.fs.exists(cleanPath);
+        console.log('deleteLocalSong: File still exists after deletion:', stillExists);
+        
         if (stillExists) {
-            console.warn('deleteLocalSong: File still exists after unlink:', cleanPath);
-            return false;
+            console.error('deleteLocalSong: File still exists after unlink:', cleanPath);
+            return { 
+                success: false, 
+                error: 'Permission denied. Try deleting from your file manager instead.' 
+            };
         }
 
-        return true;
+        // Remove from metadata cache
+        try {
+            await localTracksMetadataManager.removeMetadata(trackId);
+            console.log('deleteLocalSong: Metadata cache cleared for:', trackId);
+        } catch (metaError) {
+            console.warn('deleteLocalSong: Failed to remove metadata cache:', metaError);
+        }
+
+        console.log('deleteLocalSong: Deletion completed successfully');
+        return { success: true };
     } catch (e) {
-        console.error('Error deleting file:', e);
-        return false;
+        console.error('deleteLocalSong: Error deleting file:', e);
+        console.error('deleteLocalSong: Error details:', e.message, e.code);
+        
+        let errorMessage = 'Permission denied';
+        if (e.message && e.message.includes('ENOENT')) {
+            errorMessage = 'File not found';
+        } else if (e.message && e.message.includes('EACCES')) {
+            errorMessage = 'Permission denied. Cannot delete files in this location.';
+        } else if (e.message && e.message.includes('EBUSY')) {
+            errorMessage = 'File is in use';
+        } else if (e.message) {
+            errorMessage = e.message;
+        }
+        
+        return { success: false, error: errorMessage };
     }
 }

@@ -16,7 +16,18 @@ const CACHE_KEYS = {
 
 async function GetCacheSizes() {
   try {
-    const sizes = {};
+    const sizes = {
+      SEARCH_HISTORY: 0,
+      RECENTLY_PLAYED: 0,
+      LIKED_SONGS: 0,
+      LIKED_PLAYLISTS: 0,
+      USER_PLAYLISTS: 0,
+      QUEUE: 0,
+      LAST_SONG: 0,
+      IMAGE_CACHE: 0,
+      SONG_CACHE: 0,
+      OFFLINE_DOWNLOADS: 0,
+    };
 
     // 1. AsyncStorage sizes (Optimized with multiGet)
     const allStorageKeys = [];
@@ -33,13 +44,11 @@ async function GetCacheSizes() {
     
     results.forEach(([key, value]) => {
       const cat = keyMap[key];
-      // AsyncStorage values are strings. If it's a JSON string, it's roughly 1 byte per char.
-      // Small objects/arrays in AsyncStorage can be small, but we want to show at least something if not empty.
-      let size = value ? value.length : 0;
-      
-      // If there is data but it's very small (e.g. "[]" is 2 bytes), 
-      // we still count it but ensure it's not discarded.
-      sizes[cat] = (sizes[cat] || 0) + size;
+      if (value) {
+        // Calculate size in bytes (string length is approximate byte size)
+        const size = new Blob([value]).size || value.length;
+        sizes[cat] = (sizes[cat] || 0) + size;
+      }
     });
 
     // 2. Filesystem sizes
@@ -48,21 +57,32 @@ async function GetCacheSizes() {
 
     sizes['SONG_CACHE'] = dynamic.songCache || 0;
     sizes['OFFLINE_DOWNLOADS'] = dynamic.downloads || 0;
-    
-    // Combine AsyncStorage IMAGE_CACHE (metadata) with actual filesystem Image Cache
     sizes['IMAGE_CACHE'] = (sizes['IMAGE_CACHE'] || 0) + (dynamic.imageCache || 0);
 
-    // Recalculate Total accurately
-    let finalTotal = 0;
-    Object.keys(sizes).forEach(k => {
-      if (k !== 'TOTAL') finalTotal += sizes[k];
-    });
+    // Calculate total
+    sizes.TOTAL = Object.keys(sizes).reduce((total, key) => {
+      if (key !== 'TOTAL') {
+        return total + (sizes[key] || 0);
+      }
+      return total;
+    }, 0);
 
-    sizes.TOTAL = finalTotal;
     return sizes;
   } catch (e) {
     console.error("Error getting cache sizes:", e);
-    return { TOTAL: 0 };
+    return {
+      TOTAL: 0,
+      SEARCH_HISTORY: 0,
+      RECENTLY_PLAYED: 0,
+      LIKED_SONGS: 0,
+      LIKED_PLAYLISTS: 0,
+      USER_PLAYLISTS: 0,
+      QUEUE: 0,
+      LAST_SONG: 0,
+      IMAGE_CACHE: 0,
+      SONG_CACHE: 0,
+      OFFLINE_DOWNLOADS: 0,
+    };
   }
 }
 
@@ -136,14 +156,31 @@ async function ClearSelectedCache(selectedKeys) {
         // Delete both possible dedicated downloads folders
         const paths = [
           `${dirs.LegacyDownloadDir}/Music Aura`,
-          `${dirs.LegacyMusicDir}/Music Aura`
+          `${dirs.LegacyMusicDir}/Music Aura`,
         ];
         
         for (const downloadPath of paths) {
-          if (await ReactNativeBlobUtil.fs.exists(downloadPath)) {
-            await ReactNativeBlobUtil.fs.unlink(downloadPath).catch(() => {});
-            await ReactNativeBlobUtil.fs.mkdir(downloadPath).catch(() => { });
+          try {
+            if (await ReactNativeBlobUtil.fs.exists(downloadPath)) {
+              // Delete the directory and its contents
+              await ReactNativeBlobUtil.fs.unlink(downloadPath);
+              // Recreate empty directory
+              await ReactNativeBlobUtil.fs.mkdir(downloadPath);
+              // Scan to update MediaStore
+              await ReactNativeBlobUtil.fs.scanFile([{ path: downloadPath }]);
+              console.log(`Cleared offline downloads at: ${downloadPath}`);
+            }
+          } catch (err) {
+            console.warn(`Failed to clear downloads at ${downloadPath}:`, err);
           }
+        }
+        
+        // Clear downloaded songs metadata from AsyncStorage
+        try {
+          await AsyncStorage.removeItem('downloadedSongsMetadata');
+          console.log('Cleared downloaded songs metadata');
+        } catch (err) {
+          console.warn('Failed to clear downloaded songs metadata:', err);
         }
       }
     }

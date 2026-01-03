@@ -216,26 +216,74 @@ export const EachSongMenuModal = ({ Visible, setVisible }) => {
             />
           )}
           {/* Show Delete instead of Download if local file */}
-          {(Visible.url && typeof Visible.url === 'string' && (Visible.url.startsWith('/') || Visible.url.startsWith('file://')) && Visible.source !== 'downloaded') ? (
+          {(Visible.source === 'local' || (Visible.url && typeof Visible.url === 'string' && (Visible.url.startsWith('/') || Visible.url.startsWith('file://')) && Visible.source !== 'downloaded')) ? (
             <EachModalButton
               text={"Delete"}
               colors={["#e53935", "#e35d5b"]}
               icon={<AntDesign name={"delete"} size={25} color={"white"} />}
               Onpress={async () => {
-                const { deleteLocalSong } = require('../../Utils/LocalMusicScanner');
+                console.log('=== DELETE BUTTON CLICKED ===');
                 const { DeviceEventEmitter } = require('react-native');
-                const success = await deleteLocalSong(Visible.url);
-                if (success) {
+                const { hideFile } = require('../../LocalStorage/HiddenLocalFiles');
+                
+                try {
+                  console.log('Delete button pressed for:', Visible.title);
+                  console.log('File path:', Visible.url);
+                  console.log('Song ID:', Visible.id);
+                  
+                  // Show immediate feedback
+                  ToastAndroid.show("Removing from app...", ToastAndroid.SHORT);
+                  
+                  // Add to hidden files list
+                  await hideFile(Visible.url);
+                  
+                  // Remove from app view immediately
+                  console.log('Emitting localSongDeleted event');
                   DeviceEventEmitter.emit('localSongDeleted', Visible.id);
-                  ToastAndroid.show("Song deleted from storage", ToastAndroid.SHORT);
-                  if (Visible.onRemove) { Visible.onRemove(); }
-                } else {
-                  ToastAndroid.show("Failed to delete file", ToastAndroid.SHORT);
+                  
+                  // Close modal first
+                  setVisible({ visible: false });
+                  
+                  // Call onRemove callback to refresh the list
+                  if (Visible.onRemove) {
+                    console.log('Calling onRemove callback');
+                    Visible.onRemove();
+                  }
+                  
+                  // Try to delete the actual file in background
+                  setTimeout(async () => {
+                    try {
+                      const { deleteLocalSong, isFileDeletable } = require('../../Utils/LocalMusicScanner');
+                      
+                      if (!isFileDeletable(Visible.url)) {
+                        console.log('File is not deletable (protected directory)');
+                        return;
+                      }
+                      
+                      const result = await deleteLocalSong(Visible.url);
+                      console.log('Delete result:', result);
+                      
+                      if (result.success) {
+                        ToastAndroid.show("Deleted from storage", ToastAndroid.SHORT);
+                      }
+                    } catch (error) {
+                      console.error('Background deletion error:', error);
+                    }
+                  }, 100);
+                  
+                } catch (error) {
+                  console.error('Error in delete handler:', error);
+                  // Still remove from view even on error
+                  DeviceEventEmitter.emit('localSongDeleted', Visible.id);
+                  if (Visible.onRemove) {
+                    Visible.onRemove();
+                  }
+                  setVisible({ visible: false });
+                  ToastAndroid.show("Removed from app", ToastAndroid.SHORT);
                 }
-                setVisible({ visible: false });
               }}
             />
-          ) : (Visible.source !== 'downloaded' && !Visible.isHistory && !Visible.playlistId) ? (
+          ) : (Visible.source !== 'downloaded' && Visible.source !== 'local' && !Visible.isHistory && !Visible.playlistId) ? (
             <EachModalButton text={"Download"} Onpress={getPermission} icon={<AntDesign name={"download"} size={25} color={"white"} />} />
           ) : null}
 

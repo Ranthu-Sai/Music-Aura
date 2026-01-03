@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { DeviceEventEmitter, Platform, PermissionsAndroid, ToastAndroid, Alert } from 'react-native';
 import { StorageManager } from '../../Utils/StorageManager';
 import { useDeviceLibrary } from '../../hooks/useDeviceLibrary';
+import { scanLocalMusic } from '../../Utils/LocalMusicScanner';
 
 /**
  * useAllSongsManager - Custom hook for managing both downloaded songs and local storage songs
@@ -11,7 +12,8 @@ const useAllSongsManager = ({
   onSongsChanged,
   onDownloadStatusChanged,
   autoCleanup = true,
-  autoScanLocal = false
+  autoScanLocal = false,
+  showHidden = false
 }) => {
   const [allSongs, setAllSongs] = useState([]);
   const [downloadedSongs, setDownloadedSongs] = useState([]);
@@ -25,27 +27,31 @@ const useAllSongsManager = ({
   const loadDownloadedSongsRef = useRef();
   const scanLocalSongsRef = useRef();
 
+  // Memoize config to prevent hook from re-initializing and aborting scans on every render
+  const deviceLibraryConfig = useMemo(() => ({
+    autoScan: autoScanLocal,
+    showHidden: showHidden,
+    supportedFormats: ['.mp3', '.m4a', '.aac', '.flac', '.wav', '.ogg', '.opus', '.webm'],
+    maxScanDepth: 10,
+    batchSize: 10,
+    enableArtwork: true,
+    cacheMetadata: true
+  }), [autoScanLocal, showHidden]);
+
   // Use the device library hook for local storage scanning
   const {
     tracks: deviceTracks,
     isLoading: isScanningLocal,
     isScanning,
     error: localScanError,
-    hasPermission: localHasPermission,
+    hasPermission: localPermission,
     scanLibrary,
     requestPermissions: requestLocalPermissions,
     checkPermissions: checkLocalPermissions,
     getLibraryStats,
     clearLibrary,
     removeTrack
-  } = useDeviceLibrary({
-    autoScan: autoScanLocal,
-    supportedFormats: ['.mp3', '.m4a', '.aac', '.flac', '.wav', '.ogg'],
-    maxScanDepth: 3,
-    batchSize: 10,
-    enableArtwork: true,
-    cacheMetadata: true
-  });
+  } = useDeviceLibrary(deviceLibraryConfig);
 
   // Load all downloaded songs metadata
   const loadDownloadedSongs = useCallback(async () => {
@@ -117,19 +123,46 @@ const useAllSongsManager = ({
 
       // Check permissions first
       const permissionGranted = await checkLocalPermissions();
-      if (!permissionGranted) {
+      if (!permissionGranted && !localPermission) {
         console.log('useAllSongsManager: No permission for local songs');
         setLocalSongs([]);
         return [];
       }
 
+      let currentDeviceTracks = deviceTracks;
+
       // Scan device library if not already done or forced
       if ((deviceTracks.length === 0 || forceScan) && !isScanning) {
-        await scanLibrary();
+        console.log('useAllSongsManager: Starting local scan (forceScan:', forceScan, ')');
+        const scannedResults = await scanLibrary();
+        
+        if (scannedResults && scannedResults.length > 0) {
+          console.log('useAllSongsManager: Primary scanner found', scannedResults.length, 'songs');
+          currentDeviceTracks = scannedResults;
+        } else {
+          // Fallback to legacy scanner if useDeviceLibrary found nothing
+          console.log('useAllSongsManager: Primary scanner found nothing, trying legacy fallback...');
+          const legacyResults = await scanLocalMusic();
+          if (legacyResults && legacyResults.length > 0) {
+              console.log('useAllSongsManager: Legacy scanner found', legacyResults.length, 'songs');
+              // Map legacy results to current format
+              currentDeviceTracks = legacyResults.map(s => ({
+                  id: s.id,
+                  title: s.title,
+                  artist: s.artist,
+                  filePath: s.url,
+                  artwork: s.artwork,
+                  type: 'local'
+              }));
+          } else {
+              console.log('useAllSongsManager: Both scanners returned no results');
+              currentDeviceTracks = [];
+          }
+        }
       }
 
       // Convert device tracks to our format
-      const localSongsArray = deviceTracks.map(track => ({
+      const localSongsArray = currentDeviceTracks.map(track => ({
         id: track.id || `local_${track.filePath}`,
         title: track.title || 'Unknown Title',
         artist: track.artist || 'Unknown Artist',
@@ -184,14 +217,14 @@ const useAllSongsManager = ({
   }, [deviceTracks]);
 
   // Load all songs (both downloaded and local)
-  const loadAllSongs = useCallback(async () => {
+  const loadAllSongs = useCallback(async (force = false) => {
     try {
       setIsLoading(true);
 
       // Load both downloaded and local songs in parallel
       const [downloaded, local] = await Promise.all([
         loadDownloadedSongs(),
-        loadLocalSongs()
+        loadLocalSongs(force)
       ]);
 
       // Combine them
@@ -398,12 +431,21 @@ const useAllSongsManager = ({
       removeTrack(songId);
     });
 
+    const localUnhiddenListener = DeviceEventEmitter.addListener('localSongUnhidden', async (songId) => {
+      console.log('useAllSongsManager: Local song unhidden event received:', songId);
+      // Trigger refresh of device library
+      if (deviceLibraryConfig.requestScan) {
+        await deviceLibraryConfig.requestScan();
+      }
+    });
+
     return () => {
       downloadListener.remove();
       downloadedRemovedListener.remove();
       localDeletedListener.remove();
+      localUnhiddenListener.remove();
     };
-  }, [combineAllSongs, removeTrack]);
+  }, [combineAllSongs, removeTrack, deviceLibraryConfig]);
 
   // Combine songs when either downloaded or local songs change
   useEffect(() => {
@@ -421,7 +463,7 @@ const useAllSongsManager = ({
         setHasPermission(permissionGranted);
 
         if (permissionGranted) {
-          await loadAllSongs();
+          await loadAllSongs(false);
         }
       }
     };

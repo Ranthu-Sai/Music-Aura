@@ -82,6 +82,7 @@ export const ClearCachePage = ({ navigation }) => {
   const [storage, setStorage] = useState({ total: 0, d: 0, c: 0 });
   const [selectedCache, setSelectedCache] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const cacheOptions = [
     { key: 'SEARCH_HISTORY', label: 'Search History', icon: 'history' },
@@ -97,29 +98,43 @@ export const ClearCachePage = ({ navigation }) => {
   ];
 
   const loadData = useCallback(async () => {
-    // Wait for screen transitions to finish before doing heavy I/O
-    InteractionManager.runAfterInteractions(async () => {
-      try {
-        const sizes = await GetCacheSizes();
-        setCacheSizes(sizes);
+    try {
+      const sizes = await GetCacheSizes();
+      setCacheSizes(sizes);
 
-        const total = sizes.TOTAL || 0;
-        const downloads = sizes.OFFLINE_DOWNLOADS || 0;
-        const cache = total - downloads; 
+      const total = sizes.TOTAL || 0;
+      const downloads = sizes.OFFLINE_DOWNLOADS || 0;
+      const cache = total - downloads; 
 
-        setStorage({
-          total: total,
-          d: downloads,
-          c: cache
-        });
-      } catch (error) {
-        console.error("Error loading clear cache data:", error);
-      }
-    });
+      setStorage({
+        total: total,
+        d: downloads,
+        c: cache
+      });
+    } catch (error) {
+      console.error("Error loading clear cache data:", error);
+      ToastAndroid.show("Failed to load cache data", ToastAndroid.SHORT);
+    }
   }, []);
 
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await loadData();
+      ToastAndroid.show("Storage refreshed", ToastAndroid.SHORT);
+    } catch (error) {
+      console.error("Error refreshing storage:", error);
+      ToastAndroid.show("Refresh failed", ToastAndroid.SHORT);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [loadData]);
+
   useEffect(() => {
-    loadData();
+    // Wait for screen transitions to finish before doing heavy I/O on initial load
+    InteractionManager.runAfterInteractions(() => {
+      loadData();
+    });
   }, [loadData]);
 
   function toggleCacheSelection(key) {
@@ -179,8 +194,16 @@ export const ClearCachePage = ({ navigation }) => {
                   <PlainText text="Storage Dashboard" style={styles.dashboardTitle} />
                   <SmallText text={`Total usage: ${formatBytes(storage.total)}`} style={{ opacity: 0.6 }} />
                 </View>
-                <TouchableOpacity onPress={loadData} style={styles.refreshIcon}>
-                  <Icon name="refresh" size={20} color="#1DB954" />
+                <TouchableOpacity 
+                  onPress={handleRefresh} 
+                  disabled={refreshing}
+                  style={[styles.refreshIcon, refreshing && { opacity: 0.5 }]}
+                >
+                  {refreshing ? (
+                    <ActivityIndicator size="small" color="#1DB954" />
+                  ) : (
+                    <Icon name="refresh" size={20} color="#1DB954" />
+                  )}
                 </TouchableOpacity>
               </View>
 

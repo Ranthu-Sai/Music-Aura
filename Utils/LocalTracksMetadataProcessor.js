@@ -2,6 +2,7 @@ import RNFS from 'react-native-fs';
 import { Platform } from 'react-native';
 import { FileOperationErrorHandler } from './FileOperationErrorHandler';
 import { localTracksMetadataManager } from './LocalTracksMetadataManager';
+import AudioMetadataParser from './ID3Parser';
 
 /**
  * LocalTracksMetadataProcessor - Processes and extracts metadata from local audio files
@@ -16,9 +17,8 @@ import { localTracksMetadataManager } from './LocalTracksMetadataManager';
 
 export class LocalTracksMetadataProcessor {
   constructor() {
-    this.errorHandler = new FileOperationErrorHandler();
     this.supportedFormats = [
-      '.mp3', '.m4a', '.aac', '.flac', '.wav', '.ogg', '.wma'
+      '.mp3', '.m4a', '.aac', '.flac', '.wav', '.ogg', '.opus', '.webm', '.wma'
     ];
   }
 
@@ -81,7 +81,7 @@ export class LocalTracksMetadataProcessor {
       return metadata;
     } catch (error) {
       console.error(`LocalTracksMetadataProcessor: Failed to process ${filePath}:`, error);
-      this.errorHandler.handleError(error, 'metadata_processing');
+      FileOperationErrorHandler.handleError(error, 'metadata_processing', { showToast: false });
       throw error;
     }
   }
@@ -122,42 +122,48 @@ export class LocalTracksMetadataProcessor {
    */
   async extractMetadata(filePath, options = {}) {
     try {
-      // For now, use basic file information
-      // In a real implementation, you'd use a library like react-native-track-player
-      // or a native module to extract ID3 tags
-      
       const fileName = this.getFileName(filePath);
       const fileExtension = this.getFileExtension(filePath);
       
-      // Parse filename for basic info
-      const parsedInfo = this.parseFileName(fileName);
-      
-      const metadata = {
-        id: this.generateTrackId(filePath),
-        title: parsedInfo.title || fileName,
-        artist: parsedInfo.artist || 'Unknown Artist',
-        album: parsedInfo.album || 'Unknown Album',
-        duration: 0, // Would be extracted from file
-        genre: 'Unknown',
-        year: null,
-        trackNumber: null,
-        fileExtension,
-        fileType: this.getFileType(fileExtension),
-        bitrate: null,
-        sampleRate: null,
-        channels: null,
-        codec: null
-      };
-
-      // Try to get additional metadata if available
+      // Try to extract real metadata first
+      let result = null;
       try {
-        const additionalMetadata = await this.extractAdditionalMetadata(filePath);
-        Object.assign(metadata, additionalMetadata);
-      } catch (error) {
-        console.warn(`LocalTracksMetadataProcessor: Could not extract additional metadata for ${filePath}:`, error);
+        console.log(`LocalTracksMetadataProcessor: Extracting metadata for ${filePath}`);
+        result = await AudioMetadataParser.extractMetadata(filePath);
+      } catch (e) {
+        console.warn('LocalTracksMetadataProcessor: AudioMetadataParser failed', e);
+      }
+      
+      if (result && result.metadata && (result.metadata.title || result.metadata.artist)) {
+        console.log(`LocalTracksMetadataProcessor: Found metadata for ${fileName}:`, result.metadata.title);
+        return {
+          id: this.generateTrackId(filePath),
+          title: result.metadata.title || fileName.replace(/\.[^/.]+$/, ''),
+          artist: result.metadata.artist || 'Unknown Artist',
+          album: result.metadata.album || 'Unknown Album',
+          duration: 0,
+          genre: result.metadata.genre || 'Unknown',
+          year: result.metadata.year || null,
+          fileExtension,
+          fileType: this.getFileType(fileExtension),
+          embeddedArtwork: result.artwork
+        };
       }
 
-      return metadata;
+      // Fallback to parsing filename
+      const parsedInfo = this.parseFileName(fileName);
+      
+      return {
+        id: this.generateTrackId(filePath),
+        title: parsedInfo.title || fileName.replace(/\.[^/.]+$/, ''),
+        artist: parsedInfo.artist || 'Unknown Artist',
+        album: parsedInfo.album || 'Unknown Album',
+        duration: 0,
+        genre: 'Unknown',
+        year: null,
+        fileExtension,
+        fileType: this.getFileType(fileExtension)
+      };
     } catch (error) {
       console.error(`LocalTracksMetadataProcessor: Failed to extract metadata from ${filePath}:`, error);
       throw error;
@@ -172,10 +178,16 @@ export class LocalTracksMetadataProcessor {
    */
   async extractArtwork(filePath, metadata) {
     try {
-      // In a real implementation, this would extract embedded artwork
-      // For now, return null or generate placeholder
-      
-      // Check if artwork file exists alongside audio file
+      // If we already have embedded artwork from extractMetadata step
+      if (metadata.embeddedArtwork && metadata.embeddedArtwork.base64) {
+        return {
+          uri: `data:${metadata.embeddedArtwork.mimeType || 'image/jpeg'};base64,${metadata.embeddedArtwork.base64}`,
+          type: 'embedded',
+          source: 'embedded'
+        };
+      }
+
+      // Check for external artwork file
       const artworkPath = this.findArtworkFile(filePath);
       if (artworkPath && await RNFS.exists(artworkPath)) {
         return {
@@ -185,12 +197,7 @@ export class LocalTracksMetadataProcessor {
         };
       }
 
-      // Return embedded artwork placeholder
-      return {
-        uri: null, // Would be base64 encoded image data
-        type: 'embedded',
-        source: 'embedded'
-      };
+      return null;
     } catch (error) {
       console.warn(`LocalTracksMetadataProcessor: Could not extract artwork from ${filePath}:`, error);
       return null;
@@ -373,6 +380,8 @@ export class LocalTracksMetadataProcessor {
       '.flac': 'Free Lossless Audio Codec',
       '.wav': 'Waveform Audio',
       '.ogg': 'Ogg Vorbis',
+      '.opus': 'Opus Audio',
+      '.webm': 'WebM Audio',
       '.wma': 'Windows Media Audio'
     };
     
