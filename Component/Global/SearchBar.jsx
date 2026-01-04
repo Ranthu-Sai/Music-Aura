@@ -1,5 +1,7 @@
 import { Dimensions, Pressable, TextInput, View, Keyboard } from "react-native";
 import { useTheme } from "@react-navigation/native";
+import React, { useContext } from "react";
+import { ThemeContext } from "../../Context/Context";
 import Entypo from "react-native-vector-icons/Entypo";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import { forwardRef, useImperativeHandle, useRef, useState, useEffect } from "react";
@@ -7,6 +9,7 @@ import { forwardRef, useImperativeHandle, useRef, useState, useEffect } from "re
 export const SearchBar = forwardRef(({ onChange, onSubmit, navigation }, ref) => {
   const width = Dimensions.get("window").width
   const theme = useTheme()
+  const { currentThemeColors } = useContext(ThemeContext)
   const [searchText, setSearchText] = useState("")
   const inputRef = useRef()
 
@@ -42,19 +45,22 @@ export const SearchBar = forwardRef(({ onChange, onSubmit, navigation }, ref) =>
       <View style={{
         flex: 1,
         paddingHorizontal: 5,
-        backgroundColor: "rgba(255,255,255,0.08)",
+        backgroundColor: currentThemeColors?.secondaryBackground
+          || (theme.dark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)"),
         borderWidth: 1,
-        borderColor: "rgba(255,255,255,0.15)",
+        borderColor: (currentThemeColors?.secondaryText && `${currentThemeColors.secondaryText}55`)
+          || (theme.dark ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.12)"),
         borderRadius: 12,
         flexDirection: "row",
         alignItems: "center",
       }}>
         <TextInput
-          cursorColor={"rgb(255,255,255)"}
+          cursorColor={currentThemeColors?.text || theme.colors.text}
           placeholder={"Type to search..."}
-          placeholderTextColor={"rgba(255,255,255,0.5)"}
+          placeholderTextColor={currentThemeColors?.secondaryText
+            || (theme.dark ? "rgba(255,255,255,0.5)" : "rgba(0,0,0,0.5)")}
           style={{
-            color: "white",
+            color: currentThemeColors?.text || theme.colors.text,
             fontSize: 20,
             fontFamily: "roboto",
             flex: 1,
@@ -78,7 +84,7 @@ export const SearchBar = forwardRef(({ onChange, onSubmit, navigation }, ref) =>
             padding: 8,
             marginRight: 4,
           }}>
-            <Entypo name={"circle-with-cross"} size={width * 0.065} color={"rgba(255,255,255,0.7)"} />
+            <Entypo name={"circle-with-cross"} size={width * 0.065} color={currentThemeColors?.secondaryText || (theme.dark ? "rgba(255,255,255,0.7)" : "rgba(0,0,0,0.5)")} />
           </Pressable>
         )}
         {searchText.trim().length > 0 && (
@@ -86,12 +92,13 @@ export const SearchBar = forwardRef(({ onChange, onSubmit, navigation }, ref) =>
             onPress={handleSubmit}
             style={{
               padding: 8,
-              backgroundColor: "rgba(255,255,255,0.15)",
+              backgroundColor: currentThemeColors?.secondaryBackground
+                || (theme.dark ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.08)"),
               borderRadius: 8,
               marginLeft: 4,
             }}
           >
-            <Ionicons name={"search"} size={width * 0.065} color={"white"} />
+            <Ionicons name={"search"} size={width * 0.065} color={currentThemeColors?.text || theme.colors.text} />
           </Pressable>
         )}
       </View>

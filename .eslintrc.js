@@ -9,4 +9,11 @@ module.exports = {
     'no-unstable-nested-components':0,
     'semi':0,
   },
+  overrides: [
+    {
+      files: ['jest.setup.js', '__tests__/**', '**/*.test.*', '**/*.spec.*'],
+      env: { jest: true, node: true },
+      globals: { jest: true },
+    },
+  ],
 };

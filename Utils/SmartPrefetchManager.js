@@ -47,7 +47,13 @@ class SmartPrefetchManager {
 
         // Initialization grace period to prevent auto-skip on app reopen
         this.initializationTime = 0;
-        this.INITIALIZATION_GRACE_PERIOD = 3000; // 3 seconds
+        this.INITIALIZATION_GRACE_PERIOD = 3000; // 3 seconds (overridden in headless)
+
+        // Headless service mode flag
+        this.isHeadless = false;
+
+        // One-shot suppression of cleanup on next track change
+        this.suppressNextCleanup = false;
     }
 
     // ==========================================
@@ -74,6 +80,22 @@ class SmartPrefetchManager {
 
         this.isInitialized = true;
         this.errorHandlerRegistered = true;
+    }
+
+    /**
+     * Enable or disable headless mode (PlaybackService context)
+     */
+    setHeadlessMode(isHeadless) {
+        this.isHeadless = !!isHeadless;
+        // Disable grace period in headless to ensure immediate prefetch
+        this.INITIALIZATION_GRACE_PERIOD = this.isHeadless ? 0 : 3000;
+    }
+
+    /**
+     * Suppress cleanup for the next track change (used for manual jumps)
+     */
+    suppressCleanupNextChange() {
+        this.suppressNextCleanup = true;
     }
 
     // ==========================================
@@ -132,7 +154,12 @@ class SmartPrefetchManager {
             this.currentTrackIndex = event.index;
 
             // 🧹 QUEUE CLEANUP: Remove old tracks, keep only 5 previous
-            await this._cleanupOldTracks(event.index);
+            // Skip cleanup if explicitly suppressed for manual jumps
+            if (!this.suppressNextCleanup) {
+                await this._cleanupOldTracks(event.index);
+            } else {
+                this.suppressNextCleanup = false; // reset one-shot flag
+            }
 
             // 🚀 IMMEDIATE ACTION: Prefetch next 3 songs aggressively
             // This ensures auto-recommendation songs are ready before playback
@@ -304,10 +331,29 @@ class SmartPrefetchManager {
     }
 
     /**
+     * Replace a track immediately without InteractionManager (safe for headless service)
+     */
+    async replaceTrackImmediately(index, originalTrack, streamData) {
+        try {
+            const updatedTrack = this._createUpdatedTrack(originalTrack, streamData);
+            await this._safeRemove(index);
+            await TrackPlayer.add(updatedTrack, index);
+            debugLog(`🔄 Replaced track at index ${index} (Immediate Mode)`);
+        } catch (error) {
+            console.error('Error in replaceTrackImmediately:', error.message);
+        }
+    }
+
+    /**
      * Replace a track in queue with updated URL (non-blocking, fire-and-forget)
      */
     async _replaceTrackInQueue(index, originalTrack, streamData) {
-        // Reuse the wait logic but don't await it (fire and forget for background)
+        // In headless service, InteractionManager may not run; replace immediately
+        if (this.isHeadless) {
+            await this.replaceTrackImmediately(index, originalTrack, streamData);
+            return;
+        }
+        // UI mode: reuse wait logic to avoid jank
         this.replaceTrackAndWait(index, originalTrack, streamData);
     }
 

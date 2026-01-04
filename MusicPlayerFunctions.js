@@ -1136,6 +1136,8 @@ async function PlayPreviousSong() {
 }
 async function SkipToTrack(trackIndex) {
   try {
+    // Prevent queue cleanup on manual jump to preserve subsequent songs
+    try { smartPrefetchManager.suppressCleanupNextChange(); } catch (_) {}
     // Stop tracking current song before switching
     await historyManager.stopTracking();
 

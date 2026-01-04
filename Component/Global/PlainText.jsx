@@ -15,14 +15,15 @@ export const PlainText = ({text,style, numberOfLine}) => {
   } else {
     Size = width * 0.040
   }
+  const baseStyle = {
+    color:theme.colors.text,
+    fontSize:Size,
+    fontWeight:'500',
+    paddingRight:10,
+    fontFamily:'roboto',
+  };
+  const mergedStyle = Array.isArray(style) ? [baseStyle, ...style] : [baseStyle, style];
   return (
-    <Text numberOfLines={numberOfLine ? numberOfLine : 2}  style={{
-      color:theme.colors.text,
-      fontSize:Size,
-      fontWeight:500,
-      paddingRight:10,
-      fontFamily:'roboto',
-      ...style,
-    }}>{text}</Text>
+    <Text numberOfLines={numberOfLine ? numberOfLine : 2}  style={mergedStyle}>{text}</Text>
   );
 };

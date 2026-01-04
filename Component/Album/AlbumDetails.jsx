@@ -18,13 +18,14 @@ const IMAGE_SIZE = SCREEN_WIDTH * 0.38;
 export const AlbumDetails = ({ name, artist, year, songCount, duration, Data }) => {
   const { updateTrack } = useContext(ActionsContext);
   const theme = useTheme();
-  const [isLoading, setIsLoading] = useState(false);
+  const [isPlayingLoading, setIsPlayingLoading] = useState(false);
+  const [isShufflingLoading, setIsShufflingLoading] = useState(false);
 
   const AddToPlayer = useCallback(async () => {
-    if (isLoading) return;
+    if (isPlayingLoading) return;
     
     try {
-      setIsLoading(true);
+      setIsPlayingLoading(true);
       const quality = await getIndexQuality();
       const ForMusicPlayer = Data?.data?.songs?.map((e) => {
         const download = Array.isArray(e?.downloadUrl) 
@@ -50,15 +51,15 @@ export const AlbumDetails = ({ name, artist, year, songCount, duration, Data }) 
     } catch (error) {
       console.error('Error playing album:', error);
     } finally {
-      setIsLoading(false);
+      setIsPlayingLoading(false);
     }
-  }, [isLoading, Data, updateTrack]);
+  }, [isPlayingLoading, Data, updateTrack]);
 
   const handleShufflePress = useCallback(async () => {
-    if (isLoading) return;
+    if (isShufflingLoading) return;
     
     try {
-      setIsLoading(true);
+      setIsShufflingLoading(true);
       const quality = await getIndexQuality();
       const songs = Data?.data?.songs || [];
       
@@ -93,9 +94,9 @@ export const AlbumDetails = ({ name, artist, year, songCount, duration, Data }) 
     } catch (error) {
       console.error('Error shuffling album:', error);
     } finally {
-      setIsLoading(false);
+      setIsShufflingLoading(false);
     }
-  }, [isLoading, Data, updateTrack]);
+  }, [isShufflingLoading, Data, updateTrack]);
 
   // Get album image
   const albumImage = Data?.data?.image?.[2]?.url || Data?.data?.image?.[0]?.url || '';
@@ -240,19 +241,19 @@ export const AlbumDetails = ({ name, artist, year, songCount, duration, Data }) 
         {/* Play Button */}
         <TouchableOpacity
           style={[styles.playButton, { 
-            backgroundColor: isLoading ? theme.colors.primary + '80' : theme.colors.primary 
+            backgroundColor: isPlayingLoading ? '#32CD32' + '80' : '#32CD32' 
           }]}
           onPress={AddToPlayer}
-          disabled={isLoading}
+          disabled={isPlayingLoading}
           activeOpacity={0.8}
         >
-          {isLoading ? (
+          {isPlayingLoading ? (
             <ActivityIndicator size="small" color="#FFFFFF" />
           ) : (
             <MaterialIcons name="play-arrow" size={22} color="#FFFFFF" />
           )}
           <PlainText
-            text={isLoading ? "Loading..." : "Play"}
+            text={isPlayingLoading ? "Loading..." : "Play"}
             style={styles.buttonText}
           />
         </TouchableOpacity>
@@ -267,10 +268,10 @@ export const AlbumDetails = ({ name, artist, year, songCount, duration, Data }) 
             }
           ])}
           onPress={handleShufflePress}
-          disabled={isLoading}
+          disabled={isShufflingLoading}
           activeOpacity={0.8}
         >
-          {isLoading ? (
+          {isShufflingLoading ? (
             <ActivityIndicator size="small" color={theme.colors.text} />
           ) : (
             <MaterialCommunityIcons name="shuffle" size={22} color={theme.dark ? '#FFFFFF' : theme.colors.primary} />

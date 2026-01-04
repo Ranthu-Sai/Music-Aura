@@ -27,7 +27,7 @@ import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { PlayNextSong, PlayPreviousSong, AddOneSongToPlaylist } from "../../MusicPlayerFunctions";
 import AntDesign from "react-native-vector-icons/AntDesign";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useTheme } from "@react-navigation/native";
 import { DeviceEventEmitter, ToastAndroid } from "react-native";
 import { MarqueeText } from "../Global/MarqueeText";
 import FormatTitleAndArtist from "../../Utils/FormatTitleAndArtist";
@@ -90,6 +90,7 @@ const SleepTimerBadge = memo(({ sleepTime, sleepTimerRef, onTimerEnd }) => {
 
 // Isolated Playback Rate Button to prevent FullScreenMusic re-renders on rate change
 const PlaybackRateButton = memo(({ rate, setRate }) => {
+  const theme = useTheme();
   const handlePlaybackRate = async () => {
     const nextRates = [1, 1.25, 1.5, 2, 0.5, 0.75];
     const currentIndex = nextRates.indexOf(rate);
@@ -101,7 +102,7 @@ const PlaybackRateButton = memo(({ rate, setRate }) => {
 
   return (
     <TouchableOpacity onPress={handlePlaybackRate} style={{ alignItems: 'center', width: 40 }}>
-      <PlainText text={`${rate}x`} style={{ fontSize: 13, fontWeight: 'bold', color: rate !== 1 ? '#1DB954' : 'white' }} />
+      <PlainText text={`${rate}x`} style={{ fontSize: 13, fontWeight: 'bold', color: rate !== 1 ? '#1DB954' : theme.colors.text }} />
     </TouchableOpacity>
   );
 });
@@ -130,11 +131,12 @@ const InfoSection = memo(({ title, artist }) => {
 });
 
 const ControlsSection = memo(({ onOpenRepeatOptions }) => {
+  const theme = useTheme();
   const { Repeat } = useContext(Context);
   return (
     <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", width: "85%" }}>
       <TouchableOpacity onPress={onOpenRepeatOptions}>
-        <MaterialCommunityIcons name={Repeat} size={28} color="white" />
+        <MaterialCommunityIcons name={Repeat} size={28} color={theme.colors.text} />
       </TouchableOpacity>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 30 }}>
         <PreviousSongButton size={38} />
@@ -165,6 +167,7 @@ export const FullScreenMusic = memo(({ color, Index, setIndex }) => {
   const currentPlaying = useActiveTrack();
   const { lyricsCacheRef, lyricsSettings } = useContext(ActionsContext);
   const navigation = useNavigation();
+  const theme = useTheme();
 
   const [ShowDailog, setShowDailog] = useState(false);
   const [Lyric, setLyric] = useState({});
@@ -425,8 +428,12 @@ export const FullScreenMusic = memo(({ color, Index, setIndex }) => {
 
   // No-blur background: removed background artwork processing
 
+  const gradientColors = theme.dark
+    ? ['rgba(0,0,0,0.2)', 'rgba(0,0,0,0.95)']
+    : ['rgba(255,255,255,0.1)', 'rgba(255,255,255,0.96)'];
+
   return (
-    <View style={{ backgroundColor: "black", flex: 1 }}>
+    <View style={{ backgroundColor: theme.colors.background, flex: 1 }}>
       <ShowLyrics 
         Loading={Loading} 
         Lyric={Lyric} 
@@ -438,32 +445,32 @@ export const FullScreenMusic = memo(({ color, Index, setIndex }) => {
       />
 
       {/* No-blur: simple solid background; gradient overlay below handles styling */}
-      <View style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, backgroundColor: 'black' }} />
+      <View style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, backgroundColor: theme.colors.background }} />
 
       <View style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 }}>
         <View style={{ flex: 1 }}>
-          <LinearGradient colors={['rgba(0,0,0,0.2)', 'rgba(0,0,0,0.95)']} style={{ flex: 1, alignItems: "center" }}>
+          <LinearGradient colors={gradientColors} style={{ flex: 1, alignItems: "center" }}>
 
             {/* Header */}
             <View style={{ width: "90%", marginTop: 35, height: 60, alignItems: "center", justifyContent: "space-between", flexDirection: "row" }}>
               <TouchableOpacity onPress={() => setShowMenu(true)} style={{ padding: 10 }}>
-                <MaterialCommunityIcons name="dots-vertical" size={26} color="white" />
+                <MaterialCommunityIcons name="dots-vertical" size={26} color={theme.colors.text} />
               </TouchableOpacity>
               <GetLyricsButton onPress={GetLyrics} loading={Loading || lyricsFetchInProgress} />
               <TouchableOpacity onPress={() => setIndex(0)} style={{ padding: 10 }}>
-                <AntDesign name="close" size={26} color="white" />
+                <AntDesign name="close" size={26} color={theme.colors.text} />
               </TouchableOpacity>
             </View>
 
             {/* Modals */}
             <Modal visible={showSleepModal} transparent animationType="slide" onRequestClose={() => setShowSleepModal(false)}>
               <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' }} onPress={() => setShowSleepModal(false)}>
-                <View style={{ backgroundColor: '#101010', borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 22, paddingBottom: 26, borderTopWidth: 1, borderColor: 'rgba(255,255,255,0.06)' }}>
+                <View style={{ backgroundColor: theme.dark ? '#101010' : '#FFFFFF', borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 22, paddingBottom: 26, borderTopWidth: 1, borderColor: theme.dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)' }}>
                   {/* Centered title with larger close icon at top-right */}
                   <View style={{ justifyContent: 'center', alignItems: 'center', marginBottom: 6, marginTop: 6 }}>
-                    <Heading text="Sleep Timer" style={{ color: 'white' }} />
+                    <Heading text="Sleep Timer" style={{ color: theme.colors.text }} />
                     <TouchableOpacity onPress={() => setShowSleepModal(false)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} style={{ position: 'absolute', right: 0 }}>
-                      <MaterialCommunityIcons name="close" size={28} color="#fff" />
+                      <MaterialCommunityIcons name="close" size={28} color={theme.colors.text} />
                     </TouchableOpacity>
                   </View>
                   <SmallText text="Pause playback automatically after a set time" style={{ opacity: 0.6, marginBottom: 14, textAlign: 'center' }} />
@@ -478,23 +485,23 @@ export const FullScreenMusic = memo(({ color, Index, setIndex }) => {
                   {/* Presets Row */}
                   <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 12 }}>
                     {[15, 30, 45, 60, 90].map((min) => (
-                      <TouchableOpacity key={min} onPress={() => { setEndOfTrack(false); startSleepTimer(min); }} style={{ paddingVertical: 10, paddingHorizontal: 16, backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' }}>
+                      <TouchableOpacity key={min} onPress={() => { setEndOfTrack(false); startSleepTimer(min); }} style={{ paddingVertical: 10, paddingHorizontal: 16, backgroundColor: theme.dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)', borderRadius: 10, borderWidth: 1, borderColor: theme.dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)' }}>
                         <PlainText text={`${min} min`} />
                       </TouchableOpacity>
                     ))}
-                    <TouchableOpacity onPress={() => setEndOfTrack((v) => !v)} style={{ paddingVertical: 10, paddingHorizontal: 16, backgroundColor: endOfTrack ? 'rgba(29,185,84,0.15)' : 'rgba(255,255,255,0.06)', borderRadius: 10, borderWidth: 1, borderColor: endOfTrack ? 'rgba(29,185,84,0.35)' : 'rgba(255,255,255,0.08)' }}>
-                      <PlainText text="End of Track" style={{ color: endOfTrack ? '#1DB954' : 'white' }} />
+                    <TouchableOpacity onPress={() => setEndOfTrack((v) => !v)} style={{ paddingVertical: 10, paddingHorizontal: 16, backgroundColor: endOfTrack ? 'rgba(29,185,84,0.15)' : (theme.dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'), borderRadius: 10, borderWidth: 1, borderColor: endOfTrack ? 'rgba(29,185,84,0.35)' : (theme.dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)') }}>
+                      <PlainText text="End of Track" style={{ color: endOfTrack ? '#1DB954' : theme.colors.text }} />
                     </TouchableOpacity>
                   </View>
 
                   {/* Custom minutes controller (restyled) */}
-                  <View style={{ backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: 14, padding: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)', marginBottom: 12 }}>
+                  <View style={{ backgroundColor: theme.dark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)', borderRadius: 14, padding: 12, borderWidth: 1, borderColor: theme.dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)', marginBottom: 12 }}>
                     <PlainText text="Custom minutes" style={{ opacity: 0.7, marginBottom: 10 }} />
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                      <TouchableOpacity onPress={() => setCustomMinutes((m) => Math.max(1, parseInt(String(m||0),10) - 5))} style={{ paddingVertical: 10, paddingHorizontal: 14, backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 10 }}>
+                      <TouchableOpacity onPress={() => setCustomMinutes((m) => Math.max(1, parseInt(String(m||0),10) - 5))} style={{ paddingVertical: 10, paddingHorizontal: 14, backgroundColor: theme.dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)', borderRadius: 10 }}>
                         <PlainText text="-5" />
                       </TouchableOpacity>
-                      <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', marginHorizontal: 10, backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' }}>
+                      <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', marginHorizontal: 10, backgroundColor: theme.dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)', borderRadius: 10, borderWidth: 1, borderColor: theme.dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)' }}>
                         <MaterialCommunityIcons name="clock-outline" size={18} color="#bbb" style={{ marginLeft: 10 }} />
                         <TextInput
                           value={String(customMinutes)}
@@ -502,11 +509,11 @@ export const FullScreenMusic = memo(({ color, Index, setIndex }) => {
                           keyboardType="numeric"
                           placeholder="Minutes"
                           placeholderTextColor="#888"
-                          style={{ flex: 1, textAlign: 'center', color: 'white', paddingVertical: 10, paddingHorizontal: 12 }}
+                          style={{ flex: 1, textAlign: 'center', color: theme.colors.text, paddingVertical: 10, paddingHorizontal: 12 }}
                         />
                         <PlainText text="min" style={{ opacity: 0.6, marginRight: 12 }} />
                       </View>
-                      <TouchableOpacity onPress={() => setCustomMinutes((m) => Math.min(999, parseInt(String(m||0),10) + 5))} style={{ paddingVertical: 10, paddingHorizontal: 14, backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 10 }}>
+                      <TouchableOpacity onPress={() => setCustomMinutes((m) => Math.min(999, parseInt(String(m||0),10) + 5))} style={{ paddingVertical: 10, paddingHorizontal: 14, backgroundColor: theme.dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)', borderRadius: 10 }}>
                         <PlainText text="+5" />
                       </TouchableOpacity>
                     </View>
@@ -521,7 +528,7 @@ export const FullScreenMusic = memo(({ color, Index, setIndex }) => {
                       <PlainText text={endOfTrack ? "Start (End of Track)" : "Start Timer"} style={{ color: 'black', fontWeight: 'bold' }} />
                     </TouchableOpacity>
                     {sleepTime > 0 && (
-                      <TouchableOpacity onPress={cancelSleepTimer} style={{ paddingVertical: 14, paddingHorizontal: 18, alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 12 }}>
+                      <TouchableOpacity onPress={cancelSleepTimer} style={{ paddingVertical: 14, paddingHorizontal: 18, alignItems: 'center', backgroundColor: theme.dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)', borderRadius: 12 }}>
                         <PlainText text="Cancel" />
                       </TouchableOpacity>
                     )}
@@ -533,20 +540,20 @@ export const FullScreenMusic = memo(({ color, Index, setIndex }) => {
             {/* Repeat options modal */}
             <Modal visible={showRepeatModal} transparent animationType="fade" onRequestClose={() => setShowRepeatModal(false)}>
               <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center' }} onPress={() => setShowRepeatModal(false)}>
-                <View style={{ backgroundColor: '#121212', borderRadius: 16, width: '70%', paddingVertical: 8, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' }}>
+                <View style={{ backgroundColor: theme.dark ? '#121212' : '#FFFFFF', borderRadius: 16, width: '70%', paddingVertical: 8, borderWidth: 1, borderColor: theme.dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)' }}>
                   <TouchableOpacity onPress={async () => { try { await SetRepeatMode(RepeatMode.Off); } catch(_){} setShowRepeatModal(false); }} style={{ paddingHorizontal: 16, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                     <PlainText text="Repeat Off" />
-                    <MaterialCommunityIcons name="repeat-off" size={20} color="#fff" />
+                    <MaterialCommunityIcons name="repeat-off" size={20} color={theme.colors.text} />
                   </TouchableOpacity>
-                  <View style={{ height: 1, backgroundColor: 'rgba(255,255,255,0.06)' }} />
+                  <View style={{ height: 1, backgroundColor: theme.dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)' }} />
                   <TouchableOpacity onPress={async () => { try { await SetRepeatMode(RepeatMode.Queue); } catch(_){} setShowRepeatModal(false); }} style={{ paddingHorizontal: 16, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                     <PlainText text="Repeat All" />
-                    <MaterialCommunityIcons name="repeat" size={20} color="#fff" />
+                    <MaterialCommunityIcons name="repeat" size={20} color={theme.colors.text} />
                   </TouchableOpacity>
-                  <View style={{ height: 1, backgroundColor: 'rgba(255,255,255,0.06)' }} />
+                  <View style={{ height: 1, backgroundColor: theme.dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)' }} />
                   <TouchableOpacity onPress={async () => { try { await SetRepeatMode(RepeatMode.Track); } catch(_){} setShowRepeatModal(false); }} style={{ paddingHorizontal: 16, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                     <PlainText text="Repeat One" />
-                    <MaterialCommunityIcons name="repeat-once" size={20} color="#fff" />
+                    <MaterialCommunityIcons name="repeat-once" size={20} color={theme.colors.text} />
                   </TouchableOpacity>
                 </View>
               </Pressable>
@@ -554,21 +561,21 @@ export const FullScreenMusic = memo(({ color, Index, setIndex }) => {
 
             <Modal visible={showMenu} transparent animationType="fade" onRequestClose={() => setShowMenu(false)}>
               <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center' }} onPress={() => setShowMenu(false)}>
-                <View style={{ backgroundColor: '#1a1a1a', borderRadius: 20, width: '80%', padding: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' }}>
-                  <TouchableOpacity onPress={handleGoToAlbum} style={styles.menuItem}>
-                    <MaterialCommunityIcons name="album" size={24} color="white" />
+                <View style={{ backgroundColor: theme.dark ? '#1a1a1a' : '#FFFFFF', borderRadius: 20, width: '80%', padding: 10, borderWidth: 1, borderColor: theme.dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)' }}>
+                  <TouchableOpacity onPress={handleGoToAlbum} style={[styles.menuItem, { borderBottomColor: theme.dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.06)' }]}>
+                    <MaterialCommunityIcons name="album" size={24} color={theme.colors.text} />
                     <PlainText text="Go to Album" />
                   </TouchableOpacity>
-                  <TouchableOpacity onPress={() => { setShowMenu(false); AddOneSongToPlaylist(currentPlaying); }} style={styles.menuItem}>
-                    <MaterialCommunityIcons name="playlist-plus" size={24} color="white" />
+                  <TouchableOpacity onPress={() => { setShowMenu(false); AddOneSongToPlaylist(currentPlaying); }} style={[styles.menuItem, { borderBottomColor: theme.dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.06)' }]}>
+                    <MaterialCommunityIcons name="playlist-plus" size={24} color={theme.colors.text} />
                     <PlainText text="Add to Playlist" />
                   </TouchableOpacity>
-                  <TouchableOpacity onPress={() => { setShowMenu(false); setShowSleepModal(true); }} style={styles.menuItem}>
-                    <MaterialCommunityIcons name="timer-outline" size={24} color="white" />
+                  <TouchableOpacity onPress={() => { setShowMenu(false); setShowSleepModal(true); }} style={[styles.menuItem, { borderBottomColor: theme.dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.06)' }]}>
+                    <MaterialCommunityIcons name="timer-outline" size={24} color={theme.colors.text} />
                     <PlainText text="Sleep Timer" />
                   </TouchableOpacity>
-                  <TouchableOpacity onPress={handleDownload} style={styles.menuItem}>
-                    <MaterialCommunityIcons name="download" size={24} color="white" />
+                  <TouchableOpacity onPress={handleDownload} style={[styles.menuItem, { borderBottomColor: 'transparent' }]}>
+                    <MaterialCommunityIcons name="download" size={24} color={theme.colors.text} />
                     <PlainText text="Download Song" />
                   </TouchableOpacity>
                 </View>
@@ -597,23 +604,23 @@ export const FullScreenMusic = memo(({ color, Index, setIndex }) => {
               width: '90%', 
               paddingHorizontal: 20,
               paddingVertical: 14, 
-              backgroundColor: 'rgba(255,255,255,0.08)', 
+              backgroundColor: theme.dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)', 
               borderRadius: 25,
               borderWidth: 1,
-              borderColor: 'rgba(255,255,255,0.05)'
+              borderColor: theme.dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.08)'
             }}>
               <TouchableOpacity onPress={() => setShowSleepModal(true)}>
-                <MaterialCommunityIcons name="timer-outline" size={24} color={sleepTime > 0 ? '#1DB954' : 'white'} />
+                <MaterialCommunityIcons name="timer-outline" size={24} color={sleepTime > 0 ? '#1DB954' : theme.colors.text} />
               </TouchableOpacity>
 
               <PlaybackRateButton rate={playbackRate} setRate={setPlaybackRate} />
 
               <TouchableOpacity onPress={handleInfoModalOpen}>
-                <MaterialCommunityIcons name="information-outline" size={24} color="white" />
+                <MaterialCommunityIcons name="information-outline" size={24} color={theme.colors.text} />
               </TouchableOpacity>
 
               <TouchableOpacity onPress={() => queueBottomSheetRef.current?.open()}>
-                <MaterialCommunityIcons name="playlist-music-outline" size={26} color="white" />
+                <MaterialCommunityIcons name="playlist-music-outline" size={26} color={theme.colors.text} />
               </TouchableOpacity>
             </View>
 

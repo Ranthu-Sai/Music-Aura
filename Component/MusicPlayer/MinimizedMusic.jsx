@@ -148,10 +148,10 @@ export const MinimizedMusic = memo(({ setIndex, color }) => {
 
                     {/* Playback Controls */}
                     <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                        <LikeSongButton size={22} />
-                        <PreviousSongButton size={22} />
-                        <PlayPauseButton isFullScreen={false} size={28} />
-                        <NextSongButton size={22} />
+                        <LikeSongButton size={22} color={'white'} />
+                        <PreviousSongButton size={22} color={'white'} />
+                        <PlayPauseButton isFullScreen={false} size={28} color={'white'} />
+                        <NextSongButton size={22} color={'white'} />
                     </View>
                 </Animated.View>
 

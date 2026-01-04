@@ -22,9 +22,9 @@ const events = [
 ];
 const themes = {
     Default: {
-        background: '#101010',
-        text: 'white',
-        secondaryBackground: 'rgb(30,30,30)',
+        background: '#000000',
+        text: '#FFFFFF',
+        secondaryBackground: '#121212',
         secondaryText: 'rgba(255,255,255,0.7)',
         primary: '#1DB954',
     },
@@ -34,6 +34,13 @@ const themes = {
         secondaryBackground: 'rgb(35,35,35)',
         secondaryText: 'rgba(255,255,255,0.7)',
         primary: '#ffffff',
+    },
+    White: {
+        background: '#FFFFFF',
+        text: '#000000',
+        secondaryBackground: '#F2F2F2',
+        secondaryText: 'rgba(0,0,0,0.7)',
+        primary: '#1DB954',
     },
     Blue: {
         background: 'rgb(0,5,20)',
@@ -400,7 +407,7 @@ const ContextState = (props) => {
                 try {
                     await TrackPlayer.setupPlayer();
                 } catch (_) {
-                    console.warn('⚠️ TrackPlayer already initialized');
+                    // Already initialized — silently ignore to avoid noisy warnings
                 }
                 try {
                     await SetRepeatMode(RepeatMode.Queue);

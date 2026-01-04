@@ -1,5 +1,6 @@
 import React, { useRef, useEffect } from 'react'
 import { Dimensions, FlatList, View, ActivityIndicator } from 'react-native'
+import { useTheme } from '@react-navigation/native'
 import { EachPlaylistCard } from '../Global/EachPlaylistCard'
 import { PlainText } from '../Global/PlainText'
 import { SmallText } from '../Global/SmallText'
@@ -9,6 +10,7 @@ export default function PlaylistDisplay({ data, limit, Searchtext, loadMore, has
   const Data = data
   const flatListRef = useRef(null);
   const activeTrack = useActiveTrack()
+  const theme = useTheme()
 
   const width = Dimensions.get("window").width
   return (
@@ -48,7 +50,7 @@ export default function PlaylistDisplay({ data, limit, Searchtext, loadMore, has
         onEndReachedThreshold={0.5}
         ListFooterComponent={loadingMore ? (
           <View style={{ padding: 20, alignItems: 'center', width: '100%' }}>
-            <ActivityIndicator size="small" color="#fff" />
+            <ActivityIndicator size="small" color={theme.colors.text} />
           </View>
         ) : null}
       />}

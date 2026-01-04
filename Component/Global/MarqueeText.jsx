@@ -24,13 +24,13 @@ export const MarqueeText = ({ text, style, nospace }) => {
         Size = screenWidth * 0.065;
     }
 
-    const textStyle = {
+    const baseStyle = {
         fontWeight: "900",
         color: theme.colors.text,
         fontSize: Size,
         fontFamily: "roboto",
-        ...style,
     };
+    const mergedStyle = Array.isArray(style) ? [baseStyle, ...style] : [baseStyle, style];
 
     useEffect(() => {
         if (textWidth > containerWidth && containerWidth > 0) {
@@ -90,7 +90,7 @@ export const MarqueeText = ({ text, style, nospace }) => {
                         <Text
                             onLayout={(e) => setTextWidth(e.nativeEvent.layout.width)}
                             numberOfLines={1}
-                            style={[textStyle, { width: undefined }]}
+                            style={[...mergedStyle, { width: undefined }]}
                         >
                             {text}
                         </Text>

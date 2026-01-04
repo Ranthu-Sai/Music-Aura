@@ -1,6 +1,7 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useContext } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, ActivityIndicator } from 'react-native';
 import { useTheme } from '@react-navigation/native';
+import { ThemeContext } from '../../Context/Context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import Feather from 'react-native-vector-icons/Feather';
 
@@ -16,6 +17,7 @@ const SearchSuggestions = ({
     isLoading = false
 }) => {
     const { colors, dark } = useTheme();
+    const { currentThemeColors } = useContext(ThemeContext);
 
     const handleFillPress = (item) => {
         if (onSuggestionPress) onSuggestionPress(item, true);
@@ -44,7 +46,7 @@ const SearchSuggestions = ({
                         onPress={() => onSuggestionPress && onSuggestionPress(item)}
                         activeOpacity={0.6}
                     >
-                        <View style={[styles.iconBg, { backgroundColor: dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' }]}>
+                        <View style={[styles.iconBg, { backgroundColor: currentThemeColors?.secondaryBackground || (dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)') }]}>
                             <Ionicons name="search" size={16} color={colors.text} style={{ opacity: 0.5 }} />
                         </View>
                         
@@ -89,6 +91,8 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         paddingVertical: 14,
         paddingHorizontal: 5,
+        borderBottomWidth: StyleSheet.hairlineWidth,
+        borderBottomColor: 'rgba(127,127,127,0.2)'
     },
     iconBg: {
         width: 36,

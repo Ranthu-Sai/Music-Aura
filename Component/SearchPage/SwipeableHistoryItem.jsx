@@ -1,10 +1,11 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useContext } from 'react';
 import { View, StyleSheet, Animated, Pressable, Dimensions, Text } from 'react-native';
 import { Swipeable } from 'react-native-gesture-handler';
 import MaterialIcons from "react-native-vector-icons/MaterialIcons";
 import Entypo from "react-native-vector-icons/Entypo";
 import Feather from 'react-native-vector-icons/Feather';
 import { useTheme } from '@react-navigation/native';
+import { ThemeContext } from '../../Context/Context';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -15,6 +16,7 @@ const SwipeableHistoryItem = ({
   onSwipeableOpen
 }) => {
   const { colors, dark } = useTheme();
+  const { currentThemeColors } = useContext(ThemeContext);
   const swipeableRef = useRef(null);
   const [isSwiped, setIsSwiped] = useState(false);
 
@@ -73,30 +75,30 @@ const SwipeableHistoryItem = ({
           style={({ pressed }) => ([
             styles.historyItem,
             {
-              backgroundColor: "rgba(255,255,255,0.08)",
-              borderColor: "rgba(255,255,255,0.1)",
+              backgroundColor: currentThemeColors.secondaryBackground || (dark ? "rgba(255,255,255,0.08)" : 'rgba(0,0,0,0.04)'),
+              borderColor: currentThemeColors.secondaryText ? currentThemeColors.secondaryText + '22' : (dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)'),
               opacity: pressed ? 0.7 : 1,
             }
           ])}
-          android_ripple={{ color: "rgba(255,255,255,0.1)" }}
+          android_ripple={{ color: dark ? "rgba(255,255,255,0.1)" : 'rgba(0,0,0,0.06)' }}
         >
           <View
             style={{
               width: 38,
               height: 38,
               borderRadius: 19,
-              backgroundColor: "rgba(255,255,255,0.1)",
+              backgroundColor: dark ? "rgba(255,255,255,0.1)" : 'rgba(0,0,0,0.06)',
               justifyContent: "center",
               alignItems: "center",
               marginRight: 12,
             }}
           >
-            <MaterialIcons name="history" size={20} color="rgba(255,255,255,0.7)" />
+            <MaterialIcons name="history" size={20} color={dark ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.6)'} />
           </View>
           <Text
             style={{
               flex: 1,
-              color: "white",
+              color: currentThemeColors.text,
               fontSize: 17,
               fontFamily: "roboto",
             }}
@@ -112,11 +114,11 @@ const SwipeableHistoryItem = ({
             style={{
               padding: 8,
               borderRadius: 20,
-              backgroundColor: "rgba(255,255,255,0.05)",
+              backgroundColor: dark ? "rgba(255,255,255,0.05)" : 'rgba(0,0,0,0.04)',
             }}
-            android_ripple={{ color: "rgba(255,255,255,0.1)", borderless: true }}
+            android_ripple={{ color: dark ? "rgba(255,255,255,0.1)" : 'rgba(0,0,0,0.06)', borderless: true }}
           >
-            <Entypo name="cross" size={18} color="rgba(255,255,255,0.5)" />
+            <Entypo name="cross" size={18} color={dark ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)'} />
           </Pressable>
         </Pressable>
       </Swipeable>

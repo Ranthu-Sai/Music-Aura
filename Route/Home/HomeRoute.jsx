@@ -11,6 +11,7 @@ import { ChangeName } from "./ChangeName";
 import { SelectLanguages } from "./SelectLanguages";
 import ShowPlaylistofType from "../../Component/Discover/ShowPlaylistofType";
 import { AboutProject } from "../Library/AboutProject";
+import { ArtistSongsPage } from "../Artist/ArtistSongsPage";
 const Stack = createNativeStackNavigator();
 export const HomeRoute = () => {
   return (
@@ -18,6 +19,7 @@ export const HomeRoute = () => {
       <Stack.Screen name="HomePage" component={Home} />
       <Stack.Screen name="Playlist" component={Playlist} options={{ gestureEnabled: true }} />
       <Stack.Screen name={"Album"} component={Album} options={{ gestureEnabled: true }} />
+      <Stack.Screen name={"ArtistSongsPage"} component={ArtistSongsPage} options={{ gestureEnabled: true }} />
       <Stack.Screen name={"LikedSongs"} component={LikedSongPage} />
       <Stack.Screen name={"LikedPlaylists"} component={LikedPlaylistPage} />
       <Stack.Screen name={"Settings"} component={SettingsPage} />

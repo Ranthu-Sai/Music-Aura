@@ -1,8 +1,10 @@
 import { View, Text, Pressable, Animated } from "react-native";
 import { useState, useRef, useEffect } from "react";
+import { useTheme } from "@react-navigation/native";
 import MaterialIcons from "react-native-vector-icons/MaterialIcons";
 
 export default function ContentTypeToggle({ activeTab, setActiveTab }) {
+  const theme = useTheme();
   const [isExpanded, setIsExpanded] = useState(false);
   const slideAnim = useRef(new Animated.Value(0)).current;
   const rotateAnim = useRef(new Animated.Value(0)).current;
@@ -53,24 +55,24 @@ export default function ContentTypeToggle({ activeTab, setActiveTab }) {
         style={{
           flexDirection: "row",
           alignItems: "center",
-          backgroundColor: "rgba(255,255,255,0.1)",
+          backgroundColor: theme.dark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.06)",
           borderRadius: 20,
           paddingHorizontal: 12,
           paddingVertical: 6,
           borderWidth: 1,
-          borderColor: "rgba(255,255,255,0.2)",
+          borderColor: theme.dark ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.12)",
           minWidth: 100,
         }}
-        android_ripple={{ color: "rgba(255,255,255,0.1)" }}
+        android_ripple={{ color: theme.dark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.06)" }}
       >
         <MaterialIcons
           name={contentTypes[activeTab].icon}
           size={16}
-          color="white"
+          color={theme.colors.text}
           style={{ marginRight: 6 }}
         />
         <Text style={{
-          color: "white",
+          color: theme.colors.text,
           fontSize: 14,
           fontFamily: "roboto",
           fontWeight: "500",
@@ -84,7 +86,7 @@ export default function ContentTypeToggle({ activeTab, setActiveTab }) {
           <MaterialIcons
             name="keyboard-arrow-down"
             size={16}
-            color="rgba(255,255,255,0.7)"
+            color={theme.dark ? "rgba(255,255,255,0.7)" : "rgba(0,0,0,0.6)"}
           />
         </Animated.View>
       </Pressable>
@@ -112,25 +114,25 @@ export default function ContentTypeToggle({ activeTab, setActiveTab }) {
               style={{
                 flexDirection: "row",
                 alignItems: "center",
-                backgroundColor: "rgba(255,255,255,0.08)",
+                backgroundColor: theme.dark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)",
                 borderRadius: 18,
                 paddingHorizontal: 10,
                 paddingVertical: 5,
                 marginBottom: 4,
                 borderWidth: 1,
-                borderColor: "rgba(255,255,255,0.15)",
+                borderColor: theme.dark ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.1)",
                 minWidth: 90,
               }}
-              android_ripple={{ color: "rgba(255,255,255,0.1)" }}
+              android_ripple={{ color: theme.dark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.06)" }}
             >
               <MaterialIcons
                 name={type.icon}
                 size={14}
-                color="rgba(255,255,255,0.8)"
+                color={theme.dark ? "rgba(255,255,255,0.8)" : "rgba(0,0,0,0.6)"}
                 style={{ marginRight: 5 }}
               />
               <Text style={{
-                color: "rgba(255,255,255,0.9)",
+                color: theme.colors.text,
                 fontSize: 13,
                 fontFamily: "roboto",
                 fontWeight: "400",

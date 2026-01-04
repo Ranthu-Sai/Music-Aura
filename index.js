@@ -8,10 +8,9 @@ import App from './App';
 import appJson from './app.json';
 const appName = appJson.name;
 import TrackPlayer, { Event } from "react-native-track-player";
-import { PlaybackService } from "./service";
 import { CacheManager } from './Utils/NavigationCacheManager';
 import smartPrefetchManager from './Utils/SmartPrefetchManager';
-import { hideLogs, showLogs } from './Utils/LogControl';
+import { hideLogs, showLogs, suppressLogPrefixes } from './Utils/LogControl';
 import { PlayNextSong, PlayPreviousSong } from './MusicPlayerFunctions';
 import { PermissionsAndroid, Platform } from 'react-native';
 import DeviceInfo from 'react-native-device-info';
@@ -21,6 +20,14 @@ if (__DEV__) {
   showLogs();
 } else {
   hideLogs();
+}
+
+// Suppress noisy dev logs from specific modules while keeping other logs
+if (__DEV__) {
+  suppressLogPrefixes([
+    'useDeviceLibrary:',
+    'LocalTracksMetadataManager:'
+  ]);
 }
 
 // Request notification permission for Android 13+
@@ -96,7 +103,7 @@ try {
 } catch (e) { }
 
 // Register the playback service using require to ensure proper headless loading
-TrackPlayer.registerPlaybackService(() => require('./service').PlaybackService);
+TrackPlayer.registerPlaybackService(() => require('./service').default);
 
 // Register the main application component
 AppRegistry.registerComponent(appName, () => App);

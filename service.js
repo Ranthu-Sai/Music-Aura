@@ -6,8 +6,9 @@ import smartPrefetchManager from './Utils/SmartPrefetchManager';
 
 let isPlayerInitialized = false;
 
-export const PlaybackService = function () {
-  let remoteSkipLock = false;
+export default async function PlaybackService() {
+  // Queue remote actions to avoid race conditions without relying on timers
+  let actionChain = Promise.resolve();
   // Register remote handlers immediately so notification actions work
   // even when the app is backgrounded or killed
   TrackPlayer.addEventListener(Event.RemotePlay, async () => {
@@ -18,67 +19,83 @@ export const PlaybackService = function () {
     try { await TrackPlayer.pause(); } catch (e) { console.warn('RemotePause handler failed', e); }
   });
 
-  // Next: prefetch and replace if needed, then skip deterministically
+  // Next: use TrackPlayer's skipToNext to avoid headless index issues
   TrackPlayer.addEventListener(Event.RemoteNext, async () => {
-    if (remoteSkipLock) { return; }
-    remoteSkipLock = true;
-    try {
-      const currentIndex = await TrackPlayer.getActiveTrackIndex();
-      const nextIndex = typeof currentIndex === 'number' ? currentIndex + 1 : 1;
-      const queue = await TrackPlayer.getQueue();
-      const nextTrack = queue[nextIndex];
+    actionChain = actionChain.then(async () => {
+      try {
+        const active = await TrackPlayer.getActiveTrack();
+        const queue = await TrackPlayer.getQueue();
+        const currentIndex = queue.findIndex(t => t && active && t.id === active.id);
 
-      if (!nextTrack) { return; }
+        if (currentIndex >= 0) {
+          const nextIndex = currentIndex + 1;
+          const nextTrack = queue[nextIndex];
+          if (nextTrack) {
+            // Ensure next track has a valid stream BEFORE skipping
+            if (smartPrefetchManager.needsStream(nextTrack)) {
+              const cached = smartPrefetchManager.getPrefetchedStream(nextTrack.id);
+              const data = cached || await smartPrefetchManager.fetchOnDemand(nextTrack.id);
+              if (data && data.url) {
+                await smartPrefetchManager.replaceTrackImmediately(nextIndex, nextTrack, data);
+              }
+            }
+            await TrackPlayer.skip(nextIndex);
+            await TrackPlayer.play();
 
-      if (smartPrefetchManager.needsStream(nextTrack)) {
-        const cached = smartPrefetchManager.getPrefetchedStream(nextTrack.id);
-        let streamData = cached;
-        if (!streamData) {
-          streamData = await smartPrefetchManager.fetchOnDemand(nextTrack.id);
+            // Opportunistically prepare N+1
+            const q2 = await TrackPlayer.getQueue();
+            const t2 = q2[nextIndex + 1];
+            if (t2 && smartPrefetchManager.needsStream(t2)) {
+              const c2 = smartPrefetchManager.getPrefetchedStream(t2.id);
+              const d2 = c2 || await smartPrefetchManager.fetchOnDemand(t2.id);
+              if (d2 && d2.url) {
+                await smartPrefetchManager.replaceTrackImmediately(nextIndex + 1, t2, d2);
+              }
+            }
+            return;
+          }
         }
-        if (streamData && streamData.url) {
-          await smartPrefetchManager.replaceTrackAndWait(nextIndex, nextTrack, streamData);
-        }
+
+        // Fallback if index resolution failed
+        await TrackPlayer.skipToNext();
+        await TrackPlayer.play();
+      } catch (err) {
+        console.error('RemoteNext handler failed', err);
       }
-
-      await TrackPlayer.skip(nextIndex);
-      await TrackPlayer.play();
-    } catch (err) {
-      console.error('RemoteNext handler failed', err);
-    } finally {
-      setTimeout(() => { remoteSkipLock = false; }, 300);
-    }
+    });
   });
 
+  // Previous: use TrackPlayer's skipToPrevious to avoid headless index issues
   TrackPlayer.addEventListener(Event.RemotePrevious, async () => {
-    if (remoteSkipLock) { return; }
-    remoteSkipLock = true;
-    try {
-      const currentIndex = await TrackPlayer.getActiveTrackIndex();
-      const prevIndex = typeof currentIndex === 'number' ? currentIndex - 1 : 0;
-      const queue = await TrackPlayer.getQueue();
-      const prevTrack = queue[prevIndex];
+    actionChain = actionChain.then(async () => {
+      try {
+        const active = await TrackPlayer.getActiveTrack();
+        const queue = await TrackPlayer.getQueue();
+        const currentIndex = queue.findIndex(t => t && active && t.id === active.id);
 
-      if (!prevTrack || prevIndex < 0) { return; }
+        if (currentIndex >= 0) {
+          const prevIndex = currentIndex - 1;
+          const prevTrack = queue[prevIndex];
+          if (prevTrack && prevIndex >= 0) {
+            if (smartPrefetchManager.needsStream(prevTrack)) {
+              const cached = smartPrefetchManager.getPrefetchedStream(prevTrack.id);
+              const data = cached || await smartPrefetchManager.fetchOnDemand(prevTrack.id);
+              if (data && data.url) {
+                await smartPrefetchManager.replaceTrackImmediately(prevIndex, prevTrack, data);
+              }
+            }
+            await TrackPlayer.skip(prevIndex);
+            await TrackPlayer.play();
+            return;
+          }
+        }
 
-      if (smartPrefetchManager.needsStream(prevTrack)) {
-        const cached = smartPrefetchManager.getPrefetchedStream(prevTrack.id);
-        let streamData = cached;
-        if (!streamData) {
-          streamData = await smartPrefetchManager.fetchOnDemand(prevTrack.id);
-        }
-        if (streamData && streamData.url) {
-          await smartPrefetchManager.replaceTrackAndWait(prevIndex, prevTrack, streamData);
-        }
+        await TrackPlayer.skipToPrevious();
+        await TrackPlayer.play();
+      } catch (err) {
+        console.error('RemotePrevious handler failed', err);
       }
-
-      await TrackPlayer.skip(prevIndex);
-      await TrackPlayer.play();
-    } catch (err) {
-      console.error('RemotePrevious handler failed', err);
-    } finally {
-      setTimeout(() => { remoteSkipLock = false; }, 300);
-    }
+    });
   });
 
   TrackPlayer.addEventListener(Event.RemoteSeek, async (e) => {
@@ -115,6 +132,16 @@ export const PlaybackService = function () {
 
       // Auto-recommendations listeners
       autoRecommendations.initializeListeners();
+
+      // Ensure Smart Prefetch Manager is active in headless/background service
+      // so remote next/previous work reliably when the app is closed
+      try {
+        // Mark prefetch manager as headless to disable grace period
+        smartPrefetchManager.setHeadlessMode(true);
+        smartPrefetchManager.initialize();
+      } catch (e) {
+        console.warn('SmartPrefetchManager initialization in service failed', e);
+      }
 
       await TrackPlayer.updateOptions({
         android: {
@@ -154,6 +181,7 @@ export const PlaybackService = function () {
     }
   };
 
-  // Start initialization and return the promise
+  // Return initialization promise as expected by react-native-track-player
+  // to properly wire up the headless service lifecycle.
   return initializePlayer();
-};
+}

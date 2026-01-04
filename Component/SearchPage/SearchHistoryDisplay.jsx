@@ -1,11 +1,13 @@
 import { View, Text, Pressable, FlatList, Animated } from "react-native";
 import MaterialIcons from "react-native-vector-icons/MaterialIcons";
 import Ionicons from "react-native-vector-icons/Ionicons";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useContext } from "react";
+import { ThemeContext } from "../../Context/Context";
 import { useActiveTrack } from "react-native-track-player";
 import SwipeableHistoryItem from "./SwipeableHistoryItem";
 
 export default function SearchHistoryDisplay({ history, onSelectQuery, onRemoveQuery, onClearHistory }) {
+  const { currentThemeColors } = useContext(ThemeContext);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
   const activeTrack = useActiveTrack();
@@ -37,10 +39,10 @@ export default function SearchHistoryDisplay({ history, onSelectQuery, onRemoveQ
           transform: [{ translateY: slideAnim }],
         }}
       >
-        <Ionicons name="search-outline" size={80} color="rgba(255,255,255,0.2)" />
+        <Ionicons name="search-outline" size={80} color={currentThemeColors.text === '#000000' ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.2)'} />
         <Text
           style={{
-            color: "rgba(255,255,255,0.5)",
+            color: currentThemeColors.secondaryText || "rgba(255,255,255,0.5)",
             fontSize: 18,
             fontFamily: "roboto",
             marginTop: 20,
@@ -72,10 +74,10 @@ export default function SearchHistoryDisplay({ history, onSelectQuery, onRemoveQ
         }}
       >
         <View style={{ flexDirection: "row", alignItems: "center" }}>
-          <MaterialIcons name="history" size={24} color="white" />
+          <MaterialIcons name="history" size={24} color={currentThemeColors.text} />
           <Text
             style={{
-              color: "white",
+              color: currentThemeColors.text,
               fontSize: 20,
               fontFamily: "roboto",
               fontWeight: "bold",
@@ -90,12 +92,12 @@ export default function SearchHistoryDisplay({ history, onSelectQuery, onRemoveQ
           style={{
             paddingVertical: 6,
             paddingHorizontal: 12,
-            backgroundColor: "rgba(255,107,107,0.15)",
+            backgroundColor: currentThemeColors.text === '#000000' ? 'rgba(255,107,107,0.12)' : 'rgba(255,107,107,0.15)',
             borderRadius: 8,
             borderWidth: 1,
-            borderColor: "rgba(255,107,107,0.3)",
+            borderColor: 'rgba(255,107,107,0.3)',
           }}
-          android_ripple={{ color: "rgba(255,107,107,0.3)" }}
+          android_ripple={{ color: currentThemeColors.text === '#000000' ? 'rgba(255,107,107,0.25)' : 'rgba(255,107,107,0.3)' }}
         >
           <Text
             style={{

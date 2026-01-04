@@ -1,5 +1,5 @@
 import { MainWrapper } from "../../Layout/MainWrapper";
-import { ScrollView, View, RefreshControl, FlatList } from "react-native";
+import { ScrollView, View, RefreshControl, FlatList, AppState } from "react-native";
 import Animated, { FadeIn } from "react-native-reanimated";
 import { Heading } from "../../Component/Global/Heading";
 import { HorizontalScrollSongs } from "../../Component/Global/HorizontalScrollSongs";
@@ -8,25 +8,28 @@ import { PaddingConatiner } from "../../Layout/PaddingConatiner";
 import { EachAlbumCard } from "../../Component/Global/EachAlbumCard";
 import { RenderTopCharts } from "../../Component/Home/RenderTopCharts";
 import { LoadingComponent } from "../../Component/Global/Loading";
-import React, { useEffect, useState, useRef, useMemo, useCallback } from "react";
+import React, { useEffect, useState, useRef, useMemo } from "react";
 import { useIsFocused } from "@react-navigation/native";
 import { getHomePageData } from "../../Api/HomePage";
-import { getAllPlaylists, getSearchPlaylistData } from "../../Api/Playlist";
+import { getSearchPlaylistData } from "../../Api/Playlist";
 import { EachPlaylistCard } from "../../Component/Global/EachPlaylistCard";
 import { EachTrendingSongCard } from "../../Component/Global/EachTrendingSongCard";
 import { GetLanguageValue } from "../../LocalStorage/Languages";
 import { TopHeader } from "../../Component/Home/TopHeader";
 import { DisplayTopGenres } from "../../Component/Home/DisplayTopGenres";
 import { useActiveTrack } from "react-native-track-player";
+import { EachArtistChip } from "../../Component/Global/EachArtistChip";
+import { getTopArtists } from "../../Api/Artists";
 
 export const Home = () => {
   const [Loading, setLoading] = useState(true);
   const [Data, setData] = useState({});
   const [showHeader, setShowHeader] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [allPlaylists, setAllPlaylists] = useState([]);
+  
   const [viralHitsId, setViralHitsId] = useState(null);
   const [trendingLangId, setTrendingLangId] = useState(null);
+  const [topArtists, setTopArtists] = useState([]);
   const isFocused = useIsFocused();
   const refreshTimerRef = useRef(null);
   const activeTrack = useActiveTrack();
@@ -54,17 +57,35 @@ export const Home = () => {
     return list;
   }, [rawAlbums]);
 
-  const allPlaylistsData = useMemo(() => {
-    const list = [];
-    for (let i = 0; i < allPlaylists.length; i = i + 8) {
-      list.push(allPlaylists.slice(i, i + 8));
-    }
-    return list;
-  }, [allPlaylists]);
+  
 
   const trendingSongs = useMemo(() => Data?.data?.trending?.songs ?? [], [Data]);
   const playlists = useMemo(() => Data?.data?.playlists ?? [], [Data]);
   const trendingAlbums = useMemo(() => Data?.data?.trending?.albums ?? [], [Data]);
+
+  const playlistColumns = useMemo(() => {
+    const cols = [];
+    for (let i = 0; i < playlists.length; i = i + 2) {
+      cols.push(playlists.slice(i, i + 2));
+    }
+    return cols;
+  }, [playlists]);
+
+  const trendingAlbumColumns = useMemo(() => {
+    const cols = [];
+    for (let i = 0; i < trendingAlbums.length; i = i + 2) {
+      cols.push(trendingAlbums.slice(i, i + 2));
+    }
+    return cols;
+  }, [trendingAlbums]);
+
+  const artistColumns = useMemo(() => {
+    const cols = [];
+    for (let i = 0; i < topArtists.length; i = i + 2) {
+      cols.push(topArtists.slice(i, i + 2));
+    }
+    return cols;
+  }, [topArtists]);
 
   async function fetchHomePageData(silent = false) {
     try {
@@ -73,10 +94,43 @@ export const Home = () => {
       }
       const Languages = await GetLanguageValue();
       const data = await getHomePageData(Languages);
-      const playlists = await getAllPlaylists(Languages);
 
       setData(data);
-      setAllPlaylists(playlists?.data?.results || []);
+
+      // Fetch Top Artists filtered by language
+      try {
+        const artists = await getTopArtists();
+        
+        // Filter artists by language if specific language(s) selected
+        if (Languages && Languages !== 'All' && Languages !== '') {
+          const langList = Languages.split(',').map(l => l.trim().toLowerCase()).filter(Boolean);
+          // Fetch songs for each artist to check language match
+          const artistsWithLanguage = await Promise.all(
+            artists.slice(0, 15).map(async (artist) => {
+              try {
+                const { getArtistTopSongs } = require('../../Api/Artists');
+                const artistData = await getArtistTopSongs(artist.id, 3);
+                const hasMatchingLanguage = artistData?.songs?.some(
+                  song => {
+                    const sLang = (song.language || '').toLowerCase();
+                    return sLang && langList.includes(sLang);
+                  }
+                );
+                return hasMatchingLanguage ? artist : null;
+              } catch (error) {
+                console.warn(`Failed to check artist ${artist.name}:`, error.message);
+                return null;
+              }
+            })
+          );
+          const filteredArtists = artistsWithLanguage.filter(a => a !== null);
+          setTopArtists(filteredArtists.slice(0, 12));
+        } else {
+          setTopArtists((artists || []).slice(0, 12));
+        }
+      } catch (err) {
+        console.warn("Home: Failed to fetch top artists", err);
+      }
 
       // Fetch Viral Hits and Trending ID for replacement
       if (Languages && Languages !== 'All') {
@@ -111,8 +165,8 @@ export const Home = () => {
 
   const getChartId = (index) => {
     const chart = Data?.data?.charts?.[index];
-    if (!chart) return null;
-    
+    if (!chart) { return null; }
+
     const title = (chart.title || chart.name || '').toLowerCase();
     if (title.includes('2000s') && viralHitsId) {
       return viralHitsId;
@@ -130,7 +184,7 @@ export const Home = () => {
       fetchHomePageData(true);
       refreshTimerRef.current = setInterval(() => {
         fetchHomePageData(true);
-      }, 60000);
+      }, 30000);
     }
     return () => {
       if (refreshTimerRef.current) {
@@ -139,6 +193,72 @@ export const Home = () => {
       }
     };
   }, [isFocused]);
+
+  // Auto-refresh artists when available
+  useEffect(() => {
+    if (Data?.data && !Loading) {
+      // Trigger artists fetch when home data is loaded
+      const refreshArtists = async () => {
+        try {
+          const Languages = await GetLanguageValue();
+          const artists = await getTopArtists();
+          
+          if (Languages && Languages !== 'All' && Languages !== '') {
+            const langList = Languages.split(',').map(l => l.trim().toLowerCase()).filter(Boolean);
+            const artistsWithLanguage = await Promise.all(
+              artists.slice(0, 15).map(async (artist) => {
+                try {
+                  const { getArtistTopSongs } = require('../../Api/Artists');
+                  const artistData = await getArtistTopSongs(artist.id, 3);
+                  const hasMatchingLanguage = artistData?.songs?.some(
+                    song => {
+                      const sLang = (song.language || '').toLowerCase();
+                      return sLang && langList.includes(sLang);
+                    }
+                  );
+                  return hasMatchingLanguage ? artist : null;
+                } catch (error) {
+                  return null;
+                }
+              })
+            );
+            const filteredArtists = artistsWithLanguage.filter(a => a !== null);
+            setTopArtists(filteredArtists.slice(0, 12));
+          } else {
+            setTopArtists((artists || []).slice(0, 12));
+          }
+        } catch (err) {
+          console.warn("Failed to auto-refresh artists", err);
+        }
+      };
+      
+      refreshArtists();
+    }
+  }, [Data, Loading]);
+
+  // Refresh when app comes to foreground to keep feed up-to-date
+  useEffect(() => {
+    const handleAppStateChange = (next) => {
+      if (next === 'active') {
+        fetchHomePageData(true);
+      }
+    };
+
+    // RN AppState API may return a subscription object
+    const sub = AppState.addEventListener ? AppState.addEventListener('change', handleAppStateChange) : null;
+    if (!sub) {
+      // Fallback for older RN versions
+      AppState.addEventListener('change', handleAppStateChange);
+    }
+
+    return () => {
+      if (sub && typeof sub.remove === 'function') {
+        sub.remove();
+      } else {
+        AppState.removeEventListener('change', handleAppStateChange);
+      }
+    };
+  }, []);
 
   return (
     <MainWrapper>
@@ -162,7 +282,7 @@ export const Home = () => {
             <RouteHeading showSearch={false} showSettings={true} />
             <DisplayTopGenres />
             <PaddingConatiner>
-              <Heading text={"Top Trending Songs"} />
+              <Heading text={"Top Songs"} />
             </PaddingConatiner>
             <FlatList
               horizontal
@@ -197,49 +317,85 @@ export const Home = () => {
             />
             <PaddingConatiner>
               <HorizontalScrollSongs id={getChartId(0)} />
-              <Heading text={"Recommended Playlists"} />
             </PaddingConatiner>
-            <FlatList
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              data={playlists}
-              keyExtractor={(item, index) => item?.id?.toString() ?? `playlist-${index}`}
-              contentContainerStyle={{ paddingHorizontal: 10 }}
-              renderItem={({ item }) => (
-                <View style={{ marginRight: 12 }}>
-                  <EachPlaylistCard
-                    name={item.title}
-                    follower={item.subtitle}
-                    image={
-                      item.image[2]?.url ||
-                      item.image[2]?.link ||
-                      item.image[0]?.url
-                    }
-                    id={item.id}
-                  />
-                </View>
-              )}
-            />
             <PaddingConatiner>
               <Heading text={"Trending Albums"} />
             </PaddingConatiner>
             <FlatList
               horizontal
               showsHorizontalScrollIndicator={false}
-              data={trendingAlbums}
-              keyExtractor={(item, index) => item?.id?.toString() ?? `trending-album-${index}`}
+              data={trendingAlbumColumns}
+              keyExtractor={(item, index) => `trending-album-col-${index}`}
               contentContainerStyle={{ paddingHorizontal: 10 }}
               renderItem={({ item }) => (
                 <View style={{ marginRight: 12 }}>
-                  <EachAlbumCard
-                    image={item.image[2].url || item.image[2].link}
-                    artists={item.artists}
-                    name={item.name}
-                    id={item.id}
-                  />
+                  {(item || []).map((album, idx) => (
+                    <View key={album?.id ?? `trending-album-${idx}`} style={{ marginBottom: idx === 0 ? 12 : 0 }}>
+                      <EachAlbumCard
+                        image={album.image?.[2]?.url || album.image?.[2]?.link || album.image?.[0]?.url || ''}
+                        artists={album.artists}
+                        name={album.name}
+                        id={album.id}
+                      />
+                    </View>
+                  ))}
                 </View>
               )}
             />
+            
+            {/* Top Artists Section */}
+            {topArtists.length > 0 && (
+              <>
+                    <PaddingConatiner>
+                      <Heading text={"Top Artists"} />
+                    </PaddingConatiner>
+                    <FlatList
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      data={artistColumns}
+                      keyExtractor={(item, index) => `artist-col-${index}`}
+                      contentContainerStyle={{ paddingHorizontal: 6 }}
+                      renderItem={({ item }) => (
+                        <View style={{ marginRight: 8, alignItems: 'center' }}>
+                          {(item || []).map((artist, idx) => (
+                            <View key={artist?.id ?? `artist-${idx}`} style={{ marginBottom: idx === 0 ? 6 : 0 }}>
+                              <EachArtistChip
+                                id={artist.id}
+                                name={artist.name}
+                                image={artist.image}
+                              />
+                            </View>
+                          ))}
+                        </View>
+                      )}
+                    />
+                    <PaddingConatiner>
+                      <Heading text={"Recommended Playlists"} />
+                    </PaddingConatiner>
+                    <FlatList
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      data={playlistColumns}
+                      keyExtractor={(item, index) => `playlist-col-${index}`}
+                      contentContainerStyle={{ paddingHorizontal: 10 }}
+                      renderItem={({ item }) => (
+                        <View style={{ marginRight: 12 }}>
+                          {(item || []).map((pl, idx) => (
+                            <View key={pl?.id ?? `playlist-${idx}`} style={{ marginBottom: idx === 0 ? 12 : 0 }}>
+                              <EachPlaylistCard
+                                name={pl.title}
+                                follower={pl.subtitle}
+                                image={pl.image?.[2]?.url || pl.image?.[2]?.link || pl.image?.[0]?.url || ''}
+                                id={pl.id}
+                              />
+                            </View>
+                          ))}
+                        </View>
+                      )}
+                    />
+              </>
+            )}
+            
             <PaddingConatiner>
               <HorizontalScrollSongs id={getChartId(1)} />
             </PaddingConatiner>

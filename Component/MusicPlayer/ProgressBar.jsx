@@ -1,11 +1,13 @@
 import Slider from "@react-native-community/slider";
 import React, { useEffect, useMemo, useRef, useState, memo } from "react";
 import { Dimensions, View } from "react-native";
+import { useTheme } from "@react-navigation/native";
 import { useActiveTrack, usePlaybackState, useProgress } from "react-native-track-player";
 import TrackPlayer from "react-native-track-player";
 import { SmallText } from "../Global/SmallText";
 
 export const ProgressBar = memo(() => {
+  const theme = useTheme();
   const width = useMemo(() => Dimensions.get("window").width, []);
   // Faster updates for snappier UI feel
   const { position, duration } = useProgress(250);
@@ -91,9 +93,9 @@ export const ProgressBar = memo(() => {
             setTimeout(() => setIsSliding(false), 80);
           }
         }}
-        minimumTrackTintColor={"white"}
-        maximumTrackTintColor="rgba(44,44,44,1)"
-        thumbTintColor={"white"}
+        minimumTrackTintColor={theme.colors.text}
+        maximumTrackTintColor={theme.dark ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.2)"}
+        thumbTintColor={theme.colors.text}
       />
       <View style={{ flexDirection: "row", justifyContent: "space-between", width: "90%" }}>
         <SmallText text={formatTime(clampedSliderValue)} />

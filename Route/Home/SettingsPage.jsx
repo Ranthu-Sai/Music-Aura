@@ -62,7 +62,7 @@ const EachSettingsButton = ({ text, subtitle, OnPress, currentThemeColors, iconN
             {subtitle && <SmallText text={subtitle} style={{ opacity: 0.5, marginTop: 2 }} />}
           </View>
         </View>
-        <Icon name="chevron-right" size={24} color="white" opacity={0.3} />
+        <Icon name="chevron-right" size={24} color={currentThemeColors?.secondaryText || 'rgba(0,0,0,0.3)'} opacity={0.6} />
       </Pressable>
     </Animated.View>
   );
@@ -82,7 +82,7 @@ const EachDropDownSetting = ({ data, text, placeholder, OnChange, currentThemeCo
     }}>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 16, flex: 1 }}>
         <View style={{
-          backgroundColor: "rgba(255,255,255,0.08)",
+          backgroundColor: (currentThemeColors?.text === '#000000') ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.08)',
           padding: 12,
           borderRadius: 12
         }}>
@@ -92,17 +92,17 @@ const EachDropDownSetting = ({ data, text, placeholder, OnChange, currentThemeCo
       </View>
       <Dropdown
         placeholder={placeholder}
-        placeholderStyle={{ color: 'white', fontSize: 14, fontWeight: 'bold' }}
-        itemTextStyle={{ color: 'white' }}
+        placeholderStyle={{ color: currentThemeColors.text, fontSize: 14, fontWeight: 'bold' }}
+        itemTextStyle={{ color: currentThemeColors.text }}
         selectedTextStyle={{ color: currentThemeColors.primary || '#1DB954', fontSize: 14, fontWeight: '900' }}
         containerStyle={{
-          backgroundColor: '#1a1a1a',
+          backgroundColor: currentThemeColors.secondaryBackground || '#1a1a1a',
           borderRadius: 12,
           borderWidth: 1,
-          borderColor: 'rgba(255,255,255,0.1)',
+          borderColor: currentThemeColors.secondaryText ? currentThemeColors.secondaryText + '22' : 'rgba(0,0,0,0.1)',
         }}
-        activeColor="rgba(255,255,255,0.05)"
-        style={{ width: 100 }}
+        activeColor={currentThemeColors.secondaryBackground || 'rgba(0,0,0,0.05)'}
+        style={{ width: 110 }}
         data={data}
         labelField="value"
         valueField="value"
@@ -128,7 +128,7 @@ export const SettingsPage = ({ navigation }) => {
   const PlaybackQuality = [{ value: '96kbps' }, { value: '160kbps' }, { value: '320kbps' }];
   const DownloadPath = [{ value: 'Music' }, { value: 'Downloads' }];
   const Themes = [
-    { value: 'Default' }, { value: 'Dark' }, { value: 'Blue' },
+    { value: 'Default' }, { value: 'Dark' }, { value: 'White' }, { value: 'Blue' },
     { value: 'Purple' }, { value: 'Green' }, { value: 'Red' },
     { value: 'Orange' }, { value: 'Pink' }, { value: 'Teal' },
     { value: 'Amoled' }, { value: 'Sky' }, { value: 'Midnight' }

@@ -1,6 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react'
 import { Dimensions, FlatList, ScrollView, View, ActivityIndicator } from 'react-native'
+import { useTheme } from '@react-navigation/native'
 import { LoadingComponent } from '../Global/Loading'
 import { PlainText } from '../Global/PlainText'
 import { SmallText } from '../Global/SmallText'
@@ -11,6 +12,7 @@ import { useActiveTrack } from 'react-native-track-player'
 export default function AlbumsDisplay({ data, limit, Searchtext, loadMore, hasMore, loadingMore }) {
   const Data = data
   const activeTrack = useActiveTrack()
+  const theme = useTheme()
 
   function FormatArtist(data) {
     let artist = ""
@@ -46,7 +48,7 @@ export default function AlbumsDisplay({ data, limit, Searchtext, loadMore, hasMo
         onEndReachedThreshold={0.5}
         ListFooterComponent={loadingMore ? (
           <View style={{ padding: 20, alignItems: 'center', width: '100%' }}>
-            <ActivityIndicator size="small" color="#fff" />
+            <ActivityIndicator size="small" color={theme.colors.text} />
           </View>
         ) : null}
       />}

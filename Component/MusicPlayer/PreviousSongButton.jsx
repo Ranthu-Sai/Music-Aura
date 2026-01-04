@@ -3,7 +3,7 @@ import { useTheme } from "@react-navigation/native";
 import { Pressable } from "react-native";
 import { PlayPreviousSong } from "../../MusicPlayerFunctions";
 
-export const PreviousSongButton = ({size}) => {
+export const PreviousSongButton = ({size, color}) => {
   const theme = useTheme()
   return (
     <Pressable style={{
@@ -11,7 +11,7 @@ export const PreviousSongButton = ({size}) => {
     }} onPress={()=>{
       PlayPreviousSong()
     }}>
-      <FontAwesome6 name={"backward-step"} size={size ? size : 20} color={theme.colors.text}/>
+      <FontAwesome6 name={"backward-step"} size={size ? size : 20} color={color || theme.colors.text}/>
     </Pressable>
   );
 };

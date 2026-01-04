@@ -16,16 +16,17 @@ export const Heading = ({text, style, nospace}) => {
   } else {
     Size = width * 0.065
   }
+  const baseStyle = {
+    fontWeight: '900',
+    color: theme.colors.text,
+    fontSize: Size,
+    fontFamily: 'roboto',
+  };
+  const mergedStyle = Array.isArray(style) ? [baseStyle, ...style] : [baseStyle, style];
   return (
    <>
      {!nospace && <Spacer/>}
-     <Text numberOfLines={2} style={{
-       fontWeight:900,
-       color:theme.colors.text,
-       fontSize:Size,
-       fontFamily:'roboto',
-       ...style,
-     }}>{text}</Text>
+     <Text numberOfLines={2} style={mergedStyle}>{text}</Text>
      {!nospace && <Spacer/>}
    </>
   );

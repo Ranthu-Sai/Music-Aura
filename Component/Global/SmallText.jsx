@@ -14,12 +14,13 @@ export const SmallText = ({text, color, style, maxLine, selectable}) => {
   } else {
     Size = 11
   }
+  const baseStyle = {
+    color:(!color) ? theme.colors.textSecondary : color,
+    fontSize:Size,
+    fontFamily:'roboto',
+  };
+  const mergedStyle = Array.isArray(style) ? [baseStyle, ...style] : [baseStyle, style];
   return (
-    <Text selectable={selectable} numberOfLines={maxLine ? maxLine : 2} style={{
-      color:(!color) ? theme.colors.textSecondary : color,
-      fontSize:Size,
-      fontFamily:'roboto',
-      ...style,
-    }}>{text}</Text>
+    <Text selectable={selectable} numberOfLines={maxLine ? maxLine : 2} style={mergedStyle}>{text}</Text>
   );
 };

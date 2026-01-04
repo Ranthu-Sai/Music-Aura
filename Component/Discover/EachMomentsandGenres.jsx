@@ -7,15 +7,21 @@ export const EachMomentsandGenres = ({text, color, showLeftColor, style}) => {
   return (
     <Pressable onPress={()=>{
       navigation.navigate("ShowPlaylistofType",{Searchtext:text.toLowerCase()})
-    }} style={{
+    }} style={Array.isArray(style) ? [{
       backgroundColor:"rgba(43,47,44,0.84)",
       borderRadius:10,
       paddingRight:10,
       alignItems:"center",
       justifyContent:"flex-start",
       flexDirection:'row',
-      ...style,
-    }}>
+    }, ...style] : [{
+      backgroundColor:"rgba(43,47,44,0.84)",
+      borderRadius:10,
+      paddingRight:10,
+      alignItems:"center",
+      justifyContent:"flex-start",
+      flexDirection:'row',
+    }, style]}>
       {showLeftColor && <View style={{
         borderRadius: 10,
         width: 10,

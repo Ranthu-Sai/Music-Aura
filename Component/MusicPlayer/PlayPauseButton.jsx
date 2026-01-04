@@ -10,7 +10,7 @@ export const PlayPauseButton = ({isFullScreen, size, color}) => {
   const playerState = playbackState.state;
   
   const iconSize = size || (isFullScreen ? 28 : 25);
-  const iconColor = color || (isFullScreen ? "black" : theme.colors.text);
+  const iconColor = color || (isFullScreen ? (theme.dark ? "black" : "white") : theme.colors.text);
 
   const isPlaying = playerState === State.Playing;
   const isBuffering = playerState === State.Buffering || playerState === State.Loading;
@@ -34,7 +34,7 @@ export const PlayPauseButton = ({isFullScreen, size, color}) => {
         {!isPlaying && !isBuffering && <Pressable onPress={()=>{
           PlaySong()
         }} style={{
-          backgroundColor:"white",
+          backgroundColor: theme.dark ? "white" : "rgba(0,0,0,0.9)",
           padding: 15,
           height: 60,
           width: 60,
@@ -47,7 +47,7 @@ export const PlayPauseButton = ({isFullScreen, size, color}) => {
         {isPlaying &&  <Pressable onPress={()=>{
           PauseSong()
         }} style={{
-          backgroundColor:"white",
+          backgroundColor: theme.dark ? "white" : "rgba(0,0,0,0.9)",
           padding: 15,
           height: 60,
           width: 60,
@@ -55,7 +55,7 @@ export const PlayPauseButton = ({isFullScreen, size, color}) => {
           alignItems: "center",
           justifyContent: "center",
         }}><FontAwesome6 name={"pause"} size={iconSize} color={iconColor}/></Pressable>}
-        {isBuffering && <ActivityIndicator size={"large"} color={"white"}/>}
+        {isBuffering && <ActivityIndicator size={"large"} color={theme.colors.text}/>} 
       </>}
     </>
   );
