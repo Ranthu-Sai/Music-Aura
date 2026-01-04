@@ -63,22 +63,32 @@ export const RecentlyPlayedPage = () => {
     <Animated.ScrollView
       scrollEventThrottle={16}
       ref={AnimatedRef}
-      style={{ backgroundColor: "black" }}
+      style={{ backgroundColor: "transparent" }}
       contentContainerStyle={{
         paddingBottom: activeTrack ? 150 : 70,
-        backgroundColor: "rgba(0,0,0)",
+        // Make bottom area transparent to avoid unwanted color band
+        backgroundColor: "transparent",
       }}
     >
       <LikedPagesTopHeader
         AnimatedRef={AnimatedRef}
-        url={require("../../Images/RecentlyPlayed.jpg")}
+        generated={{
+          icon: 'clock',
+          title: 'Recently Played',
+          colors: ['#00b09b', '#96c93d'],
+          bgColors: ['#0f2027', '#203a43']
+        }}
+        hideOverlay={true}
+        disableCollapse={true}
+        extendBgToTop={true}
       />
       <View style={{
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
         paddingRight: 15,
-        backgroundColor: theme.colors.background
+        // Remove background color to prevent visible band while scrolling
+        backgroundColor: 'transparent'
       }}>
         <LikedDetails name={"Recently Played"} Data={history} />
         {history.length > 0 && (
@@ -95,7 +105,7 @@ export const RecentlyPlayedPage = () => {
           </Pressable>
         )}
       </View>
-      <View style={{ paddingHorizontal: 10, backgroundColor: theme.colors.background }}>
+      <View style={{ paddingHorizontal: 10, backgroundColor: 'transparent' }}>
         {history.map((e, i) => (
           <EachSongCard
             width={width * 0.95}

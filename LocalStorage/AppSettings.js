@@ -10,14 +10,17 @@ async function GetFontSizeValue() {
     }
   } catch (e) {
     // error reading value
+    return 'Medium'
   }
 }
 
 async function SetFontSizeValue(FontSize) {
   try {
     await AsyncStorage.setItem('FontSize', FontSize);
+    return true;
   } catch (e) {
     // Error saving font size
+    return false;
   }
 }
 
@@ -31,14 +34,17 @@ async function GetPlaybackQuality() {
     }
   } catch (e) {
     // error reading value
+    return '320kbps'
   }
 }
 
 async function SetPlaybackQuality(PlaybackQuality) {
   try {
     await AsyncStorage.setItem('PlaybackQuality', PlaybackQuality);
+    return true;
   } catch (e) {
     // Error saving playback quality
+    return false;
   }
 }
 
@@ -52,14 +58,17 @@ async function GetDownloadPath() {
     }
   } catch (e) {
     // error reading value
+    return 'Music'
   }
 }
 
 async function SetDownloadPath(DownloadPath) {
   try {
     await AsyncStorage.setItem('DownloadPath', DownloadPath);
+    return true;
   } catch (e) {
     // Error saving download path
+    return false;
   }
 }
 
@@ -73,14 +82,17 @@ async function GetTheme() {
     }
   } catch (e) {
     // error reading value
+    return 'Default'
   }
 }
 
 async function SetTheme(Theme) {
   try {
     await AsyncStorage.setItem('Theme', Theme);
+    return true;
   } catch (e) {
     // Error saving theme
+    return false;
   }
 }
 
@@ -144,4 +156,52 @@ async function SetLastSong(song) {
 }
 
 
-export { GetFontSizeValue, SetFontSizeValue, GetPlaybackQuality, SetPlaybackQuality, GetDownloadPath, SetDownloadPath, GetTheme, SetTheme, GetLastSong, SetLastSong }
+async function GetLyricsSettings() {
+  try {
+    const settings = await AsyncStorage.getItem('LyricsSettings');
+    if (settings !== null) {
+      return JSON.parse(settings);
+    } else {
+      return {
+        fontSize: 'Medium',
+        source: 'All',
+        background: 'rgba(0,0,0,1)',
+        textColor: '#FFFFFF',
+        animation: 'Smooth'
+      };
+    }
+  } catch (e) {
+    return {
+      fontSize: 'Medium',
+      source: 'All',
+      background: 'rgba(0,0,0,1)',
+      textColor: '#FFFFFF',
+      animation: 'Smooth'
+    };
+  }
+}
+
+async function SetLyricsSettings(settings) {
+  try {
+    await AsyncStorage.setItem('LyricsSettings', JSON.stringify(settings));
+    return true;
+  } catch (e) {
+    // Error saving lyrics settings
+    return false;
+  }
+}
+
+export { 
+  GetFontSizeValue, 
+  SetFontSizeValue, 
+  GetPlaybackQuality, 
+  SetPlaybackQuality, 
+  GetDownloadPath, 
+  SetDownloadPath, 
+  GetTheme, 
+  SetTheme, 
+  GetLastSong, 
+  SetLastSong,
+  GetLyricsSettings,
+  SetLyricsSettings
+}

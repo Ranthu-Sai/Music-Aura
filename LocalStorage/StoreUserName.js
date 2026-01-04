@@ -10,14 +10,17 @@ async function GetUserNameValue(){
     }
   } catch (e) {
     // error reading value
+    return ''
   }
 }
 
 async function SetUserNameValue(name){
   try {
     await AsyncStorage.setItem('Name', name);
+    return true;
   } catch (e) {
     // Error saving user name
+    return false;
   }
 }
 

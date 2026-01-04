@@ -1,8 +1,8 @@
-import { Pressable, View, TouchableOpacity, Animated } from "react-native";
+import { Pressable, View, TouchableOpacity, Animated, InteractionManager } from "react-native";
 import FastImage from "react-native-fast-image";
 import { PlainText } from "../Global/PlainText";
 import { SmallText } from "../Global/SmallText";
-import { memo, useMemo, useRef } from "react";
+import { memo, useMemo, useRef, useCallback } from "react";
 import { SkipToTrack } from "../../MusicPlayerFunctions";
 import TrackPlayer from "react-native-track-player";
 import AntDesign from "react-native-vector-icons/AntDesign";
@@ -33,12 +33,59 @@ const resolveArtworkUri = (image) => {
   return null;
 };
 
-export const EachSongQueue = memo(function EachSongQueue({ song, index, isActive, isPlaying, onRemove }) {
-  const { title, artist, id, image } = song;
-  const resolved = useMemo(() => resolveArtworkUri(image), [image]);
+// Static styles for better performance
+const styles = {
+  pressable: {
+    flexDirection: 'row',
+    gap: 12,
+    alignItems: "center",
+    paddingVertical: 8,
+    paddingLeft: 6,
+    paddingRight: 10,
+    borderRadius: 12,
+    marginVertical: 4,
+  },
+  pressableActive: {
+    flexDirection: 'row',
+    gap: 12,
+    alignItems: "center",
+    paddingVertical: 8,
+    paddingLeft: 6,
+    paddingRight: 10,
+    borderRadius: 12,
+    marginVertical: 4,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+  },
+  imageContainer: { position: 'relative' },
+  image: {
+    height: 50,
+    width: 50,
+    borderRadius: 8,
+    opacity: 1,
+  },
+  textContainer: { flex: 1 },
+  downloadButton: { padding: 8 },
+};
+
+const EachSongQueueComponent = ({ song, index, playerState, currentTrackId, onRemove }) => {
+  // Extract primitives from song object
+  const id = song?.id;
+  const title = song?.title;
+  const artist = song?.artist;
+  
+  // Normalize artwork from various possible properties
+  const imageSource = useMemo(() => 
+    song?.artwork || song?.image || song?.thumbnail || song?.thumbnails || song?.bestThumbnail || null,
+    [song?.artwork, song?.image, song?.thumbnail, song?.thumbnails, song?.bestThumbnail]
+  );
+  
+  // Check if this is the currently playing track
+  const isCurrentTrack = id === currentTrackId;
+  const isPlaying = playerState === 'playing' && isCurrentTrack;
+  const resolved = useMemo(() => resolveArtworkUri(imageSource), [imageSource]);
   const swipeableRef = useRef(null);
 
-  const handlePress = async () => {
+  const handlePress = useCallback(async () => {
     try {
       const currentQueue = await TrackPlayer.getQueue();
       const actualIndex = currentQueue.findIndex(s => s.id === id);
@@ -48,35 +95,46 @@ export const EachSongQueue = memo(function EachSongQueue({ song, index, isActive
     } catch (error) {
       console.error('Error skipping to track:', error);
     }
-  };
+  }, [id]);
 
-  const renderRightActions = (progress, dragX) => {
+  const handleRemovePress = useCallback(() => {
+    swipeableRef.current?.close();
+    onRemove(index, id);
+  }, [index, id, onRemove]);
+
+  const renderRightActions = useCallback((progress, dragX) => {
     const trans = dragX.interpolate({
       inputRange: [-80, 0],
       outputRange: [0, 80],
     });
     return (
       <TouchableOpacity 
-        onPress={() => {
-          swipeableRef.current?.close();
-          onRemove(index, id);
-        }}
+        onPress={handleRemovePress}
         style={{ width: 80, backgroundColor: '#FF3B30', justifyContent: 'center', alignItems: 'center' }}
       >
         <MaterialCommunityIcons name="delete-outline" size={28} color="white" />
       </TouchableOpacity>
     );
-  };
+  }, [handleRemovePress]);
 
-  const normalizedTitle = useMemo(() => 
-    title?.toString()?.replace(/&quot;/g, "\"")?.replace(/&amp;/g, "and")?.replace(/&#039;/g, "'")?.replace(/&trade;/g, "™"),
-    [title]
+  const handleDownload = useCallback(() => {
+    // PERFORMANCE: Defer heavy download operation
+    InteractionManager.runAfterInteractions(() => {
+      DownloadSong(song);
+    });
+  }, [song]);
+
+  // Memoize style based on isCurrentTrack
+  const pressableStyle = useMemo(() => 
+    isCurrentTrack ? styles.pressableActive : styles.pressable,
+    [isCurrentTrack]
   );
 
-  const normalizedArtist = useMemo(() => 
-    artist?.toString()?.replace(/&quot;/g, "\"")?.replace(/&amp;/g, "and")?.replace(/&#039;/g, "'")?.replace(/&trade;/g, "™"),
-    [artist]
-  );
+  // Memoize text style based on isCurrentTrack
+  const textStyle = useMemo(() => ({
+    color: isCurrentTrack ? '#1DB954' : 'white',
+    fontWeight: isCurrentTrack ? 'bold' : 'normal',
+  }), [isCurrentTrack]);
 
   return (
     <Swipeable
@@ -89,68 +147,44 @@ export const EachSongQueue = memo(function EachSongQueue({ song, index, isActive
       <Pressable
         onPress={handlePress}
         android_ripple={{ color: 'rgba(255,255,255,0.1)' }}
-        style={{
-          flexDirection: 'row',
-          gap: 12,
-          alignItems: "center",
-          paddingVertical: 8,
-          paddingLeft: 6,
-          paddingRight: 10,
-          borderRadius: 12,
-          marginVertical: 4,
-          backgroundColor: isActive ? 'rgba(255,255,255,0.1)' : 'transparent',
-        }}
+        style={pressableStyle}
       >
-        <View style={{ position: 'relative' }}>
+        <View style={styles.imageContainer}>
           <FastImage
-            source={isPlaying ? require("../../Images/playing.gif") : (resolved ? { uri: resolved } : require("../../Images/Logo.jpg"))}
+            source={isPlaying
+              ? require("../../Images/playing.gif") 
+              : (resolved ? { uri: resolved } : require("../../Images/Logo.jpg"))}
             resizeMode={FastImage.resizeMode.cover}
-            style={{
-              height: 50,
-              width: 50,
-              borderRadius: 8,
-              opacity: isActive ? 0.7 : 1,
-            }}
+            style={styles.image}
           />
-          {isPlaying && (
-            <View style={{
-              position: 'absolute',
-              top: 0, left: 0, right: 0, bottom: 0,
-              justifyContent: 'center',
-              alignItems: 'center',
-              backgroundColor: 'rgba(0,0,0,0.2)',
-              borderRadius: 8,
-            }}>
-              <FastImage
-                source={require("../../Images/playing.gif")}
-                style={{ width: 24, height: 24 }}
-              />
-            </View>
-          )}
         </View>
 
-        <View style={{ flex: 1 }}>
+        <View style={styles.textContainer}>
           <PlainText
-            text={normalizedTitle}
-            style={{
-              color: isActive ? '#1DB954' : 'white',
-              fontWeight: isActive ? 'bold' : 'normal',
-            }}
+            text={title}
+            style={textStyle}
             numberOfLines={1}
           />
           <SmallText
-            text={normalizedArtist}
+            text={artist}
             numberOfLines={1}
           />
         </View>
 
         <TouchableOpacity
-          onPress={() => DownloadSong(song)}
-          style={{ padding: 8 }}
+          onPress={handleDownload}
+          style={styles.downloadButton}
         >
           <AntDesign name="download" size={22} color="white" />
         </TouchableOpacity>
       </Pressable>
     </Swipeable>
   );
-})
+};
+
+// Custom memo with MINIMAL comparison - only check song.id (fastest)
+export const EachSongQueue = memo(EachSongQueueComponent, (prev, next) => 
+  prev.song?.id === next.song?.id && 
+  prev.playerState === next.playerState && 
+  prev.currentTrackId === next.currentTrackId
+);

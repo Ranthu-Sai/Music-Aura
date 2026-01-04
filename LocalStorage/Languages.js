@@ -10,14 +10,17 @@ async function GetLanguageValue(){
     }
   } catch (e) {
     // error reading value
+    return ''
   }
 }
 
 async function SetLanguageValue(Language){
   try {
     await AsyncStorage.setItem('Language', Language);
+    return true;
   } catch (e) {
     // Error saving language
+    return false;
   }
 }
 

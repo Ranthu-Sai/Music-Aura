@@ -2,11 +2,12 @@
 import TrackPlayer, { Capability, Event } from "react-native-track-player";
 import historyManager from './Utils/HistoryManager';
 import autoRecommendations from './Utils/AutoRecommendations';
-import { PlayPreviousSong, PlayNextSong } from './MusicPlayerFunctions';
+import smartPrefetchManager from './Utils/SmartPrefetchManager';
 
 let isPlayerInitialized = false;
 
 export const PlaybackService = function () {
+  let remoteSkipLock = false;
   // Register remote handlers immediately so notification actions work
   // even when the app is backgrounded or killed
   TrackPlayer.addEventListener(Event.RemotePlay, async () => {
@@ -17,19 +18,66 @@ export const PlaybackService = function () {
     try { await TrackPlayer.pause(); } catch (e) { console.warn('RemotePause handler failed', e); }
   });
 
+  // Next: prefetch and replace if needed, then skip deterministically
   TrackPlayer.addEventListener(Event.RemoteNext, async () => {
+    if (remoteSkipLock) { return; }
+    remoteSkipLock = true;
     try {
-      await PlayNextSong();
+      const currentIndex = await TrackPlayer.getActiveTrackIndex();
+      const nextIndex = typeof currentIndex === 'number' ? currentIndex + 1 : 1;
+      const queue = await TrackPlayer.getQueue();
+      const nextTrack = queue[nextIndex];
+
+      if (!nextTrack) { return; }
+
+      if (smartPrefetchManager.needsStream(nextTrack)) {
+        const cached = smartPrefetchManager.getPrefetchedStream(nextTrack.id);
+        let streamData = cached;
+        if (!streamData) {
+          streamData = await smartPrefetchManager.fetchOnDemand(nextTrack.id);
+        }
+        if (streamData && streamData.url) {
+          await smartPrefetchManager.replaceTrackAndWait(nextIndex, nextTrack, streamData);
+        }
+      }
+
+      await TrackPlayer.skip(nextIndex);
+      await TrackPlayer.play();
     } catch (err) {
       console.error('RemoteNext handler failed', err);
+    } finally {
+      setTimeout(() => { remoteSkipLock = false; }, 300);
     }
   });
 
   TrackPlayer.addEventListener(Event.RemotePrevious, async () => {
+    if (remoteSkipLock) { return; }
+    remoteSkipLock = true;
     try {
-      await PlayPreviousSong();
+      const currentIndex = await TrackPlayer.getActiveTrackIndex();
+      const prevIndex = typeof currentIndex === 'number' ? currentIndex - 1 : 0;
+      const queue = await TrackPlayer.getQueue();
+      const prevTrack = queue[prevIndex];
+
+      if (!prevTrack || prevIndex < 0) { return; }
+
+      if (smartPrefetchManager.needsStream(prevTrack)) {
+        const cached = smartPrefetchManager.getPrefetchedStream(prevTrack.id);
+        let streamData = cached;
+        if (!streamData) {
+          streamData = await smartPrefetchManager.fetchOnDemand(prevTrack.id);
+        }
+        if (streamData && streamData.url) {
+          await smartPrefetchManager.replaceTrackAndWait(prevIndex, prevTrack, streamData);
+        }
+      }
+
+      await TrackPlayer.skip(prevIndex);
+      await TrackPlayer.play();
     } catch (err) {
       console.error('RemotePrevious handler failed', err);
+    } finally {
+      setTimeout(() => { remoteSkipLock = false; }, 300);
     }
   });
 
@@ -106,6 +154,6 @@ export const PlaybackService = function () {
     }
   };
 
-  // Start initialization
-  initializePlayer();
+  // Start initialization and return the promise
+  return initializePlayer();
 };

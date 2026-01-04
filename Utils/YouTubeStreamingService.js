@@ -36,6 +36,8 @@ class YouTubeStreamingService {
      */
     async getStreamUrl(videoId, forceFresh = false) {
         try {
+            const LOG_VERBOSE = false;
+            const debugLog = (...args) => { if (LOG_VERBOSE) { console.log(...args); } };
             // Step 1: CHECK CACHE FIRST (unless forceFresh)
             if (!forceFresh) {
                 const cachedUrl = CacheManager.getStreamUrl(videoId, 'ytmusic');
@@ -57,7 +59,7 @@ class YouTubeStreamingService {
                     }
                 }
             } else {
-                console.log(`🚀 Force fresh fetch requested for: ${videoId}`);
+                debugLog(`🚀 Force fresh fetch requested for: ${videoId}`);
                 CacheManager.clearStreamUrl(videoId, 'ytmusic');
             }
 
@@ -107,13 +109,15 @@ class YouTubeStreamingService {
     async _nativeFetchWithRetries(videoId, cookies = '', maxAttempts = 3, timeoutMs = 8000) {
         let attempt = 0;
         let lastError = null;
+        const LOG_VERBOSE = false;
+        const debugLog = (...args) => { if (LOG_VERBOSE) { console.log(...args); } };
 
         const callNative = () => NativeStreaming.getStreamUrl(videoId, cookies || '');
 
         while (attempt < maxAttempts) {
             attempt += 1;
             try {
-                console.log(`🔄 Fetch attempt ${attempt}/${maxAttempts} for: ${videoId}`);
+                debugLog(`🔄 Fetch attempt ${attempt}/${maxAttempts} for: ${videoId}`);
 
                 const result = await Promise.race([
                     callNative(),

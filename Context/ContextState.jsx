@@ -10,7 +10,8 @@ import { GetLanguageValue } from "../LocalStorage/Languages";
 // import { SetQueueSongs } from "../LocalStorage/storeQueue";
 import { EachSongMenuModal } from "../Component/Global/EachSongMenuModal";
 import PlaylistSelector from "../Component/Global/PlaylistSelector";
-import { GetFontSizeValue, GetTheme, SetLastSong, GetLastSong } from "../LocalStorage/AppSettings";
+import { GetFontSizeValue, GetTheme, SetLastSong, GetLastSong, GetLyricsSettings, SetLyricsSettings } from "../LocalStorage/AppSettings";
+import { getCachedData } from "../Utils/CacheManager";
 
 
 const events = [
@@ -115,6 +116,13 @@ const ContextState = (props) => {
     });
     const [fontSize, setFontSize] = useState('Medium');
     const [theme, setTheme] = useState('Default');
+    const [lyricsSettings, setLyricsSettings] = useState({
+        fontSize: 'Medium',
+        source: 'All',
+        background: 'rgba(0,0,0,1)',
+        textColor: '#FFFFFF',
+        animation: 'Smooth'
+    });
     const hasSetupRef = useRef(false);
     const wasPlayingBeforeInterruption = useRef(false); // Track if we were playing before interruption
 
@@ -130,28 +138,33 @@ const ContextState = (props) => {
     const currentThemeColors = useMemo(() => themes[theme] || themes.Dark, [theme]);
 
     const [Queue, setQueue] = useState([]);
+    const QueueRef = useRef([]); // Ref to access latest queue in callbacks
+    QueueRef.current = Queue; // Keep ref updated
+    
     const lyricsCacheRef = useRef({});
     const [queueVisible, setQueueVisible] = useState(false);
+    
     const updateTrack = useCallback(async () => {
-        try {
-            const tracks = await TrackPlayer.getQueue();
+        // PERFORMANCE: Defer getQueue to next frame to prevent blocking UI
+        requestAnimationFrame(async () => {
+            try {
+                const tracks = await TrackPlayer.getQueue();
+                
+                // PERFORMANCE: Fast O(1) comparison - compare length and boundary IDs
+                const hasChanged = tracks.length !== QueueRef.current.length ||
+                    (tracks.length > 0 && QueueRef.current.length > 0 && (
+                        tracks[0]?.id !== QueueRef.current[0]?.id ||
+                        tracks[tracks.length - 1]?.id !== QueueRef.current[QueueRef.current.length - 1]?.id
+                    ));
 
-            // Fast comparison using IDs and length
-            if (tracks.length !== Queue.length) {
-                setQueue(tracks);
-                return;
-            }
-
-            for (let i = 0; i < tracks.length; i++) {
-                if (tracks[i]?.id !== Queue[i]?.id) {
+                if (hasChanged || tracks.length > QueueRef.current.length) {
                     setQueue(tracks);
-                    break;
                 }
+            } catch (error) {
+                // Error silently handled
             }
-        } catch (error) {
-            // Error silently handled
-        }
-    }, [Queue]);
+        });
+    }, []);
     const recommendedProcessedRef = useRef(new Set());
     const MIN_QUEUE_SIZE = 100; // Larger queue for unlimited smooth playback
     // Playback error circuit breaker
@@ -168,6 +181,17 @@ const ContextState = (props) => {
         if (!id || (!forceAdd && recommendedProcessedRef.current.has(id))) {
             return 0; // Return count of songs added
         }
+        
+        // PERFORMANCE: Use QueueRef for fast O(1) length check
+        // Avoid expensive TrackPlayer.getQueue() bridge call unless necessary
+        const currentQueueLength = QueueRef.current.length;
+        
+        // Quick check using cached queue length
+        if (currentQueueLength > 0 && index < currentQueueLength - 2 && currentQueueLength >= MIN_QUEUE_SIZE && !forceAdd) {
+            return 0; // Queue is healthy, no need to add
+        }
+        
+        // Now fetch authoritative queue for actual operation
         const tracks = await TrackPlayer.getQueue();
         const totalTracks = tracks.length - 1;
 
@@ -181,10 +205,13 @@ const ContextState = (props) => {
                 // Get user's preferred language for filtering
                 const preferredLanguage = await GetLanguageValue();
 
-                // Use appropriate API based on source
-                const songs = isYT
-                    ? await getYTMusicRecommendedSongs(id)
-                    : await getRecommendedSongs(id);
+                // Use appropriate API based on source with caching
+                const cacheKey = `recommended_${id}`;
+                const songs = await getCachedData(cacheKey, async () => {
+                    return isYT 
+                        ? await getYTMusicRecommendedSongs(id)
+                        : await getRecommendedSongs(id);
+                }, { expiration: 60 * 24 }); // Cache for 24 hours
 
                 const songData = songs?.data?.results || songs?.data;
 
@@ -321,13 +348,6 @@ const ContextState = (props) => {
         }
 
         if (event.type === Event.PlaybackActiveTrackChanged) {
-            console.log('🎵 PlaybackActiveTrackChanged event:', {
-                trackId: event.track?.id,
-                trackTitle: event.track?.title,
-                index: event.index,
-                previousTrackId: currentPlaying?.id,
-            });
-
             setCurrentPlaying(event.track)
             if (event?.track?.id) {
                 // Save the current track so it can be restored on app restart
@@ -339,22 +359,23 @@ const ContextState = (props) => {
                 const trackAlreadyInQueue = currentQueue.some(track => track && track.id === event.track.id);
 
                 if (!trackAlreadyInQueue) {
-                    console.log('🎵 Track not in queue, adding recommendations');
                     // Continuously add recommended songs - unlimited queue growth
                     AddRecommendedSongs(event.index, event.track.id).catch(err => {
                         // Error silently handled
                     });
                 } else {
-                    console.log('✅ Track already in queue, skipping recommendations');
                 }
 
                 // Prefetch lyrics for faster first open, prefer track language
-                const cacheKey = event.track.id || `${event.track?.artist || 'unknown'}-${event.track?.title || 'unknown'}`
+                const source = lyricsSettings?.source || 'All';
+                const cacheKey = event.track.id ? `${event.track.id}-${source}` : `${event.track?.artist || 'unknown'}-${event.track?.title || 'unknown'}-${source}`;
                 if (lyricsCacheRef?.current && !lyricsCacheRef.current[cacheKey]) {
                     getYTLyricsSongData(
                         event.track?.artist || 'unknown',
                         event.track?.title || 'unknown',
-                        event.track?.language || 'en'
+                        event.track?.language || 'en',
+                        false,
+                        lyricsSettings.source
                     )
                         .then((Lyrics) => {
                             if (Lyrics?.success && lyricsCacheRef?.current) {
@@ -374,19 +395,15 @@ const ContextState = (props) => {
     });
     const InitialSetup = useCallback(async () => {
         try {
-            console.log('🚀 Starting app initialization...');
-
             // Only perform player setup once; subsequent calls just sync queue/state
             if (!hasSetupRef.current) {
                 try {
                     await TrackPlayer.setupPlayer();
-                    console.log('✅ TrackPlayer setup complete');
                 } catch (_) {
                     console.warn('⚠️ TrackPlayer already initialized');
                 }
                 try {
                     await SetRepeatMode(RepeatMode.Queue);
-                    console.log('✅ Repeat mode set to Queue');
                 } catch (_) { }
                 hasSetupRef.current = true;
             }
@@ -411,22 +428,19 @@ const ContextState = (props) => {
                 retryCount++;
             }
 
-            if (song && song.id) {
-                console.log('✅ Found active track after connection:', song.title);
-            } else if (queue && queue.length > 0) {
-                console.log(`✅ Found existing queue (${queue.length} songs) but no active track yet`);
-            }
-
             // If no active track AND queue is empty, try to restore from saved last song
             // Checking queue length prevents resetting the player if it's already loaded or playing
             if ((!song || !song.id) && (!queue || queue.length === 0)) {
-                console.log('📍 No active track, attempting to restore last song...');
                 const lastSong = await GetLastSong();
 
                 if (lastSong && lastSong.id) {
                     try {
-                        console.log('🔄 Restoring last song:', lastSong.title);
-
+                        // Ensure the player is initialized before attempting restore
+                        try {
+                            await TrackPlayer.setupPlayer();
+                        } catch (_) {
+                            // If already initialized, this will throw; safe to ignore
+                        }
                         // Reset player and add the last song
                         await TrackPlayer.reset();
                         await TrackPlayer.add([lastSong]);
@@ -440,27 +454,21 @@ const ContextState = (props) => {
                         setCurrentPlaying(lastSong);
                         setIndex(0);
 
-                        console.log('✅ Last song restored and set as active track');
-
                         // Auto-fill queue with recommended songs
-                        console.log('🎵 Auto-filling queue with recommendations...');
                         await AddRecommendedSongs(0, song.id, true);
                     } catch (e) {
                         console.error('❌ Error restoring last song:', e);
                     }
                 } else {
-                    console.log('📍 No last song to restore');
                 }
             } else {
                 // Update current playing if there's already an active track
-                console.log('✅ Using existing active track');
                 setCurrentPlaying(song);
 
                 // Get the actual current track index from TrackPlayer
                 try {
                     const currentIndex = await TrackPlayer.getActiveTrackIndex();
                     if (typeof currentIndex === 'number' && currentIndex >= 0) {
-                        console.log(`📍 Current track index: ${currentIndex}`);
                         // Don't call setIndex here to avoid triggering UI changes
                         // The player is already at the correct position
                     }
@@ -481,15 +489,11 @@ const ContextState = (props) => {
 
                 // Auto-fill queue to minimum size on startup
                 const tracks = await TrackPlayer.getQueue();
-                console.log(`📋 Current queue size: ${tracks.length} songs`);
 
                 if (tracks.length < MIN_QUEUE_SIZE) {
-                    console.log(`🎵 Queue below minimum (${MIN_QUEUE_SIZE}), adding more songs...`);
                     await AddRecommendedSongs(0, song.id, true);
                 }
             }
-
-            console.log('✅ App initialization complete');
         } catch (error) {
             console.error('❌ Error during initialization:', error);
         }
@@ -510,6 +514,32 @@ const ContextState = (props) => {
         const data = await GetTheme();
         setTheme(data);
     }
+    async function loadLyricsSettings() {
+        const settings = await GetLyricsSettings();
+        if (settings) {
+            setLyricsSettings(settings);
+        }
+    }
+
+    const refreshLyrics = useCallback(async (songId, artist, title, preferredLanguage, overrideSource) => {
+        if (!songId && !currentPlaying?.id) return;
+        
+        const id = songId || currentPlaying.id;
+        const art = artist || currentPlaying.artist;
+        const tt = title || currentPlaying.title;
+        const lang = preferredLanguage || currentPlaying.language || 'en';
+        const source = overrideSource || lyricsSettings.source || 'All';
+        
+        const cacheKey = id ? `${id}-${source}` : `${art}-${tt}-${source}`;
+        
+        // Pass current settings to fetching logic
+        const Lyrics = await getYTLyricsSongData(art, tt, lang, false, source);
+        if (Lyrics?.success && lyricsCacheRef?.current) {
+            lyricsCacheRef.current[cacheKey] = Lyrics.data;
+            return Lyrics.data;
+        }
+        return null;
+    }, [currentPlaying, lyricsSettings.source]);
 
     // Function to ensure queue has minimum songs
     const ensureMinimumQueue = useCallback(async () => {
@@ -570,6 +600,7 @@ const ContextState = (props) => {
         InitialSetup();
         loadFontSize();
         loadTheme();
+        loadLyricsSettings();
         // Deliberately empty dependency array so setup is not re-run on queue updates
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
@@ -591,8 +622,12 @@ const ContextState = (props) => {
         openQueue,
         closeQueue,
         ensureMinimumQueue,
-        lyricsCacheRef
-    }), [updateTrack, setIndex, setQueueIndex, setVisible, setQueueVisible, openQueue, closeQueue, ensureMinimumQueue, lyricsCacheRef]);
+        lyricsCacheRef,
+        lyricsSettings,
+        setLyricsSettings,
+        setLyricsSettingsState: setLyricsSettings,
+        refreshLyrics
+    }), [updateTrack, setIndex, setQueueIndex, setVisible, setQueueVisible, openQueue, closeQueue, ensureMinimumQueue, lyricsCacheRef, lyricsSettings, refreshLyrics]);
 
     const playerValue = useMemo(() => ({
         currentPlaying,

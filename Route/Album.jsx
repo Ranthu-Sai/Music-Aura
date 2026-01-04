@@ -130,24 +130,16 @@ export const Album = ({ route }) => {
           const albumData = Data?.data || {};
 
           return playableSongs.length > 0 ? (
-            <ImageBackground
-              source={{ uri: headerImage }}
-              style={styles.background}
-              blurRadius={50}
-            >
-              <View style={styles.overlay} />
+            <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
               <Animated.ScrollView
                 scrollEventThrottle={16}
                 ref={AnimatedRef}
                 contentContainerStyle={{
                   paddingBottom: activeTrack ? 105 : 70,
-                  backgroundColor: "transparent",
                 }}
               >
-                {/* Premium Header with Background Image / Gradient */}
-                <View style={{ position: 'relative' }}>
-                  <PlaylistTopHeader url={headerImage} />
-                </View>
+                {/* Album Header */}
+                {/* <PlaylistTopHeader url={headerImage} /> */}
 
                 <AlbumDetails
                   name={albumData.name ?? ""}
@@ -158,9 +150,10 @@ export const Album = ({ route }) => {
                   Data={Data}
                 />
 
+                {/* Songs List */}
                 <View style={{
                   paddingHorizontal: 15,
-                  marginTop: 10,
+                  marginTop: 8,
                   gap: 5,
                 }}>
                   {playableSongs.map((e, i) => (
@@ -186,7 +179,7 @@ export const Album = ({ route }) => {
                   ))}
                 </View>
               </Animated.ScrollView>
-            </ImageBackground>
+            </View>
           ) : (
             <View style={{
               flex: 1,
@@ -203,15 +196,5 @@ export const Album = ({ route }) => {
   );
 };
 
-const styles = StyleSheet.create({
-  background: {
-    flex: 1,
-    width: '100%',
-    height: '100%',
-  },
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-  },
-});
+const styles = StyleSheet.create({});
 

@@ -13,6 +13,9 @@ const GITHUB_REPO = 'Music-Aura';
 const GITHUB_RELEASES_URL = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/releases/latest`;
 const GITHUB_RELEASES_PAGE = `https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}/releases`;
 
+// Toggle GitHub release checks (set false to disable checks and suppress warnings)
+const ENABLE_GITHUB_CHECKS = false;
+
 // Storage keys
 const STORAGE_KEYS = {
     DISMISSED_VERSION: 'update_dismissed_version',
@@ -83,6 +86,10 @@ class UpdateService {
      * Check GitHub Releases API for latest version
      */
     async checkGitHubRelease() {
+        if (!ENABLE_GITHUB_CHECKS) {
+            // GitHub checks disabled for this build; skip checking releases
+            return null;
+        }
         try {
             const response = await fetch(GITHUB_RELEASES_URL, {
                 headers: {
@@ -92,6 +99,11 @@ class UpdateService {
             });
 
             if (!response.ok) {
+                if (response.status === 404) {
+                    // Lower-severity log when repo/releases are missing
+                    console.debug(`[UpdateService] GitHub releases not found for ${GITHUB_OWNER}/${GITHUB_REPO} (HTTP 404)`);
+                    return null;
+                }
                 throw new Error(`GitHub API error: ${response.status}`);
             }
 
@@ -107,7 +119,11 @@ class UpdateService {
             };
             return this.latestRelease;
         } catch (error) {
-            console.error('[UpdateService] GitHub release check failed:', error);
+            if (error && error.message && error.message.includes('GitHub API error: 404')) {
+                console.warn('[UpdateService] GitHub release check returned 404; no releases available.');
+            } else {
+                console.error('[UpdateService] GitHub release check failed:', error);
+            }
             return null;
         }
     }

@@ -78,11 +78,9 @@ class SkipOperationManager {
         // Cancel any in-flight fetch operations
         this.cancelInFlightOperations();
 
-        // If already skipping, we reset the state to allow the new skip to take over
-        // The previous operation should respect the abort signal we just sent via cancelInFlightOperations
+        // If already skipping, ignore new skip requests to prevent overlap
         if (this.isSkipping) {
-            console.log('⏭️ Overriding existing skip operation');
-            this.isSkipping = false;
+            return false;
         }
 
         // Execute immediately or with debounce
@@ -108,14 +106,12 @@ class SkipOperationManager {
 
         try {
             await operation(this.abortController.signal);
-            console.log('✅ Skip operation completed');
             return true;
         } catch (error) {
             // Ignore abort errors (expected when cancelling)
             if (error.name === 'AbortError') {
-                console.log('🚫 Skip operation cancelled');
             } else {
-                console.error('❌ Skip operation failed:', error);
+                // Swallow errors to avoid noisy logs; return failure
             }
             return false;
         } finally {

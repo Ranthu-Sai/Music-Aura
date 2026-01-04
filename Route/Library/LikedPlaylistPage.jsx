@@ -25,14 +25,30 @@ export const LikedPlaylistPage = () => {
     getAllLikedSongs()
   }, []);
   return (
-    <Animated.ScrollView scrollEventThrottle={16} ref={AnimatedRef} contentContainerStyle={{
-      paddingBottom:65,
-      backgroundColor:"rgba(0,0,0)",
-    }}>
-      <LikedPagesTopHeader AnimatedRef={AnimatedRef} url={require("../../Images/LikedPlaylist.png")} />
+    <Animated.ScrollView
+      scrollEventThrottle={16}
+      ref={AnimatedRef}
+      style={{ backgroundColor: 'transparent' }}
+      contentContainerStyle={{
+        paddingBottom: 65,
+        backgroundColor: 'transparent',
+      }}
+    >
+      <LikedPagesTopHeader
+        AnimatedRef={AnimatedRef}
+        generated={{
+          icon: 'playlist',
+          title: 'Liked Playlists',
+          colors: ['#4776E6', '#8E54E9'],
+          bgColors: ['#2C2C54', '#24243e']
+        }}
+        hideOverlay={true}
+        disableCollapse={true}
+        extendBgToTop={true}
+      />
       <LikedDetails name={"Liked Playlists"} dontShowPlayButton={true}/>
       <PaddingConatiner>
-        <View style={{backgroundColor:theme.colors.background, flexDirection:'row', alignItems:"center", justifyContent:"space-between", flexWrap:"wrap"}}>
+        <View style={{backgroundColor:'transparent', flexDirection:'row', alignItems:"center", justifyContent:"space-between", flexWrap:"wrap"}}>
           {LikedPlaylist.map((e,i)=>{
             if (e){
               return <EachPlaylistCard name={e.name} image={e.image} id={e.id} follower={e.follower} MainContainerStyle={{

@@ -19,7 +19,7 @@ async function GetSearchHistory() {
 async function AddSearchHistory(query) {
   try {
     if (!query || query.trim() === "") {
-      return;
+      return [];
     }
 
     const history = await GetSearchHistory();
@@ -36,6 +36,7 @@ async function AddSearchHistory(query) {
     return trimmedHistory;
   } catch (e) {
     console.error("Error adding search history:", e);
+    return [];
   }
 }
 

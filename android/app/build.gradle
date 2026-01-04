@@ -107,6 +107,10 @@ android {
         versionName "2.0.0"
         multiDexEnabled true
         resConfigs "en"
+        // Limit ABIs for a smaller universal APK (arm devices)
+        ndk {
+            abiFilters "armeabi-v7a", "arm64-v8a"
+        }
     }
     // Exclude native InnerTube original files (they reference unavailable libs)
     sourceSets {
@@ -156,6 +160,10 @@ android {
             minifyEnabled enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
             shrinkResources enableProguardInReleaseBuilds
+            // Strip native debug symbols to reduce APK size
+            ndk {
+                debugSymbolLevel 'none'
+            }
         }
     }
 
@@ -176,7 +184,17 @@ android {
         }
         resources {
             pickFirsts += ['**/libjsc.so', '**/libc++_shared.so', '**/libhermes.so', '**/libhermes-executor-debug.so', '**/libhermes-executor-release.so']
-            excludes += []
+            // Exclude common metadata, notices and licenses to reduce size
+            excludes += [
+                'META-INF/AL2.0',
+                'META-INF/LGPL2.1',
+                'META-INF/LICENSE',
+                'META-INF/LICENSE.*',
+                'META-INF/NOTICE',
+                'META-INF/NOTICE.*',
+                'META-INF/*.kotlin_module',
+                'META-INF/*.version'
+            ]
         }
     }
 }
@@ -185,7 +203,8 @@ dependencies {
     // The version of react-native is set by the React Native Gradle Plugin
     implementation fileTree(dir: "libs", include: ["*.jar"])
     implementation("com.facebook.react:react-android")
-    implementation("com.facebook.react:flipper-integration")
+    // Only include Flipper in debug builds; exclude from release to save size
+    debugImplementation("com.facebook.react:flipper-integration")
     implementation ('com.facebook.fresco:fresco:2.0.0')
     implementation ('com.facebook.fresco:animated-gif:2.0.0')
     

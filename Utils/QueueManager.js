@@ -303,7 +303,9 @@ class QueueManager {
 
         // Set up track change listener
         if (!this.trackChangeSubscription) {
-            console.log('📡 Starting continuous queue monitor');
+            const LOG_VERBOSE = false;
+            const debugLog = (...args) => { if (LOG_VERBOSE) { console.log(...args); } };
+            debugLog('📡 Starting continuous queue monitor');
             this.trackChangeSubscription = TrackPlayer.addEventListener(
                 'playback-active-track-changed',
                 this._onTrackChange.bind(this)
@@ -316,7 +318,9 @@ class QueueManager {
      */
     stopContinuousQueueMonitor() {
         if (this.trackChangeSubscription) {
-            console.log('🛑 Stopping continuous queue monitor');
+            const LOG_VERBOSE = false;
+            const debugLog = (...args) => { if (LOG_VERBOSE) { console.log(...args); } };
+            debugLog('🛑 Stopping continuous queue monitor');
             this.trackChangeSubscription.remove();
             this.trackChangeSubscription = null;
         }
@@ -339,12 +343,14 @@ class QueueManager {
 
             const songsRemaining = queue.length - currentIndex - 1;
 
-            console.log(`📊 Queue status: ${songsRemaining} songs remaining after current`);
+            const LOG_VERBOSE = false;
+            const debugLog = (...args) => { if (LOG_VERBOSE) { console.log(...args); } };
+            debugLog(`📊 Queue status: ${songsRemaining} songs remaining after current`);
 
             // If less than threshold songs remaining, fetch more
             if (songsRemaining <= this.fetchThreshold) {
                 this.isFetchingMore = true;
-                console.log(`🔄 Near end of queue! Fetching more recommendations...`);
+                debugLog(`🔄 Near end of queue! Fetching more recommendations...`);
 
                 // Get the last song in queue to base recommendations on
                 const lastSong = queue[queue.length - 1];
@@ -367,9 +373,9 @@ class QueueManager {
 
                         if (newSongs.length > 0) {
                             await AddSongsToQueue(newSongs);
-                            console.log(`✅ Added ${newSongs.length} more songs to extend queue!`);
+                            debugLog(`✅ Added ${newSongs.length} more songs to extend queue!`);
                         } else {
-                            console.log('⚠️ No new songs to add (all duplicates)');
+                            debugLog('⚠️ No new songs to add (all duplicates)');
                         }
                     }
                 } catch (error) {
@@ -389,7 +395,9 @@ class QueueManager {
      */
     clearCache() {
         this.streamCache.clear();
-        console.log('🗑️ Stream cache cleared');
+        const LOG_VERBOSE = false;
+        const debugLog = (...args) => { if (LOG_VERBOSE) { console.log(...args); } };
+        debugLog('🗑️ Stream cache cleared');
     }
 }
 

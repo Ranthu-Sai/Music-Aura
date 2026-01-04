@@ -13,6 +13,10 @@ async function GetLikedSongs(){
     }
   } catch (e) {
     // error reading value
+    return {
+      songs:{},
+      count:0,
+    }
   }
 }
 
@@ -27,8 +31,10 @@ async function SetLikedSongs(title,artist,image,id,url,duration,language){
   try {
     const jsonValue = JSON.stringify(value);
     await AsyncStorage.setItem('LikedSongs', jsonValue);
+    return true;
   } catch (e) {
     // Error saving liked song
+    return false;
   }
 }
 async function DeleteALikedSong(id){
@@ -40,8 +46,10 @@ async function DeleteALikedSong(id){
   try {
     const jsonValue = JSON.stringify(value);
     await AsyncStorage.setItem('LikedSongs', jsonValue);
+    return true;
   } catch (e) {
     // Error deleting liked song
+    return false;
   }
 }
 export {GetLikedSongs, SetLikedSongs, DeleteALikedSong}

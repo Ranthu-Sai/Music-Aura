@@ -11,13 +11,17 @@ import TrackPlayer, { Event } from "react-native-track-player";
 import { PlaybackService } from "./service";
 import { CacheManager } from './Utils/NavigationCacheManager';
 import smartPrefetchManager from './Utils/SmartPrefetchManager';
-import { hideLogs } from './Utils/LogControl';
+import { hideLogs, showLogs } from './Utils/LogControl';
 import { PlayNextSong, PlayPreviousSong } from './MusicPlayerFunctions';
 import { PermissionsAndroid, Platform } from 'react-native';
 import DeviceInfo from 'react-native-device-info';
 
-// Hide logs immediately
-hideLogs();
+// Logging: keep logs visible in development, hide only in production
+if (__DEV__) {
+  showLogs();
+} else {
+  hideLogs();
+}
 
 // Request notification permission for Android 13+
 if (Platform.OS === 'android') {
@@ -27,7 +31,8 @@ if (Platform.OS === 'android') {
   }
 }
 
-// Fallback for console logging in production
+// Optional extra hard-mute in production (already handled by hideLogs)
+// Keeping for parity but guarded to production only
 if (!__DEV__) {
   const NOOP = () => { };
   console.log = NOOP;
@@ -45,7 +50,6 @@ try {
   if (smartPrefetchManager && smartPrefetchManager.clearCache) {
     smartPrefetchManager.clearCache();
   }
-  console.log('✅ Stream cache cleared on app startup');
 } catch (e) {
   console.warn('Failed to clear stream cache:', e);
 }
@@ -91,8 +95,8 @@ try {
   }
 } catch (e) { }
 
-// Register the playback service
-TrackPlayer.registerPlaybackService(() => PlaybackService);
+// Register the playback service using require to ensure proper headless loading
+TrackPlayer.registerPlaybackService(() => require('./service').PlaybackService);
 
 // Register the main application component
 AppRegistry.registerComponent(appName, () => App);

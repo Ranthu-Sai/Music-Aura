@@ -9,7 +9,7 @@ export default function FormatTitleAndArtist(data, artistName = "") {
     .replaceAll("&quot;", '"')
     .replaceAll("&apos;", "'")
     .replaceAll("&#039;", "'")
-    .replaceAll("&amp;", "&")
+    .replaceAll("&amp;", "and")
     .replaceAll("&trade;", "™")
     .replaceAll("&rsquo;", "'")
     .replaceAll("&lsquo;", "'")
@@ -50,7 +50,9 @@ export default function FormatTitleAndArtist(data, artistName = "") {
 
   // Remove known garbage words/suffixes that aren't in brackets
   const standaloneGarbage = [
-    /\s+from\s+.*/gi, // Removes "From [Album/Movie]"
+    /\s+from\s+.*/gi, // Removes "From [Album/Movie]" or " from [Album]"
+    /\(from\s+.*\)/gi, // Removes "(From Album)" 
+    /\[from\s+.*\]/gi, // Removes "[From Album]"
     /\s+feat\s+.*/gi,
     /\s+ft\s+.*/gi,
     /\s+with\s+.*/gi,

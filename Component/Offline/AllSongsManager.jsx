@@ -183,7 +183,7 @@ const useAllSongsManager = ({
     } finally {
       setIsLoading(false);
     }
-  }, [deviceTracks, isScanning, scanLibrary, checkLocalPermissions]);
+  }, [deviceTracks, isScanning, scanLibrary, checkLocalPermissions, localPermission]);
 
   // Combine downloaded and local songs
   const combineAllSongs = useCallback(() => {

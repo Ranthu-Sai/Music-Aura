@@ -142,14 +142,33 @@ class AutoRecommendations {
                 return;
             }
 
+            // DEDUPE: Skip songs already in queue or currently playing
+            let toAdd = validatedSongs;
+            try {
+                const existingQueue = await TrackPlayer.getQueue();
+                const existingIds = new Set((existingQueue || []).map(t => t?.id).filter(Boolean));
+                toAdd = validatedSongs.filter(s => s?.id && !existingIds.has(s.id) && s.id !== this.currentVideoId);
+            } catch (e) {
+                // If queue read fails, fall back to adding validatedSongs
+                toAdd = validatedSongs;
+            }
+
+            if (toAdd.length === 0) {
+                // Nothing new to add
+                this.isFetching = false;
+                return;
+            }
+
             // Append to queue with error handling
             try {
-                await TrackPlayer.add(validatedSongs);
-                console.log(`✅ AutoRecommendations: Added ${validatedSongs.length} songs to queue`);
+                await TrackPlayer.add(toAdd);
+                const LOG_VERBOSE = false;
+                const debugLog = (...args) => { if (LOG_VERBOSE) { console.log(...args); } };
+                debugLog(`✅ AutoRecommendations: Added ${toAdd.length} songs to queue`);
             } catch (addError) {
                 console.error('❌ AutoRecommendations: Failed to add songs:', {
                     error: addError.message,
-                    count: validatedSongs.length,
+                    count: toAdd.length,
                     stack: addError.stack,
                 });
                 this.isFetching = false;
@@ -157,8 +176,8 @@ class AutoRecommendations {
             }
 
             // Update currentVideoId to last song for next fetch
-            if (formattedSongs.length > 0) {
-                this.currentVideoId = formattedSongs[formattedSongs.length - 1].id;
+            if (toAdd.length > 0) {
+                this.currentVideoId = toAdd[toAdd.length - 1].id;
             }
 
         } catch (error) {

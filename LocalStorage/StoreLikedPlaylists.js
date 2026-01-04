@@ -13,6 +13,10 @@ async function GetLikedPlaylist(){
     }
   } catch (e) {
     // error reading value
+    return {
+      playlist:{},
+      count:0,
+    }
   }
 }
 
@@ -27,8 +31,10 @@ async function SetLikedPlaylist(image, name, follower, id){
   try {
     const jsonValue = JSON.stringify(value);
     await AsyncStorage.setItem('LikedPlaylists', jsonValue);
+    return true;
   } catch (e) {
     // Error saving liked playlist
+    return false;
   }
 }
 
@@ -41,8 +47,10 @@ async function DeleteALikedPlaylist(id){
   try {
     const jsonValue = JSON.stringify(value);
     await AsyncStorage.setItem('LikedPlaylists', jsonValue);
+    return true;
   } catch (e) {
     // Error deleting liked playlist
+    return false;
   }
 }
 

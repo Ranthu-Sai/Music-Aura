@@ -6,7 +6,9 @@
 
 /**
  * Upgrade YouTube Music artwork URL to higher quality
- * Upgrades googleusercontent.com URLs (to w1000-h1000) and ytimg URLs (to maxresdefault)
+ * Match Orbit behavior for balanced quality/perf:
+ * - Upgrade googleusercontent.com/ggpht.com sizes to 500x500
+ * - Do NOT auto-upgrade ytimg URLs (progressive handled elsewhere)
  * @param {string} url - Original artwork URL
  * @returns {string} - Upgraded high-quality URL
  */
@@ -16,17 +18,13 @@ export function upgradeArtworkQuality(url) {
     }
 
     // Handle googleusercontent.com and ggpht.com URLs - upgrade size parameters
-    // Using 1000x1000 for high-quality display in full-screen player
-    if (url.includes('.googleusercontent.com') || url.includes('.ggpht.com')) {
-        // Replace any size parameters (w###-h###) with w1000-h1000
-        return url.replace(/[=]w\d+-h\d+[^/]*/g, '=w1000-h1000-l90-rj');
+    // Use 500x500 to reduce memory/bandwidth while keeping crisp visuals
+    if (url.includes('googleusercontent.com') || url.includes('ggpht.com')) {
+        return url.replace(/=w\d+-h\d+[^/]*/g, '=w500-h500');
     }
 
-    // For ytimg.com URLs - Use maxresdefault for high-quality full screen display
-    if (url.includes('i.ytimg.com/vi/') || url.includes('img.youtube.com/vi/')) {
-        return url.replace(/\/([^/]+)\.(jpg|webp)$/, '/maxresdefault.jpg');
-    }
-
+    // For ytimg.com URLs - DON'T upgrade automatically here
+    // Keep original; progressive upgrades are handled via upgradeYtimgQuality if needed
     return url;
 }
 
@@ -40,9 +38,9 @@ export function getArtworkFallback(url) {
         return null;
     }
 
-    // For ytimg.com, fallback to hqdefault which is the most reliable
-    if (url.includes('vi/')) {
-        return url.replace(/\/([^/]+)\.(jpg|webp)$/, '/hqdefault.jpg');
+    // For ytimg.com maxresdefault, fallback to hqdefault which is reliable
+    if (url.includes('i.ytimg.com/vi/') && url.includes('maxresdefault.jpg')) {
+        return url.replace('maxresdefault.jpg', 'hqdefault.jpg');
     }
 
     return null;
@@ -58,12 +56,28 @@ export function upgradeYtimgQuality(url) {
         return url;
     }
 
-    // Support both i.ytimg.com and img.youtube.com
-    if (url.includes('vi/')) {
-        // Replace whatever filename (0.jpg, default.webp, etc.) with hqdefault.jpg
-        return url.replace(/\/([^/]+)\.(jpg|webp)$/, '/hqdefault.jpg');
+    // Only upgrade ytimg.com URLs progressively when invoked
+    if (url.includes('i.ytimg.com/vi/')) {
+        return url.replace(/(sd|mq|hq)default\.jpg/, 'maxresdefault.jpg');
     }
 
+    return url;
+}
+
+/**
+ * Return a background-friendly artwork URL for blurred backdrops.
+ * Uses lower-res sources to improve performance and blur aesthetics.
+ * - googleusercontent/ggpht: w300-h300
+ * - ytimg: hqdefault.jpg
+ */
+export function getBackgroundFriendlyArtwork(url) {
+    if (!url || typeof url !== 'string') return url;
+    if (url.includes('googleusercontent.com') || url.includes('ggpht.com')) {
+        return url.replace(/=w\d+-h\d+[^/]*/g, '=w300-h300');
+    }
+    if (url.includes('i.ytimg.com/vi/')) {
+        return url.replace(/(maxresdefault|sddefault|mqdefault|hqdefault)\.jpg/, 'hqdefault.jpg');
+    }
     return url;
 }
 
@@ -71,4 +85,5 @@ export default {
     upgradeArtworkQuality,
     getArtworkFallback,
     upgradeYtimgQuality,
+    getBackgroundFriendlyArtwork,
 };

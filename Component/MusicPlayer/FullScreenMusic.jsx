@@ -1,4 +1,4 @@
-import { Dimensions, ImageBackground, View, TouchableOpacity, Modal, Pressable, StyleSheet, TextInput, BackHandler } from "react-native";
+import { Dimensions, View, TouchableOpacity, Modal, Pressable, StyleSheet, TextInput, BackHandler } from "react-native";
 import FastImage from "react-native-fast-image";
 import React, { useContext, useState, useEffect, useRef, memo, useCallback } from "react";
 import LinearGradient from "react-native-linear-gradient";
@@ -18,7 +18,7 @@ import { ProgressBar } from "./ProgressBar";
 import { GetLyricsButton } from "./GetLyricsButton";
 import QueueBottomSheet from "./QueueBottomSheet";
 import { getYTLyricsSongData, getSongData } from "../../Api/Songs";
-import YTArtworkUtils from "../../Utils/YTMusicArtworkUtils";
+import YTArtworkUtils, { upgradeArtworkQuality } from "../../Utils/YTMusicArtworkUtils";
 import { GetLanguageValue } from "../../LocalStorage/Languages";
 import { ShowLyrics } from "./ShowLyrics";
 import Context, { ActionsContext } from "../../Context/Context";
@@ -28,40 +28,61 @@ import { PlayNextSong, PlayPreviousSong, AddOneSongToPlaylist } from "../../Musi
 import AntDesign from "react-native-vector-icons/AntDesign";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 import { useNavigation } from "@react-navigation/native";
-import { DeviceEventEmitter, Share, ToastAndroid } from "react-native";
+import { DeviceEventEmitter, ToastAndroid } from "react-native";
 import { MarqueeText } from "../Global/MarqueeText";
 import FormatTitleAndArtist from "../../Utils/FormatTitleAndArtist";
 import { DownloadSong } from "../../Utils/DownloadHelper";
 import { StorageManager } from "../../Utils/StorageManager";
+import SongInfoModal from "./SongInfoModal";
+import { IconButton } from "react-native-paper";
+// No-blur mode: we avoid blurred image backgrounds for performance
 
-// Isolated Sleep Timer Display component to prevent FullScreenMusic re-renders every second
-const SleepTimerBadge = memo(({ sleepTime, setSleepTime, sleepTimerRef }) => {
-  const isTimerActive = sleepTime > 0;
+// Isolated Sleep Timer Display that avoids parent per-second re-renders
+const SleepTimerBadge = memo(({ sleepTime, sleepTimerRef, onTimerEnd }) => {
+  const [remaining, setRemaining] = useState(sleepTime || 0);
+  const endAtRef = useRef(0);
 
   useEffect(() => {
-    if (isTimerActive && !sleepTimerRef.current) {
-      sleepTimerRef.current = setInterval(async () => {
-        setSleepTime((prev) => {
-          if (prev <= 1) {
-            if (sleepTimerRef.current) clearInterval(sleepTimerRef.current);
-            sleepTimerRef.current = null;
-            TrackPlayer.pause();
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    }
-    return () => {
-      // Don't clear here, let it run until finished or cancelled
-    };
-  }, [isTimerActive, setSleepTime, sleepTimerRef]);
+    if (sleepTime > 0) {
+      const now = Date.now();
+      endAtRef.current = now + sleepTime * 1000;
+      setRemaining(Math.max(0, Math.round((endAtRef.current - now) / 1000)));
 
-  if (sleepTime <= 0) return null;
+      if (sleepTimerRef.current) {
+        clearInterval(sleepTimerRef.current);
+        sleepTimerRef.current = null;
+      }
+      sleepTimerRef.current = setInterval(async () => {
+        const nowTs = Date.now();
+        const secsLeft = Math.max(0, Math.round((endAtRef.current - nowTs) / 1000));
+        setRemaining(secsLeft);
+        if (secsLeft <= 0) {
+          if (sleepTimerRef.current) {
+            clearInterval(sleepTimerRef.current);
+            sleepTimerRef.current = null;
+          }
+          try { await TrackPlayer.pause(); } catch (_) {}
+          if (onTimerEnd) onTimerEnd();
+        }
+      }, 1000);
+    } else {
+      setRemaining(0);
+      if (sleepTimerRef.current) {
+        clearInterval(sleepTimerRef.current);
+        sleepTimerRef.current = null;
+      }
+    }
+
+    return () => {
+      // Keep timer running unless canceled/ended explicitly to avoid flicker when navigating
+    };
+  }, [sleepTime, sleepTimerRef, onTimerEnd]);
+
+  if (!remaining || remaining <= 0) return null;
 
   return (
     <SmallText
-      text={`Ends in ${Math.floor(sleepTime / 60)}:${(sleepTime % 60).toString().padStart(2, '0')}`}
+      text={`Ends in ${Math.floor(remaining / 60)}:${(remaining % 60).toString().padStart(2, '0')}`}
       style={{ color: '#1DB954', marginTop: -5, fontWeight: 'bold' }}
     />
   );
@@ -88,8 +109,12 @@ const PlaybackRateButton = memo(({ rate, setRate }) => {
 const ArtworkSection = memo(({ artwork, width, pan }) => {
   return (
     <GestureDetector gesture={pan}>
-      <View style={{ width: width * 0.85, height: width * 0.85, borderRadius: 30, elevation: 20, shadowOffset: { height: 10, width: 0 }, shadowOpacity: 0.5, shadowRadius: 15, overflow: "hidden" }}>
-        <FastImage source={{ uri: artwork }} style={{ width: "100%", height: "100%" }} resizeMode="cover" />
+      <View style={{ width: width * 0.85, height: width * 0.85, borderRadius: 30, elevation: 6, overflow: "hidden" }}>
+        <FastImage
+          source={{ uri: artwork, priority: FastImage.priority.high, cache: FastImage.cacheControl.immutable }}
+          style={{ width: "100%", height: "100%", renderToHardwareTextureAndroid: true }}
+          resizeMode={FastImage.resizeMode.cover}
+        />
       </View>
     </GestureDetector>
   );
@@ -121,21 +146,24 @@ const ControlsSection = memo(({ onOpenRepeatOptions }) => {
   );
 });
 
-export const FullScreenMusic = ({ color, Index, setIndex }) => {
-  const pan = Gesture.Pan();
-  pan.onFinalize((e) => {
-    if (e.translationX > 50) {
-      PlayPreviousSong();
-    } else if (e.translationX < -50) {
-      PlayNextSong();
-    } else if (e.translationY > 80) {
-      setIndex(0);
-    }
-  });
+export const FullScreenMusic = memo(({ color, Index, setIndex }) => {
+  const pan = React.useMemo(() => {
+    const g = Gesture.Pan();
+    g.onFinalize((e) => {
+      if (e.translationX > 50) {
+        PlayPreviousSong();
+      } else if (e.translationX < -50) {
+        PlayNextSong();
+      } else if (e.translationY > 80) {
+        setIndex(0);
+      }
+    });
+    return g;
+  }, [setIndex]);
 
   const { width, height } = Dimensions.get("window");
   const currentPlaying = useActiveTrack();
-  const { lyricsCacheRef } = useContext(ActionsContext);
+  const { lyricsCacheRef, lyricsSettings } = useContext(ActionsContext);
   const navigation = useNavigation();
 
   const [ShowDailog, setShowDailog] = useState(false);
@@ -153,20 +181,13 @@ export const FullScreenMusic = ({ color, Index, setIndex }) => {
   const [showCustomInput, setShowCustomInput] = useState(false);
   const [customMinutes, setCustomMinutes] = useState(30);
   const [endOfTrack, setEndOfTrack] = useState(false);
+  const [isInfoModalVisible, setIsInfoModalVisible] = useState(false);
 
-  const handleShare = async () => {
-    try {
-      if (!currentPlaying) return;
-      const shareUrl = `https://music.youtube.com/watch?v=${currentPlaying.id}`;
-      await Share.share({
-        message: `Listen to "${currentPlaying.title}" by ${currentPlaying.artist} on Music Aura!\n${shareUrl}`,
-        url: shareUrl,
-        title: currentPlaying.title,
-      });
-    } catch (error) {
-      console.error('Error sharing:', error);
+  const handleInfoModalOpen = useCallback(() => {
+    if (currentPlaying?.id) {
+      setIsInfoModalVisible(true);
     }
-  };
+  }, [currentPlaying?.id]);
 
   const handleDownload = async () => {
     setShowMenu(false);
@@ -260,7 +281,8 @@ export const FullScreenMusic = ({ color, Index, setIndex }) => {
   // Lyrics cleanup logic on song change
   useEffect(() => {
     if (currentPlaying?.id) {
-      const cacheKey = currentPlaying?.id || `${currentPlaying?.artist}-${currentPlaying?.title}`;
+      const sourceSuffix = lyricsSettings?.source || 'All';
+      const cacheKey = currentPlaying?.id ? `${currentPlaying.id}-${sourceSuffix}` : `${currentPlaying?.artist}-${currentPlaying?.title}-${sourceSuffix}`;
       const hasLyrics = lyricsCacheRef?.current?.[cacheKey];
       if (!hasLyrics) {
         setLyric({});
@@ -270,7 +292,7 @@ export const FullScreenMusic = ({ color, Index, setIndex }) => {
         setLyric(hasLyrics);
       }
     }
-  }, [currentPlaying?.id, currentPlaying?.artist, currentPlaying?.title, lyricsCacheRef]);
+  }, [currentPlaying?.id, currentPlaying?.artist, currentPlaying?.title, lyricsCacheRef, lyricsSettings?.source]);
 
   // Reset loading state when lyrics dialog is closed
   useEffect(() => {
@@ -356,7 +378,8 @@ export const FullScreenMusic = ({ color, Index, setIndex }) => {
 
   async function GetLyrics() {
     if (!currentPlaying?.id) return;
-    const cacheKey = currentPlaying?.id || `${currentPlaying?.artist}-${currentPlaying?.title}`;
+    const sourceSuffix = lyricsSettings?.source || 'All';
+    const cacheKey = currentPlaying?.id ? `${currentPlaying.id}-${sourceSuffix}` : `${currentPlaying?.artist}-${currentPlaying?.title}-${sourceSuffix}`;
     const cached = lyricsCacheRef?.current?.[cacheKey];
 
     if (cached) {
@@ -373,7 +396,7 @@ export const FullScreenMusic = ({ color, Index, setIndex }) => {
       const languageToUse = preferredLanguage || currentPlaying?.language || 'en';
       const isYouTubeMusic = /^[a-zA-Z0-9_-]{11}$/.test(currentPlaying.id);
       
-      const Lyrics = await getYTLyricsSongData(currentPlaying.artist, currentPlaying.title, languageToUse, isYouTubeMusic);
+      const Lyrics = await getYTLyricsSongData(currentPlaying.artist, currentPlaying.title, languageToUse, isYouTubeMusic, lyricsSettings.source);
       
       if (Lyrics.success) {
         if (lyricsCacheRef?.current) lyricsCacheRef.current[cacheKey] = Lyrics.data;
@@ -393,19 +416,32 @@ export const FullScreenMusic = ({ color, Index, setIndex }) => {
 
   const fallbackArtwork = "https://htmlcolorcodes.com/assets/images/colors/gray-color-solid-background-1920x1080.png";
 
-  const resolveArtwork = useCallback(() => {
+  const resolvedArtwork = React.useMemo(() => {
     if (!currentPlaying?.artwork) return fallbackArtwork;
     const raw = currentPlaying.artwork;
     if (typeof raw === 'string' && raw.trim() === "") return fallbackArtwork;
-    return YTArtworkUtils.upgradeArtworkQuality(raw);
+    return upgradeArtworkQuality(raw);
   }, [currentPlaying?.artwork]);
+
+  // No-blur background: removed background artwork processing
 
   return (
     <View style={{ backgroundColor: "black", flex: 1 }}>
-      <ShowLyrics Loading={Loading} Lyric={Lyric} setShowDailog={setShowDailog} ShowDailog={ShowDailog} currentSong={currentPlaying} />
+      <ShowLyrics 
+        Loading={Loading} 
+        Lyric={Lyric} 
+        setShowDailog={setShowDailog} 
+        ShowDailog={ShowDailog} 
+        currentSong={currentPlaying}
+        setLyric={setLyric}
+        setLoading={setLoading}
+      />
 
-      <ImageBackground blurRadius={30} source={{ uri: resolveArtwork() }} style={{ flex: 1 }}>
-        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)" }}>
+      {/* No-blur: simple solid background; gradient overlay below handles styling */}
+      <View style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, backgroundColor: 'black' }} />
+
+      <View style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 }}>
+        <View style={{ flex: 1 }}>
           <LinearGradient colors={['rgba(0,0,0,0.2)', 'rgba(0,0,0,0.95)']} style={{ flex: 1, alignItems: "center" }}>
 
             {/* Header */}
@@ -432,10 +468,10 @@ export const FullScreenMusic = ({ color, Index, setIndex }) => {
                   </View>
                   <SmallText text="Pause playback automatically after a set time" style={{ opacity: 0.6, marginBottom: 14, textAlign: 'center' }} />
 
-                  {/* Remaining badge if running */}
+                  {/* Remaining badge if running (self-updating) */}
                   {sleepTime > 0 && (
                     <View style={{ backgroundColor: 'rgba(29,185,84,0.12)', borderWidth: 1, borderColor: 'rgba(29,185,84,0.3)', paddingVertical: 10, paddingHorizontal: 14, borderRadius: 12, alignSelf: 'flex-start', marginBottom: 14 }}>
-                      <PlainText text={`Ends in ${Math.floor(sleepTime / 60)}:${(sleepTime % 60).toString().padStart(2, '0')}`} style={{ color: '#1DB954', fontWeight: 'bold' }} />
+                      <SleepTimerBadge sleepTime={sleepTime} sleepTimerRef={sleepTimerRef} onTimerEnd={() => setSleepTime(0)} />
                     </View>
                   )}
 
@@ -535,23 +571,19 @@ export const FullScreenMusic = ({ color, Index, setIndex }) => {
                     <MaterialCommunityIcons name="download" size={24} color="white" />
                     <PlainText text="Download Song" />
                   </TouchableOpacity>
-                  <TouchableOpacity onPress={() => { setShowMenu(false); handleShare(); }} style={styles.menuItem}>
-                    <MaterialCommunityIcons name="share-variant" size={24} color="white" />
-                    <PlainText text="Share Song" />
-                  </TouchableOpacity>
                 </View>
               </Pressable>
             </Modal>
 
             <Spacer height={20} />
-            <ArtworkSection artwork={resolveArtwork()} width={width} pan={pan} />
+            <ArtworkSection artwork={resolvedArtwork} width={width} pan={pan} />
 
             <Spacer height={30} />
             <InfoSection title={currentPlaying?.title} artist={currentPlaying?.artist} />
 
             <Spacer height={10} />
             <ProgressBar />
-            <SleepTimerBadge sleepTime={sleepTime} setSleepTime={setSleepTime} sleepTimerRef={sleepTimerRef} />
+            <SleepTimerBadge sleepTime={sleepTime} sleepTimerRef={sleepTimerRef} onTimerEnd={() => setSleepTime(0)} />
 
             <Spacer height={25} />
             <ControlsSection onOpenRepeatOptions={() => setShowRepeatModal(true)} />
@@ -576,8 +608,8 @@ export const FullScreenMusic = ({ color, Index, setIndex }) => {
 
               <PlaybackRateButton rate={playbackRate} setRate={setPlaybackRate} />
 
-              <TouchableOpacity onPress={handleShare}>
-                <MaterialCommunityIcons name="share-variant-outline" size={24} color="white" />
+              <TouchableOpacity onPress={handleInfoModalOpen}>
+                <MaterialCommunityIcons name="information-outline" size={24} color="white" />
               </TouchableOpacity>
 
               <TouchableOpacity onPress={() => queueBottomSheetRef.current?.open()}>
@@ -587,12 +619,17 @@ export const FullScreenMusic = ({ color, Index, setIndex }) => {
 
           </LinearGradient>
         </View>
-      </ImageBackground>
+      </View>
 
       <QueueBottomSheet ref={queueBottomSheetRef} />
+      <SongInfoModal
+        visible={isInfoModalVisible}
+        onDismiss={() => setIsInfoModalVisible(false)}
+        track={currentPlaying}
+      />
     </View>
   );
-};
+});
 
 const styles = StyleSheet.create({
   menuItem: {

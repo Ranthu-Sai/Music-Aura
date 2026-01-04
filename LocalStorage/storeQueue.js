@@ -10,6 +10,7 @@ async function GetQueueSongs(){
     }
   } catch (e) {
     // error reading value
+    return []
   }
 }
 
@@ -17,8 +18,10 @@ async function SetQueueSongs(queue){
   try {
     const jsonValue = JSON.stringify(queue);
     await AsyncStorage.setItem('QueueSongs', jsonValue);
+    return true;
   } catch (e) {
     // Error saving queue
+    return false;
   }
 }
 export {GetQueueSongs, SetQueueSongs}

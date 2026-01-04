@@ -378,7 +378,6 @@ export const useDeviceLibrary = (options = {}) => {
     hasPermission, 
     requestPermissions, 
     scanDirectory, 
-    processFilesBatch, 
     defaultOptions
   ]);
 
@@ -514,8 +513,7 @@ export const useDeviceLibrary = (options = {}) => {
       unsubscribe();
       stopScan();
     };
-    // Specifically NOT including scanLibrary in dependencies to avoid cycles and aborts
-  }, [checkPermissions, defaultOptions.autoScan]);
+  }, [checkPermissions, defaultOptions.autoScan, scanLibrary, stopScan]);
 
   console.log('useDeviceLibrary: Returning hook result');
 

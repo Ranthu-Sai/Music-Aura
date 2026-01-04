@@ -913,7 +913,9 @@ class InnerTubeClient {
             const panel = data?.contents?.singleColumnMusicWatchNextResultsRenderer?.tabbedRenderer?.watchNextTabbedResultsRenderer?.tabs?.[0]?.tabRenderer?.content?.musicQueueRenderer?.content?.playlistPanelRenderer;
 
             if (!panel) {
-                console.log('InnerTube parseNext: No panel found');
+                const LOG_VERBOSE = false;
+                const debugLog = (...args) => { if (LOG_VERBOSE) { console.log(...args); } };
+                debugLog('InnerTube parseNext: No panel found');
                 return { items: [], continuation: null, automixPlaylistId: null };
             }
 
@@ -927,7 +929,9 @@ class InnerTubeClient {
                     const watchEndpoint = item.automixPreviewVideoRenderer?.content?.automixPlaylistVideoRenderer?.navigationEndpoint?.watchPlaylistEndpoint;
                     if (watchEndpoint?.playlistId) {
                         automixPlaylistId = watchEndpoint.playlistId;
-                        console.log(`🎵 Found automix playlist ID: ${automixPlaylistId}`);
+                        const LOG_VERBOSE = false;
+                        const debugLog = (...args) => { if (LOG_VERBOSE) { console.log(...args); } };
+                        debugLog(`🎵 Found automix playlist ID: ${automixPlaylistId}`);
                     }
                     continue;
                 }
@@ -941,7 +945,9 @@ class InnerTubeClient {
             // Get continuation token for loading more recommendations
             const continuation = panel.continuations?.[0]?.nextContinuationData?.continuation || null;
 
-            console.log(`InnerTube parseNext: Found ${items.length} recommendations, automix: ${automixPlaylistId ? 'yes' : 'no'}, continuation: ${continuation ? 'yes' : 'no'}`);
+            const LOG_VERBOSE = false;
+            const debugLog = (...args) => { if (LOG_VERBOSE) { console.log(...args); } };
+            debugLog(`InnerTube parseNext: Found ${items.length} recommendations, automix: ${automixPlaylistId ? 'yes' : 'no'}, continuation: ${continuation ? 'yes' : 'no'}`);
 
             return {
                 items,

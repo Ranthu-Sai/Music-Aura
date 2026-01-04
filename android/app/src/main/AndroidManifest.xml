@@ -40,6 +40,7 @@
         android:name="com.doublesymmetry.trackplayer.service.MusicService"
         android:enabled="true"
         android:exported="true"
+        android:stopWithTask="false"
         android:foregroundServiceType="mediaPlayback"
         tools:replace="android:exported">
         <intent-filter>

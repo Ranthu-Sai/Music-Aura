@@ -40,13 +40,29 @@ export const LikedSongPage = () => {
     getAllLikedSongs()
   }, []);
   return (
-    <Animated.ScrollView scrollEventThrottle={16} ref={AnimatedRef} contentContainerStyle={{
-      paddingBottom:55,
-      backgroundColor:"rgba(0,0,0)",
-    }}>
-      <LikedPagesTopHeader AnimatedRef={AnimatedRef} url={require("../../Images/LikedSong.png")} />
+    <Animated.ScrollView
+      scrollEventThrottle={16}
+      ref={AnimatedRef}
+      style={{ backgroundColor: 'transparent' }}
+      contentContainerStyle={{
+        paddingBottom: 55,
+        backgroundColor: 'transparent',
+      }}
+    >
+      <LikedPagesTopHeader
+        AnimatedRef={AnimatedRef}
+        generated={{
+          icon: 'heart',
+          title: 'Liked Songs',
+          colors: ['#FF416C', '#FF4B2B'],
+          bgColors: ['#2C2C54', '#24243e']
+        }}
+        hideOverlay={true}
+        disableCollapse={true}
+        extendBgToTop={true}
+      />
       <LikedDetails name={"Liked Songs"} Data={LikedSongs}/>
-     <View style={{paddingHorizontal:10, backgroundColor:theme.colors.background}}>
+     <View style={{paddingHorizontal:10, backgroundColor:'transparent'}}>
        {LikedSongs.map((e,i) =>{
          return <EachSongCard width={width * 0.95} Data={LikedSongs} index={i}  url={e?.url} id={e?.id} title={e?.title} artist={e?.artist} image={e?.artwork} language={e?.language} duration={e?.duration} artistID={e?.artistID} key={i}/>
        })}

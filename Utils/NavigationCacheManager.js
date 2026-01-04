@@ -14,6 +14,8 @@
  */
 
 import { CACHE_TTL, CACHE_LIMITS, isCacheStale } from './CacheConfig';
+const LOG_VERBOSE = false;
+const debugLog = (...args) => { if (LOG_VERBOSE) { console.log(...args); } };
 
 class NavigationCacheManager {
     constructor() {
@@ -131,7 +133,7 @@ class NavigationCacheManager {
      * @returns {string|null} - Cached URL or null
      */
     getStreamUrl(videoId, source = 'ytmusic') {
-        console.log(`[CacheManager v2] Getting stream URL for ${source}:${videoId}`);
+        debugLog(`[CacheManager v2] Getting stream URL for ${source}:${videoId}`);
         const key = `${source}_${videoId}`;
         const entry = this.streamCache.get(key);
 
@@ -165,7 +167,7 @@ class NavigationCacheManager {
             return null;
         }
 
-        console.log(`[CacheManager] Stream URL cache HIT for ${source}:${videoId}`);
+        debugLog(`[CacheManager] Stream URL cache HIT for ${source}:${videoId}`);
         return url;
     }
 
@@ -211,7 +213,7 @@ class NavigationCacheManager {
             source,
         });
 
-        console.log(`[CacheManager] Stream URL cached for ${source}:${videoId} (TTL: ${ttl / 1000 / 60} minutes)`);
+        debugLog(`[CacheManager] Stream URL cached for ${source}:${videoId} (TTL: ${ttl / 1000 / 60} minutes)`);
     }
 
     /**
@@ -229,7 +231,6 @@ class NavigationCacheManager {
      */
     clearStreamCache() {
         this.streamCache.clear();
-        console.log('[CacheManager] Stream cache cleared');
     }
 
     /**
