@@ -84,12 +84,11 @@ export const Slide4 = ({ navigation }) => {
             <Animated.Text entering={FadeIn.delay(200).duration(800)} style={styles.overTitle}>
               Configuration Complete
             </Animated.Text>
-            <Animated.Text 
-              entering={FadeIn.delay(400).duration(800)} 
-              style={[styles.mainTitle, animatedTitleGlow]}
-            >
-              You're all set!
-            </Animated.Text>
+            <Animated.View entering={FadeIn.delay(400).duration(800)}>
+              <Animated.Text style={[styles.mainTitle, animatedTitleGlow]}>
+                You're all set!
+              </Animated.Text>
+            </Animated.View>
             <Animated.Text entering={FadeIn.delay(600).duration(800)} style={styles.description}>
               Dive into a personalized world of melodies.{"\n"}Your Music Aura is ready to shine.
             </Animated.Text>

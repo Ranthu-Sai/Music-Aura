@@ -20,6 +20,7 @@ import { DisplayTopGenres } from "../../Component/Home/DisplayTopGenres";
 import { useActiveTrack } from "react-native-track-player";
 import { EachArtistChip } from "../../Component/Global/EachArtistChip";
 import { getTopArtists } from "../../Api/Artists";
+import { getDevotionalPlaylists } from "../../Api/Devotional";
 
 export const Home = () => {
   const [Loading, setLoading] = useState(true);
@@ -30,6 +31,7 @@ export const Home = () => {
   const [viralHitsId, setViralHitsId] = useState(null);
   const [trendingLangId, setTrendingLangId] = useState(null);
   const [topArtists, setTopArtists] = useState([]);
+  const [devotionalAlbums, setDevotionalAlbums] = useState([]);
   const isFocused = useIsFocused();
   const refreshTimerRef = useRef(null);
   const activeTrack = useActiveTrack();
@@ -87,6 +89,14 @@ export const Home = () => {
     return cols;
   }, [topArtists]);
 
+  const devotionalColumns = useMemo(() => {
+    const cols = [];
+    for (let i = 0; i < devotionalAlbums.length; i = i + 2) {
+      cols.push(devotionalAlbums.slice(i, i + 2));
+    }
+    return cols;
+  }, [devotionalAlbums]);
+
   async function fetchHomePageData(silent = false) {
     try {
       if (!silent) {
@@ -106,7 +116,7 @@ export const Home = () => {
           const langList = Languages.split(',').map(l => l.trim().toLowerCase()).filter(Boolean);
           // Fetch songs for each artist to check language match
           const artistsWithLanguage = await Promise.all(
-            artists.slice(0, 15).map(async (artist) => {
+            artists.slice(0, 20).map(async (artist) => {
               try {
                 const { getArtistTopSongs } = require('../../Api/Artists');
                 const artistData = await getArtistTopSongs(artist.id, 3);
@@ -124,12 +134,23 @@ export const Home = () => {
             })
           );
           const filteredArtists = artistsWithLanguage.filter(a => a !== null);
-          setTopArtists(filteredArtists.slice(0, 12));
+          setTopArtists(filteredArtists.slice(0, 15));
         } else {
-          setTopArtists((artists || []).slice(0, 12));
+          setTopArtists((artists || []).slice(0, 15));
         }
       } catch (err) {
         console.warn("Home: Failed to fetch top artists", err);
+      }
+
+      // Fetch Devotional Playlists based on language
+      try {
+        const devLanguage = Languages && Languages !== 'All' && Languages !== '' 
+          ? Languages.split(',')[0].trim().toLowerCase() 
+          : 'telugu';
+        const devotionalData = await getDevotionalPlaylists(devLanguage, 16);
+        setDevotionalAlbums(devotionalData);
+      } catch (err) {
+        console.warn("Home: Failed to fetch devotional playlists", err);
       }
 
       // Fetch Viral Hits and Trending ID for replacement
@@ -206,7 +227,7 @@ export const Home = () => {
           if (Languages && Languages !== 'All' && Languages !== '') {
             const langList = Languages.split(',').map(l => l.trim().toLowerCase()).filter(Boolean);
             const artistsWithLanguage = await Promise.all(
-              artists.slice(0, 15).map(async (artist) => {
+              artists.slice(0, 20).map(async (artist) => {
                 try {
                   const { getArtistTopSongs } = require('../../Api/Artists');
                   const artistData = await getArtistTopSongs(artist.id, 3);
@@ -223,9 +244,9 @@ export const Home = () => {
               })
             );
             const filteredArtists = artistsWithLanguage.filter(a => a !== null);
-            setTopArtists(filteredArtists.slice(0, 12));
+            setTopArtists(filteredArtists.slice(0, 15));
           } else {
-            setTopArtists((artists || []).slice(0, 12));
+            setTopArtists((artists || []).slice(0, 15));
           }
         } catch (err) {
           console.warn("Failed to auto-refresh artists", err);
@@ -282,7 +303,7 @@ export const Home = () => {
             <RouteHeading showSearch={false} showSettings={true} />
             <DisplayTopGenres />
             <PaddingConatiner>
-              <Heading text={"Top Songs"} />
+              <Heading text={"Latest Top Songs"} />
             </PaddingConatiner>
             <FlatList
               horizontal
@@ -452,6 +473,36 @@ export const Home = () => {
             <PaddingConatiner>
               <HorizontalScrollSongs id={trendingLangId} />
             </PaddingConatiner>
+            
+            {/* Devotional Playlists Section */}
+            {devotionalAlbums.length > 0 && (
+              <>
+                <PaddingConatiner>
+                  <Heading text={"Trending Devotional Playlists"} />
+                </PaddingConatiner>
+                <FlatList
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  data={devotionalColumns}
+                  keyExtractor={(item, index) => `devotional-col-${index}`}
+                  contentContainerStyle={{ paddingHorizontal: 10 }}
+                  renderItem={({ item }) => (
+                    <View style={{ marginRight: 12 }}>
+                      {(item || []).map((playlist, idx) => (
+                        <View key={playlist?.id ?? `devotional-playlist-${idx}`} style={{ marginBottom: idx === 0 ? 12 : 0 }}>
+                          <EachPlaylistCard
+                            image={playlist.image}
+                            follower={`${playlist.songCount} songs`}
+                            name={playlist.name}
+                            id={playlist.id}
+                          />
+                        </View>
+                      ))}
+                    </View>
+                  )}
+                />
+              </>
+            )}
           </ScrollView>
           <TopHeader showHeader={showHeader} />
         </Animated.View>

@@ -25,11 +25,11 @@ export const EachArtistChip = ({ id, name, image }) => {
       <Text
         style={[
           styles.artistName,
-          { color: currentThemeColors.text },
+          { color: '#FFFFFF' },
         ]}
-        numberOfLines={2}
+        numberOfLines={1}
       >
-        {name}
+        {name || 'Unknown Artist'}
       </Text>
     </TouchableOpacity>
   );
@@ -38,17 +38,17 @@ export const EachArtistChip = ({ id, name, image }) => {
 const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
-    width: 140,
+    width: 150,
     marginRight: 8,
   },
   image: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    marginBottom: 10,
+    width: 150,
+    height: 150,
+    borderRadius: 75,
+    marginBottom: 8,
   },
   artistName: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '600',
     textAlign: 'center',
     paddingHorizontal: 4,

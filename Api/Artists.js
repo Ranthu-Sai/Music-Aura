@@ -73,10 +73,15 @@ export async function getTopArtists() {
       1500
     );
 
-    if (response.data && response.data.artist_recos) {
-      return response.data.artist_recos.map(artist => ({
+    let data = response.data;
+    if (typeof data === 'string') {
+      data = JSON.parse(data);
+    }
+
+    if (data && data.artist_recos) {
+      return data.artist_recos.map(artist => ({
         id: artist.artistid || artist.id,
-        name: artist.name,
+        name: artist.title || artist.name,
         image: artist.image,
         type: 'artist',
         perma_url: artist.perma_url,
