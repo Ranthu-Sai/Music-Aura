@@ -41,7 +41,7 @@ export function decryptMedia(encryptedUrl) {
 export async function getStreamingUrls(encryptedMediaUrl, songId = null) {
   const urls = [];
   let axios;
-  
+
   // Dynamic import for axios (works in both CommonJS and ES modules)
   try {
     axios = require('axios');
@@ -65,7 +65,7 @@ export async function getStreamingUrls(encryptedMediaUrl, songId = null) {
         // Generate all quality variants
         const baseUrl = decryptedUrl.replace(/_\d+\.mp4/, '');
         const qualities = ['320', '160', '96', '48', '12'];
-        
+
         qualities.forEach(q => {
           const url = `${baseUrl}_${q}.mp4`;
           urls.push({

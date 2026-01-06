@@ -19,7 +19,7 @@ const defaultTheme = {
     error: '#CF6679',
     onPrimary: '#000000',
     onError: '#FFFFFF',
-  }
+  },
 };
 
 const styles = StyleSheet.create({
@@ -177,7 +177,7 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     alignSelf: 'flex-start',
     padding: 8,
-  }
+  },
 });
 
 const InfoSection = ({ title, icon, children }) => {
@@ -209,15 +209,15 @@ const SongInfoModal = ({ visible, onDismiss, track }) => {
   const trackTitle = useMemo(() => cleanText(track?.title) || songDetails?.basicInfo?.[0]?.value || 'Unknown Track', [track?.title, songDetails?.basicInfo]);
   const trackSubtitle = useMemo(() => {
     const artist = cleanText(track?.artist);
-    if (artist) return artist;
-    
+    if (artist) {return artist;}
+
     // Try to find Artist or Artists in basicInfo
     const artistInfo = songDetails?.basicInfo?.find(item => item.label === 'Artist' || item.label === 'Artists');
     return artistInfo?.value || 'Unknown Artist';
   }, [track?.artist, songDetails?.basicInfo]);
 
   const renderSection = (title, icon, rows) => {
-    if (!rows || rows.length === 0) return null;
+    if (!rows || rows.length === 0) {return null;}
 
     return (
       <InfoSection title={title} icon={icon}>
@@ -254,7 +254,7 @@ const SongInfoModal = ({ visible, onDismiss, track }) => {
   }, [track?.currentPlayingQuality]);
 
   const renderChips = (title, icon, chips) => {
-    if (!chips || chips.length === 0) return null;
+    if (!chips || chips.length === 0) {return null;}
 
     return (
       <InfoSection title={title} icon={icon}>
@@ -267,9 +267,9 @@ const SongInfoModal = ({ visible, onDismiss, track }) => {
                 key={`${title}-${chip.label}-${index}`}
                 style={[
                   styles.chip,
-                  isCurrentlyPlaying 
+                  isCurrentlyPlaying
                     ? { backgroundColor: defaultTheme.colors.primary, borderColor: defaultTheme.colors.primary }
-                    : { backgroundColor: 'transparent', borderColor: defaultTheme.colors.outlineVariant }
+                    : { backgroundColor: 'transparent', borderColor: defaultTheme.colors.outlineVariant },
                 ]}
               >
                 <SmallText

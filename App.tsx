@@ -11,51 +11,55 @@ import { InitialScreen } from "./Route/InitialScreen";
 // import CodePush from "react-native-code-push";
 import React, { useEffect, useContext } from "react";
 
-const Stack = createNativeStackNavigator()
-// let codePushOptions = { checkFrequency: CodePush.CheckFrequency.MANUAL };
-function App() {
-  const width = Dimensions.get("window").width
-  const ThemedNavigation = () => {
-    const { currentThemeColors } = useContext(ThemeContext);
-    const isLight = currentThemeColors.background === '#FFFFFF';
-    const MyTheme = {
-      ...DefaultTheme,
-      dark: !isLight,
-      colors: {
-        ...DefaultTheme.colors,
-        primary: currentThemeColors.primary,
-        text: currentThemeColors.text,
-        textSecondary: currentThemeColors.secondaryText,
-        white: "white",
-        spacing: 10,
-        headingSize: width * 0.085,
-        fontSize: width * 0.045,
-        disabled: 'rgb(131,131,131)',
-        background: currentThemeColors.background,
-      },
-    };
-    return (
-      <NavigationContainer theme={MyTheme}>
-        <Stack.Navigator screenOptions={{ 
-          headerShown: false,
-          contentStyle: { backgroundColor: currentThemeColors.background }
-        }}>
-          <Stack.Screen name="Initial" component={InitialScreen} />
-          <Stack.Screen name="Onboarding" component={RouteOnboarding} />
-          <Stack.Screen name="MainRoute" component={RootRoute} />
-        </Stack.Navigator>
-      </NavigationContainer>
-    );
+const Stack = createNativeStackNavigator();
+
+function ThemedNavigation() {
+  const width = Dimensions.get("window").width;
+  const { currentThemeColors } = useContext(ThemeContext);
+  const isLight = currentThemeColors.background === '#FFFFFF';
+  const MyTheme = {
+    ...DefaultTheme,
+    dark: !isLight,
+    colors: {
+      ...DefaultTheme.colors,
+      primary: currentThemeColors.primary,
+      text: currentThemeColors.text,
+      textSecondary: currentThemeColors.secondaryText,
+      white: "white",
+      spacing: 10,
+      headingSize: width * 0.085,
+      fontSize: width * 0.045,
+      disabled: 'rgb(131,131,131)',
+      background: currentThemeColors.background,
+    },
   };
-  useEffect(() => {
-    // CodePush removed
-  }, [])
-  return <GestureHandlerRootView style={{ flex: 1 }}>
-    <ContextState>
-      <BottomSheetModalProvider>
-        <ThemedNavigation />
-      </BottomSheetModalProvider>
-    </ContextState>
-  </GestureHandlerRootView>
+
+  return (
+    <NavigationContainer theme={MyTheme}>
+      <Stack.Navigator screenOptions={{
+        headerShown: false,
+        contentStyle: { backgroundColor: currentThemeColors.background },
+      }}>
+        <Stack.Screen name="Initial" component={InitialScreen} />
+        <Stack.Screen name="Onboarding" component={RouteOnboarding} />
+        <Stack.Screen name="MainRoute" component={RootRoute} />
+      </Stack.Navigator>
+    </NavigationContainer>
+  );
 }
-export default App
+
+// App is a thin wrapper that mounts providers and navigation
+function App() {
+  useEffect(() => {}, []);
+  return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <ContextState>
+        <BottomSheetModalProvider>
+          <ThemedNavigation />
+        </BottomSheetModalProvider>
+      </ContextState>
+    </GestureHandlerRootView>
+  );
+}
+
+export default App;

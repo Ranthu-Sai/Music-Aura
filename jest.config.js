@@ -5,7 +5,7 @@ module.exports = {
   },
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
   transformIgnorePatterns: [
-    'node_modules/(?!(react-native|@react-native|react-native-reanimated|react-native-vector-icons|@react-navigation|react-native-track-player|@react-native-firebase|react-native-linear-gradient|react-native-fast-image|react-native-blob-util|react-native-fs|react-native-modal)/)'
+    'node_modules/(?!(react-native|@react-native|react-native-reanimated|react-native-vector-icons|@react-navigation|react-native-track-player|@react-native-firebase|react-native-linear-gradient|react-native-fast-image|react-native-blob-util|react-native-fs|react-native-modal)/)',
   ],
   setupFiles: ['<rootDir>/jest.setup.js'],
   moduleNameMapper: {

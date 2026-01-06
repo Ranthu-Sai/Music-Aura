@@ -151,17 +151,17 @@ export const EachSongMenuModal = ({ Visible, setVisible }) => {
                 try {
                   const songPath = await StorageManager.getSongPath(Visible.id);
                   await StorageManager.removeDownloadedSongMetadata(Visible.id);
-                  
+
                   // Verification check
                   let deletedSuccessfully = true;
                   if (songPath) {
-                    const exists = await ReactNativeBlobUtil.fs.exists(songPath) || 
+                    const exists = await ReactNativeBlobUtil.fs.exists(songPath) ||
                                  await ReactNativeBlobUtil.fs.exists(decodeURI(songPath));
-                    if (exists) deletedSuccessfully = false;
+                    if (exists) {deletedSuccessfully = false;}
                   }
 
                   DeviceEventEmitter.emit('downloadedSongRemoved', Visible.id);
-                  
+
                   if (deletedSuccessfully) {
                     ToastAndroid.show("Song deleted from storage", ToastAndroid.SHORT);
                   } else {
@@ -225,44 +225,44 @@ export const EachSongMenuModal = ({ Visible, setVisible }) => {
                 console.log('=== DELETE BUTTON CLICKED ===');
                 const { DeviceEventEmitter } = require('react-native');
                 const { hideFile } = require('../../LocalStorage/HiddenLocalFiles');
-                
+
                 try {
                   console.log('Delete button pressed for:', Visible.title);
                   console.log('File path:', Visible.url);
                   console.log('Song ID:', Visible.id);
-                  
+
                   // Show immediate feedback
                   ToastAndroid.show("Removing from app...", ToastAndroid.SHORT);
-                  
+
                   // Add to hidden files list
                   await hideFile(Visible.url);
-                  
+
                   // Remove from app view immediately
                   console.log('Emitting localSongDeleted event');
                   DeviceEventEmitter.emit('localSongDeleted', Visible.id);
-                  
+
                   // Close modal first
                   setVisible({ visible: false });
-                  
+
                   // Call onRemove callback to refresh the list
                   if (Visible.onRemove) {
                     console.log('Calling onRemove callback');
                     Visible.onRemove();
                   }
-                  
+
                   // Try to delete the actual file in background
                   setTimeout(async () => {
                     try {
                       const { deleteLocalSong, isFileDeletable } = require('../../Utils/LocalMusicScanner');
-                      
+
                       if (!isFileDeletable(Visible.url)) {
                         console.log('File is not deletable (protected directory)');
                         return;
                       }
-                      
+
                       const result = await deleteLocalSong(Visible.url);
                       console.log('Delete result:', result);
-                      
+
                       if (result.success) {
                         ToastAndroid.show("Deleted from storage", ToastAndroid.SHORT);
                       }
@@ -270,7 +270,7 @@ export const EachSongMenuModal = ({ Visible, setVisible }) => {
                       console.error('Background deletion error:', error);
                     }
                   }, 100);
-                  
+
                 } catch (error) {
                   console.error('Error in delete handler:', error);
                   // Still remove from view even on error

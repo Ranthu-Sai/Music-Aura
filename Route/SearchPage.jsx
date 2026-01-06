@@ -1,7 +1,7 @@
 import { MainWrapper } from "../Layout/MainWrapper";
 import { SearchBar } from "../Component/Global/SearchBar";
 import Tabs from "../Component/Global/Tabs/Tabs";
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { getSearchSongData, getYTSearchSongData, getYTSearchVideoData, getYTSearchAlbumData, getYTSearchPlaylistData, getSearchSuggestions } from "../Api/Songs";
 import { View, Keyboard } from "react-native";
 import SongDisplay from "../Component/SearchPage/SongDisplay";
@@ -15,6 +15,14 @@ import SearchHistoryDisplay from "../Component/SearchPage/SearchHistoryDisplay";
 import { GetSearchHistory, AddSearchHistory, RemoveSearchHistoryItem, ClearSearchHistory } from "../LocalStorage/SearchHistory";
 import ContentTypeToggle from "../Component/Global/ContentTypeToggle";
 import SearchSuggestions from "../Component/SearchPage/SearchSuggestions";
+
+// Add cache for search results
+const searchCache = new Map();
+const SEARCH_CACHE_DURATION = 180000; // 3 minutes
+
+function getSearchCacheKey(text, engine, tab, page) {
+  return `${text}_${engine}_${tab}_${page}`;
+}
 
 export const SearchPage = ({ navigation }) => {
   const [ActiveTab, setActiveTab] = useState(0)
@@ -41,7 +49,7 @@ export const SearchPage = ({ navigation }) => {
   // Fetch suggestions with robust visibility logic
   useEffect(() => {
     const trimmedQuery = query.trim();
-    
+
     // If query is too short or we've already submitted a search, hide suggestions
     if (trimmedQuery.length === 0 || SearchText) {
       setShowSuggestions(false);
@@ -54,7 +62,7 @@ export const SearchPage = ({ navigation }) => {
     const historyMatches = searchHistory
       .filter(h => h.toLowerCase().includes(trimmedQuery.toLowerCase()) && h.toLowerCase() !== trimmedQuery.toLowerCase())
       .slice(0, 5);
-    
+
     // Always show suggestions if we have a query, even if results are empty initially
     setShowSuggestions(true);
     setSuggestions(historyMatches);
@@ -64,7 +72,7 @@ export const SearchPage = ({ navigation }) => {
     const timeoutId = setTimeout(async () => {
       try {
         const res = await getSearchSuggestions(trimmedQuery);
-        
+
         // Only update if the query hasn't changed since the request started
         setSuggestions(prev => {
           const merged = [...new Set([...historyMatches, ...res.suggestions])].slice(0, 50);
@@ -76,8 +84,8 @@ export const SearchPage = ({ navigation }) => {
       } finally {
         setIsSuggesting(false);
       }
-    }, 100); // Ultra-fast 100ms debounce for lag-free text suggestions
-    
+    }, 300); // 300ms debounce for better performance
+
     return () => clearTimeout(timeoutId);
   }, [query, SearchText, searchHistory]);
 
@@ -85,40 +93,52 @@ export const SearchPage = ({ navigation }) => {
     if (text !== "") {
       try {
         if (!append) {
-          setLoading(true)
+          setLoading(true);
         } else {
-          setLoadingMore(true)
+          setLoadingMore(true);
         }
-        let data
+
+        // Check cache first (only for first page)
+        const cacheKey = getSearchCacheKey(text, engine, ActiveTab, pageNum);
+        if (!append && searchCache.has(cacheKey)) {
+          const cached = searchCache.get(cacheKey);
+          if (Date.now() - cached.timestamp < SEARCH_CACHE_DURATION) {
+            setData(cached.data);
+            setHasMore(cached.hasMore);
+            setLoading(false);
+            return;
+          }
+        }
+
+        let data;
         if (engine === 0) { // Saavn
           if (ActiveTab === 0) {
-            data = await getSearchSongData(text, pageNum, limit)
+            data = await getSearchSongData(text, pageNum, limit);
           } else if (ActiveTab === 1) {
-            data = await getSearchAlbumData(text, pageNum, limit)
-          }
-          else if (ActiveTab === 2) {
-            data = await getSearchPlaylistData(text, pageNum, limit)
+            data = await getSearchAlbumData(text, pageNum, limit);
+          } else if (ActiveTab === 2) {
+            data = await getSearchPlaylistData(text, pageNum, limit);
           }
         } else if (engine === 1) {
           // YT Music
           if (ActiveTab === 0) {
-            data = await getYTSearchSongData(text, pageNum, limit)
+            data = await getYTSearchSongData(text, pageNum, limit);
           } else if (ActiveTab === 1) {
-            data = await getYTSearchAlbumData(text, pageNum, limit)
+            data = await getYTSearchAlbumData(text, pageNum, limit);
           } else if (ActiveTab === 2) {
-            data = await getYTSearchPlaylistData(text, pageNum, limit)
+            data = await getYTSearchPlaylistData(text, pageNum, limit);
           }
         } else {
           // Youtube
-          data = await getYTSearchVideoData(text, pageNum, limit)
+          data = await getYTSearchVideoData(text, pageNum, limit);
         }
 
         if (data && data.data && Array.isArray(data.data.results)) {
           if (data.data.results.length === 0) {
             if (!append) {
-              setData({ data: { results: [] } })
+              setData({ data: { results: [] } });
             }
-            setHasMore(false)
+            setHasMore(false);
           } else if (append) {
             const existingIds = new Set((Data?.data?.results || []).map(item => item.id));
             const newUniqueResults = data.data.results.filter(item => !existingIds.has(item.id));
@@ -128,7 +148,7 @@ export const SearchPage = ({ navigation }) => {
               data: {
                 results: [...(prev?.data?.results || []), ...newUniqueResults],
               },
-            }))
+            }));
 
             if (newUniqueResults.length === 0) {
               const newCount = consecutiveDuplicatePages + 1;
@@ -143,8 +163,22 @@ export const SearchPage = ({ navigation }) => {
               setHasMore(data.data.results.length > 0);
             }
           } else {
-            setData(data)
-            setHasMore(engine !== 1 && data.data.results.length > 0)
+            setData(data);
+            const hasMoreResults = engine !== 1 && data.data.results.length > 0;
+            setHasMore(hasMoreResults);
+
+            // Cache first page results
+            searchCache.set(cacheKey, {
+              data: data,
+              hasMore: hasMoreResults,
+              timestamp: Date.now(),
+            });
+
+            // Limit cache size
+            if (searchCache.size > 50) {
+              const firstKey = searchCache.keys().next().value;
+              searchCache.delete(firstKey);
+            }
           }
         } else {
           if (!append) {
@@ -175,15 +209,32 @@ export const SearchPage = ({ navigation }) => {
     }
   };
 
+  const searchTimeoutRef = useRef(null);
+
   useEffect(() => {
     if (SearchText) {
-      // Clear data immediately to show fresh results for the new engine/tab
+      // Show loading immediately and clear data to show fresh results for the new engine/tab
+      setLoading(true);
       setData({ data: { results: [] } });
       setHasMore(false);
       setCurrentPage(1);
       setConsecutiveDuplicatePages(0);
-      fetchSearchData(SearchText, 1, false)
+
+      // Debounce search to avoid rapid API calls
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+
+      searchTimeoutRef.current = setTimeout(() => {
+        fetchSearchData(SearchText, 1, false);
+      }, 200);
     }
+
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [SearchText, ActiveTab, engine]);
 
@@ -194,13 +245,13 @@ export const SearchPage = ({ navigation }) => {
   }, []);
 
   const handleSearchSubmit = useCallback((searchQuery) => {
-    if (!searchQuery.trim()) return;
+    if (!searchQuery.trim()) {return;}
     setSearchText(searchQuery);
     setQuery(searchQuery);
     setShowSuggestions(false);
     Keyboard.dismiss();
     AddSearchHistory(searchQuery.trim()).then(history => {
-      if (history) setSearchHistory(history);
+      if (history) {setSearchHistory(history);}
     });
   }, []);
 
@@ -229,8 +280,8 @@ export const SearchPage = ({ navigation }) => {
   };
 
   const handleSongPress = useCallback((song) => {
-    if (!song) return;
-    
+    if (!song) {return;}
+
     // Switch engine based on result source
     let targetEngine = -1;
     if (song.source === 'saavn') {
@@ -251,7 +302,7 @@ export const SearchPage = ({ navigation }) => {
     // Get a clean title and artist
     const title = song.title || song.name || "";
     const artist = song.artist || (song.artists?.primary?.[0]?.name) || "";
-    
+
     // Use title + artist for a more accurate redirected search
     const searchQuery = (title && artist) ? `${title} ${artist}` : title;
 
@@ -304,18 +355,18 @@ export const SearchPage = ({ navigation }) => {
             <View style={{ paddingHorizontal: 10, flex: 1 }}>
               {engine === 0 ? (
                 <>
-                  {ActiveTab === 0 && <SongDisplay data={Data} limit={limit} Searchtext={SearchText} loadMore={loadMore} hasMore={hasMore} loadingMore={LoadingMore} />}
+                  {ActiveTab === 0 && <SongDisplay source={'saavn'} data={Data} limit={limit} Searchtext={SearchText} loadMore={loadMore} hasMore={hasMore} loadingMore={LoadingMore} />}
                   {ActiveTab === 1 && <AlbumsDisplay data={Data} limit={limit} Searchtext={SearchText} loadMore={loadMore} hasMore={hasMore} loadingMore={LoadingMore} />}
                   {ActiveTab === 2 && <PlaylistDisplay data={Data} limit={limit} Searchtext={SearchText} loadMore={loadMore} hasMore={hasMore} loadingMore={LoadingMore} />}
                 </>
               ) : engine === 1 ? (
                 <>
-                  {ActiveTab === 0 && <SongDisplay data={Data} limit={limit} Searchtext={SearchText} loadMore={loadMore} hasMore={hasMore} loadingMore={LoadingMore} />}
+                  {ActiveTab === 0 && <SongDisplay source={'ytmusic'} data={Data} limit={limit} Searchtext={SearchText} loadMore={loadMore} hasMore={hasMore} loadingMore={LoadingMore} />}
                   {ActiveTab === 1 && <AlbumsDisplay data={Data} limit={limit} Searchtext={SearchText} loadMore={loadMore} hasMore={hasMore} loadingMore={LoadingMore} />}
                   {ActiveTab === 2 && <PlaylistDisplay data={Data} limit={limit} Searchtext={SearchText} loadMore={loadMore} hasMore={hasMore} loadingMore={LoadingMore} />}
                 </>
               ) : (
-                <SongDisplay data={Data} limit={limit} Searchtext={SearchText} loadMore={loadMore} hasMore={hasMore} loadingMore={LoadingMore} />
+                <SongDisplay source={'youtube'} data={Data} limit={limit} Searchtext={SearchText} loadMore={loadMore} hasMore={hasMore} loadingMore={LoadingMore} />
               )}
             </View>
           ) : (

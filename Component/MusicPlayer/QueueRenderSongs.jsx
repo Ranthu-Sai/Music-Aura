@@ -44,14 +44,14 @@ export const QueueRenderSongs = memo(function QueueRenderSongs({ Index }) {
     try {
       // Optimistic update: Remove from local display immediately for smooth animation
       setDisplayedSongs(prev => prev.filter(s => s.id !== id));
-      
+
       // Schedule the heavy TrackPlayer/Context operations after the swipe animation
       InteractionManager.runAfterInteractions(async () => {
         try {
           // PERFORMANCE: Try cache first, fallback to fresh queue if needed
           const now = Date.now();
           let currentQueue;
-          
+
           if (trackPlayerQueueCache.current && (now - trackPlayerQueueCacheTime.current) < QUEUE_CACHE_TTL) {
             currentQueue = trackPlayerQueueCache.current;
           } else {
@@ -59,15 +59,15 @@ export const QueueRenderSongs = memo(function QueueRenderSongs({ Index }) {
             trackPlayerQueueCache.current = currentQueue;
             trackPlayerQueueCacheTime.current = now;
           }
-          
+
           const actualIndex = currentQueue.findIndex(s => s.id === id);
-          
+
           if (actualIndex !== -1) {
             await removeFromQueue(actualIndex);
             // Invalidate cache after modification
             trackPlayerQueueCache.current = null;
             // updateTrack will eventually sync the Context Queue
-            await updateTrack(); 
+            await updateTrack();
           }
         } catch (e) {
           // Rollback if failed
@@ -99,7 +99,7 @@ export const QueueRenderSongs = memo(function QueueRenderSongs({ Index }) {
             const nextCount = Math.min(Queue.length, Math.max(prev.length, SONGS_PER_PAGE));
             return Queue.slice(0, nextCount);
           }
-          
+
           // First load: Load initial batch with current track visible
           const loadInitial = async () => {
              try {
@@ -119,7 +119,7 @@ export const QueueRenderSongs = memo(function QueueRenderSongs({ Index }) {
     } else if (Queue && Queue.length === 0) {
       setDisplayedSongs([]);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, [Queue]);
 
   // Load next batch of songs when user scrolls near the end (optimized batching)
@@ -127,7 +127,7 @@ export const QueueRenderSongs = memo(function QueueRenderSongs({ Index }) {
     if (isLoadingMore || displayedSongs.length >= Queue.length) {
       return
     }
-    
+
     // PERFORMANCE: Defer loading to prevent blocking scroll
     InteractionManager.runAfterInteractions(() => {
       setIsLoadingMore(true)
@@ -154,9 +154,9 @@ export const QueueRenderSongs = memo(function QueueRenderSongs({ Index }) {
   // CRITICAL: Memoize renderItem - pass song object directly from data array
   // Song objects from displayedSongs should be stable references
   const renderItem = useCallback(({ item, index }) => {
-    if (!item) return null;
+    if (!item) {return null;}
     return (
-      <EachSongQueue 
+      <EachSongQueue
         song={item}
         index={index}
         playerState={playerStateValue}

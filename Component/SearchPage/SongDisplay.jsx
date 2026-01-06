@@ -7,6 +7,17 @@ import { PlainText } from '../Global/PlainText';
 import { SmallText } from '../Global/SmallText';
 import { useTheme } from '@react-navigation/native';
 
+// Simple skeleton row for loadingMore moved to module scope to avoid nested component
+const SkeletonRow = () => (
+  <View style={{ flexDirection: 'row', paddingHorizontal: 15, paddingVertical: 12, alignItems: 'center' }}>
+    <View style={{ width: 56, height: 56, borderRadius: 6, backgroundColor: '#2a2a2a', marginRight: 12, opacity: 0.5 }} />
+    <View style={{ flex: 1 }}>
+      <View style={{ width: '60%', height: 12, backgroundColor: '#2a2a2a', borderRadius: 6, marginBottom: 8, opacity: 0.5 }} />
+      <View style={{ width: '40%', height: 10, backgroundColor: '#2a2a2a', borderRadius: 6, opacity: 0.5 }} />
+    </View>
+  </View>
+);
+
 export default function SongDisplay({ data, source = 'saavn', loadMore, hasMore, loadingMore }) {
   const [displayData, setDisplayData] = useState(data);
   const theme = useTheme();
@@ -20,8 +31,37 @@ export default function SongDisplay({ data, source = 'saavn', loadMore, hasMore,
   const width = Dimensions.get('window').width;
 
   function FormatArtist(artists) {
-    if (!artists || !Array.isArray(artists)) return '';
+    if (!artists || !Array.isArray(artists)) {return '';}
     return artists.map(e => e.name).join(', ');
+  }
+
+  // Enhanced image handling for YouTube thumbnails
+  function getImageUrl(item) {
+    const source = item?.source || 'saavn';
+
+    if (source === 'youtube') {
+      // For YouTube, try multiple fallback options
+      const imageArray = item?.image;
+      if (Array.isArray(imageArray) && imageArray.length > 0) {
+        // Try the highest quality first, then fallbacks
+        const primaryUrl = imageArray[2]?.url || imageArray[1]?.url || imageArray[0]?.url;
+        if (primaryUrl) {
+          // If it's maxresdefault, provide fallback to hqdefault
+          if (primaryUrl.includes('maxresdefault.jpg')) {
+            return primaryUrl.replace('maxresdefault.jpg', 'hqdefault.jpg');
+          }
+          return primaryUrl;
+        }
+      }
+
+      // Fallback: construct YouTube thumbnail URL from video ID
+      if (item?.id) {
+        return `https://i.ytimg.com/vi/${item.id}/hqdefault.jpg`;
+      }
+    }
+
+    // For other sources, use existing logic
+    return item?.image?.[2]?.url || item?.image?.[0]?.url || item?.artwork || '';
   }
 
   if (!displayData?.data?.results || displayData.data.results.length === 0) {
@@ -32,7 +72,7 @@ export default function SongDisplay({ data, source = 'saavn', loadMore, hasMore,
           style={{
             color: theme.dark ? '#CCCCCC' : '#666666',
             fontSize: 18,
-            fontWeight: '600'
+            fontWeight: '600',
           }}
         />
         <SmallText
@@ -53,15 +93,16 @@ export default function SongDisplay({ data, source = 'saavn', loadMore, hasMore,
         contentContainerStyle={{ paddingBottom: 220 }}
         data={displayData.data.results}
         onEndReached={hasMore ? loadMore : null}
-        onEndReachedThreshold={0.5}
+        // Use slightly earlier threshold for youtube/ytmusic for smoother prefetch
+        onEndReachedThreshold={(source === 'youtube' || source === 'ytmusic') ? 0.75 : 0.5}
         renderItem={({ item }) => {
-          if (!item || !item.id) return null; // Render nothing if item is invalid
+          if (!item || !item.id) {return null;} // Render nothing if item is invalid
           return (
             <EachSongCard
               artistID={item?.primaryArtistsId || item?.primary_artists_id}
               language={item?.language}
               duration={item?.duration}
-              image={item?.image?.[2]?.url ?? item?.image?.[0]?.url ?? item?.artwork ?? ''}
+              image={getImageUrl(item)}
               id={item?.id}
               width={width * 0.95}
               title={item?.name || item?.title}
@@ -77,6 +118,30 @@ export default function SongDisplay({ data, source = 'saavn', loadMore, hasMore,
             />
           );
         }}
+        ListFooterComponent={(() => {
+          if (!(source === 'saavn' || source === 'youtube' || source === 'ytmusic')) {return null;}
+
+          if (loadingMore) {
+            return (
+              <View>
+                <SkeletonRow />
+                <SkeletonRow />
+                <SkeletonRow />
+              </View>
+            );
+          }
+
+          // If there are more results but not yet loading, show a small prefetch placeholder for smoothness
+          if (hasMore && !loadingMore) {
+            return (
+              <View>
+                <SkeletonRow />
+              </View>
+            );
+          }
+
+          return null;
+        })()}
       />
     </View>
   );

@@ -15,10 +15,10 @@ const isNetworkAvailable = async () => {
  * @param {Object} options { expiration: minutes, forceRefresh: boolean, type: 'api'|'lyrics' }
  */
 export const getCachedData = async (key, fetchFunction, options = {}) => {
-    const { 
-        expiration = DEFAULT_CACHE_EXPIRATION, 
-        forceRefresh = false, 
-        type = 'api' 
+    const {
+        expiration = DEFAULT_CACHE_EXPIRATION,
+        forceRefresh = false,
+        type = 'api',
     } = options;
 
     const manager = type === 'lyrics' ? lyricsCache : apiCache;
@@ -39,7 +39,7 @@ export const getCachedData = async (key, fetchFunction, options = {}) => {
         }
 
         const data = await fetchFunction();
-        
+
         // Only cache successful responses
         if (data && data.success !== false && !data.error) {
             await manager.set(key, data, expiration);

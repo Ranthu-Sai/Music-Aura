@@ -5,12 +5,12 @@ import { ThemeContext } from "../Context/Context";
 export const MainWrapper = memo(function MainWrapper({children}) {
   const { currentThemeColors } = useContext(ThemeContext);
   const bgColor = currentThemeColors?.background || '#101010';
-  
+
   return (
     <SafeAreaView style={{flex:1, backgroundColor: bgColor}}>
-        <StatusBar 
-          backgroundColor={bgColor} 
-          barStyle="light-content" 
+        <StatusBar
+          backgroundColor={bgColor}
+          barStyle="light-content"
           translucent={true}
           animated={true}
         />

@@ -40,7 +40,7 @@ export const LikedPlaylistPage = () => {
           icon: 'playlist',
           title: 'Liked Playlists',
           colors: ['#4776E6', '#8E54E9'],
-          bgColors: ['#2C2C54', '#24243e']
+          bgColors: ['#2C2C54', '#24243e'],
         }}
         hideOverlay={true}
         disableCollapse={true}

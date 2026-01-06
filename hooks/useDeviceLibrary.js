@@ -7,7 +7,7 @@ import { localTracksMetadataManager } from '../Utils/LocalTracksMetadataManager'
 
 /**
  * useDeviceLibrary - Custom hook for managing device local music library
- * 
+ *
  * This hook provides:
  * - Scanning device for audio files
  * - Managing local tracks state
@@ -49,14 +49,14 @@ export const useDeviceLibrary = (options = {}) => {
         RNFS.DocumentDirectoryPath,
         RNFS.LibraryDirectoryPath + '/Music',
       ],
-      default: []
+      default: [],
     }),
     supportedFormats: ['.mp3', '.m4a', '.aac', '.flac', '.wav', '.ogg', '.opus', '.webm'],
     maxScanDepth: 10,
     batchSize: 10,
     enableArtwork: true,
     cacheMetadata: true,
-    ...options
+    ...options,
   }), [options]);
 
   /**
@@ -66,7 +66,7 @@ export const useDeviceLibrary = (options = {}) => {
     try {
       if (Platform.OS === 'android') {
         const permissions = [];
-        
+
         // For Android 13+ (API 33+)
         if (Platform.Version >= 33) {
           permissions.push(PermissionsAndroid.PERMISSIONS.READ_MEDIA_AUDIO);
@@ -109,7 +109,7 @@ export const useDeviceLibrary = (options = {}) => {
     try {
       if (Platform.OS === 'android') {
         let permissionGranted = false;
-        
+
         if (Platform.Version >= 33) {
           // Android 13+ uses READ_MEDIA_AUDIO
           permissionGranted = await PermissionsAndroid.check(
@@ -156,26 +156,26 @@ export const useDeviceLibrary = (options = {}) => {
       console.log('useDeviceLibrary: Reading directory:', directoryPath);
       const exists = await RNFS.exists(directoryPath);
       console.log('useDeviceLibrary: Directory exists:', exists);
-      
+
       if (!exists) {
         console.log('useDeviceLibrary: Directory does not exist, skipping');
         return [];
       }
-      
+
       const items = await RNFS.readDir(directoryPath);
       console.log(`useDeviceLibrary: Found ${items.length} items in ${directoryPath}`);
 
       for (const item of items) {
-        if (abortController.current?.signal.aborted) break;
+        if (abortController.current?.signal.aborted) {break;}
 
         // Skip hidden files and directories
-        if (item.name.startsWith('.')) continue;
+        if (item.name.startsWith('.')) {continue;}
 
         // Skip Android directory and some other system/heavy folders
-        if (item.name === 'Android' || item.name === 'data' || item.name === 'obb') continue;
+        if (item.name === 'Android' || item.name === 'data' || item.name === 'obb') {continue;}
 
         // Skip Music Aura folder where downloaded songs are stored
-        if (item.name === 'Music Aura') continue;
+        if (item.name === 'Music Aura') {continue;}
 
         if (item.isFile()) {
           const lastDotIndex = item.name.lastIndexOf('.');
@@ -208,13 +208,13 @@ export const useDeviceLibrary = (options = {}) => {
     const errors = [];
 
     for (let i = 0; i < filePaths.length; i += defaultOptions.batchSize) {
-      if (abortController.current?.signal.aborted) break;
+      if (abortController.current?.signal.aborted) {break;}
 
       const batch = filePaths.slice(i, i + defaultOptions.batchSize);
-      
+
       try {
         const batchResults = await localTracksMetadataProcessor.processFiles(batch, {
-          extractArtwork: defaultOptions.enableArtwork
+          extractArtwork: defaultOptions.enableArtwork,
         });
 
         processedTracks.push(...batchResults.results);
@@ -261,13 +261,13 @@ export const useDeviceLibrary = (options = {}) => {
 
       // Scan all configured paths and update UI incrementally
       for (const scanPath of defaultOptions.scanPaths) {
-        if (abortController.current?.signal.aborted) break;
+        if (abortController.current?.signal.aborted) {break;}
         try {
           const files = await scanDirectory(scanPath);
           if (files.length > 0) {
             console.log(`useDeviceLibrary: Found ${files.length} files in ${scanPath}`);
             files.forEach(f => allAudioFiles.push(f));
-            
+
             // De-duplicate and update UI with basic tracks found so far
             const uniqueFiles = [...new Set(allAudioFiles)];
             const currentBasicTracks = uniqueFiles.map(filePath => {
@@ -281,14 +281,14 @@ export const useDeviceLibrary = (options = {}) => {
                 album: 'Unknown Album',
                 isLocal: true,
                 type: 'local',
-                isProcessed: false
+                isProcessed: false,
               };
             });
-            
+
             setTracks(prev => {
               const trackMap = new Map(prev.map(t => [t.id, t]));
               currentBasicTracks.forEach(t => {
-                if (!trackMap.has(t.id)) trackMap.set(t.id, t);
+                if (!trackMap.has(t.id)) {trackMap.set(t.id, t);}
               });
               return Array.from(trackMap.values()).sort((a, b) => (a.title || '').localeCompare(b.title || ''));
             });
@@ -322,10 +322,10 @@ export const useDeviceLibrary = (options = {}) => {
         const trackId = localTracksMetadataProcessor.generateTrackId(filePath);
         const fileName = filePath.split('/').pop().split('\\').pop();
         const title = fileName.replace(/\.[^/.]+$/, "");
-        
+
         // Attempt to merge cached metadata if available
         const cached = localTracksMetadataManager.getMetadataSync ? localTracksMetadataManager.getMetadataSync(trackId) : null;
-        
+
         return {
           id: trackId,
           filePath,
@@ -337,7 +337,7 @@ export const useDeviceLibrary = (options = {}) => {
           isLocal: true,
           type: 'local',
           isProcessed: !!cached?.isProcessed,
-          lastModified: cached?.lastModified || 0
+          lastModified: cached?.lastModified || 0,
         };
       });
 
@@ -346,10 +346,10 @@ export const useDeviceLibrary = (options = {}) => {
       const { getHiddenFiles } = require('../LocalStorage/HiddenLocalFiles');
       const hiddenFiles = await getHiddenFiles();
       console.log('useDeviceLibrary: Hidden files count:', hiddenFiles.length);
-      
+
       // Only filter if showHidden option is not enabled
-      const visibleTracks = defaultOptions.showHidden 
-        ? basicTracks 
+      const visibleTracks = defaultOptions.showHidden
+        ? basicTracks
         : basicTracks.filter(track => !hiddenFiles.includes(track.filePath));
       console.log('useDeviceLibrary: Visible tracks after filtering:', visibleTracks.length, 'of', basicTracks.length);
 
@@ -374,11 +374,11 @@ export const useDeviceLibrary = (options = {}) => {
       abortController.current = null;
     }
   }, [
-    isScanning, 
-    hasPermission, 
-    requestPermissions, 
-    scanDirectory, 
-    defaultOptions
+    isScanning,
+    hasPermission,
+    requestPermissions,
+    scanDirectory,
+    defaultOptions,
   ]);
 
   /**
@@ -404,7 +404,7 @@ export const useDeviceLibrary = (options = {}) => {
     setTracks([]);
     setLastScanTime(null);
     setError(null);
-    
+
     try {
       await localTracksMetadataManager.clearAllMetadata();
     } catch (error) {
@@ -431,10 +431,10 @@ export const useDeviceLibrary = (options = {}) => {
    * Search tracks
    */
   const searchTracks = useCallback((query) => {
-    if (!query) return tracks;
-    
+    if (!query) {return tracks;}
+
     const lowerQuery = query.toLowerCase();
-    return tracks.filter(track => 
+    return tracks.filter(track =>
       (track.title || '').toLowerCase().includes(lowerQuery) ||
       (track.artist || '').toLowerCase().includes(lowerQuery) ||
       (track.album || '').toLowerCase().includes(lowerQuery)
@@ -451,7 +451,7 @@ export const useDeviceLibrary = (options = {}) => {
       artists: new Set(tracks.map(track => track.artist).filter(Boolean)).size,
       albums: new Set(tracks.map(track => track.album).filter(Boolean)).size,
       lastScanTime,
-      scanInProgress: isScanning
+      scanInProgress: isScanning,
     };
 
     return stats;
@@ -466,7 +466,7 @@ export const useDeviceLibrary = (options = {}) => {
         console.log('useDeviceLibrary: Initializing metadata manager...');
         await localTracksMetadataManager.initialize();
 
-        if (!isMounted) return;
+        if (!isMounted) {return;}
 
         // Load cached tracks immediately
         const cachedTracks = await localTracksMetadataManager.getAllMetadata();
@@ -486,7 +486,7 @@ export const useDeviceLibrary = (options = {}) => {
         }
       } catch (error) {
         console.error('useDeviceLibrary: Initialization error:', error);
-        if (isMounted) setError(error);
+        if (isMounted) {setError(error);}
       }
     };
 
@@ -542,6 +542,6 @@ export const useDeviceLibrary = (options = {}) => {
     removeTrack,
 
     // Options
-    options: defaultOptions
+    options: defaultOptions,
   };
 };

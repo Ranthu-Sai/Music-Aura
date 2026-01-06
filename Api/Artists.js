@@ -1,5 +1,12 @@
 import axios from 'axios';
 
+// JioSaavn API Fallback URLs
+const JIOSAAVN_API_FALLBACKS = [
+  'https://jiosaavn-api-2.vercel.app',     // Primary (currently used)
+  'https://saavn-api.vercel.app',          // Secondary fallback
+  'https://jio-savan-api-sigma.vercel.app', // Tertiary fallback
+];
+
 // Retry helper with exponential backoff
 async function retryWithBackoff(fn, maxRetries = 3, baseDelay = 1000) {
   for (let attempt = 0; attempt < maxRetries; attempt++) {
@@ -10,7 +17,7 @@ async function retryWithBackoff(fn, maxRetries = 3, baseDelay = 1000) {
       if (isLastAttempt) {
         throw error;
       }
-      
+
       // Exponential backoff: 1s, 2s, 4s
       const delay = baseDelay * Math.pow(2, attempt);
       await new Promise(resolve => setTimeout(resolve, delay));
@@ -45,15 +52,63 @@ async function getStreamingUrl(songId) {
       // Silently fail for network errors - normal in poor connectivity
     }
   }
-  
+
   return null;
 }
 
 /**
  * Get top/trending artists from JioSaavn
+ * @param {string} language - Optional language filter (hindi, english, etc.)
  * @returns {Promise<Array>} Array of artist objects with name, id, image
  */
-export async function getTopArtists() {
+export async function getTopArtists(language = null) {
+  // If language is specified and not 'All', search for language-specific top artists
+  if (language && language !== 'All' && language !== '') {
+    try {
+      const searchQuery = `top ${language} artists`;
+      const response = await retryWithBackoff(
+        () => axios.get(
+          'https://www.jiosaavn.com/api.php',
+          {
+            params: {
+              __call: 'search.getResults',
+              _format: 'json',
+              _marker: 0,
+              cc: 'in',
+              query: searchQuery,
+              n: 20, // Get more results to filter
+              includeMetaTags: 1,
+            },
+            timeout: 20000,
+          },
+        ),
+        3,
+        1500
+      );
+
+      if (response.data && response.data.results && response.data.results.length > 0) {
+        // Filter to get only artists from the results
+        const artists = response.data.results
+          .filter(item => item.type === 'artist')
+          .slice(0, 15) // Limit to 15 artists
+          .map(artist => ({
+            id: artist.id,
+            name: artist.title || artist.name,
+            image: artist.image,
+            type: 'artist',
+            perma_url: artist.perma_url,
+          }));
+
+        if (artists.length > 0) {
+          return artists;
+        }
+      }
+    } catch (error) {
+      console.warn(`Language-specific artist search failed for ${language}, falling back to general artists`);
+    }
+  }
+
+  // Fallback to general top artists (original logic)
   try {
     const response = await retryWithBackoff(
       () => axios.get(
@@ -87,12 +142,35 @@ export async function getTopArtists() {
         perma_url: artist.perma_url,
       }));
     }
-
-    return [];
   } catch (error) {
-    // Silently return empty array - network errors are expected in poor connectivity
-    return [];
+    console.warn('Primary API failed for top artists, trying fallbacks');
   }
+
+  // Try fallback APIs
+  for (const apiBase of JIOSAAVN_API_FALLBACKS) {
+    try {
+      const response = await retryWithBackoff(
+        () => axios.get(`${apiBase}/artists`, { timeout: 15000 }),
+        2, // Fewer retries for fallbacks
+        1000
+      );
+
+      if (response.data?.status === 'SUCCESS' && response.data?.data) {
+        return response.data.data.map(artist => ({
+          id: artist.id,
+          name: artist.name,
+          image: artist.image,
+          type: 'artist',
+          perma_url: artist.perma_url,
+        }));
+      }
+    } catch (error) {
+      console.warn(`Fallback API ${apiBase} failed for artists:`, error.message);
+      continue;
+    }
+  }
+
+  return [];
 }
 
 /**
@@ -126,19 +204,19 @@ export async function getArtistTopSongs(artistId, limit = 20, language = null) {
 
     if (response.data) {
       let songs = response.data.topSongs?.songs || [];
-      
+
       // Filter by language if specified
       if (language && language !== 'All' && language !== '') {
         songs = songs.filter(
           song => song.language?.toLowerCase() === language.toLowerCase()
         );
       }
-      
+
       // Get streaming URLs for songs (batch process for better performance)
       const songsWithStreaming = await Promise.all(
         songs.map(async (song) => {
           const streamingUrls = await getStreamingUrl(song.id);
-          
+
           return {
             ...song,
             downloadUrl: streamingUrls || song.encrypted_media_url, // Use streaming URLs or fallback
@@ -146,7 +224,7 @@ export async function getArtistTopSongs(artistId, limit = 20, language = null) {
           };
         })
       );
-      
+
       return {
         id: artistId,
         name: response.data.name,

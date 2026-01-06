@@ -1,6 +1,6 @@
 /**
  * ProgressiveQueueLoader.js
- * 
+ *
  * A service that manages progressive loading of large playlists to prevent UI lag.
  * Loads songs in batches based on playback position, ensuring smooth UI while
  * maintaining seamless playback experience.
@@ -70,7 +70,7 @@ class ProgressiveQueueLoader {
         return {
             initialBatch: validInitialSongs,
             success: true,
-            hasMore: this.loadedCount < this.totalCount
+            hasMore: this.loadedCount < this.totalCount,
         };
     }
 
@@ -153,7 +153,7 @@ class ProgressiveQueueLoader {
                 DeviceEventEmitter.emit('queue-updated', {
                     count: this.loadedCount,
                     total: this.totalCount,
-                    isProgressiveBatch: true
+                    isProgressiveBatch: true,
                 });
             }
         } catch (error) {
@@ -199,7 +199,7 @@ class ProgressiveQueueLoader {
             loadedCount: this.loadedCount,
             totalCount: this.totalCount,
             isLoading: this.isLoading,
-            progress: this.totalCount > 0 ? this.loadedCount / this.totalCount : 0
+            progress: this.totalCount > 0 ? this.loadedCount / this.totalCount : 0,
         };
     }
 

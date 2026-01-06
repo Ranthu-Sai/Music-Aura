@@ -14,13 +14,13 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const SearchSuggestions = ({
     suggestions = [],
     onSuggestionPress,
-    isLoading = false
+    isLoading = false,
 }) => {
     const { colors, dark } = useTheme();
     const { currentThemeColors } = useContext(ThemeContext);
 
     const handleFillPress = (item) => {
-        if (onSuggestionPress) onSuggestionPress(item, true);
+        if (onSuggestionPress) {onSuggestionPress(item, true);}
     };
 
     // Deep list of optimized text suggestions
@@ -29,7 +29,7 @@ const SearchSuggestions = ({
         return [...new Set(suggestions.filter(s => s && s.trim().length > 0))].slice(0, 25);
     }, [suggestions]);
 
-    if (!textSuggestions.length && !isLoading) return null;
+    if (!textSuggestions.length && !isLoading) {return null;}
 
     return (
         <ScrollView
@@ -49,7 +49,7 @@ const SearchSuggestions = ({
                         <View style={[styles.iconBg, { backgroundColor: currentThemeColors?.secondaryBackground || (dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)') }]}>
                             <Ionicons name="search" size={16} color={colors.text} style={{ opacity: 0.5 }} />
                         </View>
-                        
+
                         <Text style={[styles.label, { color: colors.text }]} numberOfLines={1}>
                             {item}
                         </Text>
@@ -92,7 +92,7 @@ const styles = StyleSheet.create({
         paddingVertical: 14,
         paddingHorizontal: 5,
         borderBottomWidth: StyleSheet.hairlineWidth,
-        borderBottomColor: 'rgba(127,127,127,0.2)'
+        borderBottomColor: 'rgba(127,127,127,0.2)',
     },
     iconBg: {
         width: 36,
@@ -115,7 +115,7 @@ const styles = StyleSheet.create({
     loader: {
         marginTop: 50,
         alignItems: 'center',
-    }
+    },
 });
 
 export default React.memo(SearchSuggestions);

@@ -3,7 +3,7 @@ import ReactNativeBlobUtil from "react-native-blob-util";
 export async function getDirectorySize(path) {
     try {
         const isDir = await ReactNativeBlobUtil.fs.isDir(path);
-        if (!isDir) return 0;
+        if (!isDir) {return 0;}
 
         const files = await ReactNativeBlobUtil.fs.ls(path);
         let total = 0;
@@ -25,7 +25,7 @@ export async function getDirectorySize(path) {
 export async function getAppStorageDynamics() {
     try {
         const dirs = ReactNativeBlobUtil.fs.dirs;
-        
+
         // Download paths - check both possible locations
         const downloadPaths = [
             `${dirs.LegacyDownloadDir}/Music Aura`,
@@ -71,22 +71,22 @@ export async function getAppStorageDynamics() {
 
         // Get all cache files
         const allCacheFiles = await ReactNativeBlobUtil.fs.ls(dirs.CacheDir).catch(() => []);
-        
+
         // Process cache directory files
         for (const fileName of allCacheFiles) {
             const filePath = `${dirs.CacheDir}/${fileName}`;
-            
+
             // Skip if already counted in imageCachePaths
-            if (imageCachePaths.some(p => p.includes(fileName))) continue;
+            if (imageCachePaths.some(p => p.includes(fileName))) {continue;}
 
             try {
                 const stats = await ReactNativeBlobUtil.fs.stat(filePath);
                 const size = parseInt(stats.size) || 0;
-                
+
                 if (stats.type === 'directory') {
                     const dirSize = await getDirectorySize(filePath);
                     const name = fileName.toLowerCase();
-                    
+
                     // Categorize by directory name
                     if (name.includes('image') || name.includes('glide') || name.includes('pic') || name.includes('thumb')) {
                         imageCacheSize += dirSize;

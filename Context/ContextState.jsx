@@ -128,7 +128,7 @@ const ContextState = (props) => {
         source: 'All',
         background: 'rgba(0,0,0,1)',
         textColor: '#FFFFFF',
-        animation: 'Smooth'
+        animation: 'Smooth',
     });
     const hasSetupRef = useRef(false);
     const wasPlayingBeforeInterruption = useRef(false); // Track if we were playing before interruption
@@ -147,16 +147,16 @@ const ContextState = (props) => {
     const [Queue, setQueue] = useState([]);
     const QueueRef = useRef([]); // Ref to access latest queue in callbacks
     QueueRef.current = Queue; // Keep ref updated
-    
+
     const lyricsCacheRef = useRef({});
     const [queueVisible, setQueueVisible] = useState(false);
-    
+
     const updateTrack = useCallback(async () => {
         // PERFORMANCE: Defer getQueue to next frame to prevent blocking UI
         requestAnimationFrame(async () => {
             try {
                 const tracks = await TrackPlayer.getQueue();
-                
+
                 // PERFORMANCE: Fast O(1) comparison - compare length and boundary IDs
                 const hasChanged = tracks.length !== QueueRef.current.length ||
                     (tracks.length > 0 && QueueRef.current.length > 0 && (
@@ -188,16 +188,16 @@ const ContextState = (props) => {
         if (!id || (!forceAdd && recommendedProcessedRef.current.has(id))) {
             return 0; // Return count of songs added
         }
-        
+
         // PERFORMANCE: Use QueueRef for fast O(1) length check
         // Avoid expensive TrackPlayer.getQueue() bridge call unless necessary
         const currentQueueLength = QueueRef.current.length;
-        
+
         // Quick check using cached queue length
         if (currentQueueLength > 0 && index < currentQueueLength - 2 && currentQueueLength >= MIN_QUEUE_SIZE && !forceAdd) {
             return 0; // Queue is healthy, no need to add
         }
-        
+
         // Now fetch authoritative queue for actual operation
         const tracks = await TrackPlayer.getQueue();
         const totalTracks = tracks.length - 1;
@@ -215,7 +215,7 @@ const ContextState = (props) => {
                 // Use appropriate API based on source with caching
                 const cacheKey = `recommended_${id}`;
                 const songs = await getCachedData(cacheKey, async () => {
-                    return isYT 
+                    return isYT
                         ? await getYTMusicRecommendedSongs(id)
                         : await getRecommendedSongs(id);
                 }, { expiration: 60 * 24 }); // Cache for 24 hours
@@ -529,16 +529,16 @@ const ContextState = (props) => {
     }
 
     const refreshLyrics = useCallback(async (songId, artist, title, preferredLanguage, overrideSource) => {
-        if (!songId && !currentPlaying?.id) return;
-        
+        if (!songId && !currentPlaying?.id) {return;}
+
         const id = songId || currentPlaying.id;
         const art = artist || currentPlaying.artist;
         const tt = title || currentPlaying.title;
         const lang = preferredLanguage || currentPlaying.language || 'en';
         const source = overrideSource || lyricsSettings.source || 'All';
-        
+
         const cacheKey = id ? `${id}-${source}` : `${art}-${tt}-${source}`;
-        
+
         // Pass current settings to fetching logic
         const Lyrics = await getYTLyricsSongData(art, tt, lang, false, source);
         if (Lyrics?.success && lyricsCacheRef?.current) {
@@ -616,7 +616,7 @@ const ContextState = (props) => {
         setFontSize,
         theme,
         setTheme,
-        currentThemeColors
+        currentThemeColors,
     }), [fontSize, theme, currentThemeColors]);
 
     const actionValue = useMemo(() => ({
@@ -633,7 +633,7 @@ const ContextState = (props) => {
         lyricsSettings,
         setLyricsSettings,
         setLyricsSettingsState: setLyricsSettings,
-        refreshLyrics
+        refreshLyrics,
     }), [updateTrack, setIndex, setQueueIndex, setVisible, setQueueVisible, openQueue, closeQueue, ensureMinimumQueue, lyricsCacheRef, lyricsSettings, refreshLyrics]);
 
     const playerValue = useMemo(() => ({

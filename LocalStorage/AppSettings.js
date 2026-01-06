@@ -167,7 +167,7 @@ async function GetLyricsSettings() {
         source: 'All',
         background: 'rgba(0,0,0,1)',
         textColor: '#FFFFFF',
-        animation: 'Smooth'
+        animation: 'Smooth',
       };
     }
   } catch (e) {
@@ -176,7 +176,7 @@ async function GetLyricsSettings() {
       source: 'All',
       background: 'rgba(0,0,0,1)',
       textColor: '#FFFFFF',
-      animation: 'Smooth'
+      animation: 'Smooth',
     };
   }
 }
@@ -191,17 +191,17 @@ async function SetLyricsSettings(settings) {
   }
 }
 
-export { 
-  GetFontSizeValue, 
-  SetFontSizeValue, 
-  GetPlaybackQuality, 
-  SetPlaybackQuality, 
-  GetDownloadPath, 
-  SetDownloadPath, 
-  GetTheme, 
-  SetTheme, 
-  GetLastSong, 
+export {
+  GetFontSizeValue,
+  SetFontSizeValue,
+  GetPlaybackQuality,
+  SetPlaybackQuality,
+  GetDownloadPath,
+  SetDownloadPath,
+  GetTheme,
+  SetTheme,
+  GetLastSong,
   SetLastSong,
   GetLyricsSettings,
-  SetLyricsSettings
+  SetLyricsSettings,
 }

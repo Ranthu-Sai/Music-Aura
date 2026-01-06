@@ -22,14 +22,14 @@ export const AlbumDetails = ({ name, artist, year, songCount, duration, Data }) 
   const [isShufflingLoading, setIsShufflingLoading] = useState(false);
 
   const AddToPlayer = useCallback(async () => {
-    if (isPlayingLoading) return;
-    
+    if (isPlayingLoading) {return;}
+
     try {
       setIsPlayingLoading(true);
       const quality = await getIndexQuality();
       const ForMusicPlayer = Data?.data?.songs?.map((e) => {
-        const download = Array.isArray(e?.downloadUrl) 
-          ? (e?.downloadUrl[quality]?.url || e?.downloadUrl[0]?.url) 
+        const download = Array.isArray(e?.downloadUrl)
+          ? (e?.downloadUrl[quality]?.url || e?.downloadUrl[0]?.url)
           : e?.downloadUrl;
 
         return {
@@ -45,7 +45,7 @@ export const AlbumDetails = ({ name, artist, year, songCount, duration, Data }) 
           source: 'ytmusic',
         };
       });
-      
+
       await AddPlaylist(ForMusicPlayer);
       updateTrack();
     } catch (error) {
@@ -56,23 +56,23 @@ export const AlbumDetails = ({ name, artist, year, songCount, duration, Data }) 
   }, [isPlayingLoading, Data, updateTrack]);
 
   const handleShufflePress = useCallback(async () => {
-    if (isShufflingLoading) return;
-    
+    if (isShufflingLoading) {return;}
+
     try {
       setIsShufflingLoading(true);
       const quality = await getIndexQuality();
       const songs = Data?.data?.songs || [];
-      
+
       // Shuffle array
       const shuffled = [...songs];
       for (let i = shuffled.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
       }
-      
+
       const ForMusicPlayer = shuffled.map((e) => {
-        const download = Array.isArray(e?.downloadUrl) 
-          ? (e?.downloadUrl[quality]?.url || e?.downloadUrl[0]?.url) 
+        const download = Array.isArray(e?.downloadUrl)
+          ? (e?.downloadUrl[quality]?.url || e?.downloadUrl[0]?.url)
           : e?.downloadUrl;
 
         return {
@@ -88,7 +88,7 @@ export const AlbumDetails = ({ name, artist, year, songCount, duration, Data }) 
           source: 'ytmusic',
         };
       });
-      
+
       await AddPlaylist(ForMusicPlayer);
       updateTrack();
     } catch (error) {
@@ -110,7 +110,7 @@ export const AlbumDetails = ({ name, artist, year, songCount, duration, Data }) 
     const rawSongTitle = song?.name || song?.title || '';
 
     const decodeHtmlEntitiesLocal = (text) => {
-      if (!text) return text;
+      if (!text) {return text;}
       return text.toString()
         .replace(/&quot;/g, '"')
         .replace(/&apos;|&#039;/g, "'")
@@ -120,12 +120,12 @@ export const AlbumDetails = ({ name, artist, year, songCount, duration, Data }) 
     };
 
     const extractFromPattern = (txt) => {
-      if (!txt) return null;
+      if (!txt) {return null;}
       const decoded = decodeHtmlEntitiesLocal(txt);
       const m = decoded.match(/from\s+["'“”]?([^"'\)\]]+)["'“”]?/i) ||
                 decoded.match(/\((?:From|from)\s+["'“”]?([^"'\)\]]+)["'“”]?\)/i) ||
                 decoded.match(/\[(?:From|from)\s+([^\]]+)\]/i);
-      if (m && m[1]) return m[1].trim();
+      if (m && m[1]) {return m[1].trim();}
       return null;
     };
 
@@ -141,12 +141,12 @@ export const AlbumDetails = ({ name, artist, year, songCount, duration, Data }) 
     const albumFromSongField = song ? (typeof song.album === 'object' ? song.album?.name : song.album) : null;
     if (albumFromSongField) {
       const extracted = extractFromPattern(albumFromSongField) || cleanText(albumFromSongField);
-      if (extracted && extracted !== cleanedSongTitle && extracted !== 'N/A') return extracted;
+      if (extracted && extracted !== cleanedSongTitle && extracted !== 'N/A') {return extracted;}
     }
 
     // Try extracting album name from the song title itself
     const extractedFromTitle = extractFromPattern(rawSongTitle);
-    if (extractedFromTitle && extractedFromTitle !== cleanedSongTitle) return decodeHtmlEntitiesLocal(extractedFromTitle);
+    if (extractedFromTitle && extractedFromTitle !== cleanedSongTitle) {return decodeHtmlEntitiesLocal(extractedFromTitle);}
 
     // Fallback to cleaned API album or generic label
     return cleanedRawAlbum || 'Album';
@@ -211,25 +211,25 @@ export const AlbumDetails = ({ name, artist, year, songCount, duration, Data }) 
 
           {/* Action Icons Row */}
           <View style={styles.actionRow}>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={[styles.iconButton, { backgroundColor: theme.dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }]}
               activeOpacity={0.7}
             >
-              <MaterialIcons 
-                name="favorite-border" 
-                size={20} 
-                color={theme.colors.text} 
+              <MaterialIcons
+                name="favorite-border"
+                size={20}
+                color={theme.colors.text}
               />
             </TouchableOpacity>
-            
-            <TouchableOpacity 
+
+            <TouchableOpacity
               style={[styles.iconButton, { backgroundColor: theme.dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }]}
               activeOpacity={0.7}
             >
-              <MaterialCommunityIcons 
-                name="download-outline" 
-                size={20} 
-                color={theme.colors.text} 
+              <MaterialCommunityIcons
+                name="download-outline"
+                size={20}
+                color={theme.colors.text}
               />
             </TouchableOpacity>
           </View>
@@ -240,8 +240,8 @@ export const AlbumDetails = ({ name, artist, year, songCount, duration, Data }) 
       <View style={styles.buttonRow}>
         {/* Play Button */}
         <TouchableOpacity
-          style={[styles.playButton, { 
-            backgroundColor: isPlayingLoading ? '#32CD32' + '80' : '#32CD32' 
+          style={[styles.playButton, {
+            backgroundColor: isPlayingLoading ? '#32CD32' + '80' : '#32CD32',
           }]}
           onPress={AddToPlayer}
           disabled={isPlayingLoading}
@@ -262,10 +262,10 @@ export const AlbumDetails = ({ name, artist, year, songCount, duration, Data }) 
         <TouchableOpacity
           style={StyleSheet.flatten([
             styles.shuffleButton,
-            { 
+            {
               backgroundColor: theme.dark ? 'transparent' : 'rgba(0,0,0,0.05)',
               borderColor: theme.dark ? 'rgba(255,255,255,0.3)' : theme.colors.primary,
-            }
+            },
           ])}
           onPress={handleShufflePress}
           disabled={isShufflingLoading}

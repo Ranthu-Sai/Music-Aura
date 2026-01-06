@@ -3,6 +3,13 @@ import axios from "axios";
 import { getYTMusicPlaylistData as getYTMusicPlaylistDataFromService } from "./YTMusic";
 import YTArtworkUtils from "../Utils/YTMusicArtworkUtils";
 
+// JioSaavn API Fallback URLs
+const JIOSAAVN_API_FALLBACKS = [
+  'https://jiosaavn-api-2.vercel.app',     // Primary (currently used)
+  'https://saavn-api.vercel.app',          // Secondary fallback
+  'https://jio-savan-api-sigma.vercel.app', // Tertiary fallback
+];
+
 async function getPlaylistData(id) {
     // Check if it's a user-created local playlist
     if (typeof id === 'string' && id.startsWith('playlist_')) {
@@ -21,7 +28,7 @@ async function getPlaylistData(id) {
                         artists: { primary: [{ name: s.artist }] },
                     })),
                     source: 'local',
-                }
+                },
             };
         }
     }
@@ -173,6 +180,11 @@ async function getSearchPlaylistData(searchText, page, limit) {
         `https://jio-savan-api-sigma.vercel.app/search/playlists?query=${searchText}&page=${page}&limit=${limit}`,
         `${baseUrl}?${Object.keys(defaultParams).map(k => `${k}=${defaultParams[k]}`).join('&')}&${sources.playlist_search}&q=${encodeURIComponent(searchText)}&p=${page}`,
     ];
+
+    // Add fallback API URLs with /search/playlists endpoint
+    JIOSAAVN_API_FALLBACKS.forEach(apiBase => {
+        urls.push(`${apiBase}/search/playlists?query=${encodeURIComponent(searchText)}&page=${page}&limit=${limit}`);
+    });
 
     for (let url of urls) {
         try {

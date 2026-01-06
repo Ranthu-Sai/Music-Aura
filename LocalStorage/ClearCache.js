@@ -32,7 +32,7 @@ async function GetCacheSizes() {
     // 1. AsyncStorage sizes (Optimized with multiGet)
     const allStorageKeys = [];
     const keyMap = {}; // Map storage key back to category key
-    
+
     Object.entries(CACHE_KEYS).forEach(([cat, keys]) => {
       keys.forEach(k => {
         allStorageKeys.push(k);
@@ -41,7 +41,7 @@ async function GetCacheSizes() {
     });
 
     const results = await AsyncStorage.multiGet(allStorageKeys);
-    
+
     results.forEach(([key, value]) => {
       const cat = keyMap[key];
       if (value) {
@@ -55,9 +55,9 @@ async function GetCacheSizes() {
     const { getAppStorageDynamics } = require('../Utils/StorageUtils');
     const dynamic = await getAppStorageDynamics();
 
-    sizes['SONG_CACHE'] = dynamic.songCache || 0;
-    sizes['OFFLINE_DOWNLOADS'] = dynamic.downloads || 0;
-    sizes['IMAGE_CACHE'] = (sizes['IMAGE_CACHE'] || 0) + (dynamic.imageCache || 0);
+    sizes.SONG_CACHE = dynamic.songCache || 0;
+    sizes.OFFLINE_DOWNLOADS = dynamic.downloads || 0;
+    sizes.IMAGE_CACHE = (sizes.IMAGE_CACHE || 0) + (dynamic.imageCache || 0);
 
     // Calculate total
     sizes.TOTAL = Object.keys(sizes).reduce((total, key) => {
@@ -101,12 +101,12 @@ async function ClearSelectedCache(selectedKeys) {
           try {
             await FastImage.clearDiskCache();
             await FastImage.clearMemoryCache();
-            
+
             // Also manually clear image directories identified in StorageUtils
             const imageDirs = [
               `${dirs.CacheDir}/image_manager_disk_cache`,
               `${dirs.CacheDir}/com.bumptech.glide.manager`,
-              `${dirs.CacheDir}/ImageCache`
+              `${dirs.CacheDir}/ImageCache`,
             ];
             for (const path of imageDirs) {
               if (await ReactNativeBlobUtil.fs.exists(path)) {
@@ -115,21 +115,21 @@ async function ClearSelectedCache(selectedKeys) {
             }
           } catch (e) { }
         }
-      } 
-      
+      }
+
       if (key === 'SONG_CACHE' || key === 'IMAGE_CACHE') {
         // Targeted filesystem clearing based on the same logic as counting
         try {
           if (await ReactNativeBlobUtil.fs.exists(dirs.CacheDir)) {
              const files = await ReactNativeBlobUtil.fs.ls(dirs.CacheDir);
-             
+
              for (const fileName of files) {
                const filePath = `${dirs.CacheDir}/${fileName}`;
                const stats = await ReactNativeBlobUtil.fs.stat(filePath).catch(() => null);
-               if (!stats) continue;
+               if (!stats) {continue;}
 
                let shouldRemove = false;
-               
+
                if (key === 'IMAGE_CACHE') {
                  // Remove small files or image-related directories
                  if (stats.type === 'file' && parseInt(stats.size) < 1024 * 1024) {
@@ -158,7 +158,7 @@ async function ClearSelectedCache(selectedKeys) {
           `${dirs.LegacyDownloadDir}/Music Aura`,
           `${dirs.LegacyMusicDir}/Music Aura`,
         ];
-        
+
         for (const downloadPath of paths) {
           try {
             if (await ReactNativeBlobUtil.fs.exists(downloadPath)) {
@@ -174,7 +174,7 @@ async function ClearSelectedCache(selectedKeys) {
             console.warn(`Failed to clear downloads at ${downloadPath}:`, err);
           }
         }
-        
+
         // Clear downloaded songs metadata from AsyncStorage
         try {
           await AsyncStorage.removeItem('downloadedSongsMetadata');

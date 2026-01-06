@@ -37,9 +37,9 @@ const LyricsLine = React.memo(({ item, index, isCurrent, isPast, fontSize, textC
     </Pressable>
   );
 }, (prev, next) => {
-  return prev.isCurrent === next.isCurrent && 
-         prev.isPast === next.isPast && 
-         prev.fontSize === next.fontSize && 
+  return prev.isCurrent === next.isCurrent &&
+         prev.isPast === next.isPast &&
+         prev.fontSize === next.fontSize &&
          prev.textColor === next.textColor;
 });
 
@@ -100,7 +100,7 @@ export const ShowLyrics = ({ ShowDailog, Loading, Lyric, setShowDailog, currentS
   }, [lyricsSettings.background]);
 
   const getTextColor = React.useCallback((isCurrent) => {
-    if (isCurrent) return '#00FF88';
+    if (isCurrent) {return '#00FF88';}
     return lyricsSettings.textColor || '#FFFFFF';
   }, [lyricsSettings.textColor]);
 
@@ -108,7 +108,7 @@ export const ShowLyrics = ({ ShowDailog, Loading, Lyric, setShowDailog, currentS
     const newSettings = { ...lyricsSettings, [key]: value };
     setLyricsSettingsState(newSettings);
     await SetLyricsSettings(newSettings);
-    
+
     // If source changed, auto-refresh lyrics and update parent state
     if (key === 'source') {
       try {
@@ -146,7 +146,7 @@ export const ShowLyrics = ({ ShowDailog, Loading, Lyric, setShowDailog, currentS
 
   const handleShareLyrics = async () => {
     try {
-      if (!Lyric?.lyrics) return;
+      if (!Lyric?.lyrics) {return;}
       const lyricsText = Lyric.lyrics.replaceAll("<br>", "\n");
       const songTitle = cleanSongTitle(currentSong?.title);
       const songArtist = currentSong?.artist || 'Unknown Artist';
@@ -229,10 +229,10 @@ export const ShowLyrics = ({ ShowDailog, Loading, Lyric, setShowDailog, currentS
     const baseFontSize = getFontSize(width * 0.05);
 
     return (
-      <LyricsLine 
-        item={item} 
-        index={index} 
-        isCurrent={isCurrent} 
+      <LyricsLine
+        item={item}
+        index={index}
+        isCurrent={isCurrent}
         isPast={isPast}
         fontSize={baseFontSize}
         textColor={lyricsSettings.textColor}
@@ -407,9 +407,9 @@ export const ShowLyrics = ({ ShowDailog, Loading, Lyric, setShowDailog, currentS
         animationType="slide"
         onRequestClose={() => setShowSettings(false)}
       >
-        <Pressable 
-          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' }} 
-          onPress={() => setShowSettings(false)} 
+        <Pressable
+          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' }}
+          onPress={() => setShowSettings(false)}
         />
         <View style={{
           backgroundColor: '#0D0D0D', // Darker, cleaner box
@@ -432,7 +432,7 @@ export const ShowLyrics = ({ ShowDailog, Loading, Lyric, setShowDailog, currentS
             <Text style={styles.settingLabel}>Font Size</Text>
             <View style={styles.optionsRow}>
               {['Small', 'Medium', 'Large', 'Extra'].map(size => (
-                <Pressable 
+                <Pressable
                   key={size}
                   onPress={() => handleUpdateSetting('fontSize', size)}
                   style={[styles.optionButton, lyricsSettings.fontSize === size && styles.activeOption]}
@@ -446,7 +446,7 @@ export const ShowLyrics = ({ ShowDailog, Loading, Lyric, setShowDailog, currentS
             <Text style={styles.settingLabel}>Lyrics Source</Text>
             <View style={[styles.optionsRow, { flexWrap: 'wrap' }]}>
               {['All', 'LRCLib', 'BetterLyrics', 'RenderAPI', 'AutoEngine', 'OVH', 'Musixmatch', 'JioSaavn'].map(src => (
-                <Pressable 
+                <Pressable
                   key={src}
                   onPress={() => handleUpdateSetting('source', src)}
                   style={[styles.optionButton, lyricsSettings.source === src && styles.activeOption, { marginBottom: 10 }]}
@@ -465,7 +465,7 @@ export const ShowLyrics = ({ ShowDailog, Loading, Lyric, setShowDailog, currentS
                 { name: 'Blue', val: '#001A33' },
                 { name: 'Purple', val: '#1A0033' },
               ].map(theme => (
-                <Pressable 
+                <Pressable
                   key={theme.name}
                   onPress={() => handleUpdateSetting('background', theme.val)}
                   style={[styles.optionButton, lyricsSettings.background === theme.val && styles.activeOption]}
@@ -484,7 +484,7 @@ export const ShowLyrics = ({ ShowDailog, Loading, Lyric, setShowDailog, currentS
                 { name: 'Green', val: '#00FF88' },
                 { name: 'Blue', val: '#33D1FF' },
               ].map(color => (
-                <Pressable 
+                <Pressable
                   key={color.name}
                   onPress={() => handleUpdateSetting('textColor', color.val)}
                   style={[styles.optionButton, lyricsSettings.textColor === color.val && styles.activeOption]}
@@ -499,7 +499,7 @@ export const ShowLyrics = ({ ShowDailog, Loading, Lyric, setShowDailog, currentS
             <Text style={styles.settingLabel}>Animation Style</Text>
             <View style={styles.optionsRow}>
               {['Smooth', 'Standard', 'Static'].map(anim => (
-                <Pressable 
+                <Pressable
                   key={anim}
                   onPress={() => handleUpdateSetting('animation', anim)}
                   style={[styles.optionButton, lyricsSettings.animation === anim && styles.activeOption]}
@@ -510,8 +510,8 @@ export const ShowLyrics = ({ ShowDailog, Loading, Lyric, setShowDailog, currentS
             </View>
 
             <Spacer height={40} />
-            
-            <Pressable 
+
+            <Pressable
               onPress={() => setShowSettings(false)}
               style={{
                 backgroundColor: theme.colors.primary,
@@ -563,5 +563,5 @@ const styles = {
   activeOptionText: {
     color: '#00FF88',
     fontWeight: 'bold',
-  }
+  },
 };

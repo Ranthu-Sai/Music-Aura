@@ -2,7 +2,7 @@ import RNFS from 'react-native-fs';
 
 /**
  * AudioMetadataParser - Extracts embedded artwork and metadata from audio files
- * 
+ *
  * Supports:
  * - MP3 files (ID3v2 tags)
  * - M4A/AAC/MP4 files (MP4 atoms)
@@ -84,7 +84,7 @@ class AudioMetadataParser {
 
                 offset += 4;
 
-                if (offset + blockLength > bytes.length) break;
+                if (offset + blockLength > bytes.length) {break;}
 
                 // VORBIS_COMMENT block (type 4)
                 if (blockType === 4) {
@@ -97,7 +97,7 @@ class AudioMetadataParser {
                 }
 
                 offset += blockLength;
-                if (isLast) break;
+                if (isLast) {break;}
             }
 
             return { artwork, metadata };
@@ -170,7 +170,7 @@ class AudioMetadataParser {
                 const commentLength = bytes[pos] | (bytes[pos + 1] << 8) | (bytes[pos + 2] << 16) | (bytes[pos + 3] << 24);
                 pos += 4;
 
-                if (pos + commentLength > bytes.length) break;
+                if (pos + commentLength > bytes.length) {break;}
 
                 let comment = '';
                 for (let j = 0; j < commentLength; j++) {
@@ -182,11 +182,11 @@ class AudioMetadataParser {
 
                 if (key && value) {
                     const normalizedKey = key.toLowerCase();
-                    if (normalizedKey === 'artist') metadata.artist = value;
-                    else if (normalizedKey === 'album') metadata.album = value;
-                    else if (normalizedKey === 'title') metadata.title = value;
-                    else if (normalizedKey === 'date' || normalizedKey === 'year') metadata.year = value;
-                    else if (normalizedKey === 'genre') metadata.genre = value;
+                    if (normalizedKey === 'artist') {metadata.artist = value;}
+                    else if (normalizedKey === 'album') {metadata.album = value;}
+                    else if (normalizedKey === 'title') {metadata.title = value;}
+                    else if (normalizedKey === 'date' || normalizedKey === 'year') {metadata.year = value;}
+                    else if (normalizedKey === 'genre') {metadata.genre = value;}
                 }
             }
 
@@ -239,12 +239,12 @@ class AudioMetadataParser {
             '\xa9ART': 'artist',   // ©ART
             '\xa9alb': 'album',    // ©alb
             '\xa9day': 'year',     // ©day
-            '\xa9gen': 'genre'     // ©gen
+            '\xa9gen': 'genre',     // ©gen
         };
 
         for (const [atomName, metaKey] of Object.entries(atoms)) {
             const value = this.findM4AAtomValue(bytes, atomName);
-            if (value) metadata[metaKey] = value;
+            if (value) {metadata[metaKey] = value;}
         }
 
         return metadata;
@@ -271,7 +271,7 @@ class AudioMetadataParser {
                              } catch (e) {
                                 let text = '';
                                 for (let k = 0; k < textLength; k++) {
-                                    if (textBytes[k] > 0) text += String.fromCharCode(textBytes[k]);
+                                    if (textBytes[k] > 0) {text += String.fromCharCode(textBytes[k]);}
                                 }
                                 return text.trim();
                              }
@@ -291,10 +291,10 @@ class AudioMetadataParser {
         let i = 0;
         while (i < bytes.length) {
             const b1 = bytes[i++];
-            if (b1 === 0) continue;
-            if (b1 < 0x80) result += String.fromCharCode(b1);
-            else if (b1 < 0xE0) result += String.fromCharCode(((b1 & 0x1F) << 6) | (bytes[i++] & 0x3F));
-            else if (b1 < 0xF0) result += String.fromCharCode(((b1 & 0x0F) << 12) | ((bytes[i++] & 0x3F) << 6) | (bytes[i++] & 0x3F));
+            if (b1 === 0) {continue;}
+            if (b1 < 0x80) {result += String.fromCharCode(b1);}
+            else if (b1 < 0xE0) {result += String.fromCharCode(((b1 & 0x1F) << 6) | (bytes[i++] & 0x3F));}
+            else if (b1 < 0xF0) {result += String.fromCharCode(((b1 & 0x0F) << 12) | ((bytes[i++] & 0x3F) << 6) | (bytes[i++] & 0x3F));}
             else {
                 let cp = ((b1 & 0x07) << 18) | ((bytes[i++] & 0x3F) << 12) | ((bytes[i++] & 0x3F) << 6) | (bytes[i++] & 0x3F);
                 cp -= 0x10000;
@@ -384,7 +384,7 @@ class AudioMetadataParser {
         while (offset < maxOffset - 10) {
             const frameId = String.fromCharCode(bytes[offset], bytes[offset + 1], bytes[offset + 2], bytes[offset + 3]);
 
-            if (bytes[offset] === 0x00 || !/^[A-Z0-9]{4}$/.test(frameId)) break;
+            if (bytes[offset] === 0x00 || !/^[A-Z0-9]{4}$/.test(frameId)) {break;}
 
             let frameSize;
             if (headerInfo.version === 4) {
@@ -395,11 +395,11 @@ class AudioMetadataParser {
 
             const dataOffset = offset + 10;
 
-            if (frameId === 'TIT2') metadata.title = this.extractTextFrame(bytes, dataOffset, frameSize);
-            else if (frameId === 'TPE1') metadata.artist = this.extractTextFrame(bytes, dataOffset, frameSize);
-            else if (frameId === 'TALB') metadata.album = this.extractTextFrame(bytes, dataOffset, frameSize);
-            else if (frameId === 'TYER' || frameId === 'TDRC') metadata.year = this.extractTextFrame(bytes, dataOffset, frameSize);
-            else if (frameId === 'TCON') metadata.genre = this.extractTextFrame(bytes, dataOffset, frameSize);
+            if (frameId === 'TIT2') {metadata.title = this.extractTextFrame(bytes, dataOffset, frameSize);}
+            else if (frameId === 'TPE1') {metadata.artist = this.extractTextFrame(bytes, dataOffset, frameSize);}
+            else if (frameId === 'TALB') {metadata.album = this.extractTextFrame(bytes, dataOffset, frameSize);}
+            else if (frameId === 'TYER' || frameId === 'TDRC') {metadata.year = this.extractTextFrame(bytes, dataOffset, frameSize);}
+            else if (frameId === 'TCON') {metadata.genre = this.extractTextFrame(bytes, dataOffset, frameSize);}
 
             offset += 10 + frameSize;
         }
@@ -412,19 +412,19 @@ class AudioMetadataParser {
      */
     static extractTextFrame(bytes, offset, size) {
         try {
-            if (size < 2) return null;
+            if (size < 2) {return null;}
             const encoding = bytes[offset];
             const textStart = offset + 1;
             const textEnd = offset + size;
 
-            if (textStart >= bytes.length) return null;
+            if (textStart >= bytes.length) {return null;}
 
             let text = '';
 
             if (encoding === 0x00 || encoding === 0x03) {
                 // Latin-1 or UTF-8
                 for (let i = textStart; i < textEnd && i < bytes.length; i++) {
-                    if (bytes[i] === 0) break;
+                    if (bytes[i] === 0) {break;}
                     text += String.fromCharCode(bytes[i]);
                 }
             } else if (encoding === 0x01 || encoding === 0x02) {
@@ -432,12 +432,12 @@ class AudioMetadataParser {
                 let i = textStart;
                 let le = false;
                 if (encoding === 0x01) {
-                    if (bytes[i] === 0xFF && bytes[i+1] === 0xFE) { le = true; i += 2; }
-                    else if (bytes[i] === 0xFE && bytes[i+1] === 0xFF) { le = false; i += 2; }
+                    if (bytes[i] === 0xFF && bytes[i + 1] === 0xFE) { le = true; i += 2; }
+                    else if (bytes[i] === 0xFE && bytes[i + 1] === 0xFF) { le = false; i += 2; }
                 }
                 while (i + 1 < textEnd && i + 1 < bytes.length) {
-                    const ch = le ? (bytes[i] | (bytes[i+1] << 8)) : ((bytes[i] << 8) | bytes[i+1]);
-                    if (ch === 0) break;
+                    const ch = le ? (bytes[i] | (bytes[i + 1] << 8)) : ((bytes[i] << 8) | bytes[i + 1]);
+                    if (ch === 0) {break;}
                     text += String.fromCharCode(ch);
                     i += 2;
                 }
@@ -462,7 +462,7 @@ class AudioMetadataParser {
 
         while (offset < maxOffset - 10) {
             const frameId = String.fromCharCode(bytes[offset], bytes[offset + 1], bytes[offset + 2], bytes[offset + 3]);
-            if (bytes[offset] === 0x00) break;
+            if (bytes[offset] === 0x00) {break;}
 
             let frameSize;
             if (headerInfo.version === 4) {
@@ -484,21 +484,21 @@ class AudioMetadataParser {
             let pos = offset;
             const encoding = bytes[pos++];
             let mimeType = '';
-            while (pos < offset + size && bytes[pos] !== 0) mimeType += String.fromCharCode(bytes[pos++]);
+            while (pos < offset + size && bytes[pos] !== 0) {mimeType += String.fromCharCode(bytes[pos++]);}
             pos++; // Skip null
             pos++; // Picture type
-            
+
             // Skip description
             if (encoding === 0 || encoding === 3) {
-                while (pos < offset + size && bytes[pos] !== 0) pos++;
+                while (pos < offset + size && bytes[pos] !== 0) {pos++;}
                 pos++;
             } else {
-                while (pos < offset + size - 1 && !(bytes[pos] === 0 && bytes[pos+1] === 0)) pos++;
+                while (pos < offset + size - 1 && !(bytes[pos] === 0 && bytes[pos + 1] === 0)) {pos++;}
                 pos += 2;
             }
 
             const imgLen = offset + size - pos;
-            if (imgLen <= 0) return null;
+            if (imgLen <= 0) {return null;}
             const imgBytes = bytes.slice(pos, offset + size);
             return { base64: this.bytesToBase64(imgBytes), mimeType: mimeType || 'image/jpeg' };
         } catch (e) { return null; }
@@ -509,11 +509,11 @@ class AudioMetadataParser {
         const cleanBase64 = base64.replace(/\s/g, '');
         const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
         const lookup = new Uint8Array(256);
-        for (let i = 0; i < chars.length; i++) lookup[chars.charCodeAt(i)] = i;
+        for (let i = 0; i < chars.length; i++) {lookup[chars.charCodeAt(i)] = i;}
 
         let len = cleanBase64.length;
-        if (cleanBase64.endsWith('==')) len -= 2;
-        else if (cleanBase64.endsWith('=')) len -= 1;
+        if (cleanBase64.endsWith('==')) {len -= 2;}
+        else if (cleanBase64.endsWith('=')) {len -= 1;}
 
         const bytes = new Uint8Array(Math.floor(cleanBase64.length * 0.75));
         let i = 0, j = 0;
@@ -540,13 +540,13 @@ class AudioMetadataParser {
 
             base64 += chars.charAt(b1 >> 2);
             base64 += chars.charAt(((b1 & 3) << 4) | (b2 >> 4));
-            
+
             if (i + 1 < bytes.length) {
                 base64 += chars.charAt(((b2 & 15) << 2) | (b3 >> 6));
             } else {
                 base64 += '=';
             }
-            
+
             if (i + 2 < bytes.length) {
                 base64 += chars.charAt(b3 & 63);
             } else {

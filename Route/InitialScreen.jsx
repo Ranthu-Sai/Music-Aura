@@ -1,11 +1,11 @@
-import Animated, { 
-  FadeIn, 
-  FadeOut, 
-  useSharedValue, 
-  useAnimatedStyle, 
-  withRepeat, 
-  withTiming, 
-  Easing 
+import Animated, {
+  FadeIn,
+  FadeOut,
+  useSharedValue,
+  useAnimatedStyle,
+  withRepeat,
+  withTiming,
+  Easing,
 } from "react-native-reanimated";
 import { View, StatusBar, StyleSheet, Text } from "react-native";
 import { useTheme } from "@react-navigation/native";
@@ -46,18 +46,18 @@ export const InitialScreen = ({ navigation }) => {
     <View style={styles.container}>
       {/* Set StatusBar to translucent and same color as Slide1 to avoid layout shifts */}
       <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
-      
+
       <View style={styles.centerContainer}>
-        <Animated.Text 
-          entering={FadeIn.duration(800)} 
+        <Animated.Text
+          entering={FadeIn.duration(800)}
           exiting={FadeOut.duration(300)}
           style={[
             styles.title,
-            { 
-              color: theme.colors.text, 
-              textShadowColor: theme.colors.primary || '#1DB954' 
+            {
+              color: theme.colors.text,
+              textShadowColor: theme.colors.primary || '#1DB954',
             },
-            animatedGlow
+            animatedGlow,
           ]}
         >
           Music Aura
@@ -68,9 +68,9 @@ export const InitialScreen = ({ navigation }) => {
 };
 
 const styles = StyleSheet.create({
-  container: { 
-    flex: 1, 
-    backgroundColor: '#101010' 
+  container: {
+    flex: 1,
+    backgroundColor: '#101010',
   },
   centerContainer: {
     ...StyleSheet.absoluteFillObject,
@@ -83,5 +83,5 @@ const styles = StyleSheet.create({
     letterSpacing: 2,
     textAlign: "center",
     textShadowOffset: { width: 0, height: 0 },
-  }
+  },
 });

@@ -6,7 +6,7 @@ import AudioMetadataParser from './ID3Parser';
 
 /**
  * LocalTracksMetadataProcessor - Processes and extracts metadata from local audio files
- * 
+ *
  * This class handles:
  * - Reading audio file metadata (ID3 tags, etc.)
  * - Extracting track information (title, artist, album, etc.)
@@ -18,7 +18,7 @@ import AudioMetadataParser from './ID3Parser';
 export class LocalTracksMetadataProcessor {
   constructor() {
     this.supportedFormats = [
-      '.mp3', '.m4a', '.aac', '.flac', '.wav', '.ogg', '.opus', '.webm', '.wma'
+      '.mp3', '.m4a', '.aac', '.flac', '.wav', '.ogg', '.opus', '.webm', '.wma',
     ];
   }
 
@@ -40,12 +40,12 @@ export class LocalTracksMetadataProcessor {
       // Check cache first
       const cacheKey = this.generateTrackId(filePath);
       console.log('LocalTracksMetadataProcessor: Cache key for', filePath, 'is', cacheKey);
-      
+
       // Ensure metadata manager is initialized
       if (!localTracksMetadataManager.isInitialized) {
         await localTracksMetadataManager.initialize();
       }
-      
+
       let metadata = await localTracksMetadataManager.getMetadata(cacheKey);
       console.log('LocalTracksMetadataProcessor: Cached metadata found:', !!metadata);
 
@@ -61,7 +61,7 @@ export class LocalTracksMetadataProcessor {
       console.log('LocalTracksMetadataProcessor: Extracting fresh metadata for:', filePath);
       // Extract metadata
       metadata = await this.extractMetadata(filePath, options);
-      
+
       // Add file system information
       const fileStats = await RNFS.stat(filePath);
       metadata.filePath = filePath;
@@ -110,7 +110,7 @@ export class LocalTracksMetadataProcessor {
       results,
       errors,
       successCount: results.length,
-      errorCount: errors.length
+      errorCount: errors.length,
     };
   }
 
@@ -124,7 +124,7 @@ export class LocalTracksMetadataProcessor {
     try {
       const fileName = this.getFileName(filePath);
       const fileExtension = this.getFileExtension(filePath);
-      
+
       // Try to extract real metadata first
       let result = null;
       try {
@@ -133,7 +133,7 @@ export class LocalTracksMetadataProcessor {
       } catch (e) {
         console.warn('LocalTracksMetadataProcessor: AudioMetadataParser failed', e);
       }
-      
+
       if (result && result.metadata && (result.metadata.title || result.metadata.artist)) {
         console.log(`LocalTracksMetadataProcessor: Found metadata for ${fileName}:`, result.metadata.title);
         return {
@@ -146,13 +146,13 @@ export class LocalTracksMetadataProcessor {
           year: result.metadata.year || null,
           fileExtension,
           fileType: this.getFileType(fileExtension),
-          embeddedArtwork: result.artwork
+          embeddedArtwork: result.artwork,
         };
       }
 
       // Fallback to parsing filename
       const parsedInfo = this.parseFileName(fileName);
-      
+
       return {
         id: this.generateTrackId(filePath),
         title: parsedInfo.title || fileName.replace(/\.[^/.]+$/, ''),
@@ -162,7 +162,7 @@ export class LocalTracksMetadataProcessor {
         genre: 'Unknown',
         year: null,
         fileExtension,
-        fileType: this.getFileType(fileExtension)
+        fileType: this.getFileType(fileExtension),
       };
     } catch (error) {
       console.error(`LocalTracksMetadataProcessor: Failed to extract metadata from ${filePath}:`, error);
@@ -183,7 +183,7 @@ export class LocalTracksMetadataProcessor {
         return {
           uri: `data:${metadata.embeddedArtwork.mimeType || 'image/jpeg'};base64,${metadata.embeddedArtwork.base64}`,
           type: 'embedded',
-          source: 'embedded'
+          source: 'embedded',
         };
       }
 
@@ -193,7 +193,7 @@ export class LocalTracksMetadataProcessor {
         return {
           uri: `file://${artworkPath}`,
           type: 'external',
-          source: 'file'
+          source: 'file',
         };
       }
 
@@ -245,17 +245,17 @@ export class LocalTracksMetadataProcessor {
   parseFileName(fileName) {
     // Remove file extension
     const nameWithoutExt = fileName.replace(/\.[^/.]+$/, '');
-    
+
     // Common patterns:
     // Artist - Title
     // Artist - Album - Title
     // Title
-    
+
     const patterns = [
       // Artist - Title
       /^(.+?)\s*-\s*(.+)$/,
-      // Artist - Album - Title  
-      /^(.+?)\s*-\s*(.+?)\s*-\s*(.+)$/
+      // Artist - Album - Title
+      /^(.+?)\s*-\s*(.+?)\s*-\s*(.+)$/,
     ];
 
     for (const pattern of patterns) {
@@ -264,13 +264,13 @@ export class LocalTracksMetadataProcessor {
         if (match.length === 3) {
           return {
             artist: match[1].trim(),
-            title: match[2].trim()
+            title: match[2].trim(),
           };
         } else if (match.length === 4) {
           return {
             artist: match[1].trim(),
             album: match[2].trim(),
-            title: match[3].trim()
+            title: match[3].trim(),
           };
         }
       }
@@ -280,7 +280,7 @@ export class LocalTracksMetadataProcessor {
     return {
       title: nameWithoutExt,
       artist: null,
-      album: null
+      album: null,
     };
   }
 
@@ -292,7 +292,7 @@ export class LocalTracksMetadataProcessor {
   findArtworkFile(filePath) {
     const directory = this.getDirectory(filePath);
     const baseName = this.getFileName(filePath).replace(/\.[^/.]+$/, '');
-    
+
     const artworkNames = [
       'cover.jpg',
       'cover.png',
@@ -301,7 +301,7 @@ export class LocalTracksMetadataProcessor {
       'artwork.jpg',
       'artwork.png',
       `${baseName}.jpg`,
-      `${baseName}.png`
+      `${baseName}.png`,
     ];
 
     for (const name of artworkNames) {
@@ -382,9 +382,9 @@ export class LocalTracksMetadataProcessor {
       '.ogg': 'Ogg Vorbis',
       '.opus': 'Opus Audio',
       '.webm': 'WebM Audio',
-      '.wma': 'Windows Media Audio'
+      '.wma': 'Windows Media Audio',
     };
-    
+
     return types[extension.toLowerCase()] || 'Unknown';
   }
 

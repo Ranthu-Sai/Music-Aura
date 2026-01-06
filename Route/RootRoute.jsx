@@ -9,12 +9,26 @@ import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityI
 import { useTheme } from "@react-navigation/native";
 import CustomTabBar from '../Component/Tab/CustomTabBar';
 const Tab = createBottomTabNavigator();
+
+// Top-level icon components to avoid defining components inside render
+const OcticonsHome = ({ color, size, focused }) => (
+  <Octicons name="home" color={color} size={size - 4} />
+);
+const OcticonsSearch = ({ color, size, focused }) => (
+  <Octicons name="search" color={color} size={size - 4} />
+);
+const EntypoCompass = ({ color, size, focused }) => (
+  <Entypo name="compass" color={color} size={size - 4} />
+);
+const MaterialMusicBox = ({ color, size, focused }) => (
+  <MaterialCommunityIcons name="music-box-multiple-outline" color={color} size={size - 4} />
+);
 export const RootRoute = () => {
   const theme = useTheme()
   return (
     <>
-      <Tab.Navigator 
-        tabBar={(props) => <CustomTabBar {...props}/>} 
+      <Tab.Navigator
+        tabBar={(props) => <CustomTabBar {...props}/>}
         sceneContainerStyle={{ backgroundColor: theme.colors.background }}
         screenOptions={{tabBarShowLabel:false,tabBarLabelStyle:{
           fontWeight:"bold",
@@ -22,28 +36,16 @@ export const RootRoute = () => {
             backgroundColor:theme.colors.background,
             borderColor:"rgba(28,27,27,0)"}}}>
         <Tab.Screen  options={{
-          // eslint-disable-next-line react/no-unstable-nested-components
-          tabBarIcon: ({ color, size, focused }) => (
-           <Octicons name="home" color={color} size={size - 4} />
-          ),
+          tabBarIcon: OcticonsHome,
         }} name="Home" component={HomeRoute} />
         <Tab.Screen options={{
-          // eslint-disable-next-line react/no-unstable-nested-components
-          tabBarIcon: ({ color, size, focused }) => (
-             <Octicons name="search" color={color} size={size - 4} />
-          ),
+          tabBarIcon: OcticonsSearch,
         }} name="Search" component={SearchRoute} />
         <Tab.Screen options={{
-          // eslint-disable-next-line react/no-unstable-nested-components
-          tabBarIcon: ({ color, size, focused }) => (
-             <Entypo name="compass" color={color} size={size - 4} />
-          ),
+          tabBarIcon: EntypoCompass,
         }} name="Discover" component={DiscoverRoute} />
         <Tab.Screen options={{
-          // eslint-disable-next-line react/no-unstable-nested-components
-          tabBarIcon: ({ color, size, focused }) => (
-            <MaterialCommunityIcons name="music-box-multiple-outline" color={color} size={size - 4} />
-          ),
+          tabBarIcon: MaterialMusicBox,
         }}  name="Library" component={LibraryRoute} />
       </Tab.Navigator>
     </>

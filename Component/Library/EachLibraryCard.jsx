@@ -15,7 +15,7 @@ export const EachLibraryCard = ({ iconName, text, navigate, colors }) => {
   // Default gradient if none provided
   const backgroundColors = colors || [
     currentThemeColors.secondaryBackground || "#333",
-    currentThemeColors.background || "#000"
+    currentThemeColors.background || "#000",
   ];
 
   return (
@@ -32,8 +32,8 @@ export const EachLibraryCard = ({ iconName, text, navigate, colors }) => {
           overflow: "hidden",
           elevation: 5,
           opacity: pressed ? 0.8 : 1,
-          transform: [{ scale: pressed ? 0.98 : 1 }]
-        }
+          transform: [{ scale: pressed ? 0.98 : 1 }],
+        },
       ]}
     >
       <LinearGradient
@@ -82,5 +82,5 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "bold",
     textAlign: "center",
-  }
+  },
 });

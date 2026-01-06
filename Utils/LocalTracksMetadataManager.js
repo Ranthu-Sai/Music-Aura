@@ -5,7 +5,7 @@ import { localTracksMetadataProcessor } from './LocalTracksMetadataProcessor';
 
 /**
  * LocalTracksMetadataManager - Persistent metadata management for local tracks
- * 
+ *
  * This class handles:
  * - Caching track metadata to avoid repeated file reads
  * - Managing metadata persistence across app sessions
@@ -33,8 +33,8 @@ export class LocalTracksMetadataManager {
    * Ensure the manager is initialized before any operation
    */
   async ensureInitialized() {
-    if (this.isInitialized) return;
-    if (this.initializationPromise) return this.initializationPromise;
+    if (this.isInitialized) {return;}
+    if (this.initializationPromise) {return this.initializationPromise;}
     return this.initialize();
   }
 
@@ -61,8 +61,8 @@ export class LocalTracksMetadataManager {
    * Loads cached metadata from storage
    */
   async initialize() {
-    if (this.isInitialized) return;
-    if (this.initializationPromise) return this.initializationPromise;
+    if (this.isInitialized) {return;}
+    if (this.initializationPromise) {return this.initializationPromise;}
 
     this.initializationPromise = (async () => {
       try {
@@ -82,7 +82,7 @@ export class LocalTracksMetadataManager {
 
         const cachedMetadata = await AsyncStorage.getItem(METADATA_STORAGE_KEY);
         console.log('LocalTracksMetadataManager: Cached metadata exists:', !!cachedMetadata);
-        
+
         if (cachedMetadata) {
           try {
             const metadata = JSON.parse(cachedMetadata);
@@ -118,12 +118,12 @@ export class LocalTracksMetadataManager {
   async migrateMetadata(oldVersion) {
     try {
       console.log(`LocalTracksMetadataManager: Migrating metadata from ${oldVersion} to ${CURRENT_VERSION}`);
-      
+
       if (oldVersion) {
         // If we have an old version, clear old data as format might have changed
         await AsyncStorage.removeItem(METADATA_STORAGE_KEY);
       }
-      
+
       // Always set the current version after migration check
       await AsyncStorage.setItem(METADATA_VERSION_KEY, CURRENT_VERSION);
     } catch (error) {
@@ -139,16 +139,16 @@ export class LocalTracksMetadataManager {
    */
   async getMetadata(trackId) {
     await this.ensureInitialized();
-    
+
     try {
       const metadata = this.metadataCache.get(trackId);
-      
+
       if (metadata) {
         // Update last accessed timestamp
         metadata.lastAccessed = Date.now();
         await this.saveMetadata(trackId, metadata);
       }
-      
+
       return metadata || null;
     } catch (error) {
       console.error(`LocalTracksMetadataManager: Failed to get metadata for ${trackId}:`, error);
@@ -163,7 +163,7 @@ export class LocalTracksMetadataManager {
    * @returns {Object|null} The cached metadata or null
    */
   getMetadataSync(trackId) {
-    if (!this.isInitialized) return null;
+    if (!this.isInitialized) {return null;}
     return this.metadataCache.get(trackId) || null;
   }
 
@@ -174,13 +174,13 @@ export class LocalTracksMetadataManager {
    */
   async setMetadata(trackId, metadata) {
     await this.ensureInitialized();
-    
+
     try {
       const enrichedMetadata = {
         ...metadata,
         lastModified: Date.now(),
         lastAccessed: Date.now(),
-        version: CURRENT_VERSION
+        version: CURRENT_VERSION,
       };
 
       this.metadataCache.set(trackId, enrichedMetadata);
@@ -200,7 +200,7 @@ export class LocalTracksMetadataManager {
    */
   async updateMetadata(trackId, updates) {
     await this.ensureInitialized();
-    
+
     try {
       const existingMetadata = this.metadataCache.get(trackId) || {};
       const updatedMetadata = {
@@ -208,7 +208,7 @@ export class LocalTracksMetadataManager {
         ...updates,
         lastModified: Date.now(),
         lastAccessed: Date.now(),
-        version: CURRENT_VERSION
+        version: CURRENT_VERSION,
       };
 
       this.metadataCache.set(trackId, updatedMetadata);
@@ -226,7 +226,7 @@ export class LocalTracksMetadataManager {
    */
   async removeMetadata(trackId) {
     await this.ensureInitialized();
-    
+
     try {
       this.metadataCache.delete(trackId);
       await this.persistAllMetadata();
@@ -263,17 +263,17 @@ export class LocalTracksMetadataManager {
    */
   async getBulkMetadata(trackIds) {
     await this.ensureInitialized();
-    
+
     try {
       const result = {};
-      
+
       for (const trackId of trackIds) {
         const metadata = await this.getMetadata(trackId);
         if (metadata) {
           result[trackId] = metadata;
         }
       }
-      
+
       return result;
     } catch (error) {
       console.error('LocalTracksMetadataManager: Failed to get bulk metadata:', error);
@@ -297,7 +297,7 @@ export class LocalTracksMetadataManager {
    * @param {Array} scannedTracks - Tracks found during file scan
    */
   async sync(scannedTracks) {
-    if (!this.isInitialized) await this.initialize();
+    if (!this.isInitialized) {await this.initialize();}
 
     console.log('LocalTracksMetadataManager: Syncing', scannedTracks.length, 'tracks');
     const currentTrackIds = new Set(scannedTracks.map(t => t.id));
@@ -343,7 +343,7 @@ export class LocalTracksMetadataManager {
    * Start background processing using InteractionManager
    */
   startBackgroundProcessing() {
-    if (this.isProcessing || this.processingQueue.length === 0) return;
+    if (this.isProcessing || this.processingQueue.length === 0) {return;}
 
     InteractionManager.runAfterInteractions(() => {
       this.processQueueInBatches();
@@ -354,27 +354,27 @@ export class LocalTracksMetadataManager {
    * Process queue in small batches with delays to keep UI smooth
    */
   async processQueueInBatches() {
-    if (this.isProcessing || this.processingQueue.length === 0) return;
+    if (this.isProcessing || this.processingQueue.length === 0) {return;}
 
     this.isProcessing = true;
     console.log('LocalTracksMetadataManager: Background processing started for', this.processingQueue.length, 'tracks');
 
     while (this.processingQueue.length > 0) {
       const batch = this.processingQueue.splice(0, this.BATCH_SIZE);
-      
+
       for (const track of batch) {
         try {
           const enriched = await localTracksMetadataProcessor.extractMetadata(track.filePath);
           if (enriched) {
             // Extract usable artwork URI
             const artworkInfo = await localTracksMetadataProcessor.extractArtwork(track.filePath, enriched);
-            
+
             const updatedMetadata = {
               ...track,
               ...enriched,
               artwork: artworkInfo ? artworkInfo.uri : null,
               isProcessed: true,
-              lastModified: Date.now()
+              lastModified: Date.now(),
             };
             this.metadataCache.set(track.id, updatedMetadata);
           } else {
@@ -418,22 +418,22 @@ export class LocalTracksMetadataManager {
    */
   async getMetadataStats() {
     await this.ensureInitialized();
-    
+
     const tracks = Array.from(this.metadataCache.values());
     const now = Date.now();
-    
+
     return {
       totalTracks: tracks.length,
       totalSize: JSON.stringify(Object.fromEntries(this.metadataCache)).length,
-      averageAge: tracks.length > 0 
-        ? tracks.reduce((sum, track) => sum + (now - track.lastModified), 0) / tracks.length 
+      averageAge: tracks.length > 0
+        ? tracks.reduce((sum, track) => sum + (now - track.lastModified), 0) / tracks.length
         : 0,
-      oldestTrack: tracks.length > 0 
-        ? Math.min(...tracks.map(track => track.lastModified)) 
+      oldestTrack: tracks.length > 0
+        ? Math.min(...tracks.map(track => track.lastModified))
         : null,
-      newestTrack: tracks.length > 0 
-        ? Math.max(...tracks.map(track => track.lastModified)) 
-        : null
+      newestTrack: tracks.length > 0
+        ? Math.max(...tracks.map(track => track.lastModified))
+        : null,
     };
   }
 
@@ -443,21 +443,21 @@ export class LocalTracksMetadataManager {
    */
   async cleanupMetadata(maxAge = 30 * 24 * 60 * 60 * 1000) {
     await this.ensureInitialized();
-    
+
     try {
       const now = Date.now();
       const toRemove = [];
-      
+
       for (const [trackId, metadata] of this.metadataCache) {
         if (now - metadata.lastAccessed > maxAge) {
           toRemove.push(trackId);
         }
       }
-      
+
       for (const trackId of toRemove) {
         this.metadataCache.delete(trackId);
       }
-      
+
       if (toRemove.length > 0) {
         await this.persistAllMetadata();
         console.log(`LocalTracksMetadataManager: Cleaned up ${toRemove.length} old metadata entries`);
@@ -479,7 +479,7 @@ export class LocalTracksMetadataManager {
       if (this.saveTimeout) {
         clearTimeout(this.saveTimeout);
       }
-      
+
       this.saveTimeout = setTimeout(async () => {
         await this.persistAllMetadata();
       }, 1000); // Save after 1 second of inactivity
@@ -510,13 +510,13 @@ export class LocalTracksMetadataManager {
    */
   async exportMetadata() {
     await this.ensureInitialized();
-    
+
     try {
       const metadataObject = Object.fromEntries(this.metadataCache);
       return JSON.stringify({
         version: CURRENT_VERSION,
         exportDate: new Date().toISOString(),
-        metadata: metadataObject
+        metadata: metadataObject,
       }, null, 2);
     } catch (error) {
       console.error('LocalTracksMetadataManager: Failed to export metadata:', error);
@@ -532,14 +532,14 @@ export class LocalTracksMetadataManager {
   async importMetadata(jsonData) {
     try {
       const importData = JSON.parse(jsonData);
-      
+
       if (importData.version !== CURRENT_VERSION) {
         throw new Error(`Incompatible metadata version: ${importData.version}`);
       }
-      
+
       this.metadataCache = new Map(Object.entries(importData.metadata));
       await this.persistAllMetadata();
-      
+
       console.log(`LocalTracksMetadataManager: Imported ${this.metadataCache.size} metadata entries`);
     } catch (error) {
       console.error('LocalTracksMetadataManager: Failed to import metadata:', error);

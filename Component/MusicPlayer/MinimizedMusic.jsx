@@ -36,7 +36,7 @@ const MiniProgressBar = memo(({ progressColor }) => {
 const MiniTimeDisplay = memo(() => {
     const { position, duration } = useProgress(1000);
     const formatTime = (seconds) => {
-        if (!seconds || isNaN(seconds)) return "0:00";
+        if (!seconds || isNaN(seconds)) {return "0:00";}
         const mins = Math.floor(seconds / 60);
         const secs = Math.floor(seconds % 60);
         return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
@@ -67,7 +67,7 @@ export const MinimizedMusic = memo(({ setIndex, color }) => {
     });
 
     const currentPlaying = useActiveTrack();
-    if (!currentPlaying) return null;
+    if (!currentPlaying) {return null;}
 
     const progressColor = '#1DB954';
 
@@ -132,7 +132,7 @@ export const MinimizedMusic = memo(({ setIndex, color }) => {
                                 flex: 1,
                                 justifyContent: "center",
                                 paddingHorizontal: 12,
-                                overflow: 'hidden'
+                                overflow: 'hidden',
                             }}>
                                 <MarqueeText
                                     text={FormatTitleAndArtist(currentPlaying?.title ?? "", currentPlaying?.artist)}

@@ -50,13 +50,13 @@ export const AllSongsPage = () => {
         removeDownloadedSong,
         requestPermissions,
         scanLibrary,
-        getAllSongsStats
+        getAllSongsStats,
     } = useAllSongsManager({
         onSongsChanged,
         onDownloadStatusChanged: (songId, isDownloaded) => {
             console.log(`AllSongsPage: Song ${songId} download status changed:`, isDownloaded);
         },
-        showHidden: showHidden
+        showHidden: showHidden,
     });
 
     const handleRefresh = useCallback(async () => {
@@ -74,18 +74,18 @@ export const AllSongsPage = () => {
 
     const filteredSongs = useMemo(() => {
         const source = activeTab === 'downloads' ? downloadedSongs : localSongs;
-        if (!searchQuery) return source;
-        return source.filter(song => 
-            song.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+        if (!searchQuery) {return source;}
+        return source.filter(song =>
+            song.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
             song.artist.toLowerCase().includes(searchQuery.toLowerCase())
         );
     }, [activeTab, downloadedSongs, localSongs, searchQuery]);
 
     const handleShufflePlay = useCallback(async () => {
-        if (filteredSongs.length === 0) return;
+        if (filteredSongs.length === 0) {return;}
         const { AddPlaylist } = require('../../MusicPlayerFunctions');
         const shuffled = [...filteredSongs].sort(() => Math.random() - 0.5);
-        
+
         const forPlayer = shuffled.map(track => ({
             id: track.id,
             title: track.title,
@@ -93,7 +93,7 @@ export const AllSongsPage = () => {
             url: track.filePath,
             artwork: track.artwork,
             duration: track.duration,
-            source: activeTab === 'downloads' ? 'downloaded' : 'local'
+            source: activeTab === 'downloads' ? 'downloaded' : 'local',
         }));
 
         await AddPlaylist(forPlayer);
@@ -156,7 +156,7 @@ export const AllSongsPage = () => {
                     paddingHorizontal: 15,
                     height: 50,
                     borderWidth: 1,
-                    borderColor: 'rgba(255,255,255,0.1)'
+                    borderColor: 'rgba(255,255,255,0.1)',
                 }}>
                     <AntDesign name="search1" size={18} color="rgba(255,255,255,0.5)" />
                     <TextInput
@@ -169,7 +169,7 @@ export const AllSongsPage = () => {
                             color: 'white',
                             fontSize: 16,
                             marginLeft: 10,
-                            paddingVertical: 0
+                            paddingVertical: 0,
                         }}
                     />
                     {searchQuery.length > 0 && (
@@ -202,7 +202,7 @@ export const AllSongsPage = () => {
                         <Text style={{
                             color: activeTab === 'downloads' ? '#1DB954' : 'rgba(255,255,255,0.5)',
                             fontWeight: '700',
-                            fontSize: 14
+                            fontSize: 14,
                         }}>Downloads</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
@@ -218,10 +218,10 @@ export const AllSongsPage = () => {
                         <Text style={{
                             color: activeTab === 'local' ? '#1DB954' : 'rgba(255,255,255,0.5)',
                             fontWeight: '700',
-                            fontSize: 14
+                            fontSize: 14,
                         }}>Device Files</Text>
                     </TouchableOpacity>
-                    
+
                     {/* Show Hidden Files Toggle - Only visible for local tab */}
                     {activeTab === 'local' && (
                         <TouchableOpacity
@@ -238,10 +238,10 @@ export const AllSongsPage = () => {
                                 justifyContent: 'center',
                             }}
                         >
-                            <MaterialCommunityIcons 
-                                name="eye-off" 
-                                size={22} 
-                                color='rgba(255,255,255,0.5)' 
+                            <MaterialCommunityIcons
+                                name="eye-off"
+                                size={22}
+                                color="rgba(255,255,255,0.5)"
                             />
                         </TouchableOpacity>
                     )}
@@ -286,7 +286,7 @@ export const AllSongsPage = () => {
                                     <Text style={{ color: 'white', opacity: 0.6, marginTop: 15, fontSize: 16 }}>
                                         {searchQuery ? `No results for "${searchQuery}"` : `No ${activeTab} songs found`}
                                     </Text>
-                                    <TouchableOpacity 
+                                    <TouchableOpacity
                                         onPress={handleRefresh}
                                         style={{ marginTop: 20, paddingHorizontal: 25, paddingVertical: 12, backgroundColor: '#1DB954', borderRadius: 25 }}
                                     >
@@ -325,15 +325,15 @@ export const AllSongsPage = () => {
                             )}
 
                             {filteredSongs.length > 0 && (
-                                <TouchableOpacity 
+                                <TouchableOpacity
                                     onPress={handleRefresh}
-                                    style={{ 
-                                        flexDirection: 'row', 
-                                        alignItems: 'center', 
-                                        justifyContent: 'center', 
+                                    style={{
+                                        flexDirection: 'row',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
                                         padding: 20,
                                         marginTop: 10,
-                                        gap: 8
+                                        gap: 8,
                                     }}
                                 >
                                     <AntDesign name="reload1" size={14} color="#1DB954" />

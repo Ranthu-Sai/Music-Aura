@@ -47,7 +47,7 @@ export const ProgressBar = memo(() => {
   }, [duration]);
 
   const formatTime = (val) => {
-    if (!Number.isFinite(val) || val < 0) return "0:00";
+    if (!Number.isFinite(val) || val < 0) {return "0:00";}
     const total = Math.round(val);
     const minutes = Math.floor(total / 60);
     const seconds = total % 60;

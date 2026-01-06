@@ -1,6 +1,18 @@
 import axios from "axios";
 
+// Cache for home page data
+const cache = {
+  data: null,
+  timestamp: null,
+  CACHE_DURATION: 180000, // 3 minutes
+};
+
 async function getHomePageData(languages){
+  // Return cached data if still valid
+  if (cache.data && cache.timestamp && (Date.now() - cache.timestamp) < cache.CACHE_DURATION) {
+    return cache.data;
+  }
+
   const baseUrl = "https://www.jiosaavn.com/api.php";
   const defaultParams = {
     ctx: "wap6dot0",
@@ -26,11 +38,22 @@ async function getHomePageData(languages){
         headers: { },
       };
       const response = await axios.request(config);
-      return response.data
+
+      // Cache the response
+      cache.data = response.data;
+      cache.timestamp = Date.now();
+
+      return response.data;
     } catch (error) {
       continue;
     }
   }
+
+  // If all APIs fail, return cached data if available (even if expired)
+  if (cache.data) {
+    return cache.data;
+  }
+
   throw new Error('All home page API instances failed');
 }
 

@@ -8,7 +8,7 @@ export const PlayPauseButton = ({isFullScreen, size, color}) => {
   const theme = useTheme()
   const playbackState = usePlaybackState();
   const playerState = playbackState.state;
-  
+
   const iconSize = size || (isFullScreen ? 28 : 25);
   const iconColor = color || (isFullScreen ? (theme.dark ? "black" : "white") : theme.colors.text);
 
@@ -55,7 +55,7 @@ export const PlayPauseButton = ({isFullScreen, size, color}) => {
           alignItems: "center",
           justifyContent: "center",
         }}><FontAwesome6 name={"pause"} size={iconSize} color={iconColor}/></Pressable>}
-        {isBuffering && <ActivityIndicator size={"large"} color={theme.colors.text}/>} 
+        {isBuffering && <ActivityIndicator size={"large"} color={theme.colors.text}/>}
       </>}
     </>
   );

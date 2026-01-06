@@ -48,7 +48,7 @@ export const Album = ({ route }) => {
                 image: song.image,
                 year: song.year,
                 songs: [song],
-                primaryArtist: FormatArtist(song.artists?.primary || song.artist)
+                primaryArtist: FormatArtist(song.artists?.primary || song.artist),
               },
             };
           }

@@ -72,13 +72,13 @@ const EachSongQueueComponent = ({ song, index, playerState, currentTrackId, onRe
   const id = song?.id;
   const title = song?.title;
   const artist = song?.artist;
-  
+
   // Normalize artwork from various possible properties
-  const imageSource = useMemo(() => 
+  const imageSource = useMemo(() =>
     song?.artwork || song?.image || song?.thumbnail || song?.thumbnails || song?.bestThumbnail || null,
     [song?.artwork, song?.image, song?.thumbnail, song?.thumbnails, song?.bestThumbnail]
   );
-  
+
   // Check if this is the currently playing track
   const isCurrentTrack = id === currentTrackId;
   const isPlaying = playerState === 'playing' && isCurrentTrack;
@@ -108,7 +108,7 @@ const EachSongQueueComponent = ({ song, index, playerState, currentTrackId, onRe
       outputRange: [0, 80],
     });
     return (
-      <TouchableOpacity 
+      <TouchableOpacity
         onPress={handleRemovePress}
         style={{ width: 80, backgroundColor: '#FF3B30', justifyContent: 'center', alignItems: 'center' }}
       >
@@ -125,7 +125,7 @@ const EachSongQueueComponent = ({ song, index, playerState, currentTrackId, onRe
   }, [song]);
 
   // Memoize style based on isCurrentTrack
-  const pressableStyle = useMemo(() => 
+  const pressableStyle = useMemo(() =>
     isCurrentTrack ? styles.pressableActive : styles.pressable,
     [isCurrentTrack]
   );
@@ -152,7 +152,7 @@ const EachSongQueueComponent = ({ song, index, playerState, currentTrackId, onRe
         <View style={styles.imageContainer}>
           <FastImage
             source={isPlaying
-              ? require("../../Images/playing.gif") 
+              ? require("../../Images/playing.gif")
               : (resolved ? { uri: resolved } : require("../../Images/Logo.jpg"))}
             resizeMode={FastImage.resizeMode.cover}
             style={styles.image}
@@ -183,8 +183,8 @@ const EachSongQueueComponent = ({ song, index, playerState, currentTrackId, onRe
 };
 
 // Custom memo with MINIMAL comparison - only check song.id (fastest)
-export const EachSongQueue = memo(EachSongQueueComponent, (prev, next) => 
-  prev.song?.id === next.song?.id && 
-  prev.playerState === next.playerState && 
+export const EachSongQueue = memo(EachSongQueueComponent, (prev, next) =>
+  prev.song?.id === next.song?.id &&
+  prev.playerState === next.playerState &&
   prev.currentTrackId === next.currentTrackId
 );

@@ -21,7 +21,7 @@ const debugLog = (...args) => { if (DEBUG_LOGS) { console.log(...args); } };
 // Remove a specific track from the queue by its TrackPlayer index
 async function removeFromQueue(index) {
   try {
-    if (typeof index !== 'number' || index < 0) return;
+    if (typeof index !== 'number' || index < 0) {return;}
     await TrackPlayer.remove(index);
     console.log(`🗑️ Removed track at index ${index} from queue`);
   } catch (error) {
@@ -1293,5 +1293,5 @@ export {
   getIndexQuality,
   AddOneSongToPlaylist,
   PlaySongWithRelated,
-  removeFromQueue
+  removeFromQueue,
 }

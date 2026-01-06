@@ -13,7 +13,7 @@ const useAllSongsManager = ({
   onDownloadStatusChanged,
   autoCleanup = true,
   autoScanLocal = false,
-  showHidden = false
+  showHidden = false,
 }) => {
   const [allSongs, setAllSongs] = useState([]);
   const [downloadedSongs, setDownloadedSongs] = useState([]);
@@ -35,7 +35,7 @@ const useAllSongsManager = ({
     maxScanDepth: 10,
     batchSize: 10,
     enableArtwork: true,
-    cacheMetadata: true
+    cacheMetadata: true,
   }), [autoScanLocal, showHidden]);
 
   // Use the device library hook for local storage scanning
@@ -50,7 +50,7 @@ const useAllSongsManager = ({
     checkPermissions: checkLocalPermissions,
     getLibraryStats,
     clearLibrary,
-    removeTrack
+    removeTrack,
   } = useDeviceLibrary(deviceLibraryConfig);
 
   // Load all downloaded songs metadata
@@ -95,7 +95,7 @@ const useAllSongsManager = ({
               downloadDate: metadata.downloadDate,
               fileSize: metadata.fileSize,
               type: 'downloaded', // Mark as downloaded song
-              metadata
+              metadata,
             });
           } else {
             // Clean up metadata for non-existent files
@@ -135,7 +135,7 @@ const useAllSongsManager = ({
       if ((deviceTracks.length === 0 || forceScan) && !isScanning) {
         console.log('useAllSongsManager: Starting local scan (forceScan:', forceScan, ')');
         const scannedResults = await scanLibrary();
-        
+
         if (scannedResults && scannedResults.length > 0) {
           console.log('useAllSongsManager: Primary scanner found', scannedResults.length, 'songs');
           currentDeviceTracks = scannedResults;
@@ -152,7 +152,7 @@ const useAllSongsManager = ({
                   artist: s.artist,
                   filePath: s.url,
                   artwork: s.artwork,
-                  type: 'local'
+                  type: 'local',
               }));
           } else {
               console.log('useAllSongsManager: Both scanners returned no results');
@@ -172,7 +172,7 @@ const useAllSongsManager = ({
         artwork: track.artwork,
         fileSize: track.fileSize,
         type: 'local', // Mark as local storage song
-        metadata: track
+        metadata: track,
       }));
 
       setLocalSongs(localSongsArray);
@@ -189,7 +189,7 @@ const useAllSongsManager = ({
   const combineAllSongs = useCallback(() => {
     const combined = [
       ...downloadedSongs.map(song => ({ ...song, type: 'downloaded' })),
-      ...localSongs.map(song => ({ ...song, type: 'local' }))
+      ...localSongs.map(song => ({ ...song, type: 'local' })),
     ];
 
     // Sort by title
@@ -211,7 +211,7 @@ const useAllSongsManager = ({
       artwork: track.artwork,
       fileSize: track.fileSize,
       type: 'local', // Mark as local storage song
-      metadata: track
+      metadata: track,
     }));
     setLocalSongs(localSongsArray);
   }, [deviceTracks]);
@@ -224,13 +224,13 @@ const useAllSongsManager = ({
       // Load both downloaded and local songs in parallel
       const [downloaded, local] = await Promise.all([
         loadDownloadedSongs(),
-        loadLocalSongs(force)
+        loadLocalSongs(force),
       ]);
 
       // Combine them
       const combined = [
         ...downloaded.map(song => ({ ...song, type: 'downloaded' })),
-        ...local.map(song => ({ ...song, type: 'local' }))
+        ...local.map(song => ({ ...song, type: 'local' })),
       ];
 
       // Sort by title
@@ -347,7 +347,7 @@ const useAllSongsManager = ({
                 { text: "Open Settings", onPress: () => {
                   // This would need to be implemented to open app settings
                   console.log('Open app settings');
-                }}
+                }},
               ]
             );
           } else {
@@ -376,7 +376,7 @@ const useAllSongsManager = ({
       totalDownloaded: downloadedSongs.length,
       totalLocal: localSongs.length,
       totalSize: downloadedSongs.reduce((sum, song) => sum + (song.fileSize || 0), 0),
-      lastUpdated: Date.now()
+      lastUpdated: Date.now(),
     };
   }, [downloadedSongs, localSongs]);
 
@@ -390,7 +390,7 @@ const useAllSongsManager = ({
       totalSongs: allSongs.length,
       localArtists: localStats.artists || 0,
       localAlbums: localStats.albums || 0,
-      lastLocalScan: localStats.lastScanTime
+      lastLocalScan: localStats.lastScanTime,
     };
   }, [getDownloadStats, getLibraryStats, allSongs]);
 
@@ -505,7 +505,7 @@ const useAllSongsManager = ({
     getLibraryStats,
 
     // Metadata
-    downloadedSongsMetadata
+    downloadedSongsMetadata,
   };
 };
 

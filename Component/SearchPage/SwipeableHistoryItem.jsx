@@ -13,7 +13,7 @@ const SwipeableHistoryItem = ({
   item,
   onPress,
   onDelete,
-  onSwipeableOpen
+  onSwipeableOpen,
 }) => {
   const { colors, dark } = useTheme();
   const { currentThemeColors } = useContext(ThemeContext);
@@ -78,7 +78,7 @@ const SwipeableHistoryItem = ({
               backgroundColor: currentThemeColors.secondaryBackground || (dark ? "rgba(255,255,255,0.08)" : 'rgba(0,0,0,0.04)'),
               borderColor: currentThemeColors.secondaryText ? currentThemeColors.secondaryText + '22' : (dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)'),
               opacity: pressed ? 0.7 : 1,
-            }
+            },
           ])}
           android_ripple={{ color: dark ? "rgba(255,255,255,0.1)" : 'rgba(0,0,0,0.06)' }}
         >

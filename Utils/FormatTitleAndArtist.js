@@ -1,7 +1,7 @@
 // Comprehensive title cleaning and HTML decoding
 // Optionally removes the artist name if it's found within the title string
 export default function FormatTitleAndArtist(data, artistName = "") {
-  if (!data) return "";
+  if (!data) {return "";}
   let str = data.toString();
 
   // 1. Decode common HTML entities
@@ -51,7 +51,7 @@ export default function FormatTitleAndArtist(data, artistName = "") {
   // Remove known garbage words/suffixes that aren't in brackets
   const standaloneGarbage = [
     /\s+from\s+.*/gi, // Removes "From [Album/Movie]" or " from [Album]"
-    /\(from\s+.*\)/gi, // Removes "(From Album)" 
+    /\(from\s+.*\)/gi, // Removes "(From Album)"
     /\[from\s+.*\]/gi, // Removes "[From Album]"
     /\s+feat\s+.*/gi,
     /\s+ft\s+.*/gi,
@@ -90,7 +90,7 @@ export default function FormatTitleAndArtist(data, artistName = "") {
           }
         }
         // Fallback: take the part that looks more like a title (usually first part for most sources)
-        // But for YouTube it's often swapped. 
+        // But for YouTube it's often swapped.
         str = parts[0];
         break;
       }

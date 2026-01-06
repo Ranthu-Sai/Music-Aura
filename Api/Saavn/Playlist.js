@@ -1,9 +1,23 @@
 import axios from "axios";
 
+// Cache for playlist data
+const playlistCache = new Map();
+const PLAYLIST_CACHE_DURATION = 300000; // 5 minutes
+
 async function getPlaylistData(id) {
+  // Check cache first
+  if (playlistCache.has(id)) {
+    const cached = playlistCache.get(id);
+    if (Date.now() - cached.timestamp < PLAYLIST_CACHE_DURATION) {
+      return cached.data;
+    }
+  }
+
   // Check if it's a YouTube Music playlist (starts with VL, RDAMPL, OLAK, or other YTM playlist IDs)
   if (id.startsWith('VL') || id.startsWith('RDAMPL') || id.startsWith('OLAK') || id.startsWith('PL')) {
-    return await getYTMusicPlaylistData(id);
+    const data = await getYTMusicPlaylistData(id);
+    playlistCache.set(id, { data, timestamp: Date.now() });
+    return data;
   }
 
   if (id.startsWith('/')) {
@@ -121,11 +135,21 @@ async function getPlaylistData(id) {
           headers: {},
         };
         const response = await axios.request(config);
-        return response.data
+
+        // Cache the response
+        playlistCache.set(id, { data: response.data, timestamp: Date.now() });
+
+        return response.data;
       } catch (error) {
         continue;
       }
     }
+
+    // Return cached data if available even if expired
+    if (playlistCache.has(id)) {
+      return playlistCache.get(id).data;
+    }
+
     throw new Error('All playlist data API instances failed');
   }
 }
@@ -156,7 +180,7 @@ async function getSearchPlaylistData(searchText, page, limit) {
         headers: {},
       };
       const response = await axios.request(config);
-      return response.data
+      return response.data;
     } catch (error) {
       continue;
     }

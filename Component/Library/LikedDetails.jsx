@@ -19,7 +19,7 @@ export const LikedDetails = ({name, Data, dontShowPlayButton}) => {
       if (e){
         // Handle case where url might be a string (downloaded) or an array of quality objects
         const songUrl = Array.isArray(e?.url) ? e?.url[quality]?.url || e?.url[0]?.url : e?.url;
-        
+
         ForPlayer.push({
           url: songUrl,
           title: e?.title,
@@ -28,7 +28,7 @@ export const LikedDetails = ({name, Data, dontShowPlayButton}) => {
           duration: e?.duration,
           id: e?.id,
           language: e?.language,
-          source: e?.language === 'local' ? 'downloaded' : undefined
+          source: e?.language === 'local' ? 'downloaded' : undefined,
         })
       }
     })

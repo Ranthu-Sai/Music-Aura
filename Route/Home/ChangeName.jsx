@@ -10,17 +10,17 @@ import {
   Platform,
   StatusBar,
   ScrollView,
-  ToastAndroid
+  ToastAndroid,
 } from "react-native";
-import Animated, { 
+import Animated, {
   FadeInDown,
-  useSharedValue, 
-  useAnimatedStyle, 
-  withRepeat, 
-  withTiming, 
+  useSharedValue,
+  useAnimatedStyle,
+  withRepeat,
+  withTiming,
   Easing,
   interpolate,
-  Extrapolate
+  Extrapolate,
 } from "react-native-reanimated";
 import FastImage from "react-native-fast-image";
 import LinearGradient from "react-native-linear-gradient";
@@ -74,7 +74,7 @@ export const ChangeName = ({ navigation }) => {
     <MainWrapper>
       <View style={styles.container}>
         <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
-        
+
         {/* Background Decorative Elements */}
         <Animated.View style={[styles.backgroundAura, animatedGlow]} />
         <View style={styles.topRightBlob} />
@@ -84,7 +84,7 @@ export const ChangeName = ({ navigation }) => {
           behavior={Platform.OS === "ios" ? "padding" : null}
           style={{ flex: 1 }}
         >
-          <ScrollView 
+          <ScrollView
             contentContainerStyle={styles.scrollContent}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
@@ -307,6 +307,6 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
     marginRight: 10,
-  }
+  },
 });
 

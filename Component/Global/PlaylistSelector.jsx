@@ -58,7 +58,7 @@ const PlaylistSelector = () => {
   };
 
   const handleAddToPlaylist = async (playlistId) => {
-    if (!song) return;
+    if (!song) {return;}
 
     const result = await AddToPlaylist(playlistId, song);
     if (result.success) {
@@ -69,7 +69,7 @@ const PlaylistSelector = () => {
     }
   };
 
-  if (!visible) return null;
+  if (!visible) {return null;}
 
   return (
     <Modal

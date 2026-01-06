@@ -23,13 +23,13 @@ function _wrapWithSuppression() {
 
   const shouldSuppress = (args) => {
     const first = args && args.length > 0 ? args[0] : undefined;
-    if (typeof first !== 'string') return false;
+    if (typeof first !== 'string') {return false;}
     return _suppressPrefixes.some((p) => first.startsWith(p));
   };
 
   const wrap = (orig) => (...args) => {
     try {
-      if (shouldSuppress(args)) return;
+      if (shouldSuppress(args)) {return;}
       return orig.apply(console, args);
     } catch (_) {
       // swallow

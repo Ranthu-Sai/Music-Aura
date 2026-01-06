@@ -16,20 +16,20 @@ export const HiddenSongsPage = () => {
         try {
             setIsLoading(true);
             const hiddenPaths = await getHiddenFiles();
-            
+
             // Create song objects from paths
             const songs = hiddenPaths.map(path => {
                 const fileName = path.split('/').pop().split('\\').pop();
                 const title = fileName.replace(/\.[^/.]+$/, '');
-                
+
                 return {
                     id: path,
                     filePath: path,
                     title: title,
-                    fileName: fileName
+                    fileName: fileName,
                 };
             });
-            
+
             setHiddenSongs(songs);
         } catch (error) {
             console.error('Error loading hidden songs:', error);
@@ -47,10 +47,10 @@ export const HiddenSongsPage = () => {
         try {
             await unhideFile(song.filePath);
             ToastAndroid.show('Song unhidden', ToastAndroid.SHORT);
-            
+
             // Emit event to refresh device files list
             DeviceEventEmitter.emit('localSongUnhidden', song.id);
-            
+
             // Reload hidden songs list
             loadHiddenSongs();
         } catch (error) {
@@ -80,7 +80,7 @@ export const HiddenSongsPage = () => {
             }}>
                 <MaterialCommunityIcons name="music-note" size={24} color="rgba(255,255,255,0.5)" />
             </View>
-            
+
             <View style={{ flex: 1 }}>
                 <Text style={{ color: 'white', fontSize: 15, fontWeight: '600' }} numberOfLines={1}>
                     {item.title}
@@ -89,7 +89,7 @@ export const HiddenSongsPage = () => {
                     {item.fileName}
                 </Text>
             </View>
-            
+
             <TouchableOpacity
                 onPress={() => handleUnhide(item)}
                 style={{
@@ -126,7 +126,7 @@ export const HiddenSongsPage = () => {
                 >
                     <AntDesign name="arrowleft" size={24} color="white" />
                 </TouchableOpacity>
-                
+
                 <View style={{ flex: 1, marginLeft: 10 }}>
                     <Text style={{ color: 'white', fontSize: 24, fontWeight: 'bold' }}>
                         Hidden Songs

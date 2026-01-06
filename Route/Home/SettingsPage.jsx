@@ -25,7 +25,7 @@ import updateService from "../../Utils/UpdateService";
 const { width } = Dimensions.get("window");
 
 const formatBytes = (bytes) => {
-  if (!bytes || bytes === 0) return '0 B';
+  if (!bytes || bytes === 0) {return '0 B';}
   const k = 1024;
   const sizes = ['B', 'KB', 'MB', 'GB'];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
@@ -47,13 +47,13 @@ const EachSettingsButton = ({ text, subtitle, OnPress, currentThemeColors, iconN
           opacity: pressed ? 0.8 : 1,
           transform: [{ scale: pressed ? 0.98 : 1 }],
           elevation: pressed ? 0 : 2,
-        }
+        },
       ]}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 16, flex: 1 }}>
           <View style={{
             backgroundColor: "rgba(255,255,255,0.08)",
             padding: 12,
-            borderRadius: 12
+            borderRadius: 12,
           }}>
             <Icon name={iconName} size={22} color={currentThemeColors.primary || "#1DB954"} />
           </View>
@@ -84,7 +84,7 @@ const EachDropDownSetting = ({ data, text, placeholder, OnChange, currentThemeCo
         <View style={{
           backgroundColor: (currentThemeColors?.text === '#000000') ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.08)',
           padding: 12,
-          borderRadius: 12
+          borderRadius: 12,
         }}>
           <Icon name={iconName} size={22} color={currentThemeColors.primary || "#1DB954"} />
         </View>
@@ -131,7 +131,7 @@ export const SettingsPage = ({ navigation }) => {
     { value: 'Default' }, { value: 'Dark' }, { value: 'White' }, { value: 'Blue' },
     { value: 'Purple' }, { value: 'Green' }, { value: 'Red' },
     { value: 'Orange' }, { value: 'Pink' }, { value: 'Teal' },
-    { value: 'Amoled' }, { value: 'Sky' }, { value: 'Midnight' }
+    { value: 'Amoled' }, { value: 'Sky' }, { value: 'Midnight' },
   ];
 
   const loadData = useCallback(async () => {
@@ -151,7 +151,7 @@ export const SettingsPage = ({ navigation }) => {
           `Version ${result.latestVersion} is available!\n\n${result.message}`,
           [
             { text: 'Later', style: 'cancel' },
-            { text: 'Download', onPress: () => updateService.openUpdateLink(result.url) }
+            { text: 'Download', onPress: () => updateService.openUpdateLink(result.url) },
           ]
         );
       } else {
@@ -262,7 +262,7 @@ export const SettingsPage = ({ navigation }) => {
           <View style={styles.section}>
             <SmallText text="App Updates" style={styles.sectionHeader} />
             <Animated.View entering={FadeInRight.delay(900).duration(400)}>
-              <TouchableOpacity 
+              <TouchableOpacity
                 onPress={isCheckingUpdate ? undefined : checkForUpdates}
                 disabled={isCheckingUpdate}
                 style={{
@@ -281,7 +281,7 @@ export const SettingsPage = ({ navigation }) => {
                   <View style={{
                     backgroundColor: "rgba(29,185,84,0.15)",
                     padding: 12,
-                    borderRadius: 12
+                    borderRadius: 12,
                   }}>
                     <Icon name="update" size={24} color="#1DB954" />
                   </View>
@@ -296,7 +296,7 @@ export const SettingsPage = ({ navigation }) => {
                   <View style={{
                     backgroundColor: "rgba(29,185,84,0.2)",
                     padding: 8,
-                    borderRadius: 10
+                    borderRadius: 10,
                   }}>
                     <Icon name="download" size={22} color="#1DB954" />
                   </View>
@@ -330,5 +330,5 @@ const styles = StyleSheet.create({
     marginTop: 30,
     alignItems: 'center',
     paddingBottom: 20,
-  }
+  },
 });

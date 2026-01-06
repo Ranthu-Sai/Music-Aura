@@ -55,7 +55,7 @@ export const LikedSongPage = () => {
           icon: 'heart',
           title: 'Liked Songs',
           colors: ['#FF416C', '#FF4B2B'],
-          bgColors: ['#2C2C54', '#24243e']
+          bgColors: ['#2C2C54', '#24243e'],
         }}
         hideOverlay={true}
         disableCollapse={true}

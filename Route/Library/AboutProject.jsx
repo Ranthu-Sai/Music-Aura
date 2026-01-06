@@ -37,7 +37,7 @@ export const AboutProject = ({ navigation }) => {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[
           styles.scrollContent,
-          { paddingBottom: activeTrack ? 150 : 50 }
+          { paddingBottom: activeTrack ? 150 : 50 },
         ]}
       >
         {/* Developer Card */}
@@ -105,7 +105,7 @@ export const AboutProject = ({ navigation }) => {
           onPress={() => openURL("mailto:saiyadav4719@gmail.com")}
           style={({ pressed }) => [
             styles.bugCard,
-            { opacity: pressed ? 0.9 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] }
+            { opacity: pressed ? 0.9 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] },
           ]}
         >
           <LinearGradient
@@ -146,7 +146,7 @@ const SocialIcon = ({ icon, color, onPress }) => (
     onPress={onPress}
     style={({ pressed }) => [
       styles.socialIconBtn,
-      { backgroundColor: color, opacity: pressed ? 0.8 : 1, transform: [{ scale: pressed ? 0.9 : 1 }] }
+      { backgroundColor: color, opacity: pressed ? 0.8 : 1, transform: [{ scale: pressed ? 0.9 : 1 }] },
     ]}
   >
     <Icon name={icon} size={24} color="white" />
@@ -158,7 +158,7 @@ const CommunityCard = ({ title, subTitle, icon, gradient, onPress }) => (
     onPress={onPress}
     style={({ pressed }) => [
       styles.communityCard,
-      { opacity: pressed ? 0.9 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] }
+      { opacity: pressed ? 0.9 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] },
     ]}
   >
     <LinearGradient colors={gradient} style={styles.communityGradient}>

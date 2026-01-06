@@ -1,13 +1,13 @@
 import React, { useEffect } from "react";
 import { View, StyleSheet, Dimensions, Text, StatusBar } from "react-native";
 import FastImage from "react-native-fast-image";
-import Animated, { 
-  FadeIn, 
-  useSharedValue, 
-  useAnimatedStyle, 
-  withRepeat, 
-  withTiming, 
-  Easing 
+import Animated, {
+  FadeIn,
+  useSharedValue,
+  useAnimatedStyle,
+  withRepeat,
+  withTiming,
+  Easing,
 } from "react-native-reanimated";
 import { BottomNextAndPrevious } from "../../Component/RouteOnboarding/BottomNextAndPrevious";
 
@@ -37,7 +37,7 @@ export const Slide1 = ({ navigation }) => {
   return (
     <View style={styles.container}>
       <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
-      
+
       <View style={styles.centerSection}>
         <Animated.View entering={FadeIn.duration(800)} style={styles.imageContainer}>
           <Animated.View style={[styles.imageWrapper, animatedImageGlow]}>

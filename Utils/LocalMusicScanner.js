@@ -8,7 +8,7 @@ const AUDIO_EXTENSIONS = ['mp3', 'm4a', 'wav', 'ogg', 'flac', 'aac', 'webm', 'am
  * Request storage permission for scanning
  */
 async function requestStoragePermission() {
-    if (Platform.OS === 'ios') return true;
+    if (Platform.OS === 'ios') {return true;}
 
     try {
         const permissions = [];
@@ -19,7 +19,7 @@ async function requestStoragePermission() {
         }
 
         const granted = await PermissionsAndroid.requestMultiple(permissions);
-        
+
         if (Platform.Version >= 33) {
             return granted[PermissionsAndroid.PERMISSIONS.READ_MEDIA_AUDIO] === PermissionsAndroid.RESULTS.GRANTED;
         } else {
@@ -34,11 +34,11 @@ async function requestStoragePermission() {
  * Scan a specific directory for audio files recursively
  */
 async function scanDirectory(path, depth = 0) {
-    if (depth > 10) return []; // Increased depth for deeper scans
+    if (depth > 10) {return [];} // Increased depth for deeper scans
     let results = [];
     try {
         const isDir = await ReactNativeBlobUtil.fs.isDir(path);
-        if (!isDir) return [];
+        if (!isDir) {return [];}
 
         const files = await ReactNativeBlobUtil.fs.ls(path);
         for (const file of files) {
@@ -89,7 +89,7 @@ async function scanDirectory(path, depth = 0) {
  */
 export async function scanLocalMusic() {
     const hasPermission = await requestStoragePermission();
-    if (!hasPermission) return [];
+    if (!hasPermission) {return [];}
 
     const dirs = ReactNativeBlobUtil.fs.dirs;
     const scanPaths = [
@@ -114,7 +114,7 @@ export async function scanLocalMusic() {
     const seen = new Set();
     return allSongs
         .filter(song => {
-            if (seen.has(song.url)) return false;
+            if (seen.has(song.url)) {return false;}
             seen.add(song.url);
             return true;
         })
@@ -132,9 +132,9 @@ export function isFileDeletable(filePath) {
         '/Podcasts',
         '/system',
         '/Android/data',
-        '/Android/obb'
+        '/Android/obb',
     ];
-    
+
     return !protectedPaths.some(protectedPath => filePath.includes(protectedPath));
 }
 
@@ -144,7 +144,7 @@ export function isFileDeletable(filePath) {
 export async function deleteLocalSong(filePath) {
     try {
         console.log('deleteLocalSong: Starting deletion for path:', filePath);
-        
+
         if (!filePath) {
             console.error('deleteLocalSong: No file path provided');
             return { success: false, error: 'No file path provided' };
@@ -167,7 +167,7 @@ export async function deleteLocalSong(filePath) {
 
         const exists = await ReactNativeBlobUtil.fs.exists(cleanPath);
         console.log('deleteLocalSong: File exists:', exists);
-        
+
         if (!exists) {
             console.log('deleteLocalSong: File does not exist at path:', cleanPath);
             // Still try to clean up metadata cache
@@ -191,60 +191,60 @@ export async function deleteLocalSong(filePath) {
         // Check if file is deletable (not in protected directories)
         if (!isFileDeletable(cleanPath)) {
             console.warn('deleteLocalSong: File is in protected/system directory:', cleanPath);
-            return { 
-                success: false, 
+            return {
+                success: false,
                 error: 'Cannot delete files in system directories (Alarms, Ringtones, Notifications, etc.). Please use your device file manager.',
-                isProtected: true
+                isProtected: true,
             };
         }
 
         console.log('deleteLocalSong: Attempting to unlink file...');
-        
+
         // Check if it's a directory
         try {
             const stat = await ReactNativeBlobUtil.fs.stat(cleanPath);
             console.log('deleteLocalSong: File stat:', stat);
-            
+
             if (stat.type === 'directory') {
                 console.error('deleteLocalSong: Path is a directory, not a file');
                 return {
                     success: false,
-                    error: 'Cannot delete directories. Please delete individual files.'
+                    error: 'Cannot delete directories. Please delete individual files.',
                 };
             }
         } catch (statError) {
             console.warn('deleteLocalSong: Could not stat file:', statError);
         }
-        
+
         // Try direct deletion
         try {
             await ReactNativeBlobUtil.fs.unlink(cleanPath);
             console.log('deleteLocalSong: Unlink successful');
         } catch (unlinkError) {
             console.error('deleteLocalSong: Direct unlink failed:', unlinkError);
-            
+
             // Parse error to provide better message
             const errorMsg = unlinkError.message || unlinkError.toString();
             if (errorMsg.includes('EACCES') || errorMsg.includes('Permission denied')) {
                 return {
                     success: false,
-                    error: 'Permission denied. Try using your device file manager or grant storage permissions.'
+                    error: 'Permission denied. Try using your device file manager or grant storage permissions.',
                 };
             } else if (errorMsg.includes('EISDIR')) {
                 return {
                     success: false,
-                    error: 'Cannot delete folders, only files.'
+                    error: 'Cannot delete folders, only files.',
                 };
             } else if (errorMsg.includes('EBUSY')) {
                 return {
                     success: false,
-                    error: 'File is currently in use.'
+                    error: 'File is currently in use.',
                 };
             }
-            
+
             throw unlinkError;
         }
-        
+
         // Force refresh Android MediaStore
         if (Platform.OS === 'android') {
             try {
@@ -259,12 +259,12 @@ export async function deleteLocalSong(filePath) {
         await new Promise(resolve => setTimeout(resolve, 150));
         const stillExists = await ReactNativeBlobUtil.fs.exists(cleanPath);
         console.log('deleteLocalSong: File still exists after deletion:', stillExists);
-        
+
         if (stillExists) {
             console.error('deleteLocalSong: File still exists after unlink:', cleanPath);
-            return { 
-                success: false, 
-                error: 'Permission denied. Try deleting from your file manager instead.' 
+            return {
+                success: false,
+                error: 'Permission denied. Try deleting from your file manager instead.',
             };
         }
 
@@ -281,7 +281,7 @@ export async function deleteLocalSong(filePath) {
     } catch (e) {
         console.error('deleteLocalSong: Error deleting file:', e);
         console.error('deleteLocalSong: Error details:', e.message, e.code);
-        
+
         let errorMessage = 'Permission denied';
         if (e.message && e.message.includes('ENOENT')) {
             errorMessage = 'File not found';
@@ -292,7 +292,7 @@ export async function deleteLocalSong(filePath) {
         } else if (e.message) {
             errorMessage = e.message;
         }
-        
+
         return { success: false, error: errorMessage };
     }
 }

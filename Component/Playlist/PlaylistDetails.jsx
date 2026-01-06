@@ -19,7 +19,7 @@ export const PlaylistDetails = ({ name, listener, notReleased, Data, Loading, id
   const { updateTrack } = useContext(ActionsContext)
   const navigation = useNavigation();
   async function AddToPlayer() {
-    if (!Data?.data?.songs) return;
+    if (!Data?.data?.songs) {return;}
     const quality = await getIndexQuality()
     const ForMusicPlayer = Data?.data?.songs?.map((e, i) => {
       // Handle local songs (source: local) vs API songs

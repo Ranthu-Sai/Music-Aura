@@ -47,8 +47,8 @@ export const RecentlyPlayedPage = () => {
               setHistory([]);
               ToastAndroid.show("History cleared", ToastAndroid.SHORT);
             }
-          }
-        }
+          },
+        },
       ]
     );
   };
@@ -76,7 +76,7 @@ export const RecentlyPlayedPage = () => {
           icon: 'clock',
           title: 'Recently Played',
           colors: ['#00b09b', '#96c93d'],
-          bgColors: ['#0f2027', '#203a43']
+          bgColors: ['#0f2027', '#203a43'],
         }}
         hideOverlay={true}
         disableCollapse={true}
@@ -88,7 +88,7 @@ export const RecentlyPlayedPage = () => {
         alignItems: 'center',
         paddingRight: 15,
         // Remove background color to prevent visible band while scrolling
-        backgroundColor: 'transparent'
+        backgroundColor: 'transparent',
       }}>
         <LikedDetails name={"Recently Played"} Data={history} />
         {history.length > 0 && (
@@ -98,7 +98,7 @@ export const RecentlyPlayedPage = () => {
               opacity: pressed ? 0.7 : 1,
               padding: 10,
               borderRadius: 20,
-              backgroundColor: 'rgba(255, 255, 255, 0.1)'
+              backgroundColor: 'rgba(255, 255, 255, 0.1)',
             })}
           >
             <PlainText text="Clear All" style={{ fontSize: 12, color: '#ff5252' }} />

@@ -25,7 +25,7 @@ class LRUCacheManager {
     }
 
     async _ensureMetadataLoaded() {
-        if (this.metadataLoaded) return;
+        if (this.metadataLoaded) {return;}
         try {
             const stored = await AsyncStorage.getItem(this._getMetadataStorageKey());
             if (stored) {
@@ -53,12 +53,12 @@ class LRUCacheManager {
     }
 
     async evictOldest(count = null) {
-        if (this.evictionInProgress) return 0;
+        if (this.evictionInProgress) {return 0;}
         this.evictionInProgress = true;
         try {
             await this._ensureMetadataLoaded();
             const evictCount = count || Math.ceil(this.metadata.size * this.config.evictionPercent);
-            if (evictCount <= 0 || this.metadata.size === 0) return 0;
+            if (evictCount <= 0 || this.metadata.size === 0) {return 0;}
 
             const entries = [...this.metadata.entries()];
             entries.sort((a, b) => a[1].lastAccessed - b[1].lastAccessed);
@@ -105,7 +105,7 @@ class LRUCacheManager {
             await this._ensureMetadataLoaded();
             const cacheItem = { data, timestamp: Date.now(), expiration };
             const dataString = JSON.stringify(cacheItem);
-            if (dataString.length > 500000) return false;
+            if (dataString.length > 500000) {return false;}
 
             const storageKey = this._getStorageKey(key);
             await AsyncStorage.setItem(storageKey, dataString);
@@ -133,7 +133,7 @@ class LRUCacheManager {
             await this._ensureMetadataLoaded();
             const keysToRemove = [...this.metadata.keys()].map(key => this._getStorageKey(key));
             keysToRemove.push(this._getMetadataStorageKey());
-            if (keysToRemove.length > 0) await AsyncStorage.multiRemove(keysToRemove);
+            if (keysToRemove.length > 0) {await AsyncStorage.multiRemove(keysToRemove);}
             this.metadata.clear();
         } catch (error) {}
     }

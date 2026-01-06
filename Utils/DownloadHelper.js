@@ -7,7 +7,7 @@ import DeviceInfo from "react-native-device-info";
 import { StorageManager } from "./StorageManager";
 
 function sanitizeFileName(name) {
-    if (!name) return "Unknown_Song";
+    if (!name) {return "Unknown_Song";}
     return name.toString()
         .replace(/[\\/:*?"<>|]/g, '_') // Replace illegal characters with underscore
         .replace(/\s+/g, ' ')           // Normalize spaces
@@ -21,7 +21,7 @@ function isMp3Link(link, mime) {
 async function resolveDownloadUrl(song) {
     try {
         let urlToResolve = song.url;
-        
+
         // Use ID as fallback if URL is missing (common for YT songs in player)
         if (!urlToResolve && song.id) {
             urlToResolve = song.id;
@@ -37,7 +37,7 @@ async function resolveDownloadUrl(song) {
             }
             return { url: urlToResolve, isMp3: isMp3Link(urlToResolve) };
         }
-        
+
         if (Array.isArray(song.url)) {
             const mp3Item = song.url.find(it => isMp3Link(it?.url));
             if (mp3Item?.url) { return { url: mp3Item.url, isMp3: true }; }
@@ -68,13 +68,13 @@ async function finalizeDownload(song, res, fileName, mime, source, showSystemNot
         } catch (scanErr) {
             console.warn('DownloadHelper: scanFile error:', scanErr);
         }
-        
+
         // 2. Add to system downloads for notification (only if requested)
         if (Platform.OS === 'android' && showSystemNotification) {
             try {
                 // Short delay to ensure OS handles file creation
                 await new Promise(resolve => setTimeout(resolve, 600));
-                
+
                 const notificationConfig = {
                     title: fileName,
                     description: `Downloaded ${song.title}`,
@@ -120,15 +120,15 @@ async function finalizeDownload(song, res, fileName, mime, source, showSystemNot
             downloadTime: Date.now(),
             source: source,
             mimeType: mime,
-            filePath: filePath
+            filePath: filePath,
         };
 
         await StorageManager.saveDownloadedSongMetadata(songId, metadata);
-        
+
         // 4. Emit event for UI synchronization
-        DeviceEventEmitter.emit('songDownloaded', { 
+        DeviceEventEmitter.emit('songDownloaded', {
             ...metadata,
-            type: 'downloaded'
+            type: 'downloaded',
         });
 
         ToastAndroid.show(`Download completed: ${fileName}`, ToastAndroid.SHORT);
@@ -147,13 +147,13 @@ export async function DownloadSong(song) {
                 return true;
             } else {
                 const deviceVersion = parseFloat(DeviceInfo.getSystemVersion());
-                
+
                 // Request Storage Permission (for Android < 13)
                 if (deviceVersion < 13) {
                     const granted = await PermissionsAndroid.request(
                         PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE,
                     );
-                    if (granted !== PermissionsAndroid.RESULTS.GRANTED) return false;
+                    if (granted !== PermissionsAndroid.RESULTS.GRANTED) {return false;}
                 } else {
                     // For Android 13+, we need READ_MEDIA_AUDIO for library access
                     // and POST_NOTIFICATIONS for notifications
@@ -164,7 +164,7 @@ export async function DownloadSong(song) {
                     if (PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS) {
                         permissions.push(PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS);
                     }
-                    
+
                     if (permissions.length > 0) {
                         await PermissionsAndroid.requestMultiple(permissions);
                     }
@@ -231,7 +231,7 @@ export async function DownloadSong(song) {
 
         try {
             const exists = await ReactNativeBlobUtil.fs.isDir(musicAuraDir);
-            if (!exists) { 
+            if (!exists) {
                 await ReactNativeBlobUtil.fs.mkdir(musicAuraDir);
             }
         } catch (e) {
@@ -239,8 +239,8 @@ export async function DownloadSong(song) {
         }
 
         // Improved YouTube URL detection
-        const isYouTubeUrl = downloadLink.includes('googlevideo.com') || 
-                            downloadLink.includes('youtube.com') || 
+        const isYouTubeUrl = downloadLink.includes('googlevideo.com') ||
+                            downloadLink.includes('youtube.com') ||
                             downloadLink.includes('youtu.be') ||
                             song.source === 'youtube' ||
                             song.id?.length === 11; // Common YT ID length
@@ -303,7 +303,7 @@ export async function DownloadSong(song) {
                 })
                 .catch((err) => {
                     console.warn('DownloadHelper: Primary download method failed:', err.message);
-                    
+
                     // FALLBACK: If DownloadManager fails with "null file" or similar, try direct fetch
                     if (err.message && (err.message.includes('null') || err.message.includes('FileStorage'))) {
                         console.log('DownloadHelper: Attempting fallback download method...');

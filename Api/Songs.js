@@ -59,7 +59,7 @@ async function getYTMusicSuggestions(query) {
       const items = response.data?.contents?.[0]?.searchSuggestionsSectionRenderer?.contents || [];
       items.forEach(item => {
         const text = item?.searchSuggestionRenderer?.suggestion?.runs?.[0]?.text;
-        if (text) suggestions.push(text);
+        if (text) {suggestions.push(text);}
       });
     }
 
@@ -83,7 +83,7 @@ async function getYoutubeSuggestions(query) {
 const suggestionCache = new Map();
 
 async function getSearchSuggestions(query) {
-  if (!query) return { suggestions: [], quickResults: [] };
+  if (!query) {return { suggestions: [], quickResults: [] };}
 
   const cacheKey = query.trim().toLowerCase();
   if (suggestionCache.has(cacheKey)) {
@@ -94,13 +94,13 @@ async function getSearchSuggestions(query) {
     // Set a timeout for individual promises to ensure slow APIs don't hold up the results
     const withTimeout = (promise, ms) => Promise.race([
       promise,
-      new Promise(resolve => setTimeout(() => resolve({ suggestions: [], quickResults: [] }), ms))
+      new Promise(resolve => setTimeout(() => resolve({ suggestions: [], quickResults: [] }), ms)),
     ]);
 
     const results = await Promise.allSettled([
       withTimeout(getSaavnSuggestions(query), 1800),
       withTimeout(getYTMusicSuggestions(query), 1800),
-      withTimeout(getYoutubeSuggestions(query), 1800)
+      withTimeout(getYoutubeSuggestions(query), 1800),
     ]);
 
     const saavn = results[0].status === 'fulfilled' ? results[0].value : { suggestions: [], quickResults: [] };
@@ -122,15 +122,15 @@ async function getSearchSuggestions(query) {
           }
           addedInThisRound = true;
         }
-        if (combinedSuggestions.length >= maxSuggestions) break;
+        if (combinedSuggestions.length >= maxSuggestions) {break;}
       }
-      if (!addedInThisRound) break;
+      if (!addedInThisRound) {break;}
       j++;
     }
 
     const finalResult = {
       suggestions: combinedSuggestions,
-      quickResults: []
+      quickResults: [],
     };
 
     // Keep cache size manageable (max 100 entries)
@@ -172,7 +172,7 @@ async function getSearchSongData(searchText, page, limit) {
         headers: {},
       };
       const response = await axios.request(config);
-      return response.data
+      return response.data;
     } catch (error) {
       continue;
     }
@@ -351,14 +351,14 @@ async function getYTSearchSongData(searchText, page, limit) {
         const data = broadSearch.data;
         const songs = [];
         const contents = data?.contents?.tabbedSearchResultsRenderer?.tabs?.[0]?.tabRenderer?.content?.sectionListRenderer?.contents || [];
-        
+
         for (const section of contents) {
           const musicShelf = section.musicShelfRenderer;
           if (musicShelf && musicShelf.contents) {
             for (const item of musicShelf.contents) {
               const musicItem = item.musicResponsiveListItemRenderer;
               const videoId = musicItem?.playlistItemData?.videoId || musicItem?.overlay?.musicItemThumbnailOverlayRenderer?.content?.musicPlayButtonRenderer?.playNavigationEndpoint?.watchEndpoint?.videoId;
-              if (!videoId) continue;
+              if (!videoId) {continue;}
               const title = musicItem.flexColumns?.[0]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]?.text;
               const artist = musicItem.flexColumns?.[1]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]?.text;
               const thumbnail = musicItem.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails?.[0]?.url || `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
@@ -374,12 +374,12 @@ async function getYTSearchSongData(searchText, page, limit) {
                 downloadUrl: videoId,
                 source: 'ytmusic',
               });
-              if (songs.length >= limit) break;
+              if (songs.length >= limit) {break;}
             }
           }
-          if (songs.length >= limit) break;
+          if (songs.length >= limit) {break;}
         }
-        if (songs.length > 0) return { data: { results: songs } };
+        if (songs.length > 0) {return { data: { results: songs } };}
     }
   } catch (e) {}
 
@@ -620,11 +620,11 @@ async function getLyricsSongData(id) {
 const lyricsFetchLock = new Map();
 
 async function getYTLyricsSongData(artist, title, preferredLanguage, isYouTubeMusic = false, requestedSource = 'All') {
-  if (!artist || !title) return { success: false, data: { lyrics: "Missing Info" } };
+  if (!artist || !title) {return { success: false, data: { lyrics: "Missing Info" } };}
 
   const persistentKey = `lyrics_${artist}_${title}_${requestedSource}_${preferredLanguage}`.toLowerCase().replace(/[^a-z0-9]/g, '_');
-  
-  if (lyricsFetchLock.has(persistentKey)) return lyricsFetchLock.get(persistentKey);
+
+  if (lyricsFetchLock.has(persistentKey)) {return lyricsFetchLock.get(persistentKey);}
 
   const fetchPromise = (async () => {
     try {
@@ -653,7 +653,7 @@ async function getYTLyricsSongData(artist, title, preferredLanguage, isYouTubeMu
                       const seconds = parseFloat(match[2]);
                       const start_time = (minutes * 60 + seconds) * 1000;
                       const text = match[3].trim();
-                      if (text) timed_lyrics.push({ start_time, text });
+                      if (text) {timed_lyrics.push({ start_time, text });}
                     }
                   }
                   timed_lyrics = timed_lyrics.map((line, index) => ({
@@ -688,7 +688,7 @@ async function getYTLyricsSongData(artist, title, preferredLanguage, isYouTubeMu
                     if (word.start_time - (currentLine.start_time + currentLine.text.length * 100) > 2000) {
                       timed_lyrics.push({ ...currentLine, id: `line_${timed_lyrics.length}` });
                       currentLine = { start_time: word.start_time, text: word.text };
-                    } else currentLine.text += ' ' + word.text;
+                    } else {currentLine.text += ' ' + word.text;}
                   }
                   timed_lyrics.push({ ...currentLine, id: `line_${timed_lyrics.length}` });
                 }
@@ -702,7 +702,7 @@ async function getYTLyricsSongData(artist, title, preferredLanguage, isYouTubeMu
             url: `https://test-0k.onrender.com/lyrics/?artist=${encodeURIComponent(artist)}&song=${encodeURIComponent(title)}&tamps=true&pass=false&sequence=1,2,3,4,5,6`,
             timeout: 5000,
             transform: async (data) => {
-              if (data.data?.lyrics) return { success: true, data: { lyrics: data.data.lyrics, timed_lyrics: data.data.timed_lyrics } };
+              if (data.data?.lyrics) {return { success: true, data: { lyrics: data.data.lyrics, timed_lyrics: data.data.timed_lyrics } };}
               return null;
             },
           },
@@ -711,7 +711,7 @@ async function getYTLyricsSongData(artist, title, preferredLanguage, isYouTubeMu
             url: `https://test-0k.onrender.com/lyrics/?artist=${encodeURIComponent(artist)}&song=${encodeURIComponent(title)}&tamps=true&pass=false&sequence=2,4,6,1,3,5`,
             timeout: 5000,
             transform: async (data) => {
-              if (data.data?.lyrics) return { success: true, data: { lyrics: data.data.lyrics, timed_lyrics: data.data.timed_lyrics } };
+              if (data.data?.lyrics) {return { success: true, data: { lyrics: data.data.lyrics, timed_lyrics: data.data.timed_lyrics } };}
               return null;
             },
           },
@@ -720,7 +720,7 @@ async function getYTLyricsSongData(artist, title, preferredLanguage, isYouTubeMu
             url: `https://automatic-engine-nc2j.onrender.com/lyrics/?artist=${encodeURIComponent(artist)}&song=${encodeURIComponent(title)}&tamps=true&pass=false`,
             timeout: 5000,
             transform: async (data) => {
-              if (data.data?.lyrics) return { success: true, data: { lyrics: data.data.lyrics, timed_lyrics: data.data.timed_lyrics } };
+              if (data.data?.lyrics) {return { success: true, data: { lyrics: data.data.lyrics, timed_lyrics: data.data.timed_lyrics } };}
               return null;
             },
           },
@@ -750,12 +750,12 @@ async function getYTLyricsSongData(artist, title, preferredLanguage, isYouTubeMu
                 const song = results.data?.songs?.data?.[0];
                 if (song?.id) {
                   const lyricsData = await axios.get(`https://www.jiosaavn.com/api.php?__call=lyrics.getLyrics&ctx=wap6dot0&api_version=4&_format=json&_marker=0&id=${song.id}`);
-                  if (lyricsData.data?.lyrics) return { success: true, data: { lyrics: lyricsData.data.lyrics } };
+                  if (lyricsData.data?.lyrics) {return { success: true, data: { lyrics: lyricsData.data.lyrics } };}
                 }
               } catch (e) {}
               return null;
-            }
-          }
+            },
+          },
         ];
 
         const filteredApis = requestedSource === 'All'
@@ -766,13 +766,13 @@ async function getYTLyricsSongData(artist, title, preferredLanguage, isYouTubeMu
           try {
             const response = await axios.get(api.url, { timeout: api.timeout });
             const result = await api.transform(response.data);
-            if (result) return result;
+            if (result) {return result;}
           } catch (e) { continue; }
         }
 
         if (preferredLanguage && !['en', 'english'].includes(preferredLanguage.toLowerCase())) {
           const fallback = await getYTLyricsSongData(artist, title, 'en', isYouTubeMusic, requestedSource);
-          if (fallback?.success) return fallback;
+          if (fallback?.success) {return fallback;}
         }
 
         return { success: false, data: { lyrics: "No Lyrics Found" } };
@@ -850,7 +850,10 @@ async function getYTSearchVideoData(searchText, page, limit) {
 
             // Upgrade thumbnail quality using YTArtworkUtils
             thumbnail = YTArtworkUtils.upgradeArtworkQuality(thumbnail);
-            thumbnail = YTArtworkUtils.upgradeYtimgQuality(thumbnail);
+            // Use hqdefault for YouTube search results instead of maxresdefault for better compatibility
+            if (thumbnail.includes('i.ytimg.com/vi/')) {
+              thumbnail = thumbnail.replace(/(maxresdefault|sddefault|mqdefault)\.jpg/, 'hqdefault.jpg');
+            }
 
             // Extract duration from lengthText
             const durationText = videoRenderer.lengthText?.simpleText;

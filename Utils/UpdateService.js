@@ -37,7 +37,7 @@ class UpdateService {
      * Initialize the update service
      */
     async initialize() {
-        if (this.isInitialized) return;
+        if (this.isInitialized) {return;}
 
         try {
             // Get current app version
@@ -60,7 +60,7 @@ class UpdateService {
      * Returns: 1 if v1 > v2, -1 if v1 < v2, 0 if equal
      */
     compareVersions(v1, v2) {
-        if (!v1 || !v2) return 0;
+        if (!v1 || !v2) {return 0;}
 
         // Clean version strings (remove 'v' prefix if present)
         const clean1 = v1.replace(/^v/, '');
@@ -75,8 +75,8 @@ class UpdateService {
             const num1 = parts1[i] || 0;
             const num2 = parts2[i] || 0;
 
-            if (num1 > num2) return 1;
-            if (num1 < num2) return -1;
+            if (num1 > num2) {return 1;}
+            if (num1 < num2) {return -1;}
         }
 
         return 0;

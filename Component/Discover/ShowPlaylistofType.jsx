@@ -1,4 +1,4 @@
-/* eslint-disable keyword-spacing */
+
 import React, { useEffect, useState, useCallback } from "react";
 import { Dimensions, FlatList, View } from "react-native";
 import { LoadingComponent } from "../Global/Loading";

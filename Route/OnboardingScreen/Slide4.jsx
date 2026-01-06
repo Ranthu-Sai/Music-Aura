@@ -5,7 +5,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   Text,
-  StatusBar
+  StatusBar,
 } from "react-native";
 import Animated, {
   FadeIn,
@@ -15,7 +15,7 @@ import Animated, {
   withTiming,
   Easing,
   interpolate,
-  Extrapolate
+  Extrapolate,
 } from "react-native-reanimated";
 import FastImage from "react-native-fast-image";
 import LinearGradient from "react-native-linear-gradient";
@@ -56,7 +56,7 @@ export const Slide4 = ({ navigation }) => {
   return (
     <View style={styles.container}>
       <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
-      
+
       <View style={styles.contentContainer}>
         {/* Animated Background Aura */}
         <Animated.View style={[styles.backgroundAura, animatedBackAura]} />
@@ -70,7 +70,7 @@ export const Slide4 = ({ navigation }) => {
                 resizeMode="cover"
               />
             </Animated.View>
-            
+
             {/* Floating Decorative Elements */}
             <Animated.View entering={FadeIn.delay(1200)} style={[styles.floatingIcon, { top: -10, right: -20 }]}>
               <Icon name="music" size={20} color="#1DB954" />
@@ -84,11 +84,9 @@ export const Slide4 = ({ navigation }) => {
             <Animated.Text entering={FadeIn.delay(200).duration(800)} style={styles.overTitle}>
               Configuration Complete
             </Animated.Text>
-            <Animated.View entering={FadeIn.delay(400).duration(800)}>
-              <Animated.Text style={[styles.mainTitle, animatedTitleGlow]}>
-                You're all set!
-              </Animated.Text>
-            </Animated.View>
+            <Animated.Text entering={FadeIn.delay(400).duration(800)} style={[styles.mainTitle, animatedTitleGlow]}>
+              You're all set!
+            </Animated.Text>
             <Animated.Text entering={FadeIn.delay(600).duration(800)} style={styles.description}>
               Dive into a personalized world of melodies.{"\n"}Your Music Aura is ready to shine.
             </Animated.Text>
@@ -258,5 +256,5 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
     textDecorationLine: 'underline',
-  }
+  },
 });

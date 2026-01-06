@@ -26,7 +26,7 @@ if (__DEV__) {
 if (__DEV__) {
   suppressLogPrefixes([
     'useDeviceLibrary:',
-    'LocalTracksMetadataManager:'
+    'LocalTracksMetadataManager:',
   ]);
 }
 

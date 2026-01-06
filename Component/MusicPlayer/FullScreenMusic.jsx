@@ -62,7 +62,7 @@ const SleepTimerBadge = memo(({ sleepTime, sleepTimerRef, onTimerEnd }) => {
             sleepTimerRef.current = null;
           }
           try { await TrackPlayer.pause(); } catch (_) {}
-          if (onTimerEnd) onTimerEnd();
+          if (onTimerEnd) {onTimerEnd();}
         }
       }, 1000);
     } else {
@@ -78,7 +78,7 @@ const SleepTimerBadge = memo(({ sleepTime, sleepTimerRef, onTimerEnd }) => {
     };
   }, [sleepTime, sleepTimerRef, onTimerEnd]);
 
-  if (!remaining || remaining <= 0) return null;
+  if (!remaining || remaining <= 0) {return null;}
 
   return (
     <SmallText
@@ -194,7 +194,7 @@ export const FullScreenMusic = memo(({ color, Index, setIndex }) => {
 
   const handleDownload = async () => {
     setShowMenu(false);
-    if (!currentPlaying) return;
+    if (!currentPlaying) {return;}
 
     const isLocal = currentPlaying.url && (currentPlaying.url.startsWith('/') || currentPlaying.url.startsWith('file://'));
     if (isLocal || currentPlaying.source === 'downloaded') {
@@ -320,7 +320,7 @@ export const FullScreenMusic = memo(({ color, Index, setIndex }) => {
   async function handleGoToAlbum() {
     try {
       setShowMenu(false);
-      if (!currentPlaying?.id) return;
+      if (!currentPlaying?.id) {return;}
       const isYouTube = /^[a-zA-Z0-9_-]{11}$/.test(currentPlaying.id);
       if (isYouTube) {
         try {
@@ -353,7 +353,7 @@ export const FullScreenMusic = memo(({ color, Index, setIndex }) => {
                       }
                     }
                   }
-                  if (albumId) break;
+                  if (albumId) {break;}
                 }
               }
             }
@@ -380,7 +380,7 @@ export const FullScreenMusic = memo(({ color, Index, setIndex }) => {
   }
 
   async function GetLyrics() {
-    if (!currentPlaying?.id) return;
+    if (!currentPlaying?.id) {return;}
     const sourceSuffix = lyricsSettings?.source || 'All';
     const cacheKey = currentPlaying?.id ? `${currentPlaying.id}-${sourceSuffix}` : `${currentPlaying?.artist}-${currentPlaying?.title}-${sourceSuffix}`;
     const cached = lyricsCacheRef?.current?.[cacheKey];
@@ -398,15 +398,15 @@ export const FullScreenMusic = memo(({ color, Index, setIndex }) => {
       const preferredLanguage = await GetLanguageValue();
       const languageToUse = preferredLanguage || currentPlaying?.language || 'en';
       const isYouTubeMusic = /^[a-zA-Z0-9_-]{11}$/.test(currentPlaying.id);
-      
+
       const Lyrics = await getYTLyricsSongData(currentPlaying.artist, currentPlaying.title, languageToUse, isYouTubeMusic, lyricsSettings.source);
-      
+
       if (Lyrics.success) {
-        if (lyricsCacheRef?.current) lyricsCacheRef.current[cacheKey] = Lyrics.data;
+        if (lyricsCacheRef?.current) {lyricsCacheRef.current[cacheKey] = Lyrics.data;}
         setLyric(Lyrics.data);
       } else {
         const fallback = { lyrics: "No Lyrics Found" };
-        if (lyricsCacheRef?.current) lyricsCacheRef.current[cacheKey] = fallback;
+        if (lyricsCacheRef?.current) {lyricsCacheRef.current[cacheKey] = fallback;}
         setLyric(fallback);
       }
     } catch (e) {
@@ -420,9 +420,9 @@ export const FullScreenMusic = memo(({ color, Index, setIndex }) => {
   const fallbackArtwork = "https://htmlcolorcodes.com/assets/images/colors/gray-color-solid-background-1920x1080.png";
 
   const resolvedArtwork = React.useMemo(() => {
-    if (!currentPlaying?.artwork) return fallbackArtwork;
+    if (!currentPlaying?.artwork) {return fallbackArtwork;}
     const raw = currentPlaying.artwork;
-    if (typeof raw === 'string' && raw.trim() === "") return fallbackArtwork;
+    if (typeof raw === 'string' && raw.trim() === "") {return fallbackArtwork;}
     return upgradeArtworkQuality(raw);
   }, [currentPlaying?.artwork]);
 
@@ -434,11 +434,11 @@ export const FullScreenMusic = memo(({ color, Index, setIndex }) => {
 
   return (
     <View style={{ backgroundColor: theme.colors.background, flex: 1 }}>
-      <ShowLyrics 
-        Loading={Loading} 
-        Lyric={Lyric} 
-        setShowDailog={setShowDailog} 
-        ShowDailog={ShowDailog} 
+      <ShowLyrics
+        Loading={Loading}
+        Lyric={Lyric}
+        setShowDailog={setShowDailog}
+        ShowDailog={ShowDailog}
         currentSong={currentPlaying}
         setLyric={setLyric}
         setLoading={setLoading}
@@ -498,14 +498,14 @@ export const FullScreenMusic = memo(({ color, Index, setIndex }) => {
                   <View style={{ backgroundColor: theme.dark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)', borderRadius: 14, padding: 12, borderWidth: 1, borderColor: theme.dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)', marginBottom: 12 }}>
                     <PlainText text="Custom minutes" style={{ opacity: 0.7, marginBottom: 10 }} />
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                      <TouchableOpacity onPress={() => setCustomMinutes((m) => Math.max(1, parseInt(String(m||0),10) - 5))} style={{ paddingVertical: 10, paddingHorizontal: 14, backgroundColor: theme.dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)', borderRadius: 10 }}>
+                      <TouchableOpacity onPress={() => setCustomMinutes((m) => Math.max(1, parseInt(String(m || 0),10) - 5))} style={{ paddingVertical: 10, paddingHorizontal: 14, backgroundColor: theme.dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)', borderRadius: 10 }}>
                         <PlainText text="-5" />
                       </TouchableOpacity>
                       <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', marginHorizontal: 10, backgroundColor: theme.dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)', borderRadius: 10, borderWidth: 1, borderColor: theme.dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)' }}>
                         <MaterialCommunityIcons name="clock-outline" size={18} color="#bbb" style={{ marginLeft: 10 }} />
                         <TextInput
                           value={String(customMinutes)}
-                          onChangeText={(t) => setCustomMinutes((t||'').replace(/[^0-9]/g, ''))}
+                          onChangeText={(t) => setCustomMinutes((t || '').replace(/[^0-9]/g, ''))}
                           keyboardType="numeric"
                           placeholder="Minutes"
                           placeholderTextColor="#888"
@@ -513,7 +513,7 @@ export const FullScreenMusic = memo(({ color, Index, setIndex }) => {
                         />
                         <PlainText text="min" style={{ opacity: 0.6, marginRight: 12 }} />
                       </View>
-                      <TouchableOpacity onPress={() => setCustomMinutes((m) => Math.min(999, parseInt(String(m||0),10) + 5))} style={{ paddingVertical: 10, paddingHorizontal: 14, backgroundColor: theme.dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)', borderRadius: 10 }}>
+                      <TouchableOpacity onPress={() => setCustomMinutes((m) => Math.min(999, parseInt(String(m || 0),10) + 5))} style={{ paddingVertical: 10, paddingHorizontal: 14, backgroundColor: theme.dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)', borderRadius: 10 }}>
                         <PlainText text="+5" />
                       </TouchableOpacity>
                     </View>
@@ -541,17 +541,17 @@ export const FullScreenMusic = memo(({ color, Index, setIndex }) => {
             <Modal visible={showRepeatModal} transparent animationType="fade" onRequestClose={() => setShowRepeatModal(false)}>
               <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center' }} onPress={() => setShowRepeatModal(false)}>
                 <View style={{ backgroundColor: theme.dark ? '#121212' : '#FFFFFF', borderRadius: 16, width: '70%', paddingVertical: 8, borderWidth: 1, borderColor: theme.dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)' }}>
-                  <TouchableOpacity onPress={async () => { try { await SetRepeatMode(RepeatMode.Off); } catch(_){} setShowRepeatModal(false); }} style={{ paddingHorizontal: 16, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <TouchableOpacity onPress={async () => { try { await SetRepeatMode(RepeatMode.Off); } catch (_){} setShowRepeatModal(false); }} style={{ paddingHorizontal: 16, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                     <PlainText text="Repeat Off" />
                     <MaterialCommunityIcons name="repeat-off" size={20} color={theme.colors.text} />
                   </TouchableOpacity>
                   <View style={{ height: 1, backgroundColor: theme.dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)' }} />
-                  <TouchableOpacity onPress={async () => { try { await SetRepeatMode(RepeatMode.Queue); } catch(_){} setShowRepeatModal(false); }} style={{ paddingHorizontal: 16, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <TouchableOpacity onPress={async () => { try { await SetRepeatMode(RepeatMode.Queue); } catch (_){} setShowRepeatModal(false); }} style={{ paddingHorizontal: 16, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                     <PlainText text="Repeat All" />
                     <MaterialCommunityIcons name="repeat" size={20} color={theme.colors.text} />
                   </TouchableOpacity>
                   <View style={{ height: 1, backgroundColor: theme.dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)' }} />
-                  <TouchableOpacity onPress={async () => { try { await SetRepeatMode(RepeatMode.Track); } catch(_){} setShowRepeatModal(false); }} style={{ paddingHorizontal: 16, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <TouchableOpacity onPress={async () => { try { await SetRepeatMode(RepeatMode.Track); } catch (_){} setShowRepeatModal(false); }} style={{ paddingHorizontal: 16, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                     <PlainText text="Repeat One" />
                     <MaterialCommunityIcons name="repeat-once" size={20} color={theme.colors.text} />
                   </TouchableOpacity>
@@ -597,17 +597,17 @@ export const FullScreenMusic = memo(({ color, Index, setIndex }) => {
 
             {/* Bottom Action Pill Bar */}
             <Spacer height={10} />
-            <View style={{ 
-              flexDirection: 'row', 
-              justifyContent: 'space-between', 
+            <View style={{
+              flexDirection: 'row',
+              justifyContent: 'space-between',
               alignItems: 'center',
-              width: '90%', 
+              width: '90%',
               paddingHorizontal: 20,
-              paddingVertical: 14, 
-              backgroundColor: theme.dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)', 
+              paddingVertical: 14,
+              backgroundColor: theme.dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
               borderRadius: 25,
               borderWidth: 1,
-              borderColor: theme.dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.08)'
+              borderColor: theme.dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.08)',
             }}>
               <TouchableOpacity onPress={() => setShowSleepModal(true)}>
                 <MaterialCommunityIcons name="timer-outline" size={24} color={sleepTime > 0 ? '#1DB954' : theme.colors.text} />
@@ -645,7 +645,7 @@ const styles = StyleSheet.create({
     padding: 16,
     gap: 15,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.05)'
-  }
+    borderBottomColor: 'rgba(255,255,255,0.05)',
+  },
 });
 

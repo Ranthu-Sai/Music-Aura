@@ -7,7 +7,7 @@ export const LoadingComponent = ({ loading, height }) => {
         flex: 1,
         alignItems: "center",
         justifyContent: "center",
-        backgroundColor: "transparent"
+        backgroundColor: "transparent",
       }}>
         <FastImage source={require("../../Images/loading.gif")} style={{
           height: 80,

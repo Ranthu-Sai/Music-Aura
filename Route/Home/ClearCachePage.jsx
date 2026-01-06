@@ -18,8 +18,8 @@ import { InteractionManager } from "react-native";
 const { width } = Dimensions.get('window');
 
 function formatBytes(bytes) {
-  if (bytes === 0) return '0 B';
-  if (!bytes) return '0 B';
+  if (bytes === 0) {return '0 B';}
+  if (!bytes) {return '0 B';}
   const k = 1024;
   const sizes = ['B', 'KB', 'MB', 'GB'];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
@@ -43,8 +43,8 @@ function CacheCard({ item, isSelected, onToggle, size, currentThemeColors, delay
           {
             backgroundColor: isSelected ? 'rgba(29, 185, 84, 0.1)' : 'rgba(255,255,255,0.03)',
             borderColor: isSelected ? '#1DB954' : 'rgba(255,255,255,0.05)',
-            opacity: pressed ? 0.8 : 1
-          }
+            opacity: pressed ? 0.8 : 1,
+          },
         ]}
       >
         <View style={styles.cardLeft}>
@@ -104,12 +104,12 @@ export const ClearCachePage = ({ navigation }) => {
 
       const total = sizes.TOTAL || 0;
       const downloads = sizes.OFFLINE_DOWNLOADS || 0;
-      const cache = total - downloads; 
+      const cache = total - downloads;
 
       setStorage({
         total: total,
         d: downloads,
-        c: cache
+        c: cache,
       });
     } catch (error) {
       console.error("Error loading clear cache data:", error);
@@ -194,8 +194,8 @@ export const ClearCachePage = ({ navigation }) => {
                   <PlainText text="Storage Dashboard" style={styles.dashboardTitle} />
                   <SmallText text={`Total usage: ${formatBytes(storage.total)}`} style={{ opacity: 0.6 }} />
                 </View>
-                <TouchableOpacity 
-                  onPress={handleRefresh} 
+                <TouchableOpacity
+                  onPress={handleRefresh}
                   disabled={refreshing}
                   style={[styles.refreshIcon, refreshing && { opacity: 0.5 }]}
                 >
@@ -408,5 +408,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginTop: 20,
     paddingBottom: 20,
-  }
+  },
 });

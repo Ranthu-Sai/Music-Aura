@@ -8,7 +8,7 @@ import { PaddingConatiner } from "../../Layout/PaddingConatiner";
 import { EachAlbumCard } from "../../Component/Global/EachAlbumCard";
 import { RenderTopCharts } from "../../Component/Home/RenderTopCharts";
 import { LoadingComponent } from "../../Component/Global/Loading";
-import React, { useEffect, useState, useRef, useMemo } from "react";
+import React, { useEffect, useState, useRef, useMemo, useCallback } from "react";
 import { useIsFocused } from "@react-navigation/native";
 import { getHomePageData } from "../../Api/HomePage";
 import { getSearchPlaylistData } from "../../Api/Playlist";
@@ -20,18 +20,66 @@ import { DisplayTopGenres } from "../../Component/Home/DisplayTopGenres";
 import { useActiveTrack } from "react-native-track-player";
 import { EachArtistChip } from "../../Component/Global/EachArtistChip";
 import { getTopArtists } from "../../Api/Artists";
-import { getDevotionalPlaylists } from "../../Api/Devotional";
+
+// JioSaavn API Fallback URLs (for future use if primary API fails)
+const JIOSAAVN_API_FALLBACKS = [
+  'https://jiosaavn-api-2.vercel.app',     // Primary (currently used)
+  'https://saavn-api.vercel.app',          // Secondary fallback
+  'https://jio-savan-api-sigma.vercel.app', // Tertiary fallback
+];
+
+// Skeleton loading component
+const SkeletonLoader = ({ width, height, style }) => (
+  <View style={[{
+    backgroundColor: '#2a2a2a',
+    borderRadius: 8,
+    width: width || 100,
+    height: height || 20,
+    opacity: 0.5,
+  }, style]} />
+);
+
+// Skeleton for horizontal lists
+const HorizontalSkeletonList = ({ itemCount = 5, itemWidth = 120, itemHeight = 120 }) => (
+  <View style={{ flexDirection: 'row', paddingHorizontal: 15, marginVertical: 10 }}>
+    {Array.from({ length: itemCount }).map((_, index) => (
+      <SkeletonLoader
+        key={index}
+        width={itemWidth}
+        height={itemHeight}
+        style={{ marginRight: 15 }}
+      />
+    ))}
+  </View>
+);
+
+// Skeleton for vertical lists
+const VerticalSkeletonList = ({ itemCount = 3, itemHeight = 60 }) => (
+  <View style={{ paddingHorizontal: 15, marginVertical: 10 }}>
+    {Array.from({ length: itemCount }).map((_, index) => (
+      <View key={index} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 15 }}>
+        <SkeletonLoader width={itemHeight} height={itemHeight} style={{ borderRadius: itemHeight / 2, marginRight: 15 }} />
+        <View style={{ flex: 1 }}>
+          <SkeletonLoader width="80%" height={16} style={{ marginBottom: 8 }} />
+          <SkeletonLoader width="60%" height={14} />
+        </View>
+      </View>
+    ))}
+  </View>
+);
 
 export const Home = () => {
   const [Loading, setLoading] = useState(true);
+  const [LoadingSecondary, setLoadingSecondary] = useState(true);
   const [Data, setData] = useState({});
   const [showHeader, setShowHeader] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  
+
   const [viralHitsId, setViralHitsId] = useState(null);
   const [trendingLangId, setTrendingLangId] = useState(null);
   const [topArtists, setTopArtists] = useState([]);
-  const [devotionalAlbums, setDevotionalAlbums] = useState([]);
+  const [currentLanguage, setCurrentLanguage] = useState('All');
+  const [secondaryDataLoaded, setSecondaryDataLoaded] = useState(false);
   const isFocused = useIsFocused();
   const refreshTimerRef = useRef(null);
   const activeTrack = useActiveTrack();
@@ -59,7 +107,7 @@ export const Home = () => {
     return list;
   }, [rawAlbums]);
 
-  
+
 
   const trendingSongs = useMemo(() => Data?.data?.trending?.songs ?? [], [Data]);
   const playlists = useMemo(() => Data?.data?.playlists ?? [], [Data]);
@@ -89,94 +137,163 @@ export const Home = () => {
     return cols;
   }, [topArtists]);
 
-  const devotionalColumns = useMemo(() => {
-    const cols = [];
-    for (let i = 0; i < devotionalAlbums.length; i = i + 2) {
-      cols.push(devotionalAlbums.slice(i, i + 2));
-    }
-    return cols;
-  }, [devotionalAlbums]);
+  // Fetch India Superhits playlists from working API
+  const [indiaSuperhitsPlaylists, setIndiaSuperhitsPlaylists] = useState([]);
 
-  async function fetchHomePageData(silent = false) {
+  const fetchIndiaSuperhitsPlaylists = useCallback(async () => {
+    const playlistIds = ['1134543272', '1134548194', '1134643225', '1134768973']; // Hindi, General, Telugu, Bhojpuri
+    const playlists = [];
+
+    for (const id of playlistIds) {
+      let success = false;
+
+      // Try each API fallback in order
+      for (const apiBase of JIOSAAVN_API_FALLBACKS) {
+        if (success) {break;}
+
+        try {
+          const response = await fetch(`${apiBase}/playlists?id=${id}`);
+          const data = await response.json();
+
+          if (data.status === 'SUCCESS' && data.results) {
+            const playlist = data.results;
+            // Transform API response to match our chart format
+            playlists.push({
+              id: playlist.id,
+              title: playlist.name,
+              subtitle: `${playlist.songCount} songs`,
+              language: playlist.name.toLowerCase().includes('hindi') ? 'hindi' :
+                       playlist.name.toLowerCase().includes('telugu') ? 'telugu' :
+                       playlist.name.toLowerCase().includes('bhojpuri') ? 'bhojpuri' : 'all',
+              image: playlist.image ? [
+                { url: playlist.image[0]?.link || playlist.image[0] },
+                { url: playlist.image[1]?.link || playlist.image[1] },
+                { url: playlist.image[2]?.link || playlist.image[2] },
+              ] : [
+                { url: 'https://via.placeholder.com/300x300?text=No+Image' },
+                { url: 'https://via.placeholder.com/300x300?text=No+Image' },
+                { url: 'https://via.placeholder.com/300x300?text=No+Image' },
+              ],
+              followerCount: playlist.followerCount,
+              type: 'playlist',
+            });
+            success = true;
+          }
+        } catch (error) {
+          console.warn(`Failed to fetch playlist ${id} from ${apiBase}:`, error);
+          // Continue to next API fallback
+        }
+      }
+
+      if (!success) {
+        console.warn(`All API fallbacks failed for playlist ${id}`);
+      }
+    }
+
+    setIndiaSuperhitsPlaylists(playlists);
+  }, []);
+
+  // Enhanced charts with India Superhits playlists
+  const enhancedCharts = useMemo(() => {
+    // Filter playlists based on current language
+    const filteredIndiaSuperhitsPlaylists = indiaSuperhitsPlaylists.filter(playlist => {
+      if (currentLanguage === 'All' || !currentLanguage) {
+        return playlist.language === 'all'; // Only show general playlist when all languages selected
+      }
+      // Show both language-specific playlist and general playlist
+      return playlist.language === currentLanguage.toLowerCase() || playlist.language === 'all';
+    });
+
+    const apiCharts = Data?.data?.charts ?? [];
+    return [...filteredIndiaSuperhitsPlaylists, ...apiCharts];
+  }, [Data?.data?.charts, currentLanguage, indiaSuperhitsPlaylists]);
+
+  const fetchHomePageData = useCallback(async (silent = false) => {
     try {
       if (!silent) {
         setLoading(true);
       }
       const Languages = await GetLanguageValue();
-      const data = await getHomePageData(Languages);
+      setCurrentLanguage(Languages || 'All');
 
-      setData(data);
+      // PRIORITY FETCH: Load critical top content first and show immediately
+      const priorityData = await getHomePageData(Languages);
 
-      // Fetch Top Artists filtered by language
-      try {
-        const artists = await getTopArtists();
-        
-        // Filter artists by language if specific language(s) selected
-        if (Languages && Languages !== 'All' && Languages !== '') {
-          const langList = Languages.split(',').map(l => l.trim().toLowerCase()).filter(Boolean);
-          // Fetch songs for each artist to check language match
-          const artistsWithLanguage = await Promise.all(
-            artists.slice(0, 20).map(async (artist) => {
-              try {
-                const { getArtistTopSongs } = require('../../Api/Artists');
-                const artistData = await getArtistTopSongs(artist.id, 3);
-                const hasMatchingLanguage = artistData?.songs?.some(
-                  song => {
-                    const sLang = (song.language || '').toLowerCase();
-                    return sLang && langList.includes(sLang);
-                  }
-                );
-                return hasMatchingLanguage ? artist : null;
-              } catch (error) {
-                console.warn(`Failed to check artist ${artist.name}:`, error.message);
-                return null;
-              }
-            })
-          );
-          const filteredArtists = artistsWithLanguage.filter(a => a !== null);
-          setTopArtists(filteredArtists.slice(0, 15));
-        } else {
-          setTopArtists((artists || []).slice(0, 15));
-        }
-      } catch (err) {
-        console.warn("Home: Failed to fetch top artists", err);
+      // Show priority content immediately
+      if (priorityData) {
+        setData(priorityData);
+      } else {
+        setData({ data: { albums: [], playlists: [], trending: { songs: [], albums: [] }, charts: [] } });
       }
 
-      // Fetch Devotional Playlists based on language
-      try {
-        const devLanguage = Languages && Languages !== 'All' && Languages !== '' 
-          ? Languages.split(',')[0].trim().toLowerCase() 
-          : 'telugu';
-        const devotionalData = await getDevotionalPlaylists(devLanguage, 16);
-        setDevotionalAlbums(devotionalData);
-      } catch (err) {
-        console.warn("Home: Failed to fetch devotional playlists", err);
+      // Stop main loading - show the feed now
+      if (!silent) {
+        setLoading(false);
       }
 
-      // Fetch Viral Hits and Trending ID for replacement
-      if (Languages && Languages !== 'All') {
-        try {
-          const viralSearch = await getSearchPlaylistData(`Viral hits ${Languages}`, 1, 1);
-          if (viralSearch?.data?.results?.[0]?.id) {
-            setViralHitsId(viralSearch.data.results[0].id);
-          }
-          
-          const trendingSearch = await getSearchPlaylistData(`Trending ${Languages}`, 1, 1);
-          if (trendingSearch?.data?.results?.[0]?.id) {
-            setTrendingLangId(trendingSearch.data.results[0].id);
-          }
-        } catch (err) {
-          console.warn("Home: Failed to fetch viral/trending hits", err);
-        }
-      }
+      // Load secondary content asynchronously with delay to prevent overwhelming the API
+      setTimeout(() => {
+        loadSecondaryContent(Languages);
+      }, 500); // Small delay to let UI settle
+
     } catch (e) {
-      // Error fetching home page data
+      console.error("Home: Critical error in fetchHomePageData", e);
+      setData({ data: { albums: [], playlists: [], trending: { songs: [], albums: [] }, charts: [] } });
     } finally {
       if (!silent) {
         setLoading(false);
       }
     }
-  }
+  }, [setLoading, setData, setCurrentLanguage, loadSecondaryContent]);
+
+  // Separate function for loading secondary content
+  const loadSecondaryContent = useCallback(async (Languages) => {
+    if (secondaryDataLoaded && !refreshing) {return;} // Don't reload if already loaded and not refreshing
+
+    try {
+      setLoadingSecondary(true);
+
+      // Load artists first (most important secondary content)
+      try {
+        const artists = await getTopArtists(Languages);
+        if (artists) {
+          const artistsList = artists || [];
+          setTopArtists(artistsList.slice(0, 15));
+        }
+      } catch (err) {
+        console.warn("Home: Failed to fetch artists", err);
+      }
+
+      // Small delay before loading playlist IDs
+      setTimeout(async () => {
+        const [viralSearch, trendingSearch] = await Promise.allSettled([
+          Languages && Languages !== 'All'
+            ? getSearchPlaylistData(`Viral hits ${Languages}`, 1, 1)
+            : Promise.resolve(null),
+          Languages && Languages !== 'All'
+            ? getSearchPlaylistData(`Trending ${Languages}`, 1, 1)
+            : Promise.resolve(null),
+        ]);
+
+        // Set viral hits ID
+        if (viralSearch.status === 'fulfilled' && viralSearch.value?.data?.results?.[0]?.id) {
+          setViralHitsId(viralSearch.value.data.results[0].id);
+        }
+
+        // Set trending ID
+        if (trendingSearch.status === 'fulfilled' && trendingSearch.value?.data?.results?.[0]?.id) {
+          setTrendingLangId(trendingSearch.value.data.results[0].id);
+        }
+
+        setSecondaryDataLoaded(true);
+        setLoadingSecondary(false);
+      }, 300);
+
+    } catch (e) {
+      console.warn("Home: Error loading secondary content", e);
+      setLoadingSecondary(false);
+    }
+  }, [secondaryDataLoaded, refreshing, setLoadingSecondary, setTopArtists, setViralHitsId, setTrendingLangId, setSecondaryDataLoaded]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -189,23 +306,30 @@ export const Home = () => {
     if (!chart) { return null; }
 
     const title = (chart.title || chart.name || '').toLowerCase();
-    if (title.includes('2000s') && viralHitsId) {
-      return viralHitsId;
+    // Skip decade/compilation charts like "2000s" to avoid duplicate Selected Language sections
+    if (title.includes('2000s')) {
+      return null;
     }
+
     return chart.id;
   };
 
   useEffect(() => {
     fetchHomePageData();
-  }, []);
+    fetchIndiaSuperhitsPlaylists(); // Fetch India Superhits playlists
 
-  // Refresh on focus and every 60s while focused
+    // Load current language on mount
+    GetLanguageValue().then(language => {
+      setCurrentLanguage(language || 'All');
+    });
+  }, [fetchHomePageData, fetchIndiaSuperhitsPlaylists]);
+
+  // Refresh on focus and every 10 minutes while focused (reduced frequency)
   useEffect(() => {
     if (isFocused) {
-      fetchHomePageData(true);
       refreshTimerRef.current = setInterval(() => {
-        fetchHomePageData(true);
-      }, 30000);
+        fetchHomePageData(true); // Silent refresh
+      }, 600000); // 10 minutes instead of 5
     }
     return () => {
       if (refreshTimerRef.current) {
@@ -213,73 +337,9 @@ export const Home = () => {
         refreshTimerRef.current = null;
       }
     };
-  }, [isFocused]);
+  }, [isFocused, fetchHomePageData]);
 
-  // Auto-refresh artists when available
-  useEffect(() => {
-    if (Data?.data && !Loading) {
-      // Trigger artists fetch when home data is loaded
-      const refreshArtists = async () => {
-        try {
-          const Languages = await GetLanguageValue();
-          const artists = await getTopArtists();
-          
-          if (Languages && Languages !== 'All' && Languages !== '') {
-            const langList = Languages.split(',').map(l => l.trim().toLowerCase()).filter(Boolean);
-            const artistsWithLanguage = await Promise.all(
-              artists.slice(0, 20).map(async (artist) => {
-                try {
-                  const { getArtistTopSongs } = require('../../Api/Artists');
-                  const artistData = await getArtistTopSongs(artist.id, 3);
-                  const hasMatchingLanguage = artistData?.songs?.some(
-                    song => {
-                      const sLang = (song.language || '').toLowerCase();
-                      return sLang && langList.includes(sLang);
-                    }
-                  );
-                  return hasMatchingLanguage ? artist : null;
-                } catch (error) {
-                  return null;
-                }
-              })
-            );
-            const filteredArtists = artistsWithLanguage.filter(a => a !== null);
-            setTopArtists(filteredArtists.slice(0, 15));
-          } else {
-            setTopArtists((artists || []).slice(0, 15));
-          }
-        } catch (err) {
-          console.warn("Failed to auto-refresh artists", err);
-        }
-      };
-      
-      refreshArtists();
-    }
-  }, [Data, Loading]);
-
-  // Refresh when app comes to foreground to keep feed up-to-date
-  useEffect(() => {
-    const handleAppStateChange = (next) => {
-      if (next === 'active') {
-        fetchHomePageData(true);
-      }
-    };
-
-    // RN AppState API may return a subscription object
-    const sub = AppState.addEventListener ? AppState.addEventListener('change', handleAppStateChange) : null;
-    if (!sub) {
-      // Fallback for older RN versions
-      AppState.addEventListener('change', handleAppStateChange);
-    }
-
-    return () => {
-      if (sub && typeof sub.remove === 'function') {
-        sub.remove();
-      } else {
-        AppState.removeEventListener('change', handleAppStateChange);
-      }
-    };
-  }, []);
+  // Removed duplicate artist fetching - now handled in main fetchHomePageData
 
   return (
     <MainWrapper>
@@ -363,9 +423,16 @@ export const Home = () => {
                 </View>
               )}
             />
-            
+
             {/* Top Artists Section */}
-            {topArtists.length > 0 && (
+            {LoadingSecondary ? (
+              <>
+                <PaddingConatiner>
+                  <SkeletonLoader width={120} height={24} style={{ marginBottom: 10 }} />
+                </PaddingConatiner>
+                <HorizontalSkeletonList itemCount={6} itemWidth={80} itemHeight={80} />
+              </>
+            ) : topArtists.length > 0 && (
               <>
                     <PaddingConatiner>
                       <Heading text={"Top Artists"} />
@@ -416,7 +483,7 @@ export const Home = () => {
                     />
               </>
             )}
-            
+
             <PaddingConatiner>
               <HorizontalScrollSongs id={getChartId(1)} />
             </PaddingConatiner>
@@ -430,8 +497,20 @@ export const Home = () => {
                 paddingLeft: 10,
               }}
             >
-              <RenderTopCharts playlist={Data?.data?.charts || []} />
+              <RenderTopCharts playlist={enhancedCharts} />
             </ScrollView>
+            {/* Viral Hits moved here under Top Charts */}
+            {LoadingSecondary ? (
+              <>
+                <HorizontalSkeletonList itemCount={4} itemWidth={140} itemHeight={140} />
+              </>
+            ) : viralHitsId && (
+              <>
+                <PaddingConatiner>
+                  <HorizontalScrollSongs id={viralHitsId} />
+                </PaddingConatiner>
+              </>
+            )}
             <PaddingConatiner>
               <HorizontalScrollSongs id={getChartId(3)} />
             </PaddingConatiner>
@@ -470,37 +549,18 @@ export const Home = () => {
             <PaddingConatiner>
               <HorizontalScrollSongs id={getChartId(2)} />
             </PaddingConatiner>
-            <PaddingConatiner>
-              <HorizontalScrollSongs id={trendingLangId} />
-            </PaddingConatiner>
-            
-            {/* Devotional Playlists Section */}
-            {devotionalAlbums.length > 0 && (
+
+
+            {/* Trending Section */}
+            {LoadingSecondary ? (
+              <>
+                <HorizontalSkeletonList itemCount={4} itemWidth={140} itemHeight={140} />
+              </>
+            ) : trendingLangId && (
               <>
                 <PaddingConatiner>
-                  <Heading text={"Trending Devotional Playlists"} />
+                  <HorizontalScrollSongs id={trendingLangId} />
                 </PaddingConatiner>
-                <FlatList
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  data={devotionalColumns}
-                  keyExtractor={(item, index) => `devotional-col-${index}`}
-                  contentContainerStyle={{ paddingHorizontal: 10 }}
-                  renderItem={({ item }) => (
-                    <View style={{ marginRight: 12 }}>
-                      {(item || []).map((playlist, idx) => (
-                        <View key={playlist?.id ?? `devotional-playlist-${idx}`} style={{ marginBottom: idx === 0 ? 12 : 0 }}>
-                          <EachPlaylistCard
-                            image={playlist.image}
-                            follower={`${playlist.songCount} songs`}
-                            name={playlist.name}
-                            id={playlist.id}
-                          />
-                        </View>
-                      ))}
-                    </View>
-                  )}
-                />
               </>
             )}
           </ScrollView>

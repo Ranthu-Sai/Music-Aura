@@ -39,7 +39,7 @@ export class StorageManager {
       allMetadata[songId] = {
         ...metadata,
         downloadTime: metadata.downloadTime || Date.now(),
-        lastAccessed: Date.now()
+        lastAccessed: Date.now(),
       };
 
       await AsyncStorage.setItem(this.METADATA_KEY, JSON.stringify(allMetadata));
@@ -65,12 +65,12 @@ export class StorageManager {
         const downloadPath = await GetDownloadPath();
         const dirs = ReactNativeBlobUtil.fs.dirs;
         const baseDir = (downloadPath === "Downloads") ? dirs.LegacyDownloadDir : dirs.LegacyMusicDir;
-        
+
         if (metadata && metadata.fileName) {
           const fileName = metadata.fileName;
           const songPath = `${baseDir}/Music Aura/${fileName}`;
           const decodedPath = decodeURI(songPath);
-          
+
           console.log(`StorageManager: Attempting to delete: ${songPath}`);
 
           if (await ReactNativeBlobUtil.fs.exists(songPath)) {
@@ -113,7 +113,7 @@ export class StorageManager {
   static async isSongDownloaded(songId) {
     try {
       const songPath = await this.getSongPath(songId);
-      if (!songPath) return false;
+      if (!songPath) {return false;}
 
       const exists = await ReactNativeBlobUtil.fs.exists(songPath);
       return exists;
@@ -131,7 +131,7 @@ export class StorageManager {
   static async getSongPath(songId) {
     try {
       const metadata = await this.getDownloadedSongMetadata(songId);
-      if (!metadata) return null;
+      if (!metadata) {return null;}
 
       // If we have a specific filePath saved in metadata, use it first
       if (metadata.filePath) {
@@ -140,11 +140,11 @@ export class StorageManager {
         }
       }
 
-      if (!metadata.fileName) return null;
+      if (!metadata.fileName) {return null;}
 
       const downloadPathPreference = await GetDownloadPath();
       const dirs = ReactNativeBlobUtil.fs.dirs;
-      
+
       // Robust base directory selection - Prefer Legacy paths as they are usually public /storage/emulated/0
       let baseDir;
       if (downloadPathPreference === "Downloads") {
@@ -159,12 +159,12 @@ export class StorageManager {
       }
 
       const songPath = `${baseDir}/Music Aura/${metadata.fileName}`;
-      
+
       // Check both original and encoded/decoded versions
-      if (await ReactNativeBlobUtil.fs.exists(songPath)) return songPath;
-      
+      if (await ReactNativeBlobUtil.fs.exists(songPath)) {return songPath;}
+
       const decodedPath = decodeURI(songPath);
-      if (await ReactNativeBlobUtil.fs.exists(decodedPath)) return decodedPath;
+      if (await ReactNativeBlobUtil.fs.exists(decodedPath)) {return decodedPath;}
 
       return songPath; // Fallback to constructed path
     } catch (error) {
@@ -181,7 +181,7 @@ export class StorageManager {
   static async getArtworkPath(songId) {
     try {
       const songPath = await this.getSongPath(songId);
-      if (!songPath) return null;
+      if (!songPath) {return null;}
 
       // Assume artwork has same name as song but with .jpg extension
       const artworkPath = songPath.replace(/\.[^/.]+$/, '.jpg');
@@ -281,7 +281,7 @@ export class StorageManager {
         totalSongs: songIds.length,
         validSongs,
         orphanedSongs: songIds.length - validSongs,
-        totalSize
+        totalSize,
       };
     } catch (error) {
       console.error('StorageManager: Error getting storage stats:', error);
@@ -289,7 +289,7 @@ export class StorageManager {
         totalSongs: 0,
         validSongs: 0,
         orphanedSongs: 0,
-        totalSize: 0
+        totalSize: 0,
       };
     }
   }

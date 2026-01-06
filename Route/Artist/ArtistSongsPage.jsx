@@ -104,7 +104,7 @@ export const ArtistSongsPage = ({ route }) => {
             <PaddingConatiner>
               <Heading text={`Top Songs (${normalizedSongs.length})`} />
             </PaddingConatiner>
-            
+
             {normalizedSongs.length === 0 ? (
               <View style={styles.emptyContainer}>
                 <Text style={[styles.emptyText, { color: currentThemeColors.secondaryText }]}>

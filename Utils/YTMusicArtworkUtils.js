@@ -20,7 +20,7 @@ export function upgradeArtworkQuality(url) {
     // Handle googleusercontent.com and ggpht.com URLs - upgrade size parameters
     // Use 500x500 to reduce memory/bandwidth while keeping crisp visuals
     if (url.includes('googleusercontent.com') || url.includes('ggpht.com')) {
-        return url.replace(/=w\d+-h\d+[^/]*/g, '=w500-h500');
+        return url.replace(/[=]w\d+-h\d+[^/]*/g, '=w500-h500');
     }
 
     // For ytimg.com URLs - DON'T upgrade automatically here
@@ -71,9 +71,9 @@ export function upgradeYtimgQuality(url) {
  * - ytimg: hqdefault.jpg
  */
 export function getBackgroundFriendlyArtwork(url) {
-    if (!url || typeof url !== 'string') return url;
+    if (!url || typeof url !== 'string') {return url;}
     if (url.includes('googleusercontent.com') || url.includes('ggpht.com')) {
-        return url.replace(/=w\d+-h\d+[^/]*/g, '=w300-h300');
+        return url.replace(/[=]w\d+-h\d+[^/]*/g, '=w300-h300');
     }
     if (url.includes('i.ytimg.com/vi/')) {
         return url.replace(/(maxresdefault|sddefault|mqdefault|hqdefault)\.jpg/, 'hqdefault.jpg');

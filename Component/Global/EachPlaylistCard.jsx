@@ -30,7 +30,7 @@ export const EachPlaylistCard = memo(function EachPlaylistCard({ image, name, fo
           borderWidth: 1,
           borderColor: 'rgba(255,255,255,0.1)',
           elevation: 10,
-          overflow: 'hidden'
+          overflow: 'hidden',
         }}>
           <LinearGradient colors={['#1DB954', '#191414']} style={{ position: 'absolute', width: '100%', height: '100%' }} />
           <MaterialCommunityIcons name="playlist-music" size={60} color="white" />

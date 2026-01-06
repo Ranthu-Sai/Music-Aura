@@ -196,7 +196,7 @@ export const EachSongCard = memo(function EachSongCard({ title, artist, image, i
         <EachSongMenuButton Onpress={() => {
           setVisible({
             visible: true,
-            title, artist, image, id, url, duration, language, playlistId, albumId, albumName, navigation, isHistory, onRemove, source
+            title, artist, image, id, url, duration, language, playlistId, albumId, albumName, navigation, isHistory, onRemove, source,
           })
         }} />
       </View>
