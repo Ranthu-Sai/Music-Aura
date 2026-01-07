@@ -1,153 +1,211 @@
-<br/>
-  <h1 align="center">Music Aura</h1>
-
-  <p align="center">
-    Your Ad-Free Music Haven!
-    <br/>
-    <br/>
-    <a href="https://github.com/Ranthu-Sai/Music-Aura/issues"><strong>Report Bug</strong></a>
-    .
-    <a href="https://github.com/Ranthu-Sai/Music-Aura/issues"><strong>Request Feature</strong></a>
-  </p>
+<p align="center">
+  <img src="Images/ic_launcher-playstore.png" alt="Music Aura logo" width="120" />
 </p>
 
-![Downloads](https://img.shields.io/github/downloads/Ranthu-Sai/Music-Aura/total) ![Contributors](https://img.shields.io/github/contributors/Ranthu-Sai/Music-Aura?color=dark-green) ![Forks](https://img.shields.io/github/forks/Ranthu-Sai/Music-Aura?style=social) ![Stargazers](https://img.shields.io/github/stars/Ranthu-Sai/Music-Aura?style=social) ![Issues](https://img.shields.io/github/issues/Ranthu-Sai/Music-Aura) ![License](https://img.shields.io/github/license/Ranthu-Sai/Music-Aura) 
+# Music Aura
 
-## Table Of Contents
+[![Release](https://img.shields.io/github/v/release/Ranthu-Sai/Music-Aura)](https://github.com/Ranthu-Sai/Music-Aura/releases) [![License](https://img.shields.io/github/license/Ranthu-Sai/Music-Aura)](LICENSE)
 
-* [About the Project](#about-the-project)
-* [Community](#community)
-* [Built With](#built-with)
-* [Getting Started](#getting-started)
-  * [Prerequisites](#prerequisites)
-  * [Installation](#installation)
-* [Roadmap](#roadmap)
-* [Contributing](#contributing)
-* [License](#license)
+[![Version](https://img.shields.io/badge/version-2.0.0-blue)] [![Platform](https://img.shields.io/badge/platform-React_Native-61B21E)] [![Node](https://img.shields.io/badge/node-%3E=_18-brightgreen)]
 
-## About The Project
+[![Stars](https://img.shields.io/github/stars/Ranthu-Sai/Music-Aura?style=social)] [![Forks](https://img.shields.io/github/forks/Ranthu-Sai/Music-Aura?style=social)] [![Issues](https://img.shields.io/github/issues/Ranthu-Sai/Music-Aura)] [![Contributors](https://img.shields.io/github/contributors/Ranthu-Sai/Music-Aura)]
 
-Introducing Music Aura: Your Ultimate Ad-Free Music Companion! Developed with React Native and harnessing the power of JioSavan's Unofficial API, Music Aura offers you a seamless music streaming experience at your fingertips. Dive into a world of limitless tunes, curated playlists, and personalized recommendations—all without interruptions.
+[![Dependabot Status](https://img.shields.io/dependabot/gh/Ranthu-Sai/Music-Aura?path=package.json)] [![Last Commit](https://img.shields.io/github/last-commit/Ranthu-Sai/Music-Aura)] [![Repo Size](https://img.shields.io/github/repo-size/Ranthu-Sai/Music-Aura)] [![Top Language](https://img.shields.io/github/languages/top/Ranthu-Sai/Music-Aura)]
 
-## Built With
+[![Tests](https://img.shields.io/badge/tests-Jest-blue)] [![Vulnerabilities](https://snyk.io/test/github/Ranthu-Sai/Music-Aura/badge.svg)]
 
-Crafted using cutting-edge technology and powered by the JioSavan Unofficial API (both New and Old versions), Music Aura offers a seamless streaming experience.
+A polished, open‑source React Native music player with an emphasis on offline playback, local library integration, and a clean, modern UI.
 
-Built with React Native and enhanced with React Native Reanimated, Music Aura delivers a smooth and intuitive interface.
+---
 
-With React Native Track Player at its core, Music Aura guarantees high-quality audio playback.
+## ✅ Key Highlights
 
-* [JioSavan Unofficial API New Version](https://jiosavan-api-with-playlist.vercel.app/)
-* [JioSavan Unofficial API Old Version](https://jio-savan-api-m39q.vercel.app/)
-* [React Native](https://reactnative.dev/)
-* [React Native Track Player](https://rntp.dev/)
-* [React Native Reanimated](https://docs.swmansion.com/react-native-reanimated/)
+- **Ad‑free music player** with background playback and queue management
+- Offline support: download songs, manage local files, and scan device storage
+- Multiple sources supported (JioSavan, YouTube) as well as local files
+- **Theming & accessibility** with light/dark modes and responsive layout
+- **Caching**, **lyrics**, and **recommendations** for a smoother UX
+- Built with: **React Native**, **react-native-track-player**, **reanimated**, **Firebase Analytics**
 
-## Getting Started
+---
 
-To get a local copy up and running follow these simple example steps.
+## Table of Contents
+
+1. [About](#about)
+2. [Features](#features)
+3. [Tech Stack](#tech-stack)
+4. [Project structure](#project-structure)
+5. [Getting Started (Dev)](#getting-started-dev)
+   - [Prerequisites](#prerequisites)
+   - [Install & Run](#install--run)
+   - [Build (release)](#build-release)
+6. [Testing & Linting](#testing--linting)
+7. [Contributing](#contributing)
+8. [Roadmap & Issues](#roadmap--issues)
+9. [License & Legal](#license--legal)
+10. [Maintainers & Contact](#maintainers--contact)
+
+---
+
+## About
+
+Music Aura is a full‑featured React Native music player focused on providing a smooth listening experience with strong offline capabilities. The app integrates multiple third‑party music sources and maintains a local music library scanner, download manager, and a robust playback queue.
+
+This repository contains the app code (Android / iOS), utilities for caching and downloads, and components for playlists, search, and the player UI.
+
+---
+
+## Features
+
+- Playback: background audio, play / pause, seek, skip, queue, and repeat modes 🔊
+- Download manager: save songs to the device and manage the download path 💾
+- Local library scan: automatically detects and indexes music files on the device 📁
+- Multi‑source search: JioSavan and YouTube integrations 🔎
+- Playlist support: create, like, and manage playlists ❤️
+- Lyrics caching and metadata enhancement for richer UI 🎵
+- Theming: **light** and **dark** with adaptive sizes and fonts 🎨
+- Analytics: optional Firebase **Analytics** hooks for anonymous usage stats 📈
+- Robust caching and prefetch strategies for offline resilience 🗄️
+
+---
+
+## Tech Stack
+
+- React Native (>= 0.73)
+- react-native-track-player (audio playback)
+- react-native-reanimated (animations)
+- @react-navigation (routing)
+- AsyncStorage + local files (persisted settings & downloads)
+- Axios (API requests)
+- Firebase (analytics)
+
+See `package.json` for complete dependencies and versions.
+
+---
+
+<a name="project-structure"></a>
+## Project structure (short)
+
+- `Api/` – adapters for Saavn / YT / other service APIs
+- `Component/` – UI components (Player, Playlist, Search, Library)
+- `Context/` – global app state (player state, theme, queue)
+- `Utils/` – helper modules (DownloadHelper, CacheManager, LRU cache)
+- `LocalStorage/` – persisted app settings and user data
+- `hooks/` – reusable hooks (device library, song details)
+- `Route/` – navigation routes and onboarding
+- `Images/`, `Layout/`, `Design/` – assets and layout building blocks
+
+---
+
+## Getting Started (Dev)
 
 ### Prerequisites
 
-* npm
-* React Native
+- Node.js >= 18
+- Yarn or npm
+- Android Studio + Android SDK (for Android builds)
+- Xcode (for iOS builds)
+- Java JDK (for Android)
 
-### Installation
+Optional but recommended: watchman and CocoaPods (`brew install cocoapods`) for iOS.
 
-1. Clone the repo
+<a name="install--run"></a>
+### Install & Run
 
-```sh
-git clone https://github.com/Ranthu-Sai/Music-Aura
+1. Clone repository
+
+```bash
+# Replace <REPO_URL> with your repository URL (public or private)
+git clone <REPO_URL>
+cd Music-Aura
 ```
 
-2. Install NPM packages
+2. Install dependencies
 
-```sh
+```bash
 npm install
+# or
+# yarn install
 ```
 
-3. Run the project
+3. iOS only: install CocoaPods
 
-```sh
+```bash
+cd ios && pod install && cd ..
+```
+
+4. Start Metro
+
+```bash
 npm run start
 ```
 
+5. Run on device / emulator
 
-## Roadmap
+```bash
+npm run android    # Android
+npm run ios        # iOS (macOS only)
+```
 
-See the [open issues](https://github.com/Ranthu-Sai/Music-Aura/issues) for a list of proposed features (and known issues).
+Notes:
+- For release builds on Android use `npm run build:release` (runs Gradle assembleRelease).
+- App settings like download path are stored in AsyncStorage (`LocalStorage/AppSettings.js`).
+
+---
+
+## Build (release)
+
+- Android: `npm run build:release` (or `cd android && ./gradlew assembleRelease`)
+- iOS: use Xcode (archive + export) or `xcodebuild` tools
+
+Tip: Use `react-native-bundle-visualizer` (`npm run bundle:visualize`) to inspect bundle size.
+
+---
+
+<a name="testing--linting"></a>
+## Testing & Linting
+
+- Run unit tests: `npm run test` (uses Jest)
+- Lint: `npm run lint` (ESLint config included)
+
+---
 
 ## Contributing
 
-Contributions are what make the open source community such an amazing place to be learn, inspire, and create. Any contributions you make are **greatly appreciated**.
-* If you have suggestions for adding or removing projects, feel free to [open an issue](https://github.com/Ranthu-Sai/Music-Aura/issues/new) to discuss it, or directly create a pull request after you edit the *README.md* file with necessary changes.
-* Please make sure you check your spelling and grammar.
-* Create individual PR for each suggestion.
+Thank you for considering contributing! A few simple guidelines:
 
-### Creating A Pull Request
+1. Fork the repository and create a feature branch: `git checkout -b feature/your-feature`
+2. Keep changes focused and add tests for new logic where appropriate
+3. Run lint and tests locally before opening a PR
+4. Open a pull request describing the change and motivation
 
-1. Fork the Project
-2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the Branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+We appreciate clear commit messages and single-purpose PRs. See the Issues tab to find beginner-friendly tasks.
 
-## License
+---
 
-Distributed under the MIT License. See [LICENSE](LICENSE) for more information.
+<a name="roadmap--issues"></a>
+## Roadmap & Issues
 
-```
-MIT License
+Check the repository Issues and Projects for planned items and features. If you want to request a feature or report a bug, please open an issue with clear reproduction steps.
 
-Copyright (c) 2025 Sai Ranthu
+---
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+<a name="license--legal"></a>
+## License & Legal
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+Music Aura is distributed under the **MIT License** — see `LICENSE` for details.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-```
+Important: This app integrates third‑party streaming sources and is intended for educational and personal use. Music Aura is not affiliated with any music service provider. Refer to the original repository’s legal notice and DMCA policy for more details.
 
-## ⚖️ Legal Notice
+---
 
-Music Aura is an open-source music player application designed for educational purposes. This application is not affiliated with, endorsed by, or connected to any music streaming service or record label.
+<a name="maintainers--contact"></a>
+## Maintainers & Contact
 
-## Copyright Disclaimer
+Maintained by the original author and community contributors. For serious issues or inquiries, open an issue or pull request on GitHub.
 
-```
-Music Aura does not possess or maintain any association with the songs and other content accessible through the app.
-All songs and other content are the property of their respective owners and are safeguarded by copyright law.
-Music Aura holds no liability for any copyright infringement or other violations of intellectual property rights
-that may arise from the use of the songs and other content accessible through the app.
-Music Aura employs third-party plugins and assumes no responsibility for any harm or damage to the respective owners or
-any other parties resulting from the utilization of the songs and other content through the third-party plugins.
-By using the app, you consent to utilizing the songs and other content exclusively for personal,
-non-commercial purposes and in accordance with all applicable laws and regulations.
-```
+---
 
-### Terms of Use
+**Made with ❤️ by Sai Ranthu & the Music Aura community.**
 
-By using Music Aura, you agree to:
-- Use the application for personal, non-commercial purposes only
-- Not redistribute or modify the content obtained through the application
-- Comply with all applicable laws and regulations in your jurisdiction
-
-### DMCA Compliance
-
-Music Aura respects the intellectual property rights of others. If you believe that any content in the application infringes your copyright, please contact us with the following information:
-- A description of the copyrighted work that you claim has been infringed
-- The URL or other specific location of the content
-- Your contact information
-- A statement that you have a good faith belief that the use is not authorized by the copyright owner
+Contributions, issues, and feedback are welcome — please open an issue or pull request on GitHub.
