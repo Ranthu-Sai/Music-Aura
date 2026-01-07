@@ -1,23 +1,32 @@
-import { useState, useEffect } from 'react';
+import {useState, useEffect} from 'react';
 import axios from 'axios';
 
 // Helper function to remove "From [Album/Movie]" suffix
-const removeFromSuffix = (text) => {
-  if (!text) {return text;}
+const removeFromSuffix = text => {
+  if (!text) {
+    return text;
+  }
   let result = text.toString();
   // Remove " From ..." or " from ..." patterns
   result = result.replace(/\s+from\s+.*/gi, '');
-  // Remove "(From ...)" or "[From ...]" patterns
-  result = result.replace(/\s*[\(\[]from\s+[^\)\]]*[\)\]]/gi, '');
+  // Remove "(From ...)" and "[From ...]" patterns separately to avoid nested char classes
+  result = result.replace(/\s*\(from\s+[^)]*\)/gi, '');
+  result = result.replace(/\s*\[from\s+[^\]]*\]/gi, '');
   // Remove language suffixes like "- Telugu", "- Hindi", "- Tamil", etc.
-  result = result.replace(/\s*-\s*(Telugu|Hindi|Tamil|Kannada|Malayalam|Bengali|Punjabi|Gujarati|Marathi|English|Odia|Assamese)$/gi, '');
+  result = result.replace(
+    /\s*-\s*(Telugu|Hindi|Tamil|Kannada|Malayalam|Bengali|Punjabi|Gujarati|Marathi|English|Odia|Assamese)$/gi,
+    '',
+  );
   return result.trim();
 };
 
 // Helper function to decode HTML entities
-const decodeHtmlEntities = (text) => {
-  if (!text) {return text;}
-  return text.toString()
+const decodeHtmlEntities = text => {
+  if (!text) {
+    return text;
+  }
+  return text
+    .toString()
     .replace(/&quot;/g, '"')
     .replace(/&apos;/g, "'")
     .replace(/&#039;/g, "'")
@@ -32,35 +41,43 @@ const decodeHtmlEntities = (text) => {
 };
 
 // Helper to clean text: decode HTML entities and remove "From" suffix
-export const cleanText = (text) => {
-  if (!text) {return text;}
+export const cleanText = text => {
+  if (!text) {
+    return text;
+  }
   return removeFromSuffix(decodeHtmlEntities(text));
 };
 
 // Helper function to format duration
-const formatDuration = (seconds) => {
-  if (!seconds || isNaN(seconds)) {return 'N/A';}
+const formatDuration = seconds => {
+  if (!seconds || isNaN(seconds)) {
+    return 'N/A';
+  }
   const mins = Math.floor(seconds / 60);
   const secs = Math.floor(seconds % 60);
   return `${mins}:${secs.toString().padStart(2, '0')}`;
 };
 
 // Helper function to format artists
-const formatArtists = (artists) => {
-  if (!artists || !Array.isArray(artists)) {return 'N/A';}
+const formatArtists = artists => {
+  if (!artists || !Array.isArray(artists)) {
+    return 'N/A';
+  }
   return artists.map(a => cleanText(a.name)).join(', ');
 };
 
 // Helper to get best available image
-const getBestImage = (images) => {
-  if (!images || !images.length) {return null;}
-  const bestImage = [...images].sort((a, b) =>
-    parseInt(b.quality) - parseInt(a.quality)
+const getBestImage = images => {
+  if (!images || !images.length) {
+    return null;
+  }
+  const bestImage = [...images].sort(
+    (a, b) => parseInt(b.quality, 10) - parseInt(a.quality, 10),
   )[0];
   return bestImage?.url || null;
 };
 
-const useSongDetails = (track) => {
+const useSongDetails = track => {
   const [songDetails, setSongDetails] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -74,7 +91,9 @@ const useSongDetails = (track) => {
 
   useEffect(() => {
     const fetchSongDetails = async () => {
-      if (!track?.id) {return;}
+      if (!track?.id) {
+        return;
+      }
 
       setLoading(true);
       setError(null);
@@ -83,23 +102,48 @@ const useSongDetails = (track) => {
         // For local tracks
         if (track.isLocal) {
           // Handle both string album and object album {name: '...'}
-          const albumValue = typeof track.album === 'object' ? track.album?.name : track.album;
-          const albumName = albumValue && albumValue !== track.title ? cleanText(albumValue) : 'N/A';
+          const albumValue =
+            typeof track.album === 'object' ? track.album?.name : track.album;
+          const albumName =
+            albumValue && albumValue !== track.title
+              ? cleanText(albumValue)
+              : 'N/A';
 
           setSongDetails({
             basicInfo: [
-              { label: 'Title', value: cleanText(track.title) || 'Unknown Track' },
-              { label: 'Artist', value: cleanText(track.artist) || 'Unknown Artist' },
-              { label: 'Album', value: albumName },
-              { label: 'Duration', value: formatDuration(track.duration) },
-              { label: 'Year', value: track.year || 'N/A' },
-              { label: 'Genre', value: track.genre || 'N/A' },
+              {
+                label: 'Title',
+                value: cleanText(track.title) || 'Unknown Track',
+              },
+              {
+                label: 'Artist',
+                value: cleanText(track.artist) || 'Unknown Artist',
+              },
+              {label: 'Album', value: albumName},
+              {label: 'Duration', value: formatDuration(track.duration)},
+              {label: 'Year', value: track.year || 'N/A'},
+              {label: 'Genre', value: track.genre || 'N/A'},
             ],
             fileInfo: [
-              { label: 'File Type', value: track.url ? track.url.split('.').pop().toUpperCase() : 'N/A' },
-              { label: 'Bitrate', value: track.bitrate ? `${Math.round(track.bitrate / 1000)} kbps` : 'N/A' },
-              { label: 'File Size', value: track.size ? `${(track.size / (1024 * 1024)).toFixed(2)} MB` : 'N/A' },
-              { label: 'Location', value: 'Local Storage' },
+              {
+                label: 'File Type',
+                value: track.url
+                  ? track.url.split('.').pop().toUpperCase()
+                  : 'N/A',
+              },
+              {
+                label: 'Bitrate',
+                value: track.bitrate
+                  ? `${Math.round(track.bitrate / 1000)} kbps`
+                  : 'N/A',
+              },
+              {
+                label: 'File Size',
+                value: track.size
+                  ? `${(track.size / (1024 * 1024)).toFixed(2)} MB`
+                  : 'N/A',
+              },
+              {label: 'Location', value: 'Local Storage'},
             ],
           });
           setLoading(false);
@@ -107,43 +151,66 @@ const useSongDetails = (track) => {
         }
 
         // For YouTube Music tracks
-        const isYTMusicTrack = track.isYTMusic || track.source === 'ytmusic' ||
+        const isYTMusicTrack =
+          track.isYTMusic ||
+          track.source === 'ytmusic' ||
           (track.id?.length === 11 && !track.isLocalMusic);
 
         if (isYTMusicTrack) {
           let actualQuality = track.currentPlayingQuality || 'Opus ~148kbps';
-          if (actualQuality === '320kbps' || actualQuality === '320kbs' || actualQuality === 'High Quality') {
+          if (
+            actualQuality === '320kbps' ||
+            actualQuality === '320kbs' ||
+            actualQuality === 'High Quality'
+          ) {
             actualQuality = 'Opus ~148kbps';
           }
 
-          const artistInfo = track.artist || track.primaryArtists ||
-            (track.artists?.primary ? formatArtists(track.artists.primary) : 'Unknown Artist');
+          const artistInfo =
+            track.artist ||
+            track.primaryArtists ||
+            (track.artists?.primary
+              ? formatArtists(track.artists.primary)
+              : 'Unknown Artist');
 
           // For YouTube Music, album data is often unreliable or same as title
           // Handle both string album and object album {name: '...'}
-          const albumValue = typeof track.album === 'object' ? track.album?.name : track.album;
-          const albumName = albumValue && albumValue !== track.title && albumValue !== track.name
-            ? cleanText(albumValue)
-            : 'N/A';
+          const albumValue =
+            typeof track.album === 'object' ? track.album?.name : track.album;
+          const albumName =
+            albumValue &&
+            albumValue !== track.title &&
+            albumValue !== track.name
+              ? cleanText(albumValue)
+              : 'N/A';
 
           setSongDetails({
             basicInfo: [
-              { label: 'Title', value: cleanText(track.title || track.name) || 'Unknown Track' },
-              { label: 'Artist', value: cleanText(artistInfo) },
-              { label: 'Album', value: albumName },
-              { label: 'Duration', value: formatDuration(track.duration) },
-              { label: 'Source', value: 'YouTube Music', highlight: true },
-              { label: 'Language', value: track.language !== 'unknown' ? track.language?.toUpperCase() : 'N/A' },
+              {
+                label: 'Title',
+                value: cleanText(track.title || track.name) || 'Unknown Track',
+              },
+              {label: 'Artist', value: cleanText(artistInfo)},
+              {label: 'Album', value: albumName},
+              {label: 'Duration', value: formatDuration(track.duration)},
+              {label: 'Source', value: 'YouTube Music', highlight: true},
+              {
+                label: 'Language',
+                value:
+                  track.language !== 'unknown'
+                    ? track.language?.toUpperCase()
+                    : 'N/A',
+              },
             ],
             additionalInfo: [
-              { label: 'Video ID', value: track.id || 'N/A' },
-              { label: 'Quality', value: actualQuality },
-              { label: 'Type', value: track.type || 'Song' },
-              { label: 'Year', value: track.year || 'N/A' },
+              {label: 'Video ID', value: track.id || 'N/A'},
+              {label: 'Quality', value: actualQuality},
+              {label: 'Type', value: track.type || 'Song'},
+              {label: 'Year', value: track.year || 'N/A'},
             ],
             mediaInfo: [
-              { label: 'Streaming', value: 'YouTube Music' },
-              { label: 'Song ID', value: track.id || 'N/A' },
+              {label: 'Streaming', value: 'YouTube Music'},
+              {label: 'Song ID', value: track.id || 'N/A'},
             ],
             imageUrl: track.artwork || track.image,
             availableQualities: ['Opus ~128-160kbps'],
@@ -153,28 +220,37 @@ const useSongDetails = (track) => {
         }
 
         // For online tracks from API
-        const response = await axios.get(`https://jiosavan-api-with-playlist.vercel.app/api/songs/${track.id}`);
+        const response = await axios.get(
+          `https://jiosavan-api-with-playlist.vercel.app/api/songs/${track.id}`,
+        );
 
         if (response.data && response.data.success) {
           const data = response.data.data?.[0];
-          if (!data) {throw new Error('No song data found');}
+          if (!data) {
+            throw new Error('No song data found');
+          }
 
           const primaryArtists = formatArtists(data.artists?.primary);
           const featuredArtists = formatArtists(data.artists?.featured);
-          const availableQualities = data.downloadUrl?.map(item => item.quality) || [];
-          const bestQuality = availableQualities.length > 0
-            ? availableQualities[availableQualities.length - 1]
-            : 'N/A';
+          const availableQualities =
+            data.downloadUrl?.map(item => item.quality) || [];
+          const bestQuality =
+            availableQualities.length > 0
+              ? availableQualities[availableQualities.length - 1]
+              : 'N/A';
 
           // Validate album name is different from title (compare cleaned versions)
           const albumName = (() => {
             const albumFromAPI = data.album?.name;
-            const albumFromTrack = typeof track.album === 'object' ? track.album?.name : track.album;
+            const albumFromTrack =
+              typeof track.album === 'object' ? track.album?.name : track.album;
             const titleFromAPI = data.name || track.title;
 
             // Function to extract album from "From..." patterns
-            const extractAlbumFromTitle = (text) => {
-              if (!text) {return null;}
+            const extractAlbumFromTitle = text => {
+              if (!text) {
+                return null;
+              }
               const decodedText = decodeHtmlEntities(text);
               const fromMatch =
                 decodedText.match(/from\s+["']([^"']+)["']/i) ||
@@ -192,20 +268,36 @@ const useSongDetails = (track) => {
 
             // Attempt extraction from API data first
             const extractedFromAPI = extractAlbumFromTitle(albumFromAPI);
-            if (extractedFromAPI) {return extractedFromAPI;}
+            if (extractedFromAPI) {
+              return extractedFromAPI;
+            }
 
             const extractedFromTrack = extractAlbumFromTitle(albumFromTrack);
-            if (extractedFromTrack) {return extractedFromTrack;}
+            if (extractedFromTrack) {
+              return extractedFromTrack;
+            }
 
             // Fallback to existing logic if no "From..." pattern is found
-            const cleanedAPIAlbum = albumFromAPI ? cleanText(albumFromAPI) : null;
-            const cleanedTrackAlbum = albumFromTrack ? cleanText(albumFromTrack) : null;
+            const cleanedAPIAlbum = albumFromAPI
+              ? cleanText(albumFromAPI)
+              : null;
+            const cleanedTrackAlbum = albumFromTrack
+              ? cleanText(albumFromTrack)
+              : null;
             const cleanedTitle = cleanText(titleFromAPI);
 
-            if (cleanedAPIAlbum && cleanedAPIAlbum !== cleanedTitle && cleanedAPIAlbum !== 'N/A') {
+            if (
+              cleanedAPIAlbum &&
+              cleanedAPIAlbum !== cleanedTitle &&
+              cleanedAPIAlbum !== 'N/A'
+            ) {
               return cleanedAPIAlbum;
             }
-            if (cleanedTrackAlbum && cleanedTrackAlbum !== cleanedTitle && cleanedTrackAlbum !== 'N/A') {
+            if (
+              cleanedTrackAlbum &&
+              cleanedTrackAlbum !== cleanedTitle &&
+              cleanedTrackAlbum !== 'N/A'
+            ) {
               return cleanedTrackAlbum;
             }
 
@@ -214,26 +306,41 @@ const useSongDetails = (track) => {
 
           setSongDetails({
             basicInfo: [
-              { label: 'Title', value: cleanText(data.name || track.title) || 'Unknown Track' },
-              { label: 'Artists', value: primaryArtists },
-              { label: 'Album', value: albumName },
-              { label: 'Duration', value: formatDuration(data.duration || track.duration) },
-              { label: 'Year', value: data.year || track.year || 'N/A' },
-              { label: 'Language', value: data.language ? data.language.toUpperCase() : 'N/A' },
+              {
+                label: 'Title',
+                value: cleanText(data.name || track.title) || 'Unknown Track',
+              },
+              {label: 'Artists', value: primaryArtists},
+              {label: 'Album', value: albumName},
+              {
+                label: 'Duration',
+                value: formatDuration(data.duration || track.duration),
+              },
+              {label: 'Year', value: data.year || track.year || 'N/A'},
+              {
+                label: 'Language',
+                value: data.language ? data.language.toUpperCase() : 'N/A',
+              },
             ],
             additionalInfo: [
-              { label: 'Release Date', value: data.releaseDate || 'N/A' },
-              { label: 'Label', value: cleanText(data.label) || 'N/A' },
-              { label: 'Copyright', value: cleanText(data.copyright) || 'N/A' },
-              { label: 'Explicit', value: data.explicitContent ? 'Yes' : 'No' },
-              { label: 'Lyrics', value: data.hasLyrics ? 'Available' : 'Not Available' },
-              { label: 'Type', value: data.type || 'N/A' },
+              {label: 'Release Date', value: data.releaseDate || 'N/A'},
+              {label: 'Label', value: cleanText(data.label) || 'N/A'},
+              {label: 'Copyright', value: cleanText(data.copyright) || 'N/A'},
+              {label: 'Explicit', value: data.explicitContent ? 'Yes' : 'No'},
+              {
+                label: 'Lyrics',
+                value: data.hasLyrics ? 'Available' : 'Not Available',
+              },
+              {label: 'Type', value: data.type || 'N/A'},
             ],
             mediaInfo: [
-              { label: 'Best Quality', value: bestQuality },
-              { label: 'Play Count', value: data.playCount?.toLocaleString() || 'N/A' },
-              { label: 'Song ID', value: data.id || 'N/A' },
-              { label: 'Album ID', value: data.album?.id || 'N/A' },
+              {label: 'Best Quality', value: bestQuality},
+              {
+                label: 'Play Count',
+                value: data.playCount?.toLocaleString() || 'N/A',
+              },
+              {label: 'Song ID', value: data.id || 'N/A'},
+              {label: 'Album ID', value: data.album?.id || 'N/A'},
             ],
             availableQualities,
             imageUrl: getBestImage(data.image),
@@ -242,20 +349,33 @@ const useSongDetails = (track) => {
         } else {
           // Fallback to track data if API request fails
           // Handle both string album and object album {name: '...'}
-          const albumValue = typeof track.album === 'object' ? track.album?.name : track.album;
-          const albumName = albumValue && albumValue !== track.title ? cleanText(albumValue) : 'N/A';
+          const albumValue =
+            typeof track.album === 'object' ? track.album?.name : track.album;
+          const albumName =
+            albumValue && albumValue !== track.title
+              ? cleanText(albumValue)
+              : 'N/A';
 
           setSongDetails({
             basicInfo: [
-              { label: 'Title', value: cleanText(track.title) || 'Unknown Track' },
-              { label: 'Artist', value: cleanText(track.artist) || 'Unknown Artist' },
-              { label: 'Album', value: albumName },
-              { label: 'Duration', value: formatDuration(track.duration) },
+              {
+                label: 'Title',
+                value: cleanText(track.title) || 'Unknown Track',
+              },
+              {
+                label: 'Artist',
+                value: cleanText(track.artist) || 'Unknown Artist',
+              },
+              {label: 'Album', value: albumName},
+              {label: 'Duration', value: formatDuration(track.duration)},
             ],
             additionalInfo: [
-              { label: 'Status', value: 'Using local track data' },
-              { label: 'ID', value: track.id || 'N/A' },
-              { label: 'Source', value: track.isLocal ? 'Local File' : 'Streaming' },
+              {label: 'Status', value: 'Using local track data'},
+              {label: 'ID', value: track.id || 'N/A'},
+              {
+                label: 'Source',
+                value: track.isLocal ? 'Local File' : 'Streaming',
+              },
             ],
           });
         }
@@ -270,7 +390,7 @@ const useSongDetails = (track) => {
     fetchSongDetails();
   }, [track]);
 
-  return { songDetails, loading, error, reload };
+  return {songDetails, loading, error, reload};
 };
 
 export default useSongDetails;

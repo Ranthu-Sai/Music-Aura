@@ -1,24 +1,34 @@
-import { Dimensions, Pressable, TextInput, View, Keyboard } from "react-native";
-import { useTheme } from "@react-navigation/native";
-import React, { useContext } from "react";
-import { ThemeContext } from "../../Context/Context";
-import Entypo from "react-native-vector-icons/Entypo";
-import Ionicons from "react-native-vector-icons/Ionicons";
-import { forwardRef, useImperativeHandle, useRef, useState, useEffect } from "react";
+import {Dimensions, Pressable, TextInput, View, Keyboard} from 'react-native';
+import {useTheme} from '@react-navigation/native';
+import React, {useContext} from 'react';
+import {ThemeContext} from '../../Context/Context';
+import Entypo from 'react-native-vector-icons/Entypo';
+import Ionicons from 'react-native-vector-icons/Ionicons';
+import {
+  forwardRef,
+  useImperativeHandle,
+  useRef,
+  useState,
+  useEffect,
+} from 'react';
 
-export const SearchBar = forwardRef(({ onChange, onSubmit, navigation }, ref) => {
-  const width = Dimensions.get("window").width
-  const theme = useTheme()
-  const { currentThemeColors } = useContext(ThemeContext)
-  const [searchText, setSearchText] = useState("")
-  const inputRef = useRef()
+export const SearchBar = forwardRef(({onChange, onSubmit, navigation}, ref) => {
+  const width = Dimensions.get('window').width;
+  const theme = useTheme();
+  const {currentThemeColors} = useContext(ThemeContext);
+  const [searchText, setSearchText] = useState('');
+  const inputRef = useRef();
 
-  useImperativeHandle(ref, () => ({
-    setText: (text) => {
-      setSearchText(text);
-      inputRef.current?.setNativeProps({ text });
-    },
-  }), []);
+  useImperativeHandle(
+    ref,
+    () => ({
+      setText: text => {
+        setSearchText(text);
+        inputRef.current?.setNativeProps({text});
+      },
+    }),
+    [],
+  );
 
   // Notify parent immediately
   useEffect(() => {
@@ -35,56 +45,72 @@ export const SearchBar = forwardRef(({ onChange, onSubmit, navigation }, ref) =>
   };
 
   return (
-    <View style={{
-      flexDirection: "row",
-      gap: 2,
-      alignItems: "center",
-      height: 60,
-      marginHorizontal: 10,
-    }}>
-      <View style={{
-        flex: 1,
-        paddingHorizontal: 5,
-        backgroundColor: currentThemeColors?.secondaryBackground
-          || (theme.dark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)"),
-        borderWidth: 1,
-        borderColor: (currentThemeColors?.secondaryText && `${currentThemeColors.secondaryText}55`)
-          || (theme.dark ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.12)"),
-        borderRadius: 12,
-        flexDirection: "row",
-        alignItems: "center",
+    <View
+      style={{
+        flexDirection: 'row',
+        gap: 2,
+        alignItems: 'center',
+        height: 60,
+        marginHorizontal: 10,
       }}>
+      <View
+        style={{
+          flex: 1,
+          paddingHorizontal: 5,
+          backgroundColor:
+            currentThemeColors?.secondaryBackground ||
+            (theme.dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'),
+          borderWidth: 1,
+          borderColor:
+            (currentThemeColors?.secondaryText &&
+              `${currentThemeColors.secondaryText}55`) ||
+            (theme.dark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)'),
+          borderRadius: 12,
+          flexDirection: 'row',
+          alignItems: 'center',
+        }}>
         <TextInput
           cursorColor={currentThemeColors?.text || theme.colors.text}
-          placeholder={"Type to search..."}
-          placeholderTextColor={currentThemeColors?.secondaryText
-            || (theme.dark ? "rgba(255,255,255,0.5)" : "rgba(0,0,0,0.5)")}
+          placeholder={'Type to search...'}
+          placeholderTextColor={
+            currentThemeColors?.secondaryText ||
+            (theme.dark ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)')
+          }
           style={{
             color: currentThemeColors?.text || theme.colors.text,
             fontSize: 20,
-            fontFamily: "roboto",
+            fontFamily: 'roboto',
             flex: 1,
             paddingVertical: 12,
             paddingHorizontal: 10,
           }}
           ref={inputRef}
-          onChangeText={(text) => {
-            setSearchText(text)
+          onChangeText={text => {
+            setSearchText(text);
           }}
           onSubmitEditing={handleSubmit}
           returnKeyType="search"
           autoFocus={true}
         />
         {searchText.length > 0 && (
-          <Pressable onPress={() => {
-            setSearchText("")
-            inputRef.current?.setNativeProps({ text: "" })
-            onChange("")
-          }} style={{
-            padding: 8,
-            marginRight: 4,
-          }}>
-            <Entypo name={"circle-with-cross"} size={width * 0.065} color={currentThemeColors?.secondaryText || (theme.dark ? "rgba(255,255,255,0.7)" : "rgba(0,0,0,0.5)")} />
+          <Pressable
+            onPress={() => {
+              setSearchText('');
+              inputRef.current?.setNativeProps({text: ''});
+              onChange('');
+            }}
+            style={{
+              padding: 8,
+              marginRight: 4,
+            }}>
+            <Entypo
+              name={'circle-with-cross'}
+              size={width * 0.065}
+              color={
+                currentThemeColors?.secondaryText ||
+                (theme.dark ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.5)')
+              }
+            />
           </Pressable>
         )}
         {searchText.trim().length > 0 && (
@@ -92,13 +118,17 @@ export const SearchBar = forwardRef(({ onChange, onSubmit, navigation }, ref) =>
             onPress={handleSubmit}
             style={{
               padding: 8,
-              backgroundColor: currentThemeColors?.secondaryBackground
-                || (theme.dark ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.08)"),
+              backgroundColor:
+                currentThemeColors?.secondaryBackground ||
+                (theme.dark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.08)'),
               borderRadius: 8,
               marginLeft: 4,
-            }}
-          >
-            <Ionicons name={"search"} size={width * 0.065} color={currentThemeColors?.text || theme.colors.text} />
+            }}>
+            <Ionicons
+              name={'search'}
+              size={width * 0.065}
+              color={currentThemeColors?.text || theme.colors.text}
+            />
           </Pressable>
         )}
       </View>

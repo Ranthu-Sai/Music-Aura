@@ -1,4 +1,4 @@
-import * as crypto from "crypto-es";
+import * as crypto from 'crypto-es';
 
 /**
  * Decrypt JioSaavn encrypted media URL
@@ -11,7 +11,7 @@ export function decryptMedia(encryptedUrl) {
   }
 
   try {
-    const key = crypto.Utf8.parse("38346591");
+    const key = crypto.Utf8.parse('38346591');
 
     const decrypted = crypto.DES.decrypt(
       {
@@ -21,7 +21,7 @@ export function decryptMedia(encryptedUrl) {
       {
         mode: crypto.ECB,
         padding: crypto.Pkcs7,
-      }
+      },
     );
 
     const decryptedUrl = decrypted.toString(crypto.Utf8);
@@ -55,12 +55,7 @@ export async function getStreamingUrls(encryptedMediaUrl, songId = null) {
     try {
       const decryptedUrl = decryptMedia(encryptedMediaUrl);
       if (decryptedUrl) {
-        // Detect current quality from URL
-        const currentQuality = decryptedUrl.includes('_320.mp4') ? '320kbps' :
-                              decryptedUrl.includes('_160.mp4') ? '160kbps' :
-                              decryptedUrl.includes('_96.mp4') ? '96kbps' :
-                              decryptedUrl.includes('_48.mp4') ? '48kbps' :
-                              decryptedUrl.includes('_12.mp4') ? '12kbps' : '320kbps';
+
 
         // Generate all quality variants
         const baseUrl = decryptedUrl.replace(/_\d+\.mp4/, '');
@@ -83,7 +78,7 @@ export async function getStreamingUrls(encryptedMediaUrl, songId = null) {
   // Second fallback: Try JioSaavn generateAuthToken API
   if (urls.length === 0 && songId && axios) {
     try {
-      const response = await axios.get(`https://www.jiosaavn.com/api.php`, {
+      const response = await axios.get('https://www.jiosaavn.com/api.php', {
         params: {
           __call: 'song.generateAuthToken',
           _format: 'json',
@@ -104,16 +99,22 @@ export async function getStreamingUrls(encryptedMediaUrl, songId = null) {
         });
       }
     } catch (error) {
-      console.warn('getStreamingUrls: Second fallback API failed', error.message);
+      console.warn(
+        'getStreamingUrls: Second fallback API failed',
+        error.message,
+      );
     }
   }
 
   // Third fallback: Try Vercel JioSaavn API
   if (urls.length === 0 && songId && axios) {
     try {
-      const response = await axios.get(`https://jiosavan-api-with-playlist.vercel.app/api/songs/${songId}`, {
-        timeout: 10000,
-      });
+      const response = await axios.get(
+        `https://jiosavan-api-with-playlist.vercel.app/api/songs/${songId}`,
+        {
+          timeout: 10000,
+        },
+      );
 
       let data = response.data;
       if (typeof data === 'string') {
@@ -121,7 +122,10 @@ export async function getStreamingUrls(encryptedMediaUrl, songId = null) {
       }
 
       // Check if response has downloadUrl array
-      if (data?.data?.[0]?.downloadUrl && Array.isArray(data.data[0].downloadUrl)) {
+      if (
+        data?.data?.[0]?.downloadUrl &&
+        Array.isArray(data.data[0].downloadUrl)
+      ) {
         data.data[0].downloadUrl.forEach(item => {
           if (item.url || item.link) {
             urls.push({
@@ -153,7 +157,10 @@ export async function getStreamingUrls(encryptedMediaUrl, songId = null) {
         });
       }
     } catch (error) {
-      console.warn('getStreamingUrls: Third fallback API failed', error.message);
+      console.warn(
+        'getStreamingUrls: Third fallback API failed',
+        error.message,
+      );
     }
   }
 

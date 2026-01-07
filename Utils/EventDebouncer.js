@@ -19,37 +19,35 @@
  * @returns {Function} - Debounced function
  */
 export function debounce(func, delay = 300, immediate = false) {
-    let timeoutId = null;
+  let timeoutId = null;
 
-    const debouncedFunction = function (...args) {
-        const context = this;
-
-        const later = () => {
-            timeoutId = null;
-            if (!immediate) {
-                func.apply(context, args);
-            }
-        };
-
-        const callNow = immediate && !timeoutId;
-
-        clearTimeout(timeoutId);
-        timeoutId = setTimeout(later, delay);
-
-        if (callNow) {
-            func.apply(context, args);
-        }
+  const debouncedFunction = function (...args) {
+    const later = () => {
+      timeoutId = null;
+      if (!immediate) {
+        func.apply(this, args);
+      }
     };
 
-    // Attach cancel method to debounced function
-    debouncedFunction.cancel = () => {
-        if (timeoutId) {
-            clearTimeout(timeoutId);
-            timeoutId = null;
-        }
-    };
+    const callNow = immediate && !timeoutId;
 
-    return debouncedFunction;
+    clearTimeout(timeoutId);
+    timeoutId = setTimeout(later, delay);
+
+    if (callNow) {
+      func.apply(this, args);
+    }
+  };
+
+  // Attach cancel method to debounced function
+  debouncedFunction.cancel = () => {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+      timeoutId = null;
+    }
+  };
+
+  return debouncedFunction;
 }
 
 /**
@@ -61,23 +59,21 @@ export function debounce(func, delay = 300, immediate = false) {
  * @returns {Function} - Throttled function
  */
 export function throttle(func, limit = 300) {
-    let inThrottle = false;
-    let lastResult;
+  let inThrottle = false;
+  let lastResult;
 
-    return function (...args) {
-        const context = this;
+  return function (...args) {
+    if (!inThrottle) {
+      lastResult = func.apply(this, args);
+      inThrottle = true;
 
-        if (!inThrottle) {
-            lastResult = func.apply(context, args);
-            inThrottle = true;
+      setTimeout(() => {
+        inThrottle = false;
+      }, limit);
+    }
 
-            setTimeout(() => {
-                inThrottle = false;
-            }, limit);
-        }
-
-        return lastResult;
-    };
+    return lastResult;
+  };
 }
 
 /**
@@ -88,24 +84,27 @@ export function throttle(func, limit = 300) {
  * @param {Function} keyExtractor - Function to extract unique key from event data
  * @returns {Function} - Wrapped handler
  */
-export function deduplicateEventHandler(handler, keyExtractor = (data) => JSON.stringify(data)) {
-    let lastKey = null;
+export function deduplicateEventHandler(
+  handler,
+  keyExtractor = data => JSON.stringify(data),
+) {
+  let lastKey = null;
 
-    return function (eventData) {
-        const currentKey = keyExtractor(eventData);
+  return function (eventData) {
+    const currentKey = keyExtractor(eventData);
 
-        if (currentKey === lastKey) {
-            console.log('🔄 Skipping duplicate event');
-            return;
-        }
+    if (currentKey === lastKey) {
+      console.log('🔄 Skipping duplicate event');
+      return;
+    }
 
-        lastKey = currentKey;
-        return handler.call(this, eventData);
-    };
+    lastKey = currentKey;
+    return handler.call(this, eventData);
+  };
 }
 
 export default {
-    debounce,
-    throttle,
-    deduplicateEventHandler,
+  debounce,
+  throttle,
+  deduplicateEventHandler,
 };

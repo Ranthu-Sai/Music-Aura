@@ -1,108 +1,174 @@
-import { Heading } from "../../Component/Global/Heading";
-import { MainWrapper } from "../../Layout/MainWrapper";
-import { PaddingConatiner } from "../../Layout/PaddingConatiner";
-import { Pressable, ScrollView, View, StyleSheet, Dimensions, TouchableOpacity, ToastAndroid, ActivityIndicator, Alert, Linking } from "react-native";
-import { PlainText } from "../../Component/Global/PlainText";
-import { Dropdown } from "react-native-element-dropdown";
+import {Heading} from '../../Component/Global/Heading';
+import {MainWrapper} from '../../Layout/MainWrapper';
+import {PaddingConatiner} from '../../Layout/PaddingConatiner';
+import {
+  Pressable,
+  ScrollView,
+  View,
+  StyleSheet,
+  TouchableOpacity,
+  ToastAndroid,
+  ActivityIndicator,
+  Alert,
+} from 'react-native';
+import {PlainText} from '../../Component/Global/PlainText';
+import {Dropdown} from 'react-native-element-dropdown';
 import {
   GetDownloadPath,
   GetFontSizeValue,
   GetPlaybackQuality,
-  SetDownloadPath, SetFontSizeValue,
+  SetDownloadPath,
+  SetFontSizeValue,
   SetPlaybackQuality,
-  GetTheme, SetTheme,
-} from "../../LocalStorage/AppSettings";
-import { useEffect, useState, useContext, useCallback } from "react";
-import { SmallText } from "../../Component/Global/SmallText";
-import DeviceInfo from "react-native-device-info";
-import Icon from "react-native-vector-icons/MaterialCommunityIcons";
-import LinearGradient from "react-native-linear-gradient";
-import Animated, { FadeInDown, FadeInRight } from "react-native-reanimated";
-import { GetCacheSizes } from "../../LocalStorage/ClearCache";
-import { Spacer } from "../../Component/Global/Spacer";
-import updateService from "../../Utils/UpdateService";
+  GetTheme,
+  SetTheme,
+} from '../../LocalStorage/AppSettings';
+import {useEffect, useState, useContext, useCallback} from 'react';
+import {SmallText} from '../../Component/Global/SmallText';
+import DeviceInfo from 'react-native-device-info';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
-const { width } = Dimensions.get("window");
+import Animated, {FadeInDown, FadeInRight} from 'react-native-reanimated';
 
-const formatBytes = (bytes) => {
-  if (!bytes || bytes === 0) {return '0 B';}
-  const k = 1024;
-  const sizes = ['B', 'KB', 'MB', 'GB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
-}
 
-const EachSettingsButton = ({ text, subtitle, OnPress, currentThemeColors, iconName, delay = 0 }) => {
+import updateService from '../../Utils/UpdateService';
+
+
+
+
+
+const EachSettingsButton = ({
+  text,
+  subtitle,
+  OnPress,
+  currentThemeColors,
+  iconName,
+  delay = 0,
+}) => {
   return (
     <Animated.View entering={FadeInRight.delay(delay).duration(400)}>
-      <Pressable onPress={OnPress} style={({ pressed }) => [
-        {
-          backgroundColor: currentThemeColors.secondaryBackground || "rgba(255,255,255,0.05)",
-          padding: 16,
-          borderRadius: 16,
-          flexDirection: "row",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: 10,
-          opacity: pressed ? 0.8 : 1,
-          transform: [{ scale: pressed ? 0.98 : 1 }],
-          elevation: pressed ? 0 : 2,
-        },
-      ]}>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 16, flex: 1 }}>
-          <View style={{
-            backgroundColor: "rgba(255,255,255,0.08)",
-            padding: 12,
-            borderRadius: 12,
+      <Pressable
+        onPress={OnPress}
+        style={({pressed}) => [
+          {
+            backgroundColor:
+              currentThemeColors.secondaryBackground ||
+              'rgba(255,255,255,0.05)',
+            padding: 16,
+            borderRadius: 16,
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: 10,
+            opacity: pressed ? 0.8 : 1,
+            transform: [{scale: pressed ? 0.98 : 1}],
+            elevation: pressed ? 0 : 2,
+          },
+        ]}>
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 16,
+            flex: 1,
           }}>
-            <Icon name={iconName} size={22} color={currentThemeColors.primary || "#1DB954"} />
+          <View
+            style={{
+              backgroundColor: 'rgba(255,255,255,0.08)',
+              padding: 12,
+              borderRadius: 12,
+            }}>
+            <Icon
+              name={iconName}
+              size={22}
+              color={currentThemeColors.primary || '#1DB954'}
+            />
           </View>
-          <View style={{ flex: 1 }}>
-            <PlainText text={text} style={{ fontWeight: '600', fontSize: 16 }} />
-            {subtitle && <SmallText text={subtitle} style={{ opacity: 0.5, marginTop: 2 }} />}
+          <View style={{flex: 1}}>
+            <PlainText text={text} style={{fontWeight: '600', fontSize: 16}} />
+            {subtitle && (
+              <SmallText text={subtitle} style={{opacity: 0.5, marginTop: 2}} />
+            )}
           </View>
         </View>
-        <Icon name="chevron-right" size={24} color={currentThemeColors?.secondaryText || 'rgba(0,0,0,0.3)'} opacity={0.6} />
+        <Icon
+          name="chevron-right"
+          size={24}
+          color={currentThemeColors?.secondaryText || 'rgba(0,0,0,0.3)'}
+          opacity={0.6}
+        />
       </Pressable>
     </Animated.View>
   );
-}
+};
 
-const EachDropDownSetting = ({ data, text, placeholder, OnChange, currentThemeColors, iconName, delay = 0 }) => {
+const EachDropDownSetting = ({
+  data,
+  text,
+  placeholder,
+  OnChange,
+  currentThemeColors,
+  iconName,
+  delay = 0,
+}) => {
   return (
-    <Animated.View entering={FadeInRight.delay(delay).duration(400)} style={{
-      backgroundColor: currentThemeColors.secondaryBackground || "rgba(255,255,255,0.05)",
-      padding: 16,
-      borderRadius: 16,
-      flexDirection: "row",
-      justifyContent: "space-between",
-      alignItems: "center",
-      marginBottom: 10,
-      elevation: 2,
-    }}>
-      <View style={{ flexDirection: "row", alignItems: "center", gap: 16, flex: 1 }}>
-        <View style={{
-          backgroundColor: (currentThemeColors?.text === '#000000') ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.08)',
-          padding: 12,
-          borderRadius: 12,
-        }}>
-          <Icon name={iconName} size={22} color={currentThemeColors.primary || "#1DB954"} />
+    <Animated.View
+      entering={FadeInRight.delay(delay).duration(400)}
+      style={{
+        backgroundColor:
+          currentThemeColors.secondaryBackground || 'rgba(255,255,255,0.05)',
+        padding: 16,
+        borderRadius: 16,
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 10,
+        elevation: 2,
+      }}>
+      <View
+        style={{flexDirection: 'row', alignItems: 'center', gap: 16, flex: 1}}>
+        <View
+          style={{
+            backgroundColor:
+              currentThemeColors?.text === '#000000'
+                ? 'rgba(0,0,0,0.06)'
+                : 'rgba(255,255,255,0.08)',
+            padding: 12,
+            borderRadius: 12,
+          }}>
+          <Icon
+            name={iconName}
+            size={22}
+            color={currentThemeColors.primary || '#1DB954'}
+          />
         </View>
-        <PlainText text={text} style={{ fontWeight: '600', fontSize: 16 }} />
+        <PlainText text={text} style={{fontWeight: '600', fontSize: 16}} />
       </View>
       <Dropdown
         placeholder={placeholder}
-        placeholderStyle={{ color: currentThemeColors.text, fontSize: 14, fontWeight: 'bold' }}
-        itemTextStyle={{ color: currentThemeColors.text }}
-        selectedTextStyle={{ color: currentThemeColors.primary || '#1DB954', fontSize: 14, fontWeight: '900' }}
+        placeholderStyle={{
+          color: currentThemeColors.text,
+          fontSize: 14,
+          fontWeight: 'bold',
+        }}
+        itemTextStyle={{color: currentThemeColors.text}}
+        selectedTextStyle={{
+          color: currentThemeColors.primary || '#1DB954',
+          fontSize: 14,
+          fontWeight: '900',
+        }}
         containerStyle={{
           backgroundColor: currentThemeColors.secondaryBackground || '#1a1a1a',
           borderRadius: 12,
           borderWidth: 1,
-          borderColor: currentThemeColors.secondaryText ? currentThemeColors.secondaryText + '22' : 'rgba(0,0,0,0.1)',
+          borderColor: currentThemeColors.secondaryText
+            ? currentThemeColors.secondaryText + '22'
+            : 'rgba(0,0,0,0.1)',
         }}
-        activeColor={currentThemeColors.secondaryBackground || 'rgba(0,0,0,0.05)'}
-        style={{ width: 110 }}
+        activeColor={
+          currentThemeColors.secondaryBackground || 'rgba(0,0,0,0.05)'
+        }
+        style={{width: 110}}
         data={data}
         labelField="value"
         valueField="value"
@@ -110,13 +176,13 @@ const EachDropDownSetting = ({ data, text, placeholder, OnChange, currentThemeCo
       />
     </Animated.View>
   );
-}
+};
 
-import Context, { ThemeContext } from "../../Context/Context";
+import Context, {ThemeContext} from '../../Context/Context';
 
-export const SettingsPage = ({ navigation }) => {
-  const { setFontSize, setTheme, currentThemeColors } = useContext(ThemeContext);
-  const { activeTrack } = useContext(Context);
+export const SettingsPage = ({navigation}) => {
+  const {setFontSize, setTheme, currentThemeColors} = useContext(ThemeContext);
+  const {activeTrack} = useContext(Context);
   const [Font, setFont] = useState('Medium');
   const [Playback, setPlayback] = useState('320kbps');
   const [Download, setDownload] = useState('Music');
@@ -124,14 +190,27 @@ export const SettingsPage = ({ navigation }) => {
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
   const appVersion = DeviceInfo.getVersion();
 
-  const FontSize = [{ value: 'Small' }, { value: 'Medium' }, { value: 'Large' }];
-  const PlaybackQuality = [{ value: '96kbps' }, { value: '160kbps' }, { value: '320kbps' }];
-  const DownloadPath = [{ value: 'Music' }, { value: 'Downloads' }];
+  const FontSize = [{value: 'Small'}, {value: 'Medium'}, {value: 'Large'}];
+  const PlaybackQuality = [
+    {value: '96kbps'},
+    {value: '160kbps'},
+    {value: '320kbps'},
+  ];
+  const DownloadPath = [{value: 'Music'}, {value: 'Downloads'}];
   const Themes = [
-    { value: 'Default' }, { value: 'Dark' }, { value: 'White' }, { value: 'Blue' },
-    { value: 'Purple' }, { value: 'Green' }, { value: 'Red' },
-    { value: 'Orange' }, { value: 'Pink' }, { value: 'Teal' },
-    { value: 'Amoled' }, { value: 'Sky' }, { value: 'Midnight' },
+    {value: 'Default'},
+    {value: 'Dark'},
+    {value: 'White'},
+    {value: 'Blue'},
+    {value: 'Purple'},
+    {value: 'Green'},
+    {value: 'Red'},
+    {value: 'Orange'},
+    {value: 'Pink'},
+    {value: 'Teal'},
+    {value: 'Amoled'},
+    {value: 'Sky'},
+    {value: 'Midnight'},
   ];
 
   const loadData = useCallback(async () => {
@@ -150,9 +229,12 @@ export const SettingsPage = ({ navigation }) => {
           'Update Available',
           `Version ${result.latestVersion} is available!\n\n${result.message}`,
           [
-            { text: 'Later', style: 'cancel' },
-            { text: 'Download', onPress: () => updateService.openUpdateLink(result.url) },
-          ]
+            {text: 'Later', style: 'cancel'},
+            {
+              text: 'Download',
+              onPress: () => updateService.openUpdateLink(result.url),
+            },
+          ],
         );
       } else {
         ToastAndroid.show('You have the latest version!', ToastAndroid.SHORT);
@@ -172,13 +254,10 @@ export const SettingsPage = ({ navigation }) => {
   return (
     <MainWrapper>
       <PaddingConatiner>
-        <Heading text={"Settings"} />
+        <Heading text={'Settings'} />
         <ScrollView
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: activeTrack ? 160 : 120 }}
-        >
-
-
+          contentContainerStyle={{paddingBottom: activeTrack ? 160 : 120}}>
           <View style={styles.section}>
             <SmallText text="Playback & Storage" style={styles.sectionHeader} />
             <EachDropDownSetting
@@ -188,7 +267,10 @@ export const SettingsPage = ({ navigation }) => {
               placeholder={Playback}
               data={PlaybackQuality}
               currentThemeColors={currentThemeColors}
-              OnChange={({ value }) => { SetPlaybackQuality(value); setPlayback(value); }}
+              OnChange={({value}) => {
+                SetPlaybackQuality(value);
+                setPlayback(value);
+              }}
             />
             <EachDropDownSetting
               delay={200}
@@ -197,7 +279,10 @@ export const SettingsPage = ({ navigation }) => {
               placeholder={Download}
               data={DownloadPath}
               currentThemeColors={currentThemeColors}
-              OnChange={({ value }) => { SetDownloadPath(value); setDownload(value); }}
+              OnChange={({value}) => {
+                SetDownloadPath(value);
+                setDownload(value);
+              }}
             />
             <EachSettingsButton
               delay={300}
@@ -205,7 +290,7 @@ export const SettingsPage = ({ navigation }) => {
               text="Clear Cached Data"
               subtitle="Clean search history & cache"
               currentThemeColors={currentThemeColors}
-              OnPress={() => navigation.navigate("ClearCache")}
+              OnPress={() => navigation.navigate('ClearCache')}
             />
           </View>
 
@@ -218,7 +303,11 @@ export const SettingsPage = ({ navigation }) => {
               placeholder={Theme}
               data={Themes}
               currentThemeColors={currentThemeColors}
-              OnChange={({ value }) => { SetTheme(value); setTheme(value); setThemeState(value); }}
+              OnChange={({value}) => {
+                SetTheme(value);
+                setTheme(value);
+                setThemeState(value);
+              }}
             />
             <EachDropDownSetting
               delay={500}
@@ -227,7 +316,11 @@ export const SettingsPage = ({ navigation }) => {
               placeholder={Font}
               data={FontSize}
               currentThemeColors={currentThemeColors}
-              OnChange={({ value }) => { SetFontSizeValue(value); setFontSize(value); setFont(value); }}
+              OnChange={({value}) => {
+                SetFontSizeValue(value);
+                setFontSize(value);
+                setFont(value);
+              }}
             />
             <EachSettingsButton
               delay={600}
@@ -235,7 +328,7 @@ export const SettingsPage = ({ navigation }) => {
               text="User Profile"
               subtitle="Change your app name"
               currentThemeColors={currentThemeColors}
-              OnPress={() => navigation.navigate("ChangeName")}
+              OnPress={() => navigation.navigate('ChangeName')}
             />
             <EachSettingsButton
               delay={700}
@@ -243,7 +336,7 @@ export const SettingsPage = ({ navigation }) => {
               text="Languages"
               subtitle="Interface translations"
               currentThemeColors={currentThemeColors}
-              OnPress={() => navigation.navigate("SelectLanguages")}
+              OnPress={() => navigation.navigate('SelectLanguages')}
             />
           </View>
 
@@ -255,7 +348,7 @@ export const SettingsPage = ({ navigation }) => {
               text="About Project"
               subtitle={`Music Aura v${appVersion}`}
               currentThemeColors={currentThemeColors}
-              OnPress={() => navigation.navigate("AboutProject")}
+              OnPress={() => navigation.navigate('AboutProject')}
             />
           </View>
 
@@ -266,38 +359,53 @@ export const SettingsPage = ({ navigation }) => {
                 onPress={isCheckingUpdate ? undefined : checkForUpdates}
                 disabled={isCheckingUpdate}
                 style={{
-                  backgroundColor: currentThemeColors.secondaryBackground || "rgba(255,255,255,0.05)",
+                  backgroundColor:
+                    currentThemeColors.secondaryBackground ||
+                    'rgba(255,255,255,0.05)',
                   padding: 20,
                   borderRadius: 16,
-                  flexDirection: "row",
-                  justifyContent: "space-between",
-                  alignItems: "center",
+                  flexDirection: 'row',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
                   marginBottom: 10,
                   elevation: 2,
                   opacity: isCheckingUpdate ? 0.7 : 1,
-                }}
-              >
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 16, flex: 1 }}>
-                  <View style={{
-                    backgroundColor: "rgba(29,185,84,0.15)",
-                    padding: 12,
-                    borderRadius: 12,
+                }}>
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 16,
+                    flex: 1,
                   }}>
+                  <View
+                    style={{
+                      backgroundColor: 'rgba(29,185,84,0.15)',
+                      padding: 12,
+                      borderRadius: 12,
+                    }}>
                     <Icon name="update" size={24} color="#1DB954" />
                   </View>
-                  <View style={{ flex: 1 }}>
-                    <PlainText text={`Version ${appVersion}`} style={{ fontWeight: '700', fontSize: 16 }} />
-                    <SmallText text="Tap to check for updates" style={{ opacity: 0.5, marginTop: 4 }} />
+                  <View style={{flex: 1}}>
+                    <PlainText
+                      text={`Version ${appVersion}`}
+                      style={{fontWeight: '700', fontSize: 16}}
+                    />
+                    <SmallText
+                      text="Tap to check for updates"
+                      style={{opacity: 0.5, marginTop: 4}}
+                    />
                   </View>
                 </View>
                 {isCheckingUpdate ? (
                   <ActivityIndicator size="small" color="#1DB954" />
                 ) : (
-                  <View style={{
-                    backgroundColor: "rgba(29,185,84,0.2)",
-                    padding: 8,
-                    borderRadius: 10,
-                  }}>
+                  <View
+                    style={{
+                      backgroundColor: 'rgba(29,185,84,0.2)',
+                      padding: 8,
+                      borderRadius: 10,
+                    }}>
                     <Icon name="download" size={22} color="#1DB954" />
                   </View>
                 )}
@@ -305,8 +413,13 @@ export const SettingsPage = ({ navigation }) => {
             </Animated.View>
           </View>
 
-          <Animated.View entering={FadeInDown.delay(1000)} style={styles.footer}>
-            <PlainText text="Built with ❤️ for Music Lovers" style={{ opacity: 0.3, fontSize: 12 }} />
+          <Animated.View
+            entering={FadeInDown.delay(1000)}
+            style={styles.footer}>
+            <PlainText
+              text="Built with ❤️ for Music Lovers"
+              style={{opacity: 0.3, fontSize: 12}}
+            />
           </Animated.View>
         </ScrollView>
       </PaddingConatiner>

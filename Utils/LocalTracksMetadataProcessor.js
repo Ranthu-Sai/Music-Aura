@@ -1,7 +1,7 @@
 import RNFS from 'react-native-fs';
-import { Platform } from 'react-native';
-import { FileOperationErrorHandler } from './FileOperationErrorHandler';
-import { localTracksMetadataManager } from './LocalTracksMetadataManager';
+
+import {FileOperationErrorHandler} from './FileOperationErrorHandler';
+import {localTracksMetadataManager} from './LocalTracksMetadataManager';
 import AudioMetadataParser from './ID3Parser';
 
 /**
@@ -18,7 +18,15 @@ import AudioMetadataParser from './ID3Parser';
 export class LocalTracksMetadataProcessor {
   constructor() {
     this.supportedFormats = [
-      '.mp3', '.m4a', '.aac', '.flac', '.wav', '.ogg', '.opus', '.webm', '.wma',
+      '.mp3',
+      '.m4a',
+      '.aac',
+      '.flac',
+      '.wav',
+      '.ogg',
+      '.opus',
+      '.webm',
+      '.wma',
     ];
   }
 
@@ -32,14 +40,22 @@ export class LocalTracksMetadataProcessor {
     console.log('LocalTracksMetadataProcessor: Processing file:', filePath);
     try {
       // Validate file path and format
-      if (!await this.validateFile(filePath)) {
-        console.log('LocalTracksMetadataProcessor: File validation failed for:', filePath);
+      if (!(await this.validateFile(filePath))) {
+        console.log(
+          'LocalTracksMetadataProcessor: File validation failed for:',
+          filePath,
+        );
         throw new Error(`Invalid or unsupported file: ${filePath}`);
       }
 
       // Check cache first
       const cacheKey = this.generateTrackId(filePath);
-      console.log('LocalTracksMetadataProcessor: Cache key for', filePath, 'is', cacheKey);
+      console.log(
+        'LocalTracksMetadataProcessor: Cache key for',
+        filePath,
+        'is',
+        cacheKey,
+      );
 
       // Ensure metadata manager is initialized
       if (!localTracksMetadataManager.isInitialized) {
@@ -47,10 +63,16 @@ export class LocalTracksMetadataProcessor {
       }
 
       let metadata = await localTracksMetadataManager.getMetadata(cacheKey);
-      console.log('LocalTracksMetadataProcessor: Cached metadata found:', !!metadata);
+      console.log(
+        'LocalTracksMetadataProcessor: Cached metadata found:',
+        !!metadata,
+      );
 
       if (metadata && !options.forceRefresh) {
-        console.log('LocalTracksMetadataProcessor: Using cached metadata for:', filePath);
+        console.log(
+          'LocalTracksMetadataProcessor: Using cached metadata for:',
+          filePath,
+        );
         // Check if file has been modified since last processing
         const fileStats = await RNFS.stat(filePath);
         if (metadata.fileModified === fileStats.mtime) {
@@ -58,7 +80,10 @@ export class LocalTracksMetadataProcessor {
         }
       }
 
-      console.log('LocalTracksMetadataProcessor: Extracting fresh metadata for:', filePath);
+      console.log(
+        'LocalTracksMetadataProcessor: Extracting fresh metadata for:',
+        filePath,
+      );
       // Extract metadata
       metadata = await this.extractMetadata(filePath, options);
 
@@ -76,12 +101,20 @@ export class LocalTracksMetadataProcessor {
 
       // Cache the metadata
       await localTracksMetadataManager.setMetadata(cacheKey, metadata);
-      console.log('LocalTracksMetadataProcessor: Successfully processed:', filePath);
+      console.log(
+        'LocalTracksMetadataProcessor: Successfully processed:',
+        filePath,
+      );
 
       return metadata;
     } catch (error) {
-      console.error(`LocalTracksMetadataProcessor: Failed to process ${filePath}:`, error);
-      FileOperationErrorHandler.handleError(error, 'metadata_processing', { showToast: false });
+      console.error(
+        `LocalTracksMetadataProcessor: Failed to process ${filePath}:`,
+        error,
+      );
+      FileOperationErrorHandler.handleError(error, 'metadata_processing', {
+        showToast: false,
+      });
       throw error;
     }
   }
@@ -101,8 +134,11 @@ export class LocalTracksMetadataProcessor {
         const metadata = await this.processFile(filePath, options);
         results.push(metadata);
       } catch (error) {
-        errors.push({ filePath, error: error.message });
-        console.warn(`LocalTracksMetadataProcessor: Skipping ${filePath}:`, error.message);
+        errors.push({filePath, error: error.message});
+        console.warn(
+          `LocalTracksMetadataProcessor: Skipping ${filePath}:`,
+          error.message,
+        );
       }
     }
 
@@ -128,14 +164,26 @@ export class LocalTracksMetadataProcessor {
       // Try to extract real metadata first
       let result = null;
       try {
-        console.log(`LocalTracksMetadataProcessor: Extracting metadata for ${filePath}`);
+        console.log(
+          `LocalTracksMetadataProcessor: Extracting metadata for ${filePath}`,
+        );
         result = await AudioMetadataParser.extractMetadata(filePath);
       } catch (e) {
-        console.warn('LocalTracksMetadataProcessor: AudioMetadataParser failed', e);
+        console.warn(
+          'LocalTracksMetadataProcessor: AudioMetadataParser failed',
+          e,
+        );
       }
 
-      if (result && result.metadata && (result.metadata.title || result.metadata.artist)) {
-        console.log(`LocalTracksMetadataProcessor: Found metadata for ${fileName}:`, result.metadata.title);
+      if (
+        result &&
+        result.metadata &&
+        (result.metadata.title || result.metadata.artist)
+      ) {
+        console.log(
+          `LocalTracksMetadataProcessor: Found metadata for ${fileName}:`,
+          result.metadata.title,
+        );
         return {
           id: this.generateTrackId(filePath),
           title: result.metadata.title || fileName.replace(/\.[^/.]+$/, ''),
@@ -165,7 +213,10 @@ export class LocalTracksMetadataProcessor {
         fileType: this.getFileType(fileExtension),
       };
     } catch (error) {
-      console.error(`LocalTracksMetadataProcessor: Failed to extract metadata from ${filePath}:`, error);
+      console.error(
+        `LocalTracksMetadataProcessor: Failed to extract metadata from ${filePath}:`,
+        error,
+      );
       throw error;
     }
   }
@@ -181,7 +232,9 @@ export class LocalTracksMetadataProcessor {
       // If we already have embedded artwork from extractMetadata step
       if (metadata.embeddedArtwork && metadata.embeddedArtwork.base64) {
         return {
-          uri: `data:${metadata.embeddedArtwork.mimeType || 'image/jpeg'};base64,${metadata.embeddedArtwork.base64}`,
+          uri: `data:${
+            metadata.embeddedArtwork.mimeType || 'image/jpeg'
+          };base64,${metadata.embeddedArtwork.base64}`,
           type: 'embedded',
           source: 'embedded',
         };
@@ -189,7 +242,7 @@ export class LocalTracksMetadataProcessor {
 
       // Check for external artwork file
       const artworkPath = this.findArtworkFile(filePath);
-      if (artworkPath && await RNFS.exists(artworkPath)) {
+      if (artworkPath && (await RNFS.exists(artworkPath))) {
         return {
           uri: `file://${artworkPath}`,
           type: 'external',
@@ -199,7 +252,10 @@ export class LocalTracksMetadataProcessor {
 
       return null;
     } catch (error) {
-      console.warn(`LocalTracksMetadataProcessor: Could not extract artwork from ${filePath}:`, error);
+      console.warn(
+        `LocalTracksMetadataProcessor: Could not extract artwork from ${filePath}:`,
+        error,
+      );
       return null;
     }
   }
@@ -232,7 +288,10 @@ export class LocalTracksMetadataProcessor {
       const extension = this.getFileExtension(filePath).toLowerCase();
       return this.supportedFormats.includes(extension);
     } catch (error) {
-      console.error(`LocalTracksMetadataProcessor: File validation failed for ${filePath}:`, error);
+      console.error(
+        `LocalTracksMetadataProcessor: File validation failed for ${filePath}:`,
+        error,
+      );
       return false;
     }
   }
@@ -321,12 +380,14 @@ export class LocalTracksMetadataProcessor {
    */
   generateTrackId(filePath) {
     // Simple hash function for React Native compatibility
+    /* eslint-disable no-bitwise -- using bitwise ops to produce a 32-bit hash; intentional and safe */
     let hash = 0;
     for (let i = 0; i < filePath.length; i++) {
       const char = filePath.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
+      hash = (hash << 5) - hash + char;
       hash = hash & hash; // Convert to 32-bit integer
     }
+    /* eslint-enable no-bitwise */
     return Math.abs(hash).toString(36);
   }
 

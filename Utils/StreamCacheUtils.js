@@ -18,7 +18,7 @@
  * cacheStreamUrl(videoId, freshUrl, 'ytmusic');
  */
 
-import { CacheManager } from './NavigationCacheManager';
+import {CacheManager} from './NavigationCacheManager';
 
 /**
  * Get cached stream URL if available
@@ -27,8 +27,10 @@ import { CacheManager } from './NavigationCacheManager';
  * @returns {string|null} - Cached URL or null
  */
 export function getCachedStreamUrl(videoId, source = 'ytmusic') {
-    if (!videoId) {return null;}
-    return CacheManager.getStreamUrl(videoId, source);
+  if (!videoId) {
+    return null;
+  }
+  return CacheManager.getStreamUrl(videoId, source);
 }
 
 /**
@@ -38,8 +40,10 @@ export function getCachedStreamUrl(videoId, source = 'ytmusic') {
  * @param {string} source - 'ytmusic' or 'dab'
  */
 export function cacheStreamUrl(videoId, url, source = 'ytmusic') {
-    if (!videoId || !url) {return;}
-    CacheManager.setStreamUrl(videoId, url, source);
+  if (!videoId || !url) {
+    return;
+  }
+  CacheManager.setStreamUrl(videoId, url, source);
 }
 
 /**
@@ -49,7 +53,7 @@ export function cacheStreamUrl(videoId, url, source = 'ytmusic') {
  * @returns {boolean}
  */
 export function hasStreamUrl(videoId, source = 'ytmusic') {
-    return CacheManager.hasStreamUrl(videoId, source);
+  return CacheManager.hasStreamUrl(videoId, source);
 }
 
 /**
@@ -61,39 +65,43 @@ export function hasStreamUrl(videoId, source = 'ytmusic') {
  * @param {string} source - 'ytmusic' or 'dab'
  * @returns {Promise<string|null>} - Stream URL or null
  */
-export async function getOrFetchStreamUrl(videoId, fetchFn, source = 'ytmusic') {
-    if (!videoId) {return null;}
+export async function getOrFetchStreamUrl(
+  videoId,
+  fetchFn,
+  source = 'ytmusic',
+) {
+  if (!videoId) {
+    return null;
+  }
 
-    // Check cache first
-    const cached = getCachedStreamUrl(videoId, source);
-    if (cached) {
-        console.log(`[StreamCache] Using cached URL for ${source}:${videoId}`);
-        return cached;
+  // Check cache first
+  const cached = getCachedStreamUrl(videoId, source);
+  if (cached) {
+    return cached;
+  }
+
+  // Fetch fresh URL
+  try {
+    const freshUrl = await fetchFn();
+
+    if (freshUrl) {
+      // Cache for 3 hours
+      cacheStreamUrl(videoId, freshUrl, source);
+      return freshUrl;
     }
 
-    // Fetch fresh URL
-    try {
-        console.log(`[StreamCache] Fetching fresh URL for ${source}:${videoId}`);
-        const freshUrl = await fetchFn();
-
-        if (freshUrl) {
-            // Cache for 3 hours
-            cacheStreamUrl(videoId, freshUrl, source);
-            return freshUrl;
-        }
-
-        return null;
-    } catch (error) {
-        console.error(`[StreamCache] Error fetching stream URL:`, error);
-        return null;
-    }
+    return null;
+  } catch (error) {
+    console.error('[StreamCache] Error fetching stream URL:', error);
+    return null;
+  }
 }
 
 /**
  * Clear all stream cache
  */
 export function clearAllStreamCache() {
-    CacheManager.clearStreamCache();
+  CacheManager.clearStreamCache();
 }
 
 /**
@@ -101,13 +109,13 @@ export function clearAllStreamCache() {
  * @param {Array<{videoId: string, url: string, source: string}>} streams
  */
 export function batchCacheStreamUrls(streams) {
-    if (!Array.isArray(streams)) {return;}
+  if (!Array.isArray(streams)) {
+    return;
+  }
 
-    streams.forEach(({ videoId, url, source = 'ytmusic' }) => {
-        if (videoId && url) {
-            CacheManager.setStreamUrl(videoId, url, source);
-        }
-    });
-
-    console.log(`[StreamCache] Batch cached ${streams.length} stream URLs`);
+  streams.forEach(({videoId, url, source = 'ytmusic'}) => {
+    if (videoId && url) {
+      CacheManager.setStreamUrl(videoId, url, source);
+    }
+  });
 }

@@ -1,26 +1,26 @@
-import React, { useEffect, useState, useCallback } from "react";
-import Animated, { useAnimatedRef } from "react-native-reanimated";
-import { LikedPagesTopHeader } from "../../Component/Library/TopHeaderLikedPages";
-import { LikedDetails } from "../../Component/Library/LikedDetails";
-import { EachSongCard } from "../../Component/Global/EachSongCard";
-import { Dimensions, View, Pressable, ToastAndroid, Alert } from "react-native";
-import { useTheme, useIsFocused } from "@react-navigation/native";
-import historyManager from "../../Utils/HistoryManager";
-import { useActiveTrack } from "react-native-track-player";
-import { PlainText } from "../../Component/Global/PlainText";
+import React, {useEffect, useState, useCallback} from 'react';
+import Animated, {useAnimatedRef} from 'react-native-reanimated';
+import {LikedPagesTopHeader} from '../../Component/Library/TopHeaderLikedPages';
+import {LikedDetails} from '../../Component/Library/LikedDetails';
+import {EachSongCard} from '../../Component/Global/EachSongCard';
+import {Dimensions, View, Pressable, ToastAndroid, Alert} from 'react-native';
+import {useIsFocused} from '@react-navigation/native';
+import historyManager from '../../Utils/HistoryManager';
+import {useActiveTrack} from 'react-native-track-player';
+import {PlainText} from '../../Component/Global/PlainText';
 
 export const RecentlyPlayedPage = () => {
   const AnimatedRef = useAnimatedRef();
   const [history, setHistory] = useState([]);
-  const width = Dimensions.get("window").width;
-  const theme = useTheme();
+  const width = Dimensions.get('window').width;
+
   const activeTrack = useActiveTrack();
   const isFocused = useIsFocused();
 
   const getHistory = useCallback(async () => {
     const data = await historyManager.getHistory();
     // Normalize data for EachSongCard
-    const normalized = data.map((e) => ({
+    const normalized = data.map(e => ({
       url: e.url,
       title: e.title,
       artist: e.artist,
@@ -34,22 +34,22 @@ export const RecentlyPlayedPage = () => {
 
   const clearAllHistory = async () => {
     Alert.alert(
-      "Clear History",
-      "Are you sure you want to clear all recently played songs?",
+      'Clear History',
+      'Are you sure you want to clear all recently played songs?',
       [
-        { text: "Cancel", style: "cancel" },
+        {text: 'Cancel', style: 'cancel'},
         {
-          text: "Clear All",
-          style: "destructive",
+          text: 'Clear All',
+          style: 'destructive',
           onPress: async () => {
             const success = await historyManager.clearHistory();
             if (success) {
               setHistory([]);
-              ToastAndroid.show("History cleared", ToastAndroid.SHORT);
+              ToastAndroid.show('History cleared', ToastAndroid.SHORT);
             }
           },
         },
-      ]
+      ],
     );
   };
 
@@ -63,13 +63,12 @@ export const RecentlyPlayedPage = () => {
     <Animated.ScrollView
       scrollEventThrottle={16}
       ref={AnimatedRef}
-      style={{ backgroundColor: "transparent" }}
+      style={{backgroundColor: 'transparent'}}
       contentContainerStyle={{
         paddingBottom: activeTrack ? 150 : 70,
         // Make bottom area transparent to avoid unwanted color band
-        backgroundColor: "transparent",
-      }}
-    >
+        backgroundColor: 'transparent',
+      }}>
       <LikedPagesTopHeader
         AnimatedRef={AnimatedRef}
         generated={{
@@ -82,30 +81,33 @@ export const RecentlyPlayedPage = () => {
         disableCollapse={true}
         extendBgToTop={true}
       />
-      <View style={{
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        paddingRight: 15,
-        // Remove background color to prevent visible band while scrolling
-        backgroundColor: 'transparent',
-      }}>
-        <LikedDetails name={"Recently Played"} Data={history} />
+      <View
+        style={{
+          flexDirection: 'row',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          paddingRight: 15,
+          // Remove background color to prevent visible band while scrolling
+          backgroundColor: 'transparent',
+        }}>
+        <LikedDetails name={'Recently Played'} Data={history} />
         {history.length > 0 && (
           <Pressable
             onPress={clearAllHistory}
-            style={({ pressed }) => ({
+            style={({pressed}) => ({
               opacity: pressed ? 0.7 : 1,
               padding: 10,
               borderRadius: 20,
               backgroundColor: 'rgba(255, 255, 255, 0.1)',
-            })}
-          >
-            <PlainText text="Clear All" style={{ fontSize: 12, color: '#ff5252' }} />
+            })}>
+            <PlainText
+              text="Clear All"
+              style={{fontSize: 12, color: '#ff5252'}}
+            />
           </Pressable>
         )}
       </View>
-      <View style={{ paddingHorizontal: 10, backgroundColor: 'transparent' }}>
+      <View style={{paddingHorizontal: 10, backgroundColor: 'transparent'}}>
         {history.map((e, i) => (
           <EachSongCard
             width={width * 0.95}

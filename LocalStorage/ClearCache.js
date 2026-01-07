@@ -1,7 +1,7 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import TrackPlayer from "react-native-track-player";
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import TrackPlayer from 'react-native-track-player';
 
-import ReactNativeBlobUtil from "react-native-blob-util";
+import ReactNativeBlobUtil from 'react-native-blob-util';
 
 const CACHE_KEYS = {
   SEARCH_HISTORY: ['SearchHistory'],
@@ -52,7 +52,7 @@ async function GetCacheSizes() {
     });
 
     // 2. Filesystem sizes
-    const { getAppStorageDynamics } = require('../Utils/StorageUtils');
+    const {getAppStorageDynamics} = require('../Utils/StorageUtils');
     const dynamic = await getAppStorageDynamics();
 
     sizes.SONG_CACHE = dynamic.songCache || 0;
@@ -69,7 +69,7 @@ async function GetCacheSizes() {
 
     return sizes;
   } catch (e) {
-    console.error("Error getting cache sizes:", e);
+    console.error('Error getting cache sizes:', e);
     return {
       TOTAL: 0,
       SEARCH_HISTORY: 0,
@@ -113,7 +113,7 @@ async function ClearSelectedCache(selectedKeys) {
                 await ReactNativeBlobUtil.fs.unlink(path).catch(() => {});
               }
             }
-          } catch (e) { }
+          } catch (e) {}
         }
       }
 
@@ -121,37 +121,54 @@ async function ClearSelectedCache(selectedKeys) {
         // Targeted filesystem clearing based on the same logic as counting
         try {
           if (await ReactNativeBlobUtil.fs.exists(dirs.CacheDir)) {
-             const files = await ReactNativeBlobUtil.fs.ls(dirs.CacheDir);
+            const files = await ReactNativeBlobUtil.fs.ls(dirs.CacheDir);
 
-             for (const fileName of files) {
-               const filePath = `${dirs.CacheDir}/${fileName}`;
-               const stats = await ReactNativeBlobUtil.fs.stat(filePath).catch(() => null);
-               if (!stats) {continue;}
+            for (const fileName of files) {
+              const filePath = `${dirs.CacheDir}/${fileName}`;
+              const stats = await ReactNativeBlobUtil.fs
+                .stat(filePath)
+                .catch(() => null);
+              if (!stats) {
+                continue;
+              }
 
-               let shouldRemove = false;
+              let shouldRemove = false;
 
-               if (key === 'IMAGE_CACHE') {
-                 // Remove small files or image-related directories
-                 if (stats.type === 'file' && parseInt(stats.size) < 1024 * 1024) {
-                   shouldRemove = true;
-                 } else if (stats.type === 'directory' && (fileName.includes('image') || fileName.includes('cache'))) {
-                   shouldRemove = true;
-                 }
-               } else if (key === 'SONG_CACHE') {
-                 // Remove larger files or other directories
-                 if (stats.type === 'file' && parseInt(stats.size) >= 1024 * 1024) {
-                   shouldRemove = true;
-                 } else if (stats.type === 'directory' && !fileName.includes('image') && !fileName.includes('cache')) {
-                   shouldRemove = true;
-                 }
-               }
+              if (key === 'IMAGE_CACHE') {
+                // Remove small files or image-related directories
+                if (
+                  stats.type === 'file' &&
+                  parseInt(stats.size, 10) < 1024 * 1024
+                ) {
+                  shouldRemove = true;
+                } else if (
+                  stats.type === 'directory' &&
+                  (fileName.includes('image') || fileName.includes('cache'))
+                ) {
+                  shouldRemove = true;
+                }
+              } else if (key === 'SONG_CACHE') {
+                // Remove larger files or other directories
+                if (
+                  stats.type === 'file' &&
+                  parseInt(stats.size, 10) >= 1024 * 1024
+                ) {
+                  shouldRemove = true;
+                } else if (
+                  stats.type === 'directory' &&
+                  !fileName.includes('image') &&
+                  !fileName.includes('cache')
+                ) {
+                  shouldRemove = true;
+                }
+              }
 
-               if (shouldRemove) {
-                 await ReactNativeBlobUtil.fs.unlink(filePath).catch(() => {});
-               }
-             }
+              if (shouldRemove) {
+                await ReactNativeBlobUtil.fs.unlink(filePath).catch(() => {});
+              }
+            }
           }
-        } catch (e) { }
+        } catch (e) {}
       } else if (key === 'OFFLINE_DOWNLOADS') {
         // Delete both possible dedicated downloads folders
         const paths = [
@@ -167,7 +184,7 @@ async function ClearSelectedCache(selectedKeys) {
               // Recreate empty directory
               await ReactNativeBlobUtil.fs.mkdir(downloadPath);
               // Scan to update MediaStore
-              await ReactNativeBlobUtil.fs.scanFile([{ path: downloadPath }]);
+              await ReactNativeBlobUtil.fs.scanFile([{path: downloadPath}]);
               console.log(`Cleared offline downloads at: ${downloadPath}`);
             }
           } catch (err) {
@@ -190,15 +207,19 @@ async function ClearSelectedCache(selectedKeys) {
     }
 
     // Performance/State updates
-    if (selectedKeys.includes('QUEUE') || selectedKeys.includes('LAST_SONG') || selectedKeys.includes('SONG_CACHE')) {
+    if (
+      selectedKeys.includes('QUEUE') ||
+      selectedKeys.includes('LAST_SONG') ||
+      selectedKeys.includes('SONG_CACHE')
+    ) {
       try {
         await TrackPlayer.reset();
-      } catch (e) { }
+      } catch (e) {}
     }
 
     return true;
   } catch (e) {
-    console.error("Error clearing selected cache:", e);
+    console.error('Error clearing selected cache:', e);
     return false;
   }
 }
@@ -207,11 +228,15 @@ async function ClearAllCache() {
   try {
     const allKeys = Object.keys(CACHE_KEYS);
     // Add the virtual filesystem keys
-    return await ClearSelectedCache([...allKeys, 'SONG_CACHE', 'OFFLINE_DOWNLOADS']);
+    return await ClearSelectedCache([
+      ...allKeys,
+      'SONG_CACHE',
+      'OFFLINE_DOWNLOADS',
+    ]);
   } catch (e) {
-    console.error("Error clearing all cache:", e);
+    console.error('Error clearing all cache:', e);
     return false;
   }
 }
 
-export { GetCacheSizes, ClearSelectedCache, ClearAllCache, CACHE_KEYS };
+export {GetCacheSizes, ClearSelectedCache, ClearAllCache, CACHE_KEYS};

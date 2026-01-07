@@ -1,25 +1,42 @@
-import { MainWrapper } from "../../Layout/MainWrapper";
-import { PaddingConatiner } from "../../Layout/PaddingConatiner";
-import { Heading } from "../../Component/Global/Heading";
-import { PlainText } from "../../Component/Global/PlainText";
-import { SmallText } from "../../Component/Global/SmallText";
-import { TouchableOpacity, Pressable, ScrollView, ToastAndroid, View, Alert, StyleSheet, Dimensions, ActivityIndicator } from "react-native";
-import { useEffect, useState, useContext, useCallback } from "react";
-import Context, { ThemeContext } from "../../Context/Context";
-import { GetCacheSizes, ClearSelectedCache, ClearAllCache } from "../../LocalStorage/ClearCache";
-import MaterialIcons from "react-native-vector-icons/MaterialIcons";
-import LinearGradient from "react-native-linear-gradient";
-import Animated, { FadeInDown, FadeInRight, Layout, FadeOut } from "react-native-reanimated";
-import { Spacer } from "../../Component/Global/Spacer";
-import Icon from "react-native-vector-icons/MaterialCommunityIcons";
-import { getAppStorageDynamics } from "../../Utils/StorageUtils";
-import { InteractionManager } from "react-native";
+import {MainWrapper} from '../../Layout/MainWrapper';
+import {PaddingConatiner} from '../../Layout/PaddingConatiner';
+import {Heading} from '../../Component/Global/Heading';
+import {PlainText} from '../../Component/Global/PlainText';
+import {SmallText} from '../../Component/Global/SmallText';
+import {
+  TouchableOpacity,
+  Pressable,
+  ScrollView,
+  ToastAndroid,
+  View,
+  Alert,
+  StyleSheet,
+  ActivityIndicator,
+} from 'react-native';
+import {useEffect, useState, useContext, useCallback} from 'react';
+import Context, {ThemeContext} from '../../Context/Context';
+import {GetCacheSizes, ClearSelectedCache} from '../../LocalStorage/ClearCache';
+import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import LinearGradient from 'react-native-linear-gradient';
+import Animated, {
+  FadeInDown,
+  FadeInRight,
+  Layout,
+} from 'react-native-reanimated';
+import {Spacer} from '../../Component/Global/Spacer';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
-const { width } = Dimensions.get('window');
+import {InteractionManager} from 'react-native';
+
+
 
 function formatBytes(bytes) {
-  if (bytes === 0) {return '0 B';}
-  if (!bytes) {return '0 B';}
+  if (bytes === 0) {
+    return '0 B';
+  }
+  if (!bytes) {
+    return '0 B';
+  }
   const k = 1024;
   const sizes = ['B', 'KB', 'MB', 'GB'];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
@@ -28,44 +45,72 @@ function formatBytes(bytes) {
   return (val === 0 && bytes > 0 ? '1' : val) + ' ' + sizes[i];
 }
 
-function CacheCard({ item, isSelected, onToggle, size, currentThemeColors, delay }) {
+function CacheCard({
+  item,
+  isSelected,
+  onToggle,
+  size,
+  currentThemeColors,
+  delay,
+}) {
   const percentage = Math.min(100, (size / (10 * 1024 * 1024)) * 100); // Normalize against 10MB for visual
 
   return (
     <Animated.View
       entering={FadeInRight.delay(delay).duration(400)}
-      layout={Layout.duration(300)}
-    >
+      layout={Layout.duration(300)}>
       <Pressable
         onPress={onToggle}
-        style={({ pressed }) => [
+        style={({pressed}) => [
           styles.cacheCard,
           {
-            backgroundColor: isSelected ? 'rgba(29, 185, 84, 0.1)' : 'rgba(255,255,255,0.03)',
+            backgroundColor: isSelected
+              ? 'rgba(29, 185, 84, 0.1)'
+              : 'rgba(255,255,255,0.03)',
             borderColor: isSelected ? '#1DB954' : 'rgba(255,255,255,0.05)',
             opacity: pressed ? 0.8 : 1,
           },
-        ]}
-      >
+        ]}>
         <View style={styles.cardLeft}>
-          <View style={[styles.iconBox, { backgroundColor: isSelected ? '#1DB95422' : 'rgba(255,255,255,0.05)' }]}>
+          <View
+            style={[
+              styles.iconBox,
+              {
+                backgroundColor: isSelected
+                  ? '#1DB95422'
+                  : 'rgba(255,255,255,0.05)',
+              },
+            ]}>
             <MaterialIcons
               name={item.icon}
               size={22}
               color={isSelected ? '#1DB954' : 'white'}
             />
           </View>
-          <View style={{ flex: 1, marginLeft: 15 }}>
-            <PlainText text={item.label} style={{ fontWeight: '600' }} />
+          <View style={{flex: 1, marginLeft: 15}}>
+            <PlainText text={item.label} style={{fontWeight: '600'}} />
             <View style={styles.miniBarContainer}>
-              <View style={[styles.miniBarFill, { width: `${Math.max(2, percentage)}%`, backgroundColor: isSelected ? '#1DB954' : 'rgba(255,255,255,0.2)' }]} />
+              <View
+                style={[
+                  styles.miniBarFill,
+                  {
+                    width: `${Math.max(2, percentage)}%`,
+                    backgroundColor: isSelected
+                      ? '#1DB954'
+                      : 'rgba(255,255,255,0.2)',
+                  },
+                ]}
+              />
             </View>
           </View>
         </View>
         <View style={styles.cardRight}>
-          <SmallText text={formatBytes(size)} style={{ marginRight: 10, opacity: 0.6 }} />
+          <SmallText
+            text={formatBytes(size)}
+            style={{marginRight: 10, opacity: 0.6}}
+          />
           <MaterialIcons
-            name={isSelected ? "check-circle" : "radio-button-unchecked"}
+            name={isSelected ? 'check-circle' : 'radio-button-unchecked'}
             size={22}
             color={isSelected ? '#1DB954' : 'rgba(255,255,255,0.3)'}
           />
@@ -75,26 +120,30 @@ function CacheCard({ item, isSelected, onToggle, size, currentThemeColors, delay
   );
 }
 
-export const ClearCachePage = ({ navigation }) => {
-  const { currentThemeColors } = useContext(ThemeContext);
-  const { activeTrack } = useContext(Context);
+export const ClearCachePage = ({navigation}) => {
+  const {currentThemeColors} = useContext(ThemeContext);
+  const {activeTrack} = useContext(Context);
   const [cacheSizes, setCacheSizes] = useState({});
-  const [storage, setStorage] = useState({ total: 0, d: 0, c: 0 });
+  const [storage, setStorage] = useState({total: 0, d: 0, c: 0});
   const [selectedCache, setSelectedCache] = useState([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
   const cacheOptions = [
-    { key: 'SEARCH_HISTORY', label: 'Search History', icon: 'history' },
-    { key: 'RECENTLY_PLAYED', label: 'Recently Played', icon: 'update' },
-    { key: 'SONG_CACHE', label: 'Song Cache', icon: 'cached' },
-    { key: 'OFFLINE_DOWNLOADS', label: 'Offline Downloads', icon: 'get-app' },
-    { key: 'LIKED_SONGS', label: 'Liked Songs', icon: 'favorite-outline' },
-    { key: 'LIKED_PLAYLISTS', label: 'Liked Playlists', icon: 'playlist-add-check' },
-    { key: 'USER_PLAYLISTS', label: 'User Playlists', icon: 'playlist-play' },
-    { key: 'QUEUE', label: 'Playback Queue', icon: 'queue-music' },
-    { key: 'LAST_SONG', label: 'Last Played Info', icon: 'play-circle-outline' },
-    { key: 'IMAGE_CACHE', label: 'Image Cache', icon: 'image' },
+    {key: 'SEARCH_HISTORY', label: 'Search History', icon: 'history'},
+    {key: 'RECENTLY_PLAYED', label: 'Recently Played', icon: 'update'},
+    {key: 'SONG_CACHE', label: 'Song Cache', icon: 'cached'},
+    {key: 'OFFLINE_DOWNLOADS', label: 'Offline Downloads', icon: 'get-app'},
+    {key: 'LIKED_SONGS', label: 'Liked Songs', icon: 'favorite-outline'},
+    {
+      key: 'LIKED_PLAYLISTS',
+      label: 'Liked Playlists',
+      icon: 'playlist-add-check',
+    },
+    {key: 'USER_PLAYLISTS', label: 'User Playlists', icon: 'playlist-play'},
+    {key: 'QUEUE', label: 'Playback Queue', icon: 'queue-music'},
+    {key: 'LAST_SONG', label: 'Last Played Info', icon: 'play-circle-outline'},
+    {key: 'IMAGE_CACHE', label: 'Image Cache', icon: 'image'},
   ];
 
   const loadData = useCallback(async () => {
@@ -112,8 +161,8 @@ export const ClearCachePage = ({ navigation }) => {
         c: cache,
       });
     } catch (error) {
-      console.error("Error loading clear cache data:", error);
-      ToastAndroid.show("Failed to load cache data", ToastAndroid.SHORT);
+      console.error('Error loading clear cache data:', error);
+      ToastAndroid.show('Failed to load cache data', ToastAndroid.SHORT);
     }
   }, []);
 
@@ -121,10 +170,10 @@ export const ClearCachePage = ({ navigation }) => {
     setRefreshing(true);
     try {
       await loadData();
-      ToastAndroid.show("Storage refreshed", ToastAndroid.SHORT);
+      ToastAndroid.show('Storage refreshed', ToastAndroid.SHORT);
     } catch (error) {
-      console.error("Error refreshing storage:", error);
-      ToastAndroid.show("Refresh failed", ToastAndroid.SHORT);
+      console.error('Error refreshing storage:', error);
+      ToastAndroid.show('Refresh failed', ToastAndroid.SHORT);
     } finally {
       setRefreshing(false);
     }
@@ -147,23 +196,23 @@ export const ClearCachePage = ({ navigation }) => {
 
   async function handleClearSelected() {
     if (selectedCache.length === 0) {
-      ToastAndroid.show("Select categories to clear", ToastAndroid.SHORT);
+      ToastAndroid.show('Select categories to clear', ToastAndroid.SHORT);
       return;
     }
 
     Alert.alert(
-      "Confirm Cleanup",
+      'Confirm Cleanup',
       `Clear cache for ${selectedCache.length} selected categories?`,
       [
-        { text: "Cancel", style: "cancel" },
+        {text: 'Cancel', style: 'cancel'},
         {
-          text: "Clear Now",
-          style: "destructive",
+          text: 'Clear Now',
+          style: 'destructive',
           onPress: async () => {
             setLoading(true);
             const success = await ClearSelectedCache(selectedCache);
             if (success) {
-              ToastAndroid.show("Cleanup successful", ToastAndroid.SHORT);
+              ToastAndroid.show('Cleanup successful', ToastAndroid.SHORT);
               setSelectedCache([]);
               await loadData();
             }
@@ -177,28 +226,34 @@ export const ClearCachePage = ({ navigation }) => {
   return (
     <MainWrapper>
       <PaddingConatiner>
-        <Heading text={"Clear Cache"} />
+        <Heading text={'Clear Cache'} />
         <ScrollView
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: activeTrack ? 140 : 100 }}
-        >
+          contentContainerStyle={{paddingBottom: activeTrack ? 140 : 100}}>
           {/* Dynamic Storage Dashboard */}
-          <Animated.View entering={FadeInDown.duration(600)} style={styles.dashboard}>
+          <Animated.View
+            entering={FadeInDown.duration(600)}
+            style={styles.dashboard}>
             <LinearGradient
               colors={['#1DB95433', 'transparent']}
-              start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-              style={styles.dashboardGradient}
-            >
+              start={{x: 0, y: 0}}
+              end={{x: 1, y: 1}}
+              style={styles.dashboardGradient}>
               <View style={styles.dashboardHeader}>
                 <View>
-                  <PlainText text="Storage Dashboard" style={styles.dashboardTitle} />
-                  <SmallText text={`Total usage: ${formatBytes(storage.total)}`} style={{ opacity: 0.6 }} />
+                  <PlainText
+                    text="Storage Dashboard"
+                    style={styles.dashboardTitle}
+                  />
+                  <SmallText
+                    text={`Total usage: ${formatBytes(storage.total)}`}
+                    style={{opacity: 0.6}}
+                  />
                 </View>
                 <TouchableOpacity
                   onPress={handleRefresh}
                   disabled={refreshing}
-                  style={[styles.refreshIcon, refreshing && { opacity: 0.5 }]}
-                >
+                  style={[styles.refreshIcon, refreshing && {opacity: 0.5}]}>
                   {refreshing ? (
                     <ActivityIndicator size="small" color="#1DB954" />
                   ) : (
@@ -214,7 +269,15 @@ export const ClearCachePage = ({ navigation }) => {
                     <SmallText text={formatBytes(storage.d)} />
                   </View>
                   <View style={styles.barBg}>
-                    <Animated.View style={[styles.barFill, { width: `${(storage.d / (storage.total || 1)) * 100}%`, backgroundColor: '#1DB954' }]} />
+                    <Animated.View
+                      style={[
+                        styles.barFill,
+                        {
+                          width: `${(storage.d / (storage.total || 1)) * 100}%`,
+                          backgroundColor: '#1DB954',
+                        },
+                      ]}
+                    />
                   </View>
                 </View>
                 <View style={styles.barContainer}>
@@ -223,7 +286,15 @@ export const ClearCachePage = ({ navigation }) => {
                     <SmallText text={formatBytes(storage.c)} />
                   </View>
                   <View style={styles.barBg}>
-                    <Animated.View style={[styles.barFill, { width: `${(storage.c / (storage.total || 1)) * 100}%`, backgroundColor: '#4776E6' }]} />
+                    <Animated.View
+                      style={[
+                        styles.barFill,
+                        {
+                          width: `${(storage.c / (storage.total || 1)) * 100}%`,
+                          backgroundColor: '#4776E6',
+                        },
+                      ]}
+                    />
                   </View>
                 </View>
               </View>
@@ -233,19 +304,17 @@ export const ClearCachePage = ({ navigation }) => {
           <View style={styles.controlsRow}>
             <TouchableOpacity
               onPress={() => setSelectedCache(cacheOptions.map(o => o.key))}
-              style={styles.controlBtn}
-            >
+              style={styles.controlBtn}>
               <PlainText text="Select All" style={styles.controlText} />
             </TouchableOpacity>
             <TouchableOpacity
               onPress={() => setSelectedCache([])}
-              style={styles.controlBtn}
-            >
+              style={styles.controlBtn}>
               <PlainText text="Deselect All" style={styles.controlText} />
             </TouchableOpacity>
           </View>
 
-          <View style={{ marginBottom: 20 }}>
+          <View style={{marginBottom: 20}}>
             {cacheOptions.map((item, index) => (
               <CacheCard
                 key={item.key}
@@ -264,21 +333,36 @@ export const ClearCachePage = ({ navigation }) => {
           <TouchableOpacity
             onPress={handleClearSelected}
             disabled={loading || selectedCache.length === 0}
-            style={[styles.mainActionBtn, { opacity: selectedCache.length > 0 ? 1 : 0.5 }]}
-          >
-            {loading ? <ActivityIndicator color="black" /> : (
+            style={[
+              styles.mainActionBtn,
+              {opacity: selectedCache.length > 0 ? 1 : 0.5},
+            ]}>
+            {loading ? (
+              <ActivityIndicator color="black" />
+            ) : (
               <>
                 <MaterialIcons name="delete-sweep" size={24} color="black" />
-                <PlainText text={`Clean ${selectedCache.length} Categories`} style={styles.actionBtnText} />
+                <PlainText
+                  text={`Clean ${selectedCache.length} Categories`}
+                  style={styles.actionBtnText}
+                />
               </>
             )}
           </TouchableOpacity>
 
-          <Animated.View entering={FadeInDown.delay(600)} style={styles.footerNote}>
-            <MaterialIcons name="info-outline" size={14} color="rgba(255,255,255,0.4)" />
-            <SmallText text="Settings and custom playlists are never deleted." style={{ marginLeft: 5, opacity: 0.4 }} />
+          <Animated.View
+            entering={FadeInDown.delay(600)}
+            style={styles.footerNote}>
+            <MaterialIcons
+              name="info-outline"
+              size={14}
+              color="rgba(255,255,255,0.4)"
+            />
+            <SmallText
+              text="Settings and custom playlists are never deleted."
+              style={{marginLeft: 5, opacity: 0.4}}
+            />
           </Animated.View>
-
         </ScrollView>
       </PaddingConatiner>
     </MainWrapper>

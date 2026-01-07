@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, {useEffect} from 'react';
 import {
   Dimensions,
   View,
@@ -6,7 +6,7 @@ import {
   TouchableOpacity,
   Text,
   StatusBar,
-} from "react-native";
+} from 'react-native';
 import Animated, {
   FadeIn,
   useSharedValue,
@@ -16,96 +16,121 @@ import Animated, {
   Easing,
   interpolate,
   Extrapolate,
-} from "react-native-reanimated";
-import FastImage from "react-native-fast-image";
-import LinearGradient from "react-native-linear-gradient";
-import Icon from "react-native-vector-icons/MaterialCommunityIcons";
+} from 'react-native-reanimated';
+import FastImage from 'react-native-fast-image';
+import LinearGradient from 'react-native-linear-gradient';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
-const { width, height } = Dimensions.get("window");
+const {width, height} = Dimensions.get('window');
 
-export const Slide4 = ({ navigation }) => {
+export const Slide4 = ({navigation}) => {
   const glowValue = useSharedValue(0);
 
   useEffect(() => {
     glowValue.value = withRepeat(
-      withTiming(1, { duration: 2500, easing: Easing.inOut(Easing.ease) }),
+      withTiming(1, {duration: 2500, easing: Easing.inOut(Easing.ease)}),
       -1,
-      true
+      true,
     );
   }, [glowValue]);
 
   const animatedBackAura = useAnimatedStyle(() => {
-    const scale = interpolate(glowValue.value, [0, 1], [1, 1.2], Extrapolate.CLAMP);
-    const opacity = interpolate(glowValue.value, [0, 1], [0.2, 0.4], Extrapolate.CLAMP);
+    const scale = interpolate(
+      glowValue.value,
+      [0, 1],
+      [1, 1.2],
+      Extrapolate.CLAMP,
+    );
+    const opacity = interpolate(
+      glowValue.value,
+      [0, 1],
+      [0.2, 0.4],
+      Extrapolate.CLAMP,
+    );
     return {
-      transform: [{ scale }],
+      transform: [{scale}],
       opacity,
     };
   });
 
   const animatedTitleGlow = useAnimatedStyle(() => ({
-    textShadowRadius: 10 + (glowValue.value * 20),
-    opacity: 0.8 + (glowValue.value * 0.2),
+    textShadowRadius: 10 + glowValue.value * 20,
+    opacity: 0.8 + glowValue.value * 0.2,
   }));
 
   const animatedLogoGlow = useAnimatedStyle(() => ({
-    shadowRadius: 20 + (glowValue.value * 20),
-    borderColor: `rgba(29, 185, 84, ${0.1 + (glowValue.value * 0.3)})`,
+    shadowRadius: 20 + glowValue.value * 20,
+    borderColor: `rgba(29, 185, 84, ${0.1 + glowValue.value * 0.3})`,
   }));
 
   return (
     <View style={styles.container}>
-      <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
+      <StatusBar
+        translucent
+        backgroundColor="transparent"
+        barStyle="light-content"
+      />
 
       <View style={styles.contentContainer}>
         {/* Animated Background Aura */}
         <Animated.View style={[styles.backgroundAura, animatedBackAura]} />
 
         <View style={styles.centerSection}>
-          <Animated.View entering={FadeIn.duration(1000)} style={styles.imageWrapper}>
+          <Animated.View
+            entering={FadeIn.duration(1000)}
+            style={styles.imageWrapper}>
             <Animated.View style={[styles.imageInnerGlow, animatedLogoGlow]}>
               <FastImage
-                source={require("../../Images/letsgo.gif")}
+                source={require('../../Images/letsgo.gif')}
                 style={styles.image}
                 resizeMode="cover"
               />
             </Animated.View>
 
             {/* Floating Decorative Elements */}
-            <Animated.View entering={FadeIn.delay(1200)} style={[styles.floatingIcon, { top: -10, right: -20 }]}>
+            <Animated.View
+              entering={FadeIn.delay(1200)}
+              style={[styles.floatingIcon, {top: -10, right: -20}]}>
               <Icon name="music" size={20} color="#1DB954" />
             </Animated.View>
-            <Animated.View entering={FadeIn.delay(1400)} style={[styles.floatingIcon, { bottom: 30, left: -40 }]}>
+            <Animated.View
+              entering={FadeIn.delay(1400)}
+              style={[styles.floatingIcon, {bottom: 30, left: -40}]}>
               <Icon name="check-decagram" size={24} color="#4776E6" />
             </Animated.View>
           </Animated.View>
 
           <View style={styles.textContent}>
-            <Animated.Text entering={FadeIn.delay(200).duration(800)} style={styles.overTitle}>
-              Configuration Complete
-            </Animated.Text>
-            <Animated.Text entering={FadeIn.delay(400).duration(800)} style={[styles.mainTitle, animatedTitleGlow]}>
-              You're all set!
-            </Animated.Text>
-            <Animated.Text entering={FadeIn.delay(600).duration(800)} style={styles.description}>
-              Dive into a personalized world of melodies.{"\n"}Your Music Aura is ready to shine.
-            </Animated.Text>
+            <Animated.View entering={FadeIn.delay(200).duration(800)}>
+              <Text style={styles.overTitle}>Configuration Complete</Text>
+            </Animated.View>
+            <Animated.View entering={FadeIn.delay(400).duration(800)}>
+              <Animated.Text style={[styles.mainTitle, animatedTitleGlow]}>
+                You're all set!
+              </Animated.Text>
+            </Animated.View>
+            <Animated.View entering={FadeIn.delay(600).duration(800)}>
+              <Text style={styles.description}>
+                Dive into a personalized world of melodies.{'\n'}Your Music Aura
+                is ready to shine.
+              </Text>
+            </Animated.View>
           </View>
         </View>
 
         <View style={styles.footer}>
-          <Animated.View entering={FadeIn.delay(1000).duration(800)} style={styles.buttonWrapper}>
+          <Animated.View
+            entering={FadeIn.delay(1000).duration(800)}
+            style={styles.buttonWrapper}>
             <TouchableOpacity
               style={styles.getStartedButton}
               activeOpacity={0.8}
-              onPress={() => navigation.replace("MainRoute")}
-            >
+              onPress={() => navigation.replace('MainRoute')}>
               <LinearGradient
                 colors={['#1DB954', '#1ed760']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.gradient}
-              >
+                start={{x: 0, y: 0}}
+                end={{x: 1, y: 0}}
+                style={styles.gradient}>
                 <Text style={styles.buttonText}>Get Started</Text>
                 <View style={styles.btnIconCircle}>
                   <Icon name="rocket-launch" size={22} color="black" />
@@ -115,8 +140,7 @@ export const Slide4 = ({ navigation }) => {
 
             <TouchableOpacity
               style={styles.backLink}
-              onPress={() => navigation.replace("Slide3")}
-            >
+              onPress={() => navigation.replace('Slide3')}>
               <Text style={styles.backLinkText}>Edit profile details</Text>
             </TouchableOpacity>
           </Animated.View>
@@ -161,7 +185,7 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: 'rgba(29, 185, 84, 0.2)',
     shadowColor: '#1DB954',
-    shadowOffset: { width: 0, height: 0 },
+    shadowOffset: {width: 0, height: 0},
     shadowOpacity: 0.5,
     elevation: 25,
   },
@@ -199,7 +223,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     letterSpacing: -1,
     textShadowColor: '#1DB954',
-    textShadowOffset: { width: 0, height: 0 },
+    textShadowOffset: {width: 0, height: 0},
   },
   description: {
     fontSize: 18,
@@ -223,7 +247,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     elevation: 12,
     shadowColor: '#1DB954',
-    shadowOffset: { width: 0, height: 8 },
+    shadowOffset: {width: 0, height: 8},
     shadowOpacity: 0.5,
     shadowRadius: 15,
   },

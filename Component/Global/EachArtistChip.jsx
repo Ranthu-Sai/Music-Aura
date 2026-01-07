@@ -1,34 +1,30 @@
 import React from 'react';
-import { Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
-import { ThemeContext } from '../../Context/Context';
-import { useNavigation } from '@react-navigation/native';
+import {Text, Image, TouchableOpacity, StyleSheet} from 'react-native';
+import {useNavigation} from '@react-navigation/native';
 
-export const EachArtistChip = ({ id, name, image }) => {
-  const { currentThemeColors } = React.useContext(ThemeContext);
+export const EachArtistChip = ({id, name, image}) => {
   const navigation = useNavigation();
 
   const handlePress = () => {
-    navigation.navigate('ArtistSongsPage', { artistId: id, artistName: name, artistImage: image });
+    navigation.navigate('ArtistSongsPage', {
+      artistId: id,
+      artistName: name,
+      artistImage: image,
+    });
   };
+
+  const imageUrl =
+    typeof image === 'string' && image.startsWith('http')
+      ? image
+      : 'https://www.jiosaavn.com/_i/3.0/artist-default-music.png';
 
   return (
     <TouchableOpacity
       style={styles.container}
       onPress={handlePress}
-      activeOpacity={0.7}
-    >
-      <Image
-        source={{ uri: image }}
-        style={styles.image}
-        resizeMode="cover"
-      />
-      <Text
-        style={[
-          styles.artistName,
-          { color: '#FFFFFF' },
-        ]}
-        numberOfLines={1}
-      >
+      activeOpacity={0.7}>
+      <Image source={{uri: imageUrl}} style={styles.image} resizeMode="cover" />
+      <Text style={[styles.artistName, {color: '#FFFFFF'}]} numberOfLines={1}>
         {name || 'Unknown Artist'}
       </Text>
     </TouchableOpacity>

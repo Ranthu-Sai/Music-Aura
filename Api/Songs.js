@@ -1,11 +1,12 @@
 export * from './Saavn/Songs';
-import axios from "axios";
-import YTArtworkUtils from "../Utils/YTMusicArtworkUtils";
-import { getCachedData } from "../Utils/CacheManager";
+import axios from 'axios';
+import YTArtworkUtils from '../Utils/YTMusicArtworkUtils';
+import {getCachedData} from '../Utils/CacheManager';
 
 // Configure axios for better Android compatibility
 axios.defaults.timeout = 15000;
-axios.defaults.headers.common['User-Agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36';
+axios.defaults.headers.common['User-Agent'] =
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36';
 
 // Helper function to parse duration strings like "3:45" to seconds
 function parseDuration(durationText) {
@@ -23,67 +24,94 @@ function parseDuration(durationText) {
 
 async function getSaavnSuggestions(query) {
   try {
-    const url = `https://www.jiosaavn.com/api.php?__call=autocomplete.get&_format=json&_marker=0&ctx=wap6dot0&api_version=4&query=${encodeURIComponent(query)}`;
+    const url = `https://www.jiosaavn.com/api.php?__call=autocomplete.get&_format=json&_marker=0&ctx=wap6dot0&api_version=4&query=${encodeURIComponent(
+      query,
+    )}`;
     const response = await axios.get(url);
     const suggestions = [];
 
     if (response.data) {
       if (response.data.albums && response.data.albums.data) {
-        response.data.albums.data.slice(0, 5).forEach(album => suggestions.push(album.title));
+        response.data.albums.data
+          .slice(0, 5)
+          .forEach(album => suggestions.push(album.title));
       }
       if (response.data.songs && response.data.songs.data) {
-        response.data.songs.data.slice(0, 15).forEach(song => suggestions.push(song.title));
+        response.data.songs.data
+          .slice(0, 15)
+          .forEach(song => suggestions.push(song.title));
       }
     }
-    return { suggestions, quickResults: [] };
+    return {suggestions, quickResults: []};
   } catch (error) {
-    return { suggestions: [], quickResults: [] };
+    return {suggestions: [], quickResults: []};
   }
 }
 
 async function getYTMusicSuggestions(query) {
   try {
-    const response = await axios.post('https://music.youtube.com/youtubei/v1/search/get_search_suggestions?key=AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30', {
-      context: { client: { clientName: 'WEB_REMIX', clientVersion: '1.20241204.01.00', hl: 'en', gl: 'US' } },
-      input: query,
-    }, {
-      headers: {
-        'Content-Type': 'application/json',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-        'Origin': 'https://music.youtube.com',
+    const response = await axios.post(
+      'https://music.youtube.com/youtubei/v1/search/get_search_suggestions?key=AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30',
+      {
+        context: {
+          client: {
+            clientName: 'WEB_REMIX',
+            clientVersion: '1.20241204.01.00',
+            hl: 'en',
+            gl: 'US',
+          },
+        },
+        input: query,
       },
-    });
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+          Origin: 'https://music.youtube.com',
+        },
+      },
+    );
 
     const suggestions = [];
     if (response.status === 200) {
-      const items = response.data?.contents?.[0]?.searchSuggestionsSectionRenderer?.contents || [];
+      const items =
+        response.data?.contents?.[0]?.searchSuggestionsSectionRenderer
+          ?.contents || [];
       items.forEach(item => {
-        const text = item?.searchSuggestionRenderer?.suggestion?.runs?.[0]?.text;
-        if (text) {suggestions.push(text);}
+        const text =
+          item?.searchSuggestionRenderer?.suggestion?.runs?.[0]?.text;
+        if (text) {
+          suggestions.push(text);
+        }
       });
     }
 
-    return { suggestions, quickResults: [] };
+    return {suggestions, quickResults: []};
   } catch (error) {
-    return { suggestions: [], quickResults: [] };
+    return {suggestions: [], quickResults: []};
   }
 }
 
 async function getYoutubeSuggestions(query) {
   try {
-    const url = `https://suggestqueries.google.com/complete/search?client=firefox&ds=yt&q=${encodeURIComponent(query)}`;
+    const url = `https://suggestqueries.google.com/complete/search?client=firefox&ds=yt&q=${encodeURIComponent(
+      query,
+    )}`;
     const suggestionsResponse = await axios.get(url);
     const suggestions = suggestionsResponse.data?.[1] || [];
-    return { suggestions, quickResults: [] };
+    return {suggestions, quickResults: []};
   } catch (error) {
-    return { suggestions: [], quickResults: [] };
+    return {suggestions: [], quickResults: []};
   }
 }
 
 const suggestionCache = new Map();
 
 async function getSearchSuggestions(query) {
-  if (!query) {return { suggestions: [], quickResults: [] };}
+  if (!query) {
+    return {suggestions: [], quickResults: []};
+  }
 
   const cacheKey = query.trim().toLowerCase();
   if (suggestionCache.has(cacheKey)) {
@@ -92,10 +120,13 @@ async function getSearchSuggestions(query) {
 
   try {
     // Set a timeout for individual promises to ensure slow APIs don't hold up the results
-    const withTimeout = (promise, ms) => Promise.race([
-      promise,
-      new Promise(resolve => setTimeout(() => resolve({ suggestions: [], quickResults: [] }), ms)),
-    ]);
+    const withTimeout = (promise, ms) =>
+      Promise.race([
+        promise,
+        new Promise(resolve =>
+          setTimeout(() => resolve({suggestions: [], quickResults: []}), ms),
+        ),
+      ]);
 
     const results = await Promise.allSettled([
       withTimeout(getSaavnSuggestions(query), 1800),
@@ -103,14 +134,27 @@ async function getSearchSuggestions(query) {
       withTimeout(getYoutubeSuggestions(query), 1800),
     ]);
 
-    const saavn = results[0].status === 'fulfilled' ? results[0].value : { suggestions: [], quickResults: [] };
-    const ytMusic = results[1].status === 'fulfilled' ? results[1].value : { suggestions: [], quickResults: [] };
-    const youtube = results[2].status === 'fulfilled' ? results[2].value : { suggestions: [], quickResults: [] };
+    const saavn =
+      results[0].status === 'fulfilled'
+        ? results[0].value
+        : {suggestions: [], quickResults: []};
+    const ytMusic =
+      results[1].status === 'fulfilled'
+        ? results[1].value
+        : {suggestions: [], quickResults: []};
+    const youtube =
+      results[2].status === 'fulfilled'
+        ? results[2].value
+        : {suggestions: [], quickResults: []};
 
     // Combine suggestions with a prioritized approach
     const combinedSuggestions = [];
     const maxSuggestions = 40;
-    const suggestionSources = [ytMusic.suggestions, youtube.suggestions, saavn.suggestions];
+    const suggestionSources = [
+      ytMusic.suggestions,
+      youtube.suggestions,
+      saavn.suggestions,
+    ];
 
     let j = 0;
     while (combinedSuggestions.length < maxSuggestions) {
@@ -122,9 +166,13 @@ async function getSearchSuggestions(query) {
           }
           addedInThisRound = true;
         }
-        if (combinedSuggestions.length >= maxSuggestions) {break;}
+        if (combinedSuggestions.length >= maxSuggestions) {
+          break;
+        }
       }
-      if (!addedInThisRound) {break;}
+      if (!addedInThisRound) {
+        break;
+      }
       j++;
     }
 
@@ -142,25 +190,29 @@ async function getSearchSuggestions(query) {
 
     return finalResult;
   } catch (error) {
-    return { suggestions: [], quickResults: [] };
+    return {suggestions: [], quickResults: []};
   }
 }
 
 async function getSearchSongData(searchText, page, limit) {
-  const baseUrl = "https://www.jiosaavn.com/api.php";
+  const baseUrl = 'https://www.jiosaavn.com/api.php';
   const defaultParams = {
-    ctx: "wap6dot0",
+    ctx: 'wap6dot0',
     api_version: 4,
-    _format: "json",
+    _format: 'json',
     _marker: 0,
   };
   const sources = {
-    song_search: "__call=search.getResults&n=" + limit,
+    song_search: '__call=search.getResults&n=' + limit,
   };
 
   const urls = [
     `https://jiosavan-api-with-playlist.vercel.app/api/search/songs?query=${searchText}&page=${page}&limit=${limit}`,
-    `${baseUrl}?${Object.keys(defaultParams).map(k => `${k}=${defaultParams[k]}`).join('&')}&${sources.song_search}&q=${encodeURIComponent(searchText)}&p=${page}`,
+    `${baseUrl}?${Object.keys(defaultParams)
+      .map(k => `${k}=${defaultParams[k]}`)
+      .join('&')}&${sources.song_search}&q=${encodeURIComponent(
+      searchText,
+    )}&p=${page}`,
   ];
 
   for (let url of urls) {
@@ -184,87 +236,125 @@ async function getYTSearchSongData(searchText, page, limit) {
   // STRATEGY 1: Try YouTube Music InnerTube API (actual YT Music content)
   // This is the API used by music.youtube.com - returns actual music, not random videos
   try {
-    const response = await axios.post('https://music.youtube.com/youtubei/v1/search?key=AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30', {
-      context: { client: { clientName: 'WEB_REMIX', clientVersion: '1.20241204.01.00', hl: 'en', gl: 'US' } },
-      query: searchText,
-      params: 'EgWKAQIIAWoKEAMQBBAJEAoQBQ==', // Filter for songs
-    }, {
-      headers: {
-        'Content-Type': 'application/json',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-        'Origin': 'https://music.youtube.com',
-        'Referer': 'https://music.youtube.com/search',
+    const response = await axios.post(
+      'https://music.youtube.com/youtubei/v1/search?key=AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30',
+      {
+        context: {
+          client: {
+            clientName: 'WEB_REMIX',
+            clientVersion: '1.20241204.01.00',
+            hl: 'en',
+            gl: 'US',
+          },
+        },
+        query: searchText,
+        params: 'EgWKAQIIAWoKEAMQBBAJEAoQBQ==', // Filter for songs
       },
-    });
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+          Origin: 'https://music.youtube.com',
+          Referer: 'https://music.youtube.com/search',
+        },
+      },
+    );
 
     if (response.status === 200) {
       const data = response.data;
 
       // Parse YouTube Music response structure
-      const contents = data?.contents?.tabbedSearchResultsRenderer?.tabs?.[0]?.tabRenderer?.content?.sectionListRenderer?.contents;
+      const contents =
+        data?.contents?.tabbedSearchResultsRenderer?.tabs?.[0]?.tabRenderer
+          ?.content?.sectionListRenderer?.contents;
 
       if (contents && contents.length > 0) {
         const songs = [];
 
         for (const section of contents) {
           const musicShelf = section.musicShelfRenderer;
-          if (!musicShelf || !musicShelf.contents) { continue; }
+          if (!musicShelf || !musicShelf.contents) {
+            continue;
+          }
 
           for (const item of musicShelf.contents) {
             const musicItem = item.musicResponsiveListItemRenderer;
-            if (!musicItem) { continue; }
+            if (!musicItem) {
+              continue;
+            }
 
             // Extract video ID
-            const videoId = musicItem.playlistItemData?.videoId ||
-              musicItem.overlay?.musicItemThumbnailOverlayRenderer?.content?.musicPlayButtonRenderer?.playNavigationEndpoint?.watchEndpoint?.videoId;
+            const videoId =
+              musicItem.playlistItemData?.videoId ||
+              musicItem.overlay?.musicItemThumbnailOverlayRenderer?.content
+                ?.musicPlayButtonRenderer?.playNavigationEndpoint?.watchEndpoint
+                ?.videoId;
 
-            if (!videoId) { continue; }
+            if (!videoId) {
+              continue;
+            }
 
             // Extract title
-            const title = musicItem.flexColumns?.[0]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]?.text || 'Unknown';
+            const title =
+              musicItem.flexColumns?.[0]
+                ?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]
+                ?.text || 'Unknown';
 
             // Extract artist - collect all artists from runs until separator
-            const artistRuns = musicItem.flexColumns?.[1]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs;
+            const artistRuns =
+              musicItem.flexColumns?.[1]
+                ?.musicResponsiveListItemFlexColumnRenderer?.text?.runs;
             let artists = [];
             let artistString = '';
             if (artistRuns && artistRuns.length > 0) {
               for (const run of artistRuns) {
                 const text = run.text || '';
                 // Stop at separators like "•" or other non-artist text
-                if (text.includes('•') || text.includes('·') || text.includes('•') || text.trim() === '') {
+                if (
+                  text.includes('•') ||
+                  text.includes('·') ||
+                  text.includes('•') ||
+                  text.trim() === ''
+                ) {
                   break;
                 }
                 if (text.trim()) {
-                  artists.push({ name: text.trim() });
+                  artists.push({name: text.trim()});
                   artistString += (artistString ? ', ' : '') + text.trim();
                 }
               }
               // Fallback to first run if no artists found
               if (artists.length === 0) {
-                artists = [{ name: artistRuns[0]?.text || 'Unknown' }];
+                artists = [{name: artistRuns[0]?.text || 'Unknown'}];
                 artistString = artistRuns[0]?.text || 'Unknown';
               }
             } else {
-              artists = [{ name: 'Unknown' }];
+              artists = [{name: 'Unknown'}];
               artistString = 'Unknown';
             }
 
             // Extract thumbnail - try multiple possible paths for robustness
             const thumbnails =
-              musicItem.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails ||
-              musicItem.thumbnailRenderer?.musicThumbnailRenderer?.thumbnail?.thumbnails ||
+              musicItem.thumbnail?.musicThumbnailRenderer?.thumbnail
+                ?.thumbnails ||
+              musicItem.thumbnailRenderer?.musicThumbnailRenderer?.thumbnail
+                ?.thumbnails ||
               musicItem.thumbnail?.thumbnail?.thumbnails ||
               musicItem.thumbnail?.thumbnails ||
               musicItem.thumbnailRenderer?.thumbnail?.thumbnails ||
-              musicItem.thumbnails || [];
+              musicItem.thumbnails ||
+              [];
 
-            let thumbnail = thumbnails[thumbnails.length - 1]?.url || thumbnails[0]?.url;
+            let thumbnail =
+              thumbnails[thumbnails.length - 1]?.url || thumbnails[0]?.url;
 
             // Handle missing thumbnails with a reliable construct
             if (!thumbnail && videoId) {
               thumbnail = `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
             } else if (!thumbnail) {
-              thumbnail = 'https://via.placeholder.com/544x544/cccccc/000000?text=No+Img';
+              thumbnail =
+                'https://via.placeholder.com/544x544/cccccc/000000?text=No+Img';
             }
 
             // Ensure protocol
@@ -277,37 +367,65 @@ async function getYTSearchSongData(searchText, page, limit) {
             thumbnail = YTArtworkUtils.upgradeYtimgQuality(thumbnail);
 
             // Extract duration
-            const durationText = musicItem.flexColumns?.[musicItem.flexColumns.length - 1]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]?.text;
+            const durationText =
+              musicItem.flexColumns?.[musicItem.flexColumns.length - 1]
+                ?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]
+                ?.text;
             const duration = parseDuration(durationText) || 0;
 
             // Detect language
-            const detectLanguage = (text) => {
-              if (!text) { return 'en'; }
-              if (/[\u0C00-\u0C7F]/.test(text)) { return 'telugu'; }
-              if (/[\u0900-\u097F]/.test(text)) { return 'hindi'; }
-              if (/[\u0B80-\u0BFF]/.test(text)) { return 'tamil'; }
-              if (/[\u0C80-\u0CFF]/.test(text)) { return 'kannada'; }
-              if (/[\u0D00-\u0D7F]/.test(text)) { return 'malayalam'; }
-              if (/[\u0980-\u09FF]/.test(text)) { return 'bengali'; }
-              if (/[\u0A00-\u0A7F]/.test(text)) { return 'punjabi'; }
-              if (/[\u0A80-\u0AFF]/.test(text)) { return 'gujarati'; }
+            const detectLanguage = text => {
+              if (!text) {
+                return 'en';
+              }
+              if (/[\u0C00-\u0C7F]/.test(text)) {
+                return 'telugu';
+              }
+              if (/[\u0900-\u097F]/.test(text)) {
+                return 'hindi';
+              }
+              if (/[\u0B80-\u0BFF]/.test(text)) {
+                return 'tamil';
+              }
+              if (/[\u0C80-\u0CFF]/.test(text)) {
+                return 'kannada';
+              }
+              if (/[\u0D00-\u0D7F]/.test(text)) {
+                return 'malayalam';
+              }
+              if (/[\u0980-\u09FF]/.test(text)) {
+                return 'bengali';
+              }
+              if (/[\u0A00-\u0A7F]/.test(text)) {
+                return 'punjabi';
+              }
+              if (/[\u0A80-\u0AFF]/.test(text)) {
+                return 'gujarati';
+              }
               return 'en';
             };
 
             const detectedLanguage = detectLanguage(title + ' ' + artistString);
 
             // Extract album info
-            const albumRun = musicItem.flexColumns?.[1]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.find(r => r.navigationEndpoint?.browseEndpoint?.browseId?.startsWith('MPREb_'));
+            const albumRun =
+              musicItem.flexColumns?.[1]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.find(
+                r =>
+                  r.navigationEndpoint?.browseEndpoint?.browseId?.startsWith(
+                    'MPREb_',
+                  ),
+              );
             const albumName = albumRun?.text || '';
-            const albumId = albumRun?.navigationEndpoint?.browseEndpoint?.browseId || '';
+            const albumId =
+              albumRun?.navigationEndpoint?.browseEndpoint?.browseId || '';
 
             songs.push({
               id: videoId,
               name: title,
               title: title,
-              image: [{ url: thumbnail }, { url: thumbnail }, { url: thumbnail }],
+              image: [{url: thumbnail}, {url: thumbnail}, {url: thumbnail}],
               artist: artistString,
-              artists: { primary: artists },
+              artists: {primary: artists},
               album: {
                 name: albumName,
                 id: albumId,
@@ -319,14 +437,18 @@ async function getYTSearchSongData(searchText, page, limit) {
               source: 'ytmusic',
             });
 
-            if (songs.length >= limit) { break; }
+            if (songs.length >= limit) {
+              break;
+            }
           }
 
-          if (songs.length >= limit) { break; }
+          if (songs.length >= limit) {
+            break;
+          }
         }
 
         if (songs.length > 0) {
-          return { data: { results: songs } };
+          return {data: {results: songs}};
         }
       }
     }
@@ -336,68 +458,9 @@ async function getYTSearchSongData(searchText, page, limit) {
 
   // Fallback: If no results found with strict filter, try a broader search
   try {
-    const broadSearch = await axios.post('https://music.youtube.com/youtubei/v1/search?key=AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30', {
-      context: { client: { clientName: 'WEB_REMIX', clientVersion: '1.20241204.01.00', hl: 'en', gl: 'US' } },
-      query: searchText,
-    }, {
-      headers: {
-        'Content-Type': 'application/json',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-        'Origin': 'https://music.youtube.com',
-      },
-    });
-
-    if (broadSearch.status === 200) {
-        const data = broadSearch.data;
-        const songs = [];
-        const contents = data?.contents?.tabbedSearchResultsRenderer?.tabs?.[0]?.tabRenderer?.content?.sectionListRenderer?.contents || [];
-
-        for (const section of contents) {
-          const musicShelf = section.musicShelfRenderer;
-          if (musicShelf && musicShelf.contents) {
-            for (const item of musicShelf.contents) {
-              const musicItem = item.musicResponsiveListItemRenderer;
-              const videoId = musicItem?.playlistItemData?.videoId || musicItem?.overlay?.musicItemThumbnailOverlayRenderer?.content?.musicPlayButtonRenderer?.playNavigationEndpoint?.watchEndpoint?.videoId;
-              if (!videoId) {continue;}
-              const title = musicItem.flexColumns?.[0]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]?.text;
-              const artist = musicItem.flexColumns?.[1]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]?.text;
-              const thumbnail = musicItem.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails?.[0]?.url || `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
-
-              songs.push({
-                id: videoId,
-                name: title,
-                title: title,
-                image: [{ url: thumbnail }, { url: thumbnail }, { url: thumbnail }],
-                artist: artist || 'Unknown',
-                artists: { primary: [{name: artist || 'Unknown'}] },
-                url: videoId,
-                downloadUrl: videoId,
-                source: 'ytmusic',
-              });
-              if (songs.length >= limit) {break;}
-            }
-          }
-          if (songs.length >= limit) {break;}
-        }
-        if (songs.length > 0) {return { data: { results: songs } };}
-    }
-  } catch (e) {}
-
-  return { data: { results: [] } };
-}
-
-async function getYTSearchAlbumData(searchText, page, limit) {
-  // STRATEGY 1: Try YouTube Music InnerTube API for actual albums
-  try {
-    const innerTubeResponse = await fetch('https://music.youtube.com/youtubei/v1/search?key=AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-        'Origin': 'https://music.youtube.com',
-        'Referer': 'https://music.youtube.com/search',
-      },
-      body: JSON.stringify({
+    const broadSearch = await axios.post(
+      'https://music.youtube.com/youtubei/v1/search?key=AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30',
+      {
         context: {
           client: {
             clientName: 'WEB_REMIX',
@@ -407,39 +470,159 @@ async function getYTSearchAlbumData(searchText, page, limit) {
           },
         },
         query: searchText,
-        params: 'EgWKAQIYAWoKEAMQBBAJEAoQBQ==', // Filter for albums
-      }),
-      timeout: 15000,
-    });
+      },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+          Origin: 'https://music.youtube.com',
+        },
+      },
+    );
+
+    if (broadSearch.status === 200) {
+      const data = broadSearch.data;
+      const songs = [];
+      const contents =
+        data?.contents?.tabbedSearchResultsRenderer?.tabs?.[0]?.tabRenderer
+          ?.content?.sectionListRenderer?.contents || [];
+
+      for (const section of contents) {
+        const musicShelf = section.musicShelfRenderer;
+        if (musicShelf && musicShelf.contents) {
+          for (const item of musicShelf.contents) {
+            const musicItem = item.musicResponsiveListItemRenderer;
+            const videoId =
+              musicItem?.playlistItemData?.videoId ||
+              musicItem?.overlay?.musicItemThumbnailOverlayRenderer?.content
+                ?.musicPlayButtonRenderer?.playNavigationEndpoint?.watchEndpoint
+                ?.videoId;
+            if (!videoId) {
+              continue;
+            }
+            const title =
+              musicItem.flexColumns?.[0]
+                ?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]
+                ?.text;
+            const artist =
+              musicItem.flexColumns?.[1]
+                ?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]
+                ?.text;
+            const thumbnail =
+              musicItem.thumbnail?.musicThumbnailRenderer?.thumbnail
+                ?.thumbnails?.[0]?.url ||
+              `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
+
+            songs.push({
+              id: videoId,
+              name: title,
+              title: title,
+              image: [{url: thumbnail}, {url: thumbnail}, {url: thumbnail}],
+              artist: artist || 'Unknown',
+              artists: {primary: [{name: artist || 'Unknown'}]},
+              url: videoId,
+              downloadUrl: videoId,
+              source: 'ytmusic',
+            });
+            if (songs.length >= limit) {
+              break;
+            }
+          }
+        }
+        if (songs.length >= limit) {
+          break;
+        }
+      }
+      if (songs.length > 0) {
+        return {data: {results: songs}};
+      }
+    }
+  } catch (e) {}
+
+  return {data: {results: []}};
+}
+
+async function getYTSearchAlbumData(searchText, page, limit) {
+  // STRATEGY 1: Try YouTube Music InnerTube API for actual albums
+  try {
+    const innerTubeResponse = await fetch(
+      'https://music.youtube.com/youtubei/v1/search?key=AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+          Origin: 'https://music.youtube.com',
+          Referer: 'https://music.youtube.com/search',
+        },
+        body: JSON.stringify({
+          context: {
+            client: {
+              clientName: 'WEB_REMIX',
+              clientVersion: '1.20241204.01.00',
+              hl: 'en',
+              gl: 'US',
+            },
+          },
+          query: searchText,
+          params: 'EgWKAQIYAWoKEAMQBBAJEAoQBQ==', // Filter for albums
+        }),
+        timeout: 15000,
+      },
+    );
 
     if (innerTubeResponse.ok) {
       const data = await innerTubeResponse.json();
-      const contents = data?.contents?.tabbedSearchResultsRenderer?.tabs?.[0]?.tabRenderer?.content?.sectionListRenderer?.contents;
+      const contents =
+        data?.contents?.tabbedSearchResultsRenderer?.tabs?.[0]?.tabRenderer
+          ?.content?.sectionListRenderer?.contents;
 
       if (contents && contents.length > 0) {
         const albums = [];
 
         for (const section of contents) {
           const musicShelf = section.musicShelfRenderer;
-          if (!musicShelf || !musicShelf.contents) { continue; }
+          if (!musicShelf || !musicShelf.contents) {
+            continue;
+          }
 
           for (const item of musicShelf.contents) {
             const musicItem = item.musicResponsiveListItemRenderer;
-            if (!musicItem) { continue; }
+            if (!musicItem) {
+              continue;
+            }
 
             // Extract browse ID for album
-            const browseId = musicItem.navigationEndpoint?.browseEndpoint?.browseId;
-            if (!browseId) { continue; }
+            const browseId =
+              musicItem.navigationEndpoint?.browseEndpoint?.browseId;
+            if (!browseId) {
+              continue;
+            }
 
             // Extract title
-            const title = musicItem.flexColumns?.[0]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]?.text || 'Unknown';
+            const title =
+              musicItem.flexColumns?.[0]
+                ?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]
+                ?.text || 'Unknown';
 
             // Extract artist
-            const artistRuns = musicItem.flexColumns?.[1]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs;
-            const artist = artistRuns?.filter(r => r.text !== ' • ').map(r => r.text).join('') || 'Unknown';
+            const artistRuns =
+              musicItem.flexColumns?.[1]
+                ?.musicResponsiveListItemFlexColumnRenderer?.text?.runs;
+            const artist =
+              artistRuns
+                ?.filter(r => r.text !== ' • ')
+                .map(r => r.text)
+                .join('') || 'Unknown';
 
             // Extract thumbnail
-            let thumbnail = musicItem.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails?.slice(-1)[0]?.url || 'https://via.placeholder.com/544x544/cccccc/000000?text=No+Img';
+            let thumbnail =
+              musicItem.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails?.slice(
+                -1,
+              )[0]?.url ||
+              'https://via.placeholder.com/544x544/cccccc/000000?text=No+Img';
 
             // Upgrade thumbnail quality using YTArtworkUtils
             thumbnail = YTArtworkUtils.upgradeArtworkQuality(thumbnail);
@@ -448,27 +631,30 @@ async function getYTSearchAlbumData(searchText, page, limit) {
             albums.push({
               id: browseId,
               name: title,
-              image: [{ url: thumbnail }, { url: thumbnail }, { url: thumbnail }],
-              artists: { primary: [{ name: artist }] },
+              image: [{url: thumbnail}, {url: thumbnail}, {url: thumbnail}],
+              artists: {primary: [{name: artist}]},
               source: 'ytmusic',
             });
 
-            if (albums.length >= limit) { break; }
+            if (albums.length >= limit) {
+              break;
+            }
           }
 
-          if (albums.length >= limit) { break; }
+          if (albums.length >= limit) {
+            break;
+          }
         }
 
         if (albums.length > 0) {
-          return { data: { results: albums } };
+          return {data: {results: albums}};
         }
       }
     }
-  } catch (error) {
-  }
+  } catch (error) {}
 
   // No fallback to Invidious - use InnerTube only
-  return { data: { results: [] } };
+  return {data: {results: []}};
 }
 
 async function getYTSearchPlaylistData(searchText, page, limit) {
@@ -479,32 +665,38 @@ async function getYTSearchPlaylistData(searchText, page, limit) {
   //   - songCount (optional, used to detect Saavn shape)
   // Also playlist browseId is usually like "VL...". Our getPlaylistData routes VL/RDAMPL/OLAK/PL to YTMusic browse.
   try {
-    const innerTubeResponse = await fetch('https://music.youtube.com/youtubei/v1/search?key=AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-        'Origin': 'https://music.youtube.com',
-        'Referer': 'https://music.youtube.com/search',
-      },
-      body: JSON.stringify({
-        context: {
-          client: {
-            clientName: 'WEB_REMIX',
-            clientVersion: '1.20241204.01.00',
-            hl: 'en',
-            gl: 'US',
-          },
+    const innerTubeResponse = await fetch(
+      'https://music.youtube.com/youtubei/v1/search?key=AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+          Origin: 'https://music.youtube.com',
+          Referer: 'https://music.youtube.com/search',
         },
-        query: searchText,
-        params: 'EgWKAQIoAWoKEAMQBBAJEAoQBQ==', // Filter for playlists
-      }),
-      timeout: 15000,
-    });
+        body: JSON.stringify({
+          context: {
+            client: {
+              clientName: 'WEB_REMIX',
+              clientVersion: '1.20241204.01.00',
+              hl: 'en',
+              gl: 'US',
+            },
+          },
+          query: searchText,
+          params: 'EgWKAQIoAWoKEAMQBBAJEAoQBQ==', // Filter for playlists
+        }),
+        timeout: 15000,
+      },
+    );
 
     if (innerTubeResponse.ok) {
       const data = await innerTubeResponse.json();
-      const contents = data?.contents?.tabbedSearchResultsRenderer?.tabs?.[0]?.tabRenderer?.content?.sectionListRenderer?.contents;
+      const contents =
+        data?.contents?.tabbedSearchResultsRenderer?.tabs?.[0]?.tabRenderer
+          ?.content?.sectionListRenderer?.contents;
 
       if (contents && contents.length > 0) {
         const playlists = [];
@@ -522,24 +714,37 @@ async function getYTSearchPlaylistData(searchText, page, limit) {
             }
 
             // Extract browse ID for playlist
-            const browseId = musicItem.navigationEndpoint?.browseEndpoint?.browseId;
+            const browseId =
+              musicItem.navigationEndpoint?.browseEndpoint?.browseId;
             if (!browseId) {
               continue;
             }
 
             // Extract title
-            const title = musicItem.flexColumns?.[0]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]?.text || 'Unknown';
+            const title =
+              musicItem.flexColumns?.[0]
+                ?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]
+                ?.text || 'Unknown';
 
             // Extract song count (if present)
-            const metaRuns = musicItem.flexColumns?.[1]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs;
-            const metaText = Array.isArray(metaRuns) ? metaRuns.map(r => r.text).join('') : '';
+            const metaRuns =
+              musicItem.flexColumns?.[1]
+                ?.musicResponsiveListItemFlexColumnRenderer?.text?.runs;
+            const metaText = Array.isArray(metaRuns)
+              ? metaRuns.map(r => r.text).join('')
+              : '';
             const songCountMatch = metaText.match(/(\d+)\s*(song|songs)/i);
-            const songCount = songCountMatch ? parseInt(songCountMatch[1], 10) : undefined;
+            const songCount = songCountMatch
+              ? parseInt(songCountMatch[1], 10)
+              : undefined;
 
             // Extract thumbnail
             let thumbnail =
-              musicItem.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails?.slice(-1)[0]?.url ||
-              musicItem.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails?.[0]?.url ||
+              musicItem.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails?.slice(
+                -1,
+              )[0]?.url ||
+              musicItem.thumbnail?.musicThumbnailRenderer?.thumbnail
+                ?.thumbnails?.[0]?.url ||
               'https://via.placeholder.com/544x544/cccccc/000000?text=No+Img';
 
             if (thumbnail && thumbnail.startsWith('//')) {
@@ -552,9 +757,9 @@ async function getYTSearchPlaylistData(searchText, page, limit) {
 
             // Return in Saavn-compatible shape (so existing UI doesn't show empty)
             const imageArr = [
-              { quality: '50x50', link: thumbnail, url: thumbnail },
-              { quality: '150x150', link: thumbnail, url: thumbnail },
-              { quality: '500x500', link: thumbnail, url: thumbnail },
+              {quality: '50x50', link: thumbnail, url: thumbnail},
+              {quality: '150x150', link: thumbnail, url: thumbnail},
+              {quality: '500x500', link: thumbnail, url: thumbnail},
             ];
 
             playlists.push({
@@ -581,7 +786,7 @@ async function getYTSearchPlaylistData(searchText, page, limit) {
         }
 
         if (playlists.length > 0) {
-          return { data: { results: playlists } };
+          return {data: {results: playlists}};
         }
       }
     }
@@ -590,7 +795,7 @@ async function getYTSearchPlaylistData(searchText, page, limit) {
   }
 
   // No fallback to Invidious - use InnerTube only
-  return { data: { results: [] } };
+  return {data: {results: []}};
 }
 
 async function getLyricsSongData(id) {
@@ -619,166 +824,300 @@ async function getLyricsSongData(id) {
 // Global fetch lock for lyrics to prevent redundant/parallel requests
 const lyricsFetchLock = new Map();
 
-async function getYTLyricsSongData(artist, title, preferredLanguage, isYouTubeMusic = false, requestedSource = 'All') {
-  if (!artist || !title) {return { success: false, data: { lyrics: "Missing Info" } };}
+async function getYTLyricsSongData(
+  artist,
+  title,
+  preferredLanguage,
+  isYouTubeMusic = false,
+  requestedSource = 'All',
+) {
+  if (!artist || !title) {
+    return {success: false, data: {lyrics: 'Missing Info'}};
+  }
 
-  const persistentKey = `lyrics_${artist}_${title}_${requestedSource}_${preferredLanguage}`.toLowerCase().replace(/[^a-z0-9]/g, '_');
+  const persistentKey =
+    `lyrics_${artist}_${title}_${requestedSource}_${preferredLanguage}`
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, '_');
 
-  if (lyricsFetchLock.has(persistentKey)) {return lyricsFetchLock.get(persistentKey);}
+  if (lyricsFetchLock.has(persistentKey)) {
+    return lyricsFetchLock.get(persistentKey);
+  }
 
   const fetchPromise = (async () => {
     try {
-      return await getCachedData(persistentKey, async () => {
-        const apis = [
-          {
-            name: 'LRCLib',
-            url: `https://lrclib.net/api/get?artist_name=${encodeURIComponent(artist)}&track_name=${encodeURIComponent(title)}`,
-            timeout: 5000,
-            transform: async (data) => {
-              if (data.syncedLyrics) {
-                let timed_lyrics = [];
-                if (Array.isArray(data.syncedLyrics)) {
-                  timed_lyrics = data.syncedLyrics.map((line, index) => ({
-                    start_time: parseInt(line.startTimeMs, 10),
-                    end_time: parseInt(line.endTimeMs, 10),
-                    text: line.text,
-                    id: `line_${index}`,
-                  }));
-                } else if (typeof data.syncedLyrics === 'string') {
-                  const lines = data.syncedLyrics.split('\n');
-                  for (const line of lines) {
-                    const match = line.match(/\[(\d+):(\d+\.\d+)\]\s*(.*)/);
-                    if (match) {
-                      const minutes = parseInt(match[1], 10);
-                      const seconds = parseFloat(match[2]);
-                      const start_time = (minutes * 60 + seconds) * 1000;
-                      const text = match[3].trim();
-                      if (text) {timed_lyrics.push({ start_time, text });}
+      return await getCachedData(
+        persistentKey,
+        async () => {
+          const apis = [
+            {
+              name: 'LRCLib',
+              url: `https://lrclib.net/api/get?artist_name=${encodeURIComponent(
+                artist,
+              )}&track_name=${encodeURIComponent(title)}`,
+              timeout: 5000,
+              transform: async data => {
+                if (data.syncedLyrics) {
+                  let timed_lyrics = [];
+                  if (Array.isArray(data.syncedLyrics)) {
+                    timed_lyrics = data.syncedLyrics.map((line, index) => ({
+                      start_time: parseInt(line.startTimeMs, 10),
+                      end_time: parseInt(line.endTimeMs, 10),
+                      text: line.text,
+                      id: `line_${index}`,
+                    }));
+                  } else if (typeof data.syncedLyrics === 'string') {
+                    const lines = data.syncedLyrics.split('\n');
+                    for (const line of lines) {
+                      const match = line.match(/\[(\d+):(\d+\.\d+)\]\s*(.*)/);
+                      if (match) {
+                        const minutes = parseInt(match[1], 10);
+                        const seconds = parseFloat(match[2]);
+                        const start_time = (minutes * 60 + seconds) * 1000;
+                        const text = match[3].trim();
+                        if (text) {
+                          timed_lyrics.push({start_time, text});
+                        }
+                      }
+                    }
+                    timed_lyrics = timed_lyrics.map((line, index) => ({
+                      ...line,
+                      end_time: timed_lyrics[index + 1]
+                        ? timed_lyrics[index + 1].start_time
+                        : line.start_time + 5000,
+                      id: `line_${index}`,
+                    }));
+                  }
+                  return {
+                    success: true,
+                    data: {
+                      lyrics: data.plainLyrics || 'Synced Lyrics Available',
+                      timed_lyrics,
+                    },
+                  };
+                }
+                return null;
+              },
+            },
+            {
+              name: 'BetterLyrics',
+              url: `https://lyrics-api-go-better-lyrics-api-pr-12.up.railway.app/getLyrics?artist=${encodeURIComponent(
+                artist,
+              )}&song=${encodeURIComponent(title)}`,
+              timeout: 5000,
+              transform: async data => {
+                if (data.ttml) {
+                  const plainLyrics = data.ttml.replace(/<[^>]*>/g, '').trim();
+                  const timed_lyrics = [];
+                  const spanRegex =
+                    /<span begin="([^"]*)" end="([^"]*)">([^<]*)<\/span>/g;
+                  let match;
+                  const words = [];
+                  while ((match = spanRegex.exec(data.ttml)) !== null) {
+                    words.push({
+                      start_time: parseFloat(match[1]) * 1000,
+                      text: match[3].trim(),
+                    });
+                  }
+                  if (words.length > 0) {
+                    let currentLine = {
+                      start_time: words[0].start_time,
+                      text: words[0].text,
+                    };
+                    for (let i = 1; i < words.length; i++) {
+                      const word = words[i];
+                      if (
+                        word.start_time -
+                          (currentLine.start_time +
+                            currentLine.text.length * 100) >
+                        2000
+                      ) {
+                        timed_lyrics.push({
+                          ...currentLine,
+                          id: `line_${timed_lyrics.length}`,
+                        });
+                        currentLine = {
+                          start_time: word.start_time,
+                          text: word.text,
+                        };
+                      } else {
+                        currentLine.text += ' ' + word.text;
+                      }
+                    }
+                    timed_lyrics.push({
+                      ...currentLine,
+                      id: `line_${timed_lyrics.length}`,
+                    });
+                  }
+                  return {
+                    success: true,
+                    data: {lyrics: plainLyrics, timed_lyrics},
+                  };
+                }
+                return null;
+              },
+            },
+            {
+              name: 'RenderAPI',
+              url: `https://test-0k.onrender.com/lyrics/?artist=${encodeURIComponent(
+                artist,
+              )}&song=${encodeURIComponent(
+                title,
+              )}&tamps=true&pass=false&sequence=1,2,3,4,5,6`,
+              timeout: 5000,
+              transform: async data => {
+                if (data.data?.lyrics) {
+                  return {
+                    success: true,
+                    data: {
+                      lyrics: data.data.lyrics,
+                      timed_lyrics: data.data.timed_lyrics,
+                    },
+                  };
+                }
+                return null;
+              },
+            },
+            {
+              name: 'RenderAPI_Alt',
+              url: `https://test-0k.onrender.com/lyrics/?artist=${encodeURIComponent(
+                artist,
+              )}&song=${encodeURIComponent(
+                title,
+              )}&tamps=true&pass=false&sequence=2,4,6,1,3,5`,
+              timeout: 5000,
+              transform: async data => {
+                if (data.data?.lyrics) {
+                  return {
+                    success: true,
+                    data: {
+                      lyrics: data.data.lyrics,
+                      timed_lyrics: data.data.timed_lyrics,
+                    },
+                  };
+                }
+                return null;
+              },
+            },
+            {
+              name: 'AutoEngine',
+              url: `https://automatic-engine-nc2j.onrender.com/lyrics/?artist=${encodeURIComponent(
+                artist,
+              )}&song=${encodeURIComponent(title)}&tamps=true&pass=false`,
+              timeout: 5000,
+              transform: async data => {
+                if (data.data?.lyrics) {
+                  return {
+                    success: true,
+                    data: {
+                      lyrics: data.data.lyrics,
+                      timed_lyrics: data.data.timed_lyrics,
+                    },
+                  };
+                }
+                return null;
+              },
+            },
+            {
+              name: 'OVH',
+              url: `https://api.lyrics.ovh/v1/${encodeURIComponent(
+                artist,
+              )}/${encodeURIComponent(title)}`,
+              timeout: 4000,
+              transform: async data =>
+                data.lyrics
+                  ? {success: true, data: {lyrics: data.lyrics}}
+                  : null,
+            },
+            {
+              name: 'Musixmatch',
+              url: `https://api.musixmatch.com/ws/1.1/matcher.lyrics.get?q_artist=${encodeURIComponent(
+                artist,
+              )}&q_track=${encodeURIComponent(
+                title,
+              )}&apikey=2d782bc7a52a41ba2fc1ef05b9cf40d7`,
+              timeout: 5000,
+              transform: async data => {
+                if (data?.message?.body?.lyrics?.lyrics_body) {
+                  return {
+                    success: true,
+                    data: {lyrics: data.message.body.lyrics.lyrics_body},
+                  };
+                }
+                return null;
+              },
+            },
+            {
+              name: 'JioSaavn',
+              url: null,
+              transform: async () => {
+                try {
+                  const results = await axios.get(
+                    `https://www.jiosaavn.com/api.php?__call=autocomplete.get&_format=json&_marker=0&ctx=wap6dot0&api_version=4&query=${encodeURIComponent(
+                      title,
+                    )}`,
+                  );
+                  const song = results.data?.songs?.data?.[0];
+                  if (song?.id) {
+                    const lyricsData = await axios.get(
+                      `https://www.jiosaavn.com/api.php?__call=lyrics.getLyrics&ctx=wap6dot0&api_version=4&_format=json&_marker=0&id=${song.id}`,
+                    );
+                    if (lyricsData.data?.lyrics) {
+                      return {
+                        success: true,
+                        data: {lyrics: lyricsData.data.lyrics},
+                      };
                     }
                   }
-                  timed_lyrics = timed_lyrics.map((line, index) => ({
-                    ...line,
-                    end_time: timed_lyrics[index + 1] ? timed_lyrics[index + 1].start_time : line.start_time + 5000,
-                    id: `line_${index}`,
-                  }));
-                }
-                return { success: true, data: { lyrics: data.plainLyrics || "Synced Lyrics Available", timed_lyrics } };
+                } catch (e) {}
+                return null;
+              },
+            },
+          ];
+
+          const filteredApis =
+            requestedSource === 'All'
+              ? apis
+              : apis.filter(api =>
+                  requestedSource === 'RenderAPI'
+                    ? api.name.startsWith('RenderAPI')
+                    : api.name === requestedSource,
+                );
+
+          for (const api of filteredApis) {
+            try {
+              const response = await axios.get(api.url, {timeout: api.timeout});
+              const result = await api.transform(response.data);
+              if (result) {
+                return result;
               }
-              return null;
-            },
-          },
-          {
-            name: 'BetterLyrics',
-            url: `https://lyrics-api-go-better-lyrics-api-pr-12.up.railway.app/getLyrics?artist=${encodeURIComponent(artist)}&song=${encodeURIComponent(title)}`,
-            timeout: 5000,
-            transform: async (data) => {
-              if (data.ttml) {
-                const plainLyrics = data.ttml.replace(/<[^>]*>/g, '').trim();
-                const timed_lyrics = [];
-                const spanRegex = /<span begin="([^"]*)" end="([^"]*)">([^<]*)<\/span>/g;
-                let match;
-                const words = [];
-                while ((match = spanRegex.exec(data.ttml)) !== null) {
-                  words.push({ start_time: parseFloat(match[1]) * 1000, text: match[3].trim() });
-                }
-                if (words.length > 0) {
-                  let currentLine = { start_time: words[0].start_time, text: words[0].text };
-                  for (let i = 1; i < words.length; i++) {
-                    const word = words[i];
-                    if (word.start_time - (currentLine.start_time + currentLine.text.length * 100) > 2000) {
-                      timed_lyrics.push({ ...currentLine, id: `line_${timed_lyrics.length}` });
-                      currentLine = { start_time: word.start_time, text: word.text };
-                    } else {currentLine.text += ' ' + word.text;}
-                  }
-                  timed_lyrics.push({ ...currentLine, id: `line_${timed_lyrics.length}` });
-                }
-                return { success: true, data: { lyrics: plainLyrics, timed_lyrics } };
-              }
-              return null;
-            },
-          },
-          {
-            name: 'RenderAPI',
-            url: `https://test-0k.onrender.com/lyrics/?artist=${encodeURIComponent(artist)}&song=${encodeURIComponent(title)}&tamps=true&pass=false&sequence=1,2,3,4,5,6`,
-            timeout: 5000,
-            transform: async (data) => {
-              if (data.data?.lyrics) {return { success: true, data: { lyrics: data.data.lyrics, timed_lyrics: data.data.timed_lyrics } };}
-              return null;
-            },
-          },
-          {
-            name: 'RenderAPI_Alt',
-            url: `https://test-0k.onrender.com/lyrics/?artist=${encodeURIComponent(artist)}&song=${encodeURIComponent(title)}&tamps=true&pass=false&sequence=2,4,6,1,3,5`,
-            timeout: 5000,
-            transform: async (data) => {
-              if (data.data?.lyrics) {return { success: true, data: { lyrics: data.data.lyrics, timed_lyrics: data.data.timed_lyrics } };}
-              return null;
-            },
-          },
-          {
-            name: 'AutoEngine',
-            url: `https://automatic-engine-nc2j.onrender.com/lyrics/?artist=${encodeURIComponent(artist)}&song=${encodeURIComponent(title)}&tamps=true&pass=false`,
-            timeout: 5000,
-            transform: async (data) => {
-              if (data.data?.lyrics) {return { success: true, data: { lyrics: data.data.lyrics, timed_lyrics: data.data.timed_lyrics } };}
-              return null;
-            },
-          },
-          {
-            name: 'OVH',
-            url: `https://api.lyrics.ovh/v1/${encodeURIComponent(artist)}/${encodeURIComponent(title)}`,
-            timeout: 4000,
-            transform: async (data) => data.lyrics ? { success: true, data: { lyrics: data.lyrics } } : null,
-          },
-          {
-            name: 'Musixmatch',
-            url: `https://api.musixmatch.com/ws/1.1/matcher.lyrics.get?q_artist=${encodeURIComponent(artist)}&q_track=${encodeURIComponent(title)}&apikey=2d782bc7a52a41ba2fc1ef05b9cf40d7`,
-            timeout: 5000,
-            transform: async (data) => {
-              if (data?.message?.body?.lyrics?.lyrics_body) {
-                return { success: true, data: { lyrics: data.message.body.lyrics.lyrics_body } };
-              }
-              return null;
-            },
-          },
-          {
-            name: 'JioSaavn',
-            url: null,
-            transform: async () => {
-              try {
-                const results = await axios.get(`https://www.jiosaavn.com/api.php?__call=autocomplete.get&_format=json&_marker=0&ctx=wap6dot0&api_version=4&query=${encodeURIComponent(title)}`);
-                const song = results.data?.songs?.data?.[0];
-                if (song?.id) {
-                  const lyricsData = await axios.get(`https://www.jiosaavn.com/api.php?__call=lyrics.getLyrics&ctx=wap6dot0&api_version=4&_format=json&_marker=0&id=${song.id}`);
-                  if (lyricsData.data?.lyrics) {return { success: true, data: { lyrics: lyricsData.data.lyrics } };}
-                }
-              } catch (e) {}
-              return null;
-            },
-          },
-        ];
+            } catch (e) {
+              continue;
+            }
+          }
 
-        const filteredApis = requestedSource === 'All'
-          ? apis
-          : apis.filter(api => requestedSource === 'RenderAPI' ? api.name.startsWith('RenderAPI') : api.name === requestedSource);
+          if (
+            preferredLanguage &&
+            !['en', 'english'].includes(preferredLanguage.toLowerCase())
+          ) {
+            const fallback = await getYTLyricsSongData(
+              artist,
+              title,
+              'en',
+              isYouTubeMusic,
+              requestedSource,
+            );
+            if (fallback?.success) {
+              return fallback;
+            }
+          }
 
-        for (const api of filteredApis) {
-          try {
-            const response = await axios.get(api.url, { timeout: api.timeout });
-            const result = await api.transform(response.data);
-            if (result) {return result;}
-          } catch (e) { continue; }
-        }
-
-        if (preferredLanguage && !['en', 'english'].includes(preferredLanguage.toLowerCase())) {
-          const fallback = await getYTLyricsSongData(artist, title, 'en', isYouTubeMusic, requestedSource);
-          if (fallback?.success) {return fallback;}
-        }
-
-        return { success: false, data: { lyrics: "No Lyrics Found" } };
-      }, { type: 'lyrics', expiration: 60 * 24 * 7 });
+          return {success: false, data: {lyrics: 'No Lyrics Found'}};
+        },
+        {type: 'lyrics', expiration: 60 * 24 * 7},
+      );
     } catch (err) {
-      return { success: false, data: { lyrics: "No Lyrics Found" } };
+      return {success: false, data: {lyrics: 'No Lyrics Found'}};
     } finally {
       lyricsFetchLock.delete(persistentKey);
     }
@@ -791,23 +1130,37 @@ async function getYTLyricsSongData(artist, title, preferredLanguage, isYouTubeMu
 async function getYTSearchVideoData(searchText, page, limit) {
   // Use YouTube InnerTube API (primary)
   try {
-    const response = await axios.post('https://www.youtube.com/youtubei/v1/search?key=AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8', {
-      context: { client: { clientName: 'WEB', clientVersion: '2.20241204.01.00', hl: 'en', gl: 'US' } },
-      query: searchText,
-    }, {
-      headers: {
-        'Content-Type': 'application/json',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-        'Origin': 'https://www.youtube.com',
-        'Referer': 'https://www.youtube.com/results',
+    const response = await axios.post(
+      'https://www.youtube.com/youtubei/v1/search?key=AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8',
+      {
+        context: {
+          client: {
+            clientName: 'WEB',
+            clientVersion: '2.20241204.01.00',
+            hl: 'en',
+            gl: 'US',
+          },
+        },
+        query: searchText,
       },
-    });
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+          Origin: 'https://www.youtube.com',
+          Referer: 'https://www.youtube.com/results',
+        },
+      },
+    );
 
     if (response.status === 200) {
       const data = response.data;
 
       // Parse YouTube InnerTube response structure
-      const contents = data?.contents?.twoColumnSearchResultsRenderer?.primaryContents?.sectionListRenderer?.contents;
+      const contents =
+        data?.contents?.twoColumnSearchResultsRenderer?.primaryContents
+          ?.sectionListRenderer?.contents;
 
       if (contents && contents.length > 0) {
         const videos = [];
@@ -833,13 +1186,16 @@ async function getYTSearchVideoData(searchText, page, limit) {
             const title = videoRenderer.title?.runs?.[0]?.text || 'Unknown';
 
             // Extract channel name
-            const channelName = videoRenderer.ownerText?.runs?.[0]?.text || 'Unknown';
+            const channelName =
+              videoRenderer.ownerText?.runs?.[0]?.text || 'Unknown';
 
             // Extract thumbnail - try multiple paths for robustness
-            const thumbnails = videoRenderer.thumbnail?.thumbnails ||
+            const thumbnails =
+              videoRenderer.thumbnail?.thumbnails ||
               videoRenderer.thumbnails ||
               [];
-            let thumbnail = thumbnails[thumbnails.length - 1]?.url ||
+            let thumbnail =
+              thumbnails[thumbnails.length - 1]?.url ||
               thumbnails[0]?.url ||
               `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
 
@@ -852,7 +1208,10 @@ async function getYTSearchVideoData(searchText, page, limit) {
             thumbnail = YTArtworkUtils.upgradeArtworkQuality(thumbnail);
             // Use hqdefault for YouTube search results instead of maxresdefault for better compatibility
             if (thumbnail.includes('i.ytimg.com/vi/')) {
-              thumbnail = thumbnail.replace(/(maxresdefault|sddefault|mqdefault)\.jpg/, 'hqdefault.jpg');
+              thumbnail = thumbnail.replace(
+                /(maxresdefault|sddefault|mqdefault)\.jpg/,
+                'hqdefault.jpg',
+              );
             }
 
             // Extract duration from lengthText
@@ -862,8 +1221,8 @@ async function getYTSearchVideoData(searchText, page, limit) {
             videos.push({
               id: videoId,
               name: title,
-              image: [{ url: thumbnail }, { url: thumbnail }, { url: thumbnail }],
-              artists: { primary: [{ name: channelName }] },
+              image: [{url: thumbnail}, {url: thumbnail}, {url: thumbnail}],
+              artists: {primary: [{name: channelName}]},
               downloadUrl: videoId,
               duration: duration,
               language: 'en',
@@ -881,7 +1240,7 @@ async function getYTSearchVideoData(searchText, page, limit) {
         }
 
         if (videos.length > 0) {
-          return { data: { results: videos } };
+          return {data: {results: videos}};
         }
       }
     }
@@ -893,20 +1252,22 @@ async function getYTSearchVideoData(searchText, page, limit) {
 }
 
 async function getSongData(id) {
-  const baseUrl = "https://www.jiosaavn.com/api.php";
+  const baseUrl = 'https://www.jiosaavn.com/api.php';
   const defaultParams = {
-    ctx: "wap6dot0",
+    ctx: 'wap6dot0',
     api_version: 4,
-    _format: "json",
+    _format: 'json',
     _marker: 0,
   };
   const sources = {
-    song_detail: "__call=webapi.get&type=song&includeMetaTags=0",
+    song_detail: '__call=webapi.get&type=song&includeMetaTags=0',
   };
 
   const urls = [
     `https://jiosavan-api-with-playlist.vercel.app/api/songs/${id}`,
-    `${baseUrl}?${Object.keys(defaultParams).map(k => `${k}=${defaultParams[k]}`).join('&')}&${sources.song_detail}&id=${id}`,
+    `${baseUrl}?${Object.keys(defaultParams)
+      .map(k => `${k}=${defaultParams[k]}`)
+      .join('&')}&${sources.song_detail}&id=${id}`,
   ];
 
   for (let url of urls) {
@@ -918,7 +1279,7 @@ async function getSongData(id) {
         headers: {},
       };
       const response = await axios.request(config);
-      return response.data
+      return response.data;
     } catch (error) {
       continue;
     }
@@ -926,7 +1287,14 @@ async function getSongData(id) {
   throw new Error('All song data API instances failed');
 }
 
-export { getSearchSongData, getLyricsSongData, getYTSearchSongData, getYTSearchVideoData, getSongData, getYTLyricsSongData, getYTSearchAlbumData, getYTSearchPlaylistData, getSearchSuggestions }
-
-
-
+export {
+  getSearchSongData,
+  getLyricsSongData,
+  getYTSearchSongData,
+  getYTSearchVideoData,
+  getSongData,
+  getYTLyricsSongData,
+  getYTSearchAlbumData,
+  getYTSearchPlaylistData,
+  getSearchSuggestions,
+};

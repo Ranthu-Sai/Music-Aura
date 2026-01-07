@@ -1,4 +1,4 @@
-import { ToastAndroid, Platform } from 'react-native';
+import {ToastAndroid, Platform} from 'react-native';
 
 /**
  * FileOperationErrorHandler - Utility for handling file operation errors
@@ -11,7 +11,6 @@ import { ToastAndroid, Platform } from 'react-native';
  */
 
 export class FileOperationErrorHandler {
-
   /**
    * Handle file operation errors with appropriate user feedback
    * @param {Error} error - The error object
@@ -19,11 +18,7 @@ export class FileOperationErrorHandler {
    * @param {Object} options - Additional options
    */
   static handleError(error, operation = 'file operation', options = {}) {
-    const {
-      showToast = true,
-      logError = true,
-      onError = null,
-    } = options;
+    const {showToast = true, logError = true, onError = null} = options;
 
     if (logError) {
       console.error(`FileOperationErrorHandler: ${operation} failed:`, error);
@@ -67,7 +62,11 @@ export class FileOperationErrorHandler {
     const code = error.code?.toLowerCase() || '';
 
     // Permission errors
-    if (message.includes('permission') || message.includes('denied') || code.includes('eacces')) {
+    if (
+      message.includes('permission') ||
+      message.includes('denied') ||
+      code.includes('eacces')
+    ) {
       return {
         type: 'permission',
         severity: 'high',
@@ -77,7 +76,11 @@ export class FileOperationErrorHandler {
     }
 
     // File not found errors
-    if (message.includes('not found') || message.includes('enoent') || code.includes('enoent')) {
+    if (
+      message.includes('not found') ||
+      message.includes('enoent') ||
+      code.includes('enoent')
+    ) {
       return {
         type: 'file_not_found',
         severity: 'medium',
@@ -86,7 +89,12 @@ export class FileOperationErrorHandler {
     }
 
     // Storage/disk errors
-    if (message.includes('storage') || message.includes('disk') || message.includes('space') || code.includes('enospc')) {
+    if (
+      message.includes('storage') ||
+      message.includes('disk') ||
+      message.includes('space') ||
+      code.includes('enospc')
+    ) {
       return {
         type: 'storage',
         severity: 'high',
@@ -96,7 +104,11 @@ export class FileOperationErrorHandler {
     }
 
     // Network errors
-    if (message.includes('network') || message.includes('timeout') || message.includes('connection')) {
+    if (
+      message.includes('network') ||
+      message.includes('timeout') ||
+      message.includes('connection')
+    ) {
       return {
         type: 'network',
         severity: 'medium',
@@ -105,7 +117,11 @@ export class FileOperationErrorHandler {
     }
 
     // Data corruption errors
-    if (message.includes('parse') || message.includes('json') || message.includes('corrupt')) {
+    if (
+      message.includes('parse') ||
+      message.includes('json') ||
+      message.includes('corrupt')
+    ) {
       return {
         type: 'data_corruption',
         severity: 'medium',
@@ -114,7 +130,11 @@ export class FileOperationErrorHandler {
     }
 
     // Memory errors
-    if (message.includes('memory') || message.includes('heap') || code.includes('enomem')) {
+    if (
+      message.includes('memory') ||
+      message.includes('heap') ||
+      code.includes('enomem')
+    ) {
       return {
         type: 'memory',
         severity: 'high',
@@ -137,7 +157,7 @@ export class FileOperationErrorHandler {
    * @returns {string} User-friendly message
    */
   static getUserMessage(errorInfo, operation) {
-    const { type } = errorInfo;
+    const {type} = errorInfo;
 
     switch (type) {
       case 'permission':
@@ -169,7 +189,7 @@ export class FileOperationErrorHandler {
    * @returns {boolean} True if can retry
    */
   static canRetry(errorInfo) {
-    const { type, recoverable } = errorInfo;
+    const {type, recoverable} = errorInfo;
 
     // Some errors should not be retried
     const nonRetryableErrors = ['permission', 'storage'];
@@ -183,7 +203,7 @@ export class FileOperationErrorHandler {
    * @returns {string} Suggested action
    */
   static getSuggestedAction(errorInfo) {
-    const { type } = errorInfo;
+    const {type} = errorInfo;
 
     switch (type) {
       case 'permission':
@@ -301,10 +321,14 @@ export class FileOperationErrorHandler {
         // Calculate delay with exponential backoff
         const delay = Math.min(
           baseDelay * Math.pow(backoffFactor, attempt),
-          maxDelay
+          maxDelay,
         );
 
-        console.log(`FileOperationErrorHandler: Retrying operation in ${delay}ms (attempt ${attempt + 1}/${maxRetries})`);
+        console.log(
+          `FileOperationErrorHandler: Retrying operation in ${delay}ms (attempt ${
+            attempt + 1
+          }/${maxRetries})`,
+        );
 
         if (onRetry) {
           onRetry(attempt + 1, error, delay);

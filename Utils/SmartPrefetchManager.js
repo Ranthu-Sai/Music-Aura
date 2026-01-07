@@ -14,11 +14,9 @@
  * This ensures tracks are ready BEFORE auto-progression occurs.
  */
 
-import TrackPlayer, { Event, State } from 'react-native-track-player';
+import TrackPlayer, {Event, State} from 'react-native-track-player';
 import youtubeStreamingService from './YouTubeStreamingService';
-import { InteractionManager } from 'react-native';
-const DEBUG_LOGS = false;
-const debugLog = (...args) => { if (DEBUG_LOGS) { console.log(...args); } };
+import {InteractionManager} from 'react-native';
 
 // Constants for configuration
 // Shorter prefetch delay to start fetching the immediate next track faster
@@ -28,601 +26,624 @@ const MAX_RETRY_ATTEMPTS = 3;
 const RETRY_DELAY_MS = 200;
 
 class SmartPrefetchManager {
-    constructor() {
-        // Cache and state management
-        this.prefetchedTracks = new Map(); // id -> { url, headers, timestamp }
-        this.prefetchInProgress = new Set(); // Currently prefetching IDs
+  constructor() {
+    // Cache and state management
+    this.prefetchedTracks = new Map(); // id -> { url, headers, timestamp }
+    this.prefetchInProgress = new Set(); // Currently prefetching IDs
 
-        // Timing control
-        this.prefetchTimer = null;
-        this.currentTrackIndex = -1;
-        this.isInitialized = false;
+    // Timing control
+    this.prefetchTimer = null;
+    this.currentTrackIndex = -1;
+    this.isInitialized = false;
 
-        // Error handling
-        this.errorHandlerRegistered = false;
+    // Error handling
+    this.errorHandlerRegistered = false;
 
-        // Circuit Breaker (Prevent looping storms)
-        this.consecutiveErrors = 0;
-        this.lastErrorTimestamp = 0;
+    // Circuit Breaker (Prevent looping storms)
+    this.consecutiveErrors = 0;
+    this.lastErrorTimestamp = 0;
 
-        // Initialization grace period to prevent auto-skip on app reopen
-        this.initializationTime = 0;
-        this.INITIALIZATION_GRACE_PERIOD = 3000; // 3 seconds (overridden in headless)
+    // Initialization grace period to prevent auto-skip on app reopen
+    this.initializationTime = 0;
+    this.INITIALIZATION_GRACE_PERIOD = 3000; // 3 seconds (overridden in headless)
 
-        // Headless service mode flag
-        this.isHeadless = false;
+    // Headless service mode flag
+    this.isHeadless = false;
 
-        // One-shot suppression of cleanup on next track change
-        this.suppressNextCleanup = false;
+    // One-shot suppression of cleanup on next track change
+    this.suppressNextCleanup = false;
+  }
+
+  // ==========================================
+  // INITIALIZATION
+  // ==========================================
+
+  /**
+   * Initialize the prefetch manager with correct event listeners
+   */
+  initialize() {
+    if (this.isInitialized) {
+      return;
     }
 
-    // ==========================================
-    // INITIALIZATION
-    // ==========================================
+    // Record initialization time
+    this.initializationTime = Date.now();
 
-    /**
-     * Initialize the prefetch manager with correct event listeners
-     */
-    initialize() {
-        if (this.isInitialized) { return; }
+    // FIXED: Listen to PlaybackState instead of track change
+    TrackPlayer.addEventListener(
+      Event.PlaybackState,
+      this._handlePlaybackState.bind(this),
+    );
 
-        // Record initialization time
-        this.initializationTime = Date.now();
+    // Listen for track changes to cancel pending prefetches
+    TrackPlayer.addEventListener(
+      Event.PlaybackActiveTrackChanged,
+      this._handleTrackChanged.bind(this),
+    );
 
-        // FIXED: Listen to PlaybackState instead of track change
-        TrackPlayer.addEventListener(Event.PlaybackState, this._handlePlaybackState.bind(this));
+    // CRITICAL: Listen for playback errors to handle auto-completion failures
+    TrackPlayer.addEventListener(
+      Event.PlaybackError,
+      this._handlePlaybackError.bind(this),
+    );
 
-        // Listen for track changes to cancel pending prefetches
-        TrackPlayer.addEventListener(Event.PlaybackActiveTrackChanged, this._handleTrackChanged.bind(this));
+    this.isInitialized = true;
+    this.errorHandlerRegistered = true;
+  }
 
-        // CRITICAL: Listen for playback errors to handle auto-completion failures
-        TrackPlayer.addEventListener(Event.PlaybackError, this._handlePlaybackError.bind(this));
+  /**
+   * Enable or disable headless mode (PlaybackService context)
+   */
+  setHeadlessMode(isHeadless) {
+    this.isHeadless = !!isHeadless;
+    // Disable grace period in headless to ensure immediate prefetch
+    this.INITIALIZATION_GRACE_PERIOD = this.isHeadless ? 0 : 3000;
+  }
 
-        this.isInitialized = true;
-        this.errorHandlerRegistered = true;
-    }
+  /**
+   * Suppress cleanup for the next track change (used for manual jumps)
+   */
+  suppressCleanupNextChange() {
+    this.suppressNextCleanup = true;
+  }
 
-    /**
-     * Enable or disable headless mode (PlaybackService context)
-     */
-    setHeadlessMode(isHeadless) {
-        this.isHeadless = !!isHeadless;
-        // Disable grace period in headless to ensure immediate prefetch
-        this.INITIALIZATION_GRACE_PERIOD = this.isHeadless ? 0 : 3000;
-    }
+  // ==========================================
+  // EVENT HANDLERS
+  // ==========================================
 
-    /**
-     * Suppress cleanup for the next track change (used for manual jumps)
-     */
-    suppressCleanupNextChange() {
-        this.suppressNextCleanup = true;
-    }
+  /**
+   * Handle playback state changes
+   * Triggers prefetch 2 seconds after playback starts
+   */
+  /**
+   * Handle playback state changes
+   * Triggers N+2 prefetch 2 seconds after playback starts
+   */
+  async _handlePlaybackState(event) {
+    if (event.state === State.Playing) {
+      // Get current track index
+      const currentIndex = await TrackPlayer.getActiveTrackIndex();
 
-    // ==========================================
-    // EVENT HANDLERS
-    // ==========================================
+      // Cancel any pending prefetch
+      this._cancelPendingPrefetch();
 
-    /**
-     * Handle playback state changes
-     * Triggers prefetch 2 seconds after playback starts
-     */
-    /**
-     * Handle playback state changes
-     * Triggers N+2 prefetch 2 seconds after playback starts
-     */
-    async _handlePlaybackState(event) {
-        if (event.state === State.Playing) {
-            // Get current track index
-            const currentIndex = await TrackPlayer.getActiveTrackIndex();
+      // Store current index for validation
+      this.currentTrackIndex = currentIndex;
 
-            // Cancel any pending prefetch
-            this._cancelPendingPrefetch();
-
-            // Store current index for validation
-            this.currentTrackIndex = currentIndex;
-
-            // Wait a short time, then prefetch multiple next songs (N+1, N+2, N+3)
-            this.prefetchTimer = setTimeout(async () => {
-                // Validate we're still on the same track
-                const nowPlaying = await TrackPlayer.getActiveTrackIndex();
-                if (nowPlaying === this.currentTrackIndex) {
-                    // Prefetch next 3 tracks
-                    for (let i = 1; i <= 3; i++) {
-                        await this._prefetchTrackAtIndex(nowPlaying + i);
-                    }
-                }
-            }, PREFETCH_DELAY_MS);
+      // Wait a short time, then prefetch multiple next songs (N+1, N+2, N+3)
+      this.prefetchTimer = setTimeout(async () => {
+        // Validate we're still on the same track
+        const nowPlaying = await TrackPlayer.getActiveTrackIndex();
+        if (nowPlaying === this.currentTrackIndex) {
+          // Prefetch next 3 tracks
+          for (let i = 1; i <= 3; i++) {
+            await this._prefetchTrackAtIndex(nowPlaying + i);
+          }
         }
+      }, PREFETCH_DELAY_MS);
+    }
+  }
+
+  /**
+   * Handle track changes - cancel pending prefetch
+   */
+  /**
+   * Handle track changes - IMMEDIATE N+1, N+2, N+3 prefetch + queue cleanup
+   */
+  async _handleTrackChanged(event) {
+    // Skip processing during initialization grace period to prevent auto-skip on app reopen
+    const timeSinceInit = Date.now() - this.initializationTime;
+    if (timeSinceInit < this.INITIALIZATION_GRACE_PERIOD) {
+      return;
     }
 
-    /**
-     * Handle track changes - cancel pending prefetch
-     */
-    /**
-     * Handle track changes - IMMEDIATE N+1, N+2, N+3 prefetch + queue cleanup
-     */
-    async _handleTrackChanged(event) {
-        // Skip processing during initialization grace period to prevent auto-skip on app reopen
-        const timeSinceInit = Date.now() - this.initializationTime;
-        if (timeSinceInit < this.INITIALIZATION_GRACE_PERIOD) {
-            return;
-        }
+    if (event.index !== undefined && event.index !== null) {
+      this._cancelPendingPrefetch();
+      this.currentTrackIndex = event.index;
 
+      // 🧹 QUEUE CLEANUP: Remove old tracks, keep only 5 previous
+      // Skip cleanup if explicitly suppressed for manual jumps
+      if (!this.suppressNextCleanup) {
+        await this._cleanupOldTracks(event.index);
+      } else {
+        this.suppressNextCleanup = false; // reset one-shot flag
+      }
 
-        if (event.index !== undefined && event.index !== null) {
-            this._cancelPendingPrefetch();
-            this.currentTrackIndex = event.index;
+      // 🚀 IMMEDIATE ACTION: Prefetch next 3 songs aggressively
+      // This ensures auto-recommendation songs are ready before playback
 
-            // 🧹 QUEUE CLEANUP: Remove old tracks, keep only 5 previous
-            // Skip cleanup if explicitly suppressed for manual jumps
-            if (!this.suppressNextCleanup) {
-                await this._cleanupOldTracks(event.index);
-            } else {
-                this.suppressNextCleanup = false; // reset one-shot flag
-            }
+      // Prefetch in parallel for speed
+      Promise.all([
+        this._prefetchTrackAtIndex(event.index + 1),
+        this._prefetchTrackAtIndex(event.index + 2),
+        this._prefetchTrackAtIndex(event.index + 3),
+      ]).catch(err => {
+        console.warn('Prefetch Promise.all failed', err);
+      });
+    }
+  }
 
-            // 🚀 IMMEDIATE ACTION: Prefetch next 3 songs aggressively
-            // This ensures auto-recommendation songs are ready before playback
+  /**
+   * CRITICAL: Handle playback errors for auto-completion failures
+   * This is the key fix - when TrackPlayer fails on placeholder URL,
+   * we fetch on-demand and retry playback
+   */
+  async _handlePlaybackError(event) {
+    const now = Date.now();
 
-            // Prefetch in parallel for speed
-            Promise.all([
-                this._prefetchTrackAtIndex(event.index + 1),
-                this._prefetchTrackAtIndex(event.index + 2),
-                this._prefetchTrackAtIndex(event.index + 3),
-            ]).catch(err => debugLog('Prefetch batch error:', err.message));
-        }
+    // Circuit Breaker Reset (if error was long ago)
+    if (now - this.lastErrorTimestamp > 5000) {
+      this.consecutiveErrors = 0;
     }
 
-    /**
-     * CRITICAL: Handle playback errors for auto-completion failures
-     * This is the key fix - when TrackPlayer fails on placeholder URL,
-     * we fetch on-demand and retry playback
-     */
-    async _handlePlaybackError(event) {
-        const now = Date.now();
+    this.lastErrorTimestamp = now;
+    this.consecutiveErrors++;
 
-        // Circuit Breaker Reset (if error was long ago)
-        if (now - this.lastErrorTimestamp > 5000) {
-            this.consecutiveErrors = 0;
+    // STOP if looping too fast (Max 3 retries in 5 seconds)
+    if (this.consecutiveErrors > 3) {
+      console.error(
+        '⚡ CIRCUIT BREAKER TRIPPED: Stopping playback to prevent freeze.',
+      );
+      await TrackPlayer.pause();
+      this.consecutiveErrors = 0;
+      return;
+    }
+
+    try {
+      const currentTrack = await TrackPlayer.getActiveTrack();
+      const currentIndex = await TrackPlayer.getActiveTrackIndex();
+      // ... (rest of logic)
+
+      if (!currentTrack) {
+        return;
+      }
+
+      // Check if track needs stream (has placeholder URL)
+      if (this.needsStream(currentTrack)) {
+        // Fetch stream on-demand with forced fresh (bypass cache on error)
+        const streamData = await this.fetchOnDemand(currentTrack.id, true);
+
+        if (streamData && streamData.url) {
+          // Replace current track with valid URL
+          await this._replaceAndPlayTrack(
+            currentIndex,
+            currentTrack,
+            streamData,
+          );
+        } else {
+          // Failed to get stream - skip to next
+          await this._skipToNextValidTrack(currentIndex);
         }
+      }
+    } catch (error) {
+      console.error('❌ Error in playback error handler:', error.message);
+    }
+  }
 
-        this.lastErrorTimestamp = now;
-        this.consecutiveErrors++;
+  // ==========================================
+  // PREFETCH OPERATIONS
+  // ==========================================
 
-        debugLog(`🔴 PlaybackError detected (Count: ${this.consecutiveErrors})`);
+  /**
+   * Prefetch ONLY the next song (not multiple)
+   */
+  async _prefetchNextSong(currentIndex) {
+    const nextIndex = currentIndex + 1;
+    await this._prefetchTrackAtIndex(nextIndex);
+  }
 
-        // STOP if looping too fast (Max 3 retries in 5 seconds)
-        if (this.consecutiveErrors > 3) {
-            console.error('⚡ CIRCUIT BREAKER TRIPPED: Stopping playback to prevent freeze.');
-            await TrackPlayer.pause();
-            this.consecutiveErrors = 0;
-            return;
-        }
+  /**
+   * Prefetch a single track by queue index
+   */
+  async _prefetchTrackAtIndex(index) {
+    try {
+      const queue = await TrackPlayer.getQueue();
 
+      if (index < 0 || index >= queue.length) {
+        return; // Invalid index
+      }
+
+      const track = queue[index];
+
+      // Skip if not a YouTube track or already has valid URL
+      if (!this.needsStream(track)) {
+        return;
+      }
+
+      // Skip if already prefetched and not expired
+      const cached = this.getPrefetchedStream(track.id);
+      if (cached) {
+        // Still replace in queue if needed
+        await this._replaceTrackInQueue(index, track, cached);
+        return;
+      }
+
+      // Skip if already prefetching this track
+      if (this.prefetchInProgress.has(track.id)) {
+        return;
+      }
+
+      this.prefetchInProgress.add(track.id);
+
+      const streamData = await youtubeStreamingService.getStreamUrl(track.id);
+
+      if (streamData && streamData.url) {
+        // Store prefetched data
+        this._cacheStream(track.id, streamData);
+
+        // Replace track in queue with valid URL
+        await this._replaceTrackInQueue(index, track, streamData);
+      }
+    } catch (error) {
+      console.error(`❌ Prefetch failed for index ${index}:`, error.message);
+    } finally {
+      // Clean up in-progress set
+      const queue = await TrackPlayer.getQueue();
+      if (index < queue.length) {
+        this.prefetchInProgress.delete(queue[index]?.id);
+      }
+    }
+  }
+
+  // ==========================================
+  // QUEUE OPERATIONS
+  // ==========================================
+
+  /**
+   * Replace a track and WAIT for completion (for manual skips)
+   * Wraps in InteractionManager but returns Promise that resolves after
+   */
+  async replaceTrackAndWait(index, originalTrack, streamData) {
+    return new Promise(resolve => {
+      InteractionManager.runAfterInteractions(async () => {
         try {
-            const currentTrack = await TrackPlayer.getActiveTrack();
-            const currentIndex = await TrackPlayer.getActiveTrackIndex();
-            // ... (rest of logic)
+          const updatedTrack = this._createUpdatedTrack(
+            originalTrack,
+            streamData,
+          );
 
-            if (!currentTrack) {
-                debugLog('⚠️ No current track during error');
-                return;
-            }
-
-            // Check if track needs stream (has placeholder URL)
-            if (this.needsStream(currentTrack)) {
-                debugLog(`🔄 Auto-recovery: fetching stream for: ${currentTrack.title}`);
-
-                // Fetch stream on-demand with forced fresh (bypass cache on error)
-                const streamData = await this.fetchOnDemand(currentTrack.id, true);
-
-                if (streamData && streamData.url) {
-                    // Replace current track with valid URL
-                    await this._replaceAndPlayTrack(currentIndex, currentTrack, streamData);
-                    debugLog('✅ Auto-recovery successful');
-                } else {
-                    // Failed to get stream - skip to next
-                    debugLog('⚠️ Recovery failed, skipping to next track');
-                    await this._skipToNextValidTrack(currentIndex);
-                }
-            }
+          // Remove old track and insert new one at same position (safe)
+          await this._safeRemove(index);
+          await TrackPlayer.add(updatedTrack, index);
         } catch (error) {
-            console.error('❌ Error in playback error handler:', error.message);
-        }
-    }
-
-    // ==========================================
-    // PREFETCH OPERATIONS
-    // ==========================================
-
-    /**
-     * Prefetch ONLY the next song (not multiple)
-     */
-    async _prefetchNextSong(currentIndex) {
-        const nextIndex = currentIndex + 1;
-        await this._prefetchTrackAtIndex(nextIndex);
-    }
-
-    /**
-     * Prefetch a single track by queue index
-     */
-    async _prefetchTrackAtIndex(index) {
-        try {
-            const queue = await TrackPlayer.getQueue();
-
-            if (index < 0 || index >= queue.length) {
-                return; // Invalid index
-            }
-
-            const track = queue[index];
-
-            // Skip if not a YouTube track or already has valid URL
-            if (!this.needsStream(track)) {
-                return;
-            }
-
-            // Skip if already prefetched and not expired
-            const cached = this.getPrefetchedStream(track.id);
-            if (cached) {
-                // Still replace in queue if needed
-                await this._replaceTrackInQueue(index, track, cached);
-                return;
-            }
-
-            // Skip if already prefetching this track
-            if (this.prefetchInProgress.has(track.id)) {
-                debugLog(`⏳ Track ${index} prefetch already in progress`);
-                return;
-            }
-
-            this.prefetchInProgress.add(track.id);
-
-            debugLog(`🔄 Prefetching track ${index}: ${track.title}`);
-
-            const streamData = await youtubeStreamingService.getStreamUrl(track.id);
-
-            if (streamData && streamData.url) {
-                // Store prefetched data
-                this._cacheStream(track.id, streamData);
-
-                // Replace track in queue with valid URL
-                await this._replaceTrackInQueue(index, track, streamData);
-
-                debugLog(`✅ Prefetched & replaced track ${index}: ${track.title}`);
-            }
-
-        } catch (error) {
-            console.error(`❌ Prefetch failed for index ${index}:`, error.message);
+          console.error('Error replacing track:', error.message);
         } finally {
-            // Clean up in-progress set
-            const queue = await TrackPlayer.getQueue();
-            if (index < queue.length) {
-                this.prefetchInProgress.delete(queue[index]?.id);
-            }
+          resolve();
         }
+      });
+    });
+  }
+
+  /**
+   * Replace a track immediately without InteractionManager (safe for headless service)
+   */
+  async replaceTrackImmediately(index, originalTrack, streamData) {
+    try {
+      const updatedTrack = this._createUpdatedTrack(originalTrack, streamData);
+      await this._safeRemove(index);
+      await TrackPlayer.add(updatedTrack, index);
+    } catch (error) {
+      console.error('Error in replaceTrackImmediately:', error.message);
     }
+  }
 
-    // ==========================================
-    // QUEUE OPERATIONS
-    // ==========================================
-
-    /**
-     * Replace a track and WAIT for completion (for manual skips)
-     * Wraps in InteractionManager but returns Promise that resolves after
-     */
-    async replaceTrackAndWait(index, originalTrack, streamData) {
-        return new Promise((resolve) => {
-            InteractionManager.runAfterInteractions(async () => {
-                try {
-                    const updatedTrack = this._createUpdatedTrack(originalTrack, streamData);
-
-                    // Remove old track and insert new one at same position (safe)
-                    await this._safeRemove(index);
-                    await TrackPlayer.add(updatedTrack, index);
-
-                    debugLog(`🔄 Replaced track at index ${index} (Wait Mode)`);
-                } catch (error) {
-                    console.error('Error replacing track:', error.message);
-                } finally {
-                    resolve();
-                }
-            });
-        });
+  /**
+   * Replace a track in queue with updated URL (non-blocking, fire-and-forget)
+   */
+  async _replaceTrackInQueue(index, originalTrack, streamData) {
+    // In headless service, InteractionManager may not run; replace immediately
+    if (this.isHeadless) {
+      await this.replaceTrackImmediately(index, originalTrack, streamData);
+      return;
     }
+    // UI mode: reuse wait logic to avoid jank
+    this.replaceTrackAndWait(index, originalTrack, streamData);
+  }
 
-    /**
-     * Replace a track immediately without InteractionManager (safe for headless service)
-     */
-    async replaceTrackImmediately(index, originalTrack, streamData) {
-        try {
-            const updatedTrack = this._createUpdatedTrack(originalTrack, streamData);
-            await this._safeRemove(index);
-            await TrackPlayer.add(updatedTrack, index);
-            debugLog(`🔄 Replaced track at index ${index} (Immediate Mode)`);
-        } catch (error) {
-            console.error('Error in replaceTrackImmediately:', error.message);
+  /**
+   * Replace CURRENT track and restart playback (for error recovery)
+   */
+  async _replaceAndPlayTrack(index, originalTrack, streamData) {
+    try {
+      // RACE CONDITION CHECK: Ensure index is still valid
+      const currentQ = await TrackPlayer.getQueue();
+      if (!currentQ[index] || currentQ[index].id !== originalTrack.id) {
+        console.warn('⚠️ Race condition prevented: Queue changed during fetch');
+        return;
+      }
+
+      const updatedTrack = this._createUpdatedTrack(originalTrack, streamData);
+
+      // Remove current track (safe)
+      await this._safeRemove(index);
+
+      // Add updated track at same position
+      await TrackPlayer.add(updatedTrack, index);
+
+      // Skip to it and play
+      await TrackPlayer.skip(index);
+      await TrackPlayer.play();
+
+      // Success - Reset breaker
+      this.consecutiveErrors = 0;
+    } catch (error) {
+      console.error('Error in replaceAndPlayTrack:', error.message);
+    }
+  }
+
+  /**
+   * Skip to next valid track when current one fails completely
+   */
+  async _skipToNextValidTrack(failedIndex) {
+    // Delay to prevent CPU spike (Cool-down)
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    try {
+      const queue = await TrackPlayer.getQueue();
+
+      // Safety check
+      if (failedIndex >= queue.length) {
+        return;
+      }
+
+      // Remove the failed track (safe)
+      await this._safeRemove(failedIndex);
+
+      // Get new queue state
+      const newQueue = await TrackPlayer.getQueue();
+
+      if (newQueue.length === 0) {
+        await TrackPlayer.stop();
+        return;
+      }
+
+      // Try to play the next track (now at same index)
+      const nextTrack = newQueue[failedIndex] || newQueue[0];
+
+      if (nextTrack && this.needsStream(nextTrack)) {
+        // Fetch stream on-demand for next track
+        const streamData = await this.fetchOnDemand(nextTrack.id, true);
+        if (streamData && streamData.url) {
+          const nextIndex = failedIndex < newQueue.length ? failedIndex : 0;
+          await this._replaceAndPlayTrack(nextIndex, nextTrack, streamData);
+          return;
         }
-    }
+      }
 
-    /**
-     * Replace a track in queue with updated URL (non-blocking, fire-and-forget)
-     */
-    async _replaceTrackInQueue(index, originalTrack, streamData) {
-        // In headless service, InteractionManager may not run; replace immediately
-        if (this.isHeadless) {
-            await this.replaceTrackImmediately(index, originalTrack, streamData);
-            return;
+      // Just try to play whatever is next
+      await TrackPlayer.play();
+    } catch (error) {
+      console.error('Error skipping to next valid track:', error.message);
+    }
+  }
+
+  // ==========================================
+  // UTILITY METHODS
+  // ==========================================
+
+  /**
+   * Safe removal helper: filters indices against current queue and removes valid ones
+   * Accepts a single index or array of indices.
+   */
+  async _safeRemove(indexOrIndexes) {
+    try {
+      const queue = await TrackPlayer.getQueue();
+      if (!Array.isArray(queue) || queue.length === 0) {
+        return;
+      }
+
+      const indexes = Array.isArray(indexOrIndexes)
+        ? indexOrIndexes.slice()
+        : [indexOrIndexes];
+      // Filter and dedupe
+      const valid = Array.from(new Set(indexes)).filter(
+        i => Number.isInteger(i) && i >= 0 && i < queue.length,
+      );
+      if (valid.length === 0) {
+        return;
+      }
+
+      // Sort descending to avoid shifting issues
+      valid.sort((a, b) => b - a);
+      await TrackPlayer.remove(valid);
+    } catch (error) {
+      const msg = error?.message || String(error);
+      // Silently ignore common TrackPlayer "out of bounds" errors which can happen
+      // due to race conditions when queue changes concurrently.
+      if (msg && msg.toLowerCase().includes('out of bounds')) {
+        // debug log only in development - avoid console warning noise in production
+        if (__DEV__) {
+          console.debug('Safe remove ignored out-of-bounds:', msg);
         }
-        // UI mode: reuse wait logic to avoid jank
-        this.replaceTrackAndWait(index, originalTrack, streamData);
+        return;
+      }
+      console.warn('Safe remove failed:', msg);
+    }
+  }
+
+  /**
+   * Create updated track object with stream data
+   */
+  _createUpdatedTrack(originalTrack, streamData) {
+    return {
+      ...originalTrack,
+      url: streamData.url,
+      headers: streamData.headers,
+      userAgent: streamData.headers?.['User-Agent'],
+      _needsStream: false,
+      _prefetched: true,
+    };
+  }
+
+  /**
+   * Check if track needs stream fetching
+   */
+  needsStream(track) {
+    if (!track) {
+      return false;
     }
 
-    /**
-     * Replace CURRENT track and restart playback (for error recovery)
-     */
-    async _replaceAndPlayTrack(index, originalTrack, streamData) {
-        try {
-            // RACE CONDITION CHECK: Ensure index is still valid
-            const currentQ = await TrackPlayer.getQueue();
-            if (!currentQ[index] || currentQ[index].id !== originalTrack.id) {
-                console.warn('⚠️ Race condition prevented: Queue changed during fetch');
-                return;
-            }
+    // Check if it's a YouTube track needing stream
+    const isYTMusic =
+      track.id &&
+      typeof track.id === 'string' &&
+      track.id.length === 11 &&
+      !track.isLocalMusic;
 
-            const updatedTrack = this._createUpdatedTrack(originalTrack, streamData);
-
-            // Remove current track (safe)
-            await this._safeRemove(index);
-
-            // Add updated track at same position
-            await TrackPlayer.add(updatedTrack, index);
-
-            // Skip to it and play
-            await TrackPlayer.skip(index);
-            await TrackPlayer.play();
-
-            debugLog(`✅ Replaced and playing track at index ${index}`);
-
-            // Success - Reset breaker
-            this.consecutiveErrors = 0;
-
-        } catch (error) {
-            console.error('Error in replaceAndPlayTrack:', error.message);
-        }
+    if (!isYTMusic) {
+      return false;
     }
 
-    /**
-     * Skip to next valid track when current one fails completely
-     */
-    async _skipToNextValidTrack(failedIndex) {
-        // Delay to prevent CPU spike (Cool-down)
-        await new Promise(resolve => setTimeout(resolve, 500));
+    // Check if URL is placeholder or missing
+    const url = track.url || '';
+    return (
+      !url || url.startsWith('ytmusic://') || url.includes('music.youtube.com')
+    );
+  }
 
-        try {
-            const queue = await TrackPlayer.getQueue();
+  /**
+   * Cancel pending prefetch timer
+   */
+  _cancelPendingPrefetch() {
+    if (this.prefetchTimer) {
+      clearTimeout(this.prefetchTimer);
+      this.prefetchTimer = null;
+    }
+  }
 
-            // Safety check
-            if (failedIndex >= queue.length) { return; }
+  /**
+   * 🧹 QUEUE CLEANUP: Remove old tracks to save memory and prevent queue bloat
+   * Keeps only 5 previous songs before current track
+   */
+  async _cleanupOldTracks(currentIndex) {
+    try {
+      // Keep only 5 previous songs (matches Orbit's behavior)
+      if (currentIndex <= 5) {
+        return;
+      }
 
-            // Remove the failed track (safe)
-            await this._safeRemove(failedIndex);
+      const tracksToRemove = currentIndex - 5;
 
-            // Get new queue state
-            const newQueue = await TrackPlayer.getQueue();
+      // Remove tracks from the beginning of the queue
+      const removeIndices = [];
+      for (let i = 0; i < tracksToRemove; i++) {
+        removeIndices.push(i);
+      }
 
-            if (newQueue.length === 0) {
-                debugLog('⏹️ Queue empty after removing failed track');
-                await TrackPlayer.stop();
-                return;
-            }
+      if (removeIndices.length > 0) {
+        await this._safeRemove(removeIndices);
 
-            // Try to play the next track (now at same index)
-            const nextTrack = newQueue[failedIndex] || newQueue[0];
+        // Update current track index after removal
+        this.currentTrackIndex = 5; // After cleanup, current is always at index 5
+      }
+    } catch (error) {
+      console.error('Queue cleanup error:', error.message);
+    }
+  }
 
-            if (nextTrack && this.needsStream(nextTrack)) {
-                // Fetch stream on-demand for next track
-                const streamData = await this.fetchOnDemand(nextTrack.id, true);
-                if (streamData && streamData.url) {
-                    const nextIndex = failedIndex < newQueue.length ? failedIndex : 0;
-                    await this._replaceAndPlayTrack(nextIndex, nextTrack, streamData);
-                    return;
-                }
-            }
+  // ==========================================
+  // CACHE OPERATIONS
+  // ==========================================
 
-            // Just try to play whatever is next
-            await TrackPlayer.play();
+  /**
+   * Cache stream data
+   */
+  _cacheStream(trackId, streamData) {
+    this.prefetchedTracks.set(trackId, {
+      url: streamData.url,
+      headers: streamData.headers,
+      timestamp: Date.now(),
+    });
+  }
 
-        } catch (error) {
-            console.error('Error skipping to next valid track:', error.message);
-        }
+  /**
+   * Get prefetched stream for a track
+   */
+  getPrefetchedStream(trackId) {
+    const cached = this.prefetchedTracks.get(trackId);
+    if (!cached) {
+      return null;
     }
 
-    // ==========================================
-    // UTILITY METHODS
-    // ==========================================
-
-    /**
-     * Safe removal helper: filters indices against current queue and removes valid ones
-     * Accepts a single index or array of indices.
-     */
-    async _safeRemove(indexOrIndexes) {
-        try {
-            const queue = await TrackPlayer.getQueue();
-            if (!Array.isArray(queue) || queue.length === 0) { return; }
-
-            const indexes = Array.isArray(indexOrIndexes) ? indexOrIndexes.slice() : [indexOrIndexes];
-            // Filter and dedupe
-            const valid = Array.from(new Set(indexes)).filter(i => Number.isInteger(i) && i >= 0 && i < queue.length);
-            if (valid.length === 0) { return; }
-
-            // Sort descending to avoid shifting issues
-            valid.sort((a, b) => b - a);
-            await TrackPlayer.remove(valid);
-        } catch (error) {
-            const msg = error?.message || String(error);
-            // Silently ignore common TrackPlayer "out of bounds" errors which can happen
-            // due to race conditions when queue changes concurrently.
-            if (msg && msg.toLowerCase().includes('out of bounds')) {
-                // debug log only in development - avoid console warning noise in production
-                if (__DEV__) { console.debug('Safe remove ignored out-of-bounds:', msg); }
-                return;
-            }
-            console.warn('Safe remove failed:', msg);
-        }
+    // Check if expired
+    if (Date.now() - cached.timestamp > CACHE_TTL_MS) {
+      this.prefetchedTracks.delete(trackId);
+      return null;
     }
 
-    /**
-     * Create updated track object with stream data
-     */
-    _createUpdatedTrack(originalTrack, streamData) {
-        return {
-            ...originalTrack,
-            url: streamData.url,
-            headers: streamData.headers,
-            userAgent: streamData.headers?.['User-Agent'],
-            _needsStream: false,
-            _prefetched: true,
-        };
-    }
+    return cached;
+  }
 
-    /**
-     * Check if track needs stream fetching
-     */
-    needsStream(track) {
-        if (!track) { return false; }
-
-        // Check if it's a YouTube track needing stream
-        const isYTMusic = track.id && typeof track.id === 'string' &&
-            track.id.length === 11 && !track.isLocalMusic;
-
-        if (!isYTMusic) { return false; }
-
-        // Check if URL is placeholder or missing
-        const url = track.url || '';
-        return !url || url.startsWith('ytmusic://') || url.includes('music.youtube.com');
-    }
-
-    /**
-     * Cancel pending prefetch timer
-     */
-    _cancelPendingPrefetch() {
-        if (this.prefetchTimer) {
-            clearTimeout(this.prefetchTimer);
-            this.prefetchTimer = null;
-        }
-    }
-
-    /**
-     * 🧹 QUEUE CLEANUP: Remove old tracks to save memory and prevent queue bloat
-     * Keeps only 5 previous songs before current track
-     */
-    async _cleanupOldTracks(currentIndex) {
-        try {
-            // Keep only 5 previous songs (matches Orbit's behavior)
-            if (currentIndex <= 5) { return; }
-
-            const tracksToRemove = currentIndex - 5;
-
-            // Remove tracks from the beginning of the queue
-            const removeIndices = [];
-            for (let i = 0; i < tracksToRemove; i++) {
-                removeIndices.push(i);
-            }
-
-            if (removeIndices.length > 0) {
-                await this._safeRemove(removeIndices);
-
-                // Update current track index after removal
-                this.currentTrackIndex = 5; // After cleanup, current is always at index 5
-            }
-        } catch (error) {
-            console.error('Queue cleanup error:', error.message);
-        }
-    }
-
-    // ==========================================
-    // CACHE OPERATIONS
-    // ==========================================
-
-    /**
-     * Cache stream data
-     */
-    _cacheStream(trackId, streamData) {
-        this.prefetchedTracks.set(trackId, {
-            url: streamData.url,
-            headers: streamData.headers,
-            timestamp: Date.now(),
-        });
-    }
-
-    /**
-     * Get prefetched stream for a track
-     */
-    getPrefetchedStream(trackId) {
-        const cached = this.prefetchedTracks.get(trackId);
-        if (!cached) { return null; }
-
-        // Check if expired
-        if (Date.now() - cached.timestamp > CACHE_TTL_MS) {
-            this.prefetchedTracks.delete(trackId);
-            return null;
-        }
-
+  /**
+   * On-demand fetch for random song selection (with retry)
+   */
+  async fetchOnDemand(trackId, forceFresh = false) {
+    // Check prefetch cache first (unless forceFresh)
+    if (!forceFresh) {
+      const cached = this.getPrefetchedStream(trackId);
+      if (cached) {
         return cached;
+      }
     }
 
-    /**
-     * On-demand fetch for random song selection (with retry)
-     */
-    async fetchOnDemand(trackId, forceFresh = false) {
-        debugLog(`🎯 On-demand fetch for: ${trackId}${forceFresh ? ' (FORCE FRESH)' : ''}`);
+    // Fetch with retry
+    for (let attempt = 1; attempt <= MAX_RETRY_ATTEMPTS; attempt++) {
+      try {
+        const streamData = await youtubeStreamingService.getStreamUrl(
+          trackId,
+          forceFresh,
+        );
 
-        // Check prefetch cache first (unless forceFresh)
-        if (!forceFresh) {
-            const cached = this.getPrefetchedStream(trackId);
-            if (cached) {
-                debugLog(`✅ Using prefetched stream for: ${trackId}`);
-                return cached;
-            }
+        if (streamData && streamData.url) {
+          // Cache it
+          this._cacheStream(trackId, streamData);
+          return streamData;
         }
+      } catch (error) {
+        console.warn(`⚠️ Attempt ${attempt} failed:`, error.message);
 
-        // Fetch with retry
-        for (let attempt = 1; attempt <= MAX_RETRY_ATTEMPTS; attempt++) {
-            try {
-                debugLog(`🔄 Fetch attempt ${attempt}/${MAX_RETRY_ATTEMPTS} for: ${trackId}`);
-
-                const streamData = await youtubeStreamingService.getStreamUrl(trackId, forceFresh);
-
-                if (streamData && streamData.url) {
-                    // Cache it
-                    this._cacheStream(trackId, streamData);
-                    debugLog(`✅ On-demand fetch successful for: ${trackId}`);
-                    return streamData;
-                }
-
-            } catch (error) {
-                console.warn(`⚠️ Attempt ${attempt} failed:`, error.message);
-
-                if (attempt < MAX_RETRY_ATTEMPTS) {
-                    // Wait before retry
-                    await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
-                }
-            }
+        if (attempt < MAX_RETRY_ATTEMPTS) {
+          // Wait before retry
+          await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
         }
-
-        console.error(`❌ On-demand fetch failed after ${MAX_RETRY_ATTEMPTS} attempts: ${trackId}`);
-        return null;
+      }
     }
 
-    /**
-     * Clear all prefetched data
-     */
-    clearCache() {
-        this._cancelPendingPrefetch();
-        this.prefetchedTracks.clear();
-        this.prefetchInProgress.clear();
-        this.currentTrackIndex = -1;
-    }
+    console.error(
+      `❌ On-demand fetch failed after ${MAX_RETRY_ATTEMPTS} attempts: ${trackId}`,
+    );
+    return null;
+  }
+
+  /**
+   * Clear all prefetched data
+   */
+  clearCache() {
+    this._cancelPendingPrefetch();
+    this.prefetchedTracks.clear();
+    this.prefetchInProgress.clear();
+    this.currentTrackIndex = -1;
+  }
 }
 
 // Singleton instance

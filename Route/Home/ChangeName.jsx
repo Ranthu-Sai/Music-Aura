@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, {useState, useEffect} from 'react';
 import {
   Dimensions,
   TextInput,
@@ -11,7 +11,8 @@ import {
   StatusBar,
   ScrollView,
   ToastAndroid,
-} from "react-native";
+  Alert,
+} from 'react-native';
 import Animated, {
   FadeInDown,
   useSharedValue,
@@ -21,40 +22,40 @@ import Animated, {
   Easing,
   interpolate,
   Extrapolate,
-} from "react-native-reanimated";
-import FastImage from "react-native-fast-image";
-import LinearGradient from "react-native-linear-gradient";
-import { SetUserNameValue } from "../../LocalStorage/StoreUserName";
-import Icon from "react-native-vector-icons/MaterialCommunityIcons";
-import { MainWrapper } from "../../Layout/MainWrapper";
+} from 'react-native-reanimated';
+import FastImage from 'react-native-fast-image';
+import LinearGradient from 'react-native-linear-gradient';
+import {SetUserNameValue} from '../../LocalStorage/StoreUserName';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import {MainWrapper} from '../../Layout/MainWrapper';
 
-const { width, height } = Dimensions.get("window");
+const {width, height} = Dimensions.get('window');
 
-export const ChangeName = ({ navigation }) => {
-  const [name, setName] = useState("");
+export const ChangeName = ({navigation}) => {
+  const [name, setName] = useState('');
   const glowValue = useSharedValue(0);
 
   useEffect(() => {
     glowValue.value = withRepeat(
-      withTiming(1, { duration: 3000, easing: Easing.inOut(Easing.ease) }),
+      withTiming(1, {duration: 3000, easing: Easing.inOut(Easing.ease)}),
       -1,
-      true
+      true,
     );
   }, [glowValue]);
 
   const animatedSymbol = useAnimatedStyle(() => ({
-    transform: [{ scale: 1 + glowValue.value * 0.05 }],
+    transform: [{scale: 1 + glowValue.value * 0.05}],
     opacity: 0.8 + glowValue.value * 0.2,
   }));
 
   const handleConfirm = async () => {
-    if (name.trim() === "") {
-      alert("Please enter your name!");
+    if (name.trim() === '') {
+      Alert.alert('Please enter your name!');
     } else {
       await SetUserNameValue(name.trim());
       navigation.pop();
       ToastAndroid.showWithGravity(
-        `Please restart the app`,
+        'Please restart the app',
         ToastAndroid.SHORT,
         ToastAndroid.CENTER,
       );
@@ -62,10 +63,20 @@ export const ChangeName = ({ navigation }) => {
   };
 
   const animatedGlow = useAnimatedStyle(() => {
-    const scale = interpolate(glowValue.value, [0, 1], [1, 1.2], Extrapolate.CLAMP);
-    const opacity = interpolate(glowValue.value, [0, 1], [0.1, 0.3], Extrapolate.CLAMP);
+    const scale = interpolate(
+      glowValue.value,
+      [0, 1],
+      [1, 1.2],
+      Extrapolate.CLAMP,
+    );
+    const opacity = interpolate(
+      glowValue.value,
+      [0, 1],
+      [0.1, 0.3],
+      Extrapolate.CLAMP,
+    );
     return {
-      transform: [{ scale }],
+      transform: [{scale}],
       opacity,
     };
   });
@@ -73,7 +84,11 @@ export const ChangeName = ({ navigation }) => {
   return (
     <MainWrapper>
       <View style={styles.container}>
-        <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
+        <StatusBar
+          translucent
+          backgroundColor="transparent"
+          barStyle="light-content"
+        />
 
         {/* Background Decorative Elements */}
         <Animated.View style={[styles.backgroundAura, animatedGlow]} />
@@ -81,19 +96,19 @@ export const ChangeName = ({ navigation }) => {
         <View style={styles.bottomLeftBlob} />
 
         <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : null}
-          style={{ flex: 1 }}
-        >
+          behavior={Platform.OS === 'ios' ? 'padding' : null}
+          style={{flex: 1}}>
           <ScrollView
             contentContainerStyle={styles.scrollContent}
             keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator={false}
-          >
+            showsVerticalScrollIndicator={false}>
             <View style={styles.mainContent}>
-              <Animated.View entering={FadeInDown.duration(1000).springify()} style={styles.imageWrapper}>
+              <Animated.View
+                entering={FadeInDown.duration(1000).springify()}
+                style={styles.imageWrapper}>
                 <View style={styles.imageContainer}>
                   <FastImage
-                    source={require("../../Images/GiveName.gif")}
+                    source={require('../../Images/GiveName.gif')}
                     style={styles.image}
                     resizeMode="cover"
                   />
@@ -103,15 +118,23 @@ export const ChangeName = ({ navigation }) => {
               <View style={styles.textSection}>
                 <View style={styles.titleRow}>
                   <Animated.View style={animatedSymbol}>
-                    <Icon name="star-four-points-outline" size={22} color="#1DB954" />
+                    <Icon
+                      name="star-four-points-outline"
+                      size={22}
+                      color="#1DB954"
+                    />
                   </Animated.View>
-                  <Animated.Text entering={FadeInDown.delay(400).duration(800)} style={styles.titleText}>
+                  <Animated.Text
+                    entering={FadeInDown.delay(400).duration(800)}
+                    style={styles.titleText}>
                     Enter your name
                   </Animated.Text>
                 </View>
               </View>
 
-              <Animated.View entering={FadeInDown.delay(600).duration(800)} style={styles.inputWrapper}>
+              <Animated.View
+                entering={FadeInDown.delay(600).duration(800)}
+                style={styles.inputWrapper}>
                 <View style={styles.inputContainerStyle}>
                   <TextInput
                     placeholder="Type your name here..."
@@ -128,26 +151,25 @@ export const ChangeName = ({ navigation }) => {
           </ScrollView>
 
           <View style={styles.footer}>
-            <Animated.View entering={FadeInDown.delay(800).duration(800)} style={styles.footerRow}>
+            <Animated.View
+              entering={FadeInDown.delay(800).duration(800)}
+              style={styles.footerRow}>
               <TouchableOpacity
                 style={styles.backBtn}
                 onPress={() => navigation.pop()}
-                activeOpacity={0.7}
-              >
+                activeOpacity={0.7}>
                 <Icon name="arrow-left" size={28} color="white" />
               </TouchableOpacity>
 
               <TouchableOpacity
                 style={styles.nextBtn}
                 onPress={handleConfirm}
-                activeOpacity={0.8}
-              >
+                activeOpacity={0.8}>
                 <LinearGradient
                   colors={['#1DB954', '#1ed760']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={styles.nextGradient}
-                >
+                  start={{x: 0, y: 0}}
+                  end={{x: 1, y: 0}}
+                  style={styles.nextGradient}>
                   <Text style={styles.nextText}>Save Changes</Text>
                   <Icon name="check-circle-outline" size={24} color="black" />
                 </LinearGradient>
@@ -213,7 +235,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#121212',
     elevation: 25,
     shadowColor: '#1DB954',
-    shadowOffset: { width: 0, height: 0 },
+    shadowOffset: {width: 0, height: 0},
     shadowOpacity: 0.8,
     shadowRadius: 30,
   },
@@ -238,7 +260,7 @@ const styles = StyleSheet.create({
     textAlign: 'left',
     letterSpacing: 1,
     textShadowColor: 'rgba(29, 185, 84, 0.5)',
-    textShadowOffset: { width: 0, height: 0 },
+    textShadowOffset: {width: 0, height: 0},
     textShadowRadius: 10,
   },
   inputWrapper: {
@@ -255,7 +277,7 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: 'rgba(29, 185, 84, 0.3)',
     shadowColor: '#1DB954',
-    shadowOffset: { width: 0, height: 0 },
+    shadowOffset: {width: 0, height: 0},
     shadowOpacity: 0.2,
     shadowRadius: 10,
     elevation: 5,
@@ -309,4 +331,3 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
 });
-

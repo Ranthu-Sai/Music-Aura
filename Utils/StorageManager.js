@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import ReactNativeBlobUtil from 'react-native-blob-util';
-import { GetDownloadPath } from '../LocalStorage/AppSettings';
+import {GetDownloadPath} from '../LocalStorage/AppSettings';
 
 /**
  * StorageManager - Manages downloaded songs metadata and file operations
@@ -23,7 +23,10 @@ export class StorageManager {
       const data = await AsyncStorage.getItem(this.METADATA_KEY);
       return data ? JSON.parse(data) : {};
     } catch (error) {
-      console.error('StorageManager: Error getting downloaded songs metadata:', error);
+      console.error(
+        'StorageManager: Error getting downloaded songs metadata:',
+        error,
+      );
       return {};
     }
   }
@@ -42,10 +45,15 @@ export class StorageManager {
         lastAccessed: Date.now(),
       };
 
-      await AsyncStorage.setItem(this.METADATA_KEY, JSON.stringify(allMetadata));
-      console.log(`StorageManager: Saved metadata for song ${songId}`);
+      await AsyncStorage.setItem(
+        this.METADATA_KEY,
+        JSON.stringify(allMetadata),
+      );
     } catch (error) {
-      console.error(`StorageManager: Error saving metadata for song ${songId}:`, error);
+      console.error(
+        `StorageManager: Error saving metadata for song ${songId}:`,
+        error,
+      );
       throw error;
     }
   }
@@ -58,20 +66,21 @@ export class StorageManager {
     try {
       const allMetadata = await this.getAllDownloadedSongsMetadata();
       const metadata = allMetadata[songId];
-      const { GetDownloadPath } = require('../LocalStorage/AppSettings');
+
 
       // Also try to remove the actual files
       try {
         const downloadPath = await GetDownloadPath();
         const dirs = ReactNativeBlobUtil.fs.dirs;
-        const baseDir = (downloadPath === "Downloads") ? dirs.LegacyDownloadDir : dirs.LegacyMusicDir;
+        const baseDir =
+          downloadPath === 'Downloads'
+            ? dirs.LegacyDownloadDir
+            : dirs.LegacyMusicDir;
 
         if (metadata && metadata.fileName) {
           const fileName = metadata.fileName;
           const songPath = `${baseDir}/Music Aura/${fileName}`;
           const decodedPath = decodeURI(songPath);
-
-          console.log(`StorageManager: Attempting to delete: ${songPath}`);
 
           if (await ReactNativeBlobUtil.fs.exists(songPath)) {
             await ReactNativeBlobUtil.fs.unlink(songPath);
@@ -80,8 +89,8 @@ export class StorageManager {
           }
 
           // Force scan to update MediaStore
-          ReactNativeBlobUtil.fs.scanFile([{ path: songPath }]);
-          ReactNativeBlobUtil.fs.scanFile([{ path: decodedPath }]);
+          ReactNativeBlobUtil.fs.scanFile([{path: songPath}]);
+          ReactNativeBlobUtil.fs.scanFile([{path: decodedPath}]);
 
           // Cleanup artwork
           const artworkPath = songPath.replace(/\.[^/.]+$/, '.jpg');
@@ -93,14 +102,22 @@ export class StorageManager {
           }
         }
       } catch (fileError) {
-        console.warn(`StorageManager: Could not remove files for song ${songId}:`, fileError);
+        console.warn(
+          `StorageManager: Could not remove files for song ${songId}:`,
+          fileError,
+        );
       }
 
       delete allMetadata[songId];
-      await AsyncStorage.setItem(this.METADATA_KEY, JSON.stringify(allMetadata));
-      console.log(`StorageManager: Removed metadata for song ${songId}`);
+      await AsyncStorage.setItem(
+        this.METADATA_KEY,
+        JSON.stringify(allMetadata),
+      );
     } catch (error) {
-      console.error(`StorageManager: Error removing metadata for song ${songId}:`, error);
+      console.error(
+        `StorageManager: Error removing metadata for song ${songId}:`,
+        error,
+      );
       throw error;
     }
   }
@@ -113,12 +130,17 @@ export class StorageManager {
   static async isSongDownloaded(songId) {
     try {
       const songPath = await this.getSongPath(songId);
-      if (!songPath) {return false;}
+      if (!songPath) {
+        return false;
+      }
 
       const exists = await ReactNativeBlobUtil.fs.exists(songPath);
       return exists;
     } catch (error) {
-      console.error(`StorageManager: Error checking if song ${songId} is downloaded:`, error);
+      console.error(
+        `StorageManager: Error checking if song ${songId} is downloaded:`,
+        error,
+      );
       return false;
     }
   }
@@ -131,7 +153,9 @@ export class StorageManager {
   static async getSongPath(songId) {
     try {
       const metadata = await this.getDownloadedSongMetadata(songId);
-      if (!metadata) {return null;}
+      if (!metadata) {
+        return null;
+      }
 
       // If we have a specific filePath saved in metadata, use it first
       if (metadata.filePath) {
@@ -140,35 +164,54 @@ export class StorageManager {
         }
       }
 
-      if (!metadata.fileName) {return null;}
+      if (!metadata.fileName) {
+        return null;
+      }
 
       const downloadPathPreference = await GetDownloadPath();
       const dirs = ReactNativeBlobUtil.fs.dirs;
 
       // Robust base directory selection - Prefer Legacy paths as they are usually public /storage/emulated/0
       let baseDir;
-      if (downloadPathPreference === "Downloads") {
-          baseDir = dirs.LegacyDownloadDir || dirs.DownloadDir || '/storage/emulated/0/Download';
+      if (downloadPathPreference === 'Downloads') {
+        baseDir =
+          dirs.LegacyDownloadDir ||
+          dirs.DownloadDir ||
+          '/storage/emulated/0/Download';
       } else {
-          baseDir = dirs.LegacyMusicDir || dirs.MusicDir || '/storage/emulated/0/Music';
+        baseDir =
+          dirs.LegacyMusicDir || dirs.MusicDir || '/storage/emulated/0/Music';
       }
 
       // Ensure baseDir is not empty and is a public path (matching DownloadHelper.js logic)
-      if (!baseDir || baseDir.includes('data/user') || baseDir.includes('com.music_aura')) {
-          baseDir = '/storage/emulated/0/' + (downloadPathPreference === "Downloads" ? "Download" : "Music");
+      if (
+        !baseDir ||
+        baseDir.includes('data/user') ||
+        baseDir.includes('com.music_aura')
+      ) {
+        baseDir =
+          '/storage/emulated/0/' +
+          (downloadPathPreference === 'Downloads' ? 'Download' : 'Music');
       }
 
       const songPath = `${baseDir}/Music Aura/${metadata.fileName}`;
 
       // Check both original and encoded/decoded versions
-      if (await ReactNativeBlobUtil.fs.exists(songPath)) {return songPath;}
+      if (await ReactNativeBlobUtil.fs.exists(songPath)) {
+        return songPath;
+      }
 
       const decodedPath = decodeURI(songPath);
-      if (await ReactNativeBlobUtil.fs.exists(decodedPath)) {return decodedPath;}
+      if (await ReactNativeBlobUtil.fs.exists(decodedPath)) {
+        return decodedPath;
+      }
 
       return songPath; // Fallback to constructed path
     } catch (error) {
-      console.error(`StorageManager: Error getting song path for ${songId}:`, error);
+      console.error(
+        `StorageManager: Error getting song path for ${songId}:`,
+        error,
+      );
       return null;
     }
   }
@@ -181,7 +224,9 @@ export class StorageManager {
   static async getArtworkPath(songId) {
     try {
       const songPath = await this.getSongPath(songId);
-      if (!songPath) {return null;}
+      if (!songPath) {
+        return null;
+      }
 
       // Assume artwork has same name as song but with .jpg extension
       const artworkPath = songPath.replace(/\.[^/.]+$/, '.jpg');
@@ -189,7 +234,10 @@ export class StorageManager {
 
       return exists ? artworkPath : null;
     } catch (error) {
-      console.error(`StorageManager: Error getting artwork path for ${songId}:`, error);
+      console.error(
+        `StorageManager: Error getting artwork path for ${songId}:`,
+        error,
+      );
       return null;
     }
   }
@@ -204,7 +252,10 @@ export class StorageManager {
       const allMetadata = await this.getAllDownloadedSongsMetadata();
       return allMetadata[songId] || null;
     } catch (error) {
-      console.error(`StorageManager: Error getting metadata for song ${songId}:`, error);
+      console.error(
+        `StorageManager: Error getting metadata for song ${songId}:`,
+        error,
+      );
       return null;
     }
   }
@@ -224,18 +275,22 @@ export class StorageManager {
         if (!exists) {
           delete allMetadata[songId];
           removedCount++;
-          console.log(`StorageManager: Removed orphaned metadata for song ${songId}`);
         }
       }
 
       if (removedCount > 0) {
-        await AsyncStorage.setItem(this.METADATA_KEY, JSON.stringify(allMetadata));
+        await AsyncStorage.setItem(
+          this.METADATA_KEY,
+          JSON.stringify(allMetadata),
+        );
       }
 
-      console.log(`StorageManager: Cleaned up ${removedCount} orphaned metadata entries`);
       return removedCount;
     } catch (error) {
-      console.error('StorageManager: Error cleaning up orphaned metadata:', error);
+      console.error(
+        'StorageManager: Error cleaning up orphaned metadata:',
+        error,
+      );
       return 0;
     }
   }
@@ -252,7 +307,10 @@ export class StorageManager {
         await this.saveDownloadedSongMetadata(songId, metadata);
       }
     } catch (error) {
-      console.error(`StorageManager: Error updating last accessed for ${songId}:`, error);
+      console.error(
+        `StorageManager: Error updating last accessed for ${songId}:`,
+        error,
+      );
     }
   }
 

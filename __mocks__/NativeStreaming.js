@@ -1,5 +1,5 @@
 export default {
-  getStreamUrl: jest.fn(async (videoId) => ({
+  getStreamUrl: jest.fn(async videoId => ({
     url: `https://example.com/${videoId}.mp3`,
     thumbnail: '',
     duration: 0,

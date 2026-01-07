@@ -1,24 +1,86 @@
-import React, { useState, useEffect } from 'react';
-import { Dimensions, FlatList, View } from 'react-native';
-import { useActiveTrack, usePlaybackState } from "react-native-track-player";
-import { EachSongCard } from '../Global/EachSongCard';
-import { LoadingComponent } from '../Global/Loading';
-import { PlainText } from '../Global/PlainText';
-import { SmallText } from '../Global/SmallText';
-import { useTheme } from '@react-navigation/native';
+import React, {useState, useEffect} from 'react';
+import {Dimensions, FlatList, View} from 'react-native';
+import {useActiveTrack, usePlaybackState} from 'react-native-track-player';
+import {EachSongCard} from '../Global/EachSongCard';
+import {PlainText} from '../Global/PlainText';
+import {SmallText} from '../Global/SmallText';
+import {useTheme} from '@react-navigation/native';
 
 // Simple skeleton row for loadingMore moved to module scope to avoid nested component
 const SkeletonRow = () => (
-  <View style={{ flexDirection: 'row', paddingHorizontal: 15, paddingVertical: 12, alignItems: 'center' }}>
-    <View style={{ width: 56, height: 56, borderRadius: 6, backgroundColor: '#2a2a2a', marginRight: 12, opacity: 0.5 }} />
-    <View style={{ flex: 1 }}>
-      <View style={{ width: '60%', height: 12, backgroundColor: '#2a2a2a', borderRadius: 6, marginBottom: 8, opacity: 0.5 }} />
-      <View style={{ width: '40%', height: 10, backgroundColor: '#2a2a2a', borderRadius: 6, opacity: 0.5 }} />
+  <View
+    style={{
+      flexDirection: 'row',
+      paddingHorizontal: 15,
+      paddingVertical: 12,
+      alignItems: 'center',
+    }}>
+    <View
+      style={{
+        width: 56,
+        height: 56,
+        borderRadius: 6,
+        backgroundColor: '#2a2a2a',
+        marginRight: 12,
+        opacity: 0.5,
+      }}
+    />
+    <View style={{flex: 1}}>
+      <View
+        style={{
+          width: '60%',
+          height: 12,
+          backgroundColor: '#2a2a2a',
+          borderRadius: 6,
+          marginBottom: 8,
+          opacity: 0.5,
+        }}
+      />
+      <View
+        style={{
+          width: '40%',
+          height: 10,
+          backgroundColor: '#2a2a2a',
+          borderRadius: 6,
+          opacity: 0.5,
+        }}
+      />
     </View>
   </View>
 );
 
-export default function SongDisplay({ data, source = 'saavn', loadMore, hasMore, loadingMore }) {
+// Module-scoped footer to avoid defining components during render
+const ListFooter = ({footerSource, footerLoadingMore, footerHasMore}) => {
+  if (!(footerSource === 'saavn' || footerSource === 'youtube' || footerSource === 'ytmusic')) {
+    return null;
+  }
+  if (footerLoadingMore) {
+    return (
+      <View>
+        <SkeletonRow />
+        <SkeletonRow />
+        <SkeletonRow />
+      </View>
+    );
+  }
+  if (footerHasMore && !footerLoadingMore) {
+    return (
+      <View>
+        <SkeletonRow />
+      </View>
+    );
+  }
+  return null;
+};
+
+
+export default function SongDisplay({
+  data,
+  source = 'saavn',
+  loadMore,
+  hasMore,
+  loadingMore,
+}) {
   const [displayData, setDisplayData] = useState(data);
   const theme = useTheme();
   const activeTrack = useActiveTrack();
@@ -31,20 +93,23 @@ export default function SongDisplay({ data, source = 'saavn', loadMore, hasMore,
   const width = Dimensions.get('window').width;
 
   function FormatArtist(artists) {
-    if (!artists || !Array.isArray(artists)) {return '';}
+    if (!artists || !Array.isArray(artists)) {
+      return '';
+    }
     return artists.map(e => e.name).join(', ');
   }
 
   // Enhanced image handling for YouTube thumbnails
   function getImageUrl(item) {
-    const source = item?.source || 'saavn';
+    const itemSource = item?.source || 'saavn';
 
-    if (source === 'youtube') {
+    if (itemSource === 'youtube') {
       // For YouTube, try multiple fallback options
       const imageArray = item?.image;
       if (Array.isArray(imageArray) && imageArray.length > 0) {
         // Try the highest quality first, then fallbacks
-        const primaryUrl = imageArray[2]?.url || imageArray[1]?.url || imageArray[0]?.url;
+        const primaryUrl =
+          imageArray[2]?.url || imageArray[1]?.url || imageArray[0]?.url;
         if (primaryUrl) {
           // If it's maxresdefault, provide fallback to hqdefault
           if (primaryUrl.includes('maxresdefault.jpg')) {
@@ -61,12 +126,15 @@ export default function SongDisplay({ data, source = 'saavn', loadMore, hasMore,
     }
 
     // For other sources, use existing logic
-    return item?.image?.[2]?.url || item?.image?.[0]?.url || item?.artwork || '';
+    return (
+      item?.image?.[2]?.url || item?.image?.[0]?.url || item?.artwork || ''
+    );
   }
 
   if (!displayData?.data?.results || displayData.data.results.length === 0) {
     return (
-      <View style={{ height: 400, alignItems: 'center', justifyContent: 'center' }}>
+      <View
+        style={{height: 400, alignItems: 'center', justifyContent: 'center'}}>
         <PlainText
           text={'No Songs Found!'}
           style={{
@@ -79,24 +147,31 @@ export default function SongDisplay({ data, source = 'saavn', loadMore, hasMore,
           text={'Try searching for something else. T_T'}
           style={{
             color: theme.dark ? '#999999' : '#888888',
-            marginTop: 8          }}
+            marginTop: 8,
+          }}
         />
       </View>
     );
   }
+
+
 
   return (
     <View>
       <FlatList
         showsVerticalScrollIndicator={false}
         keyExtractor={(item, index) => item?.id?.toString() || index.toString()}
-        contentContainerStyle={{ paddingBottom: 220 }}
+        contentContainerStyle={{paddingBottom: 220}}
         data={displayData.data.results}
         onEndReached={hasMore ? loadMore : null}
         // Use slightly earlier threshold for youtube/ytmusic for smoother prefetch
-        onEndReachedThreshold={(source === 'youtube' || source === 'ytmusic') ? 0.75 : 0.5}
-        renderItem={({ item }) => {
-          if (!item || !item.id) {return null;} // Render nothing if item is invalid
+        onEndReachedThreshold={
+          source === 'youtube' || source === 'ytmusic' ? 0.75 : 0.5
+        }
+        renderItem={({item}) => {
+          if (!item || !item.id) {
+            return null;
+          } // Render nothing if item is invalid
           return (
             <EachSongCard
               artistID={item?.primaryArtistsId || item?.primary_artists_id}
@@ -114,34 +189,13 @@ export default function SongDisplay({ data, source = 'saavn', loadMore, hasMore,
               Data={displayData}
               index={displayData.data.results.findIndex(x => x.id === item.id)}
               activeTrackId={activeTrack?.id}
-              isPlaying={playbackState.state === "playing" || playbackState.state === 3}
+              isPlaying={
+                playbackState.state === 'playing' || playbackState.state === 3
+              }
             />
           );
         }}
-        ListFooterComponent={(() => {
-          if (!(source === 'saavn' || source === 'youtube' || source === 'ytmusic')) {return null;}
-
-          if (loadingMore) {
-            return (
-              <View>
-                <SkeletonRow />
-                <SkeletonRow />
-                <SkeletonRow />
-              </View>
-            );
-          }
-
-          // If there are more results but not yet loading, show a small prefetch placeholder for smoothness
-          if (hasMore && !loadingMore) {
-            return (
-              <View>
-                <SkeletonRow />
-              </View>
-            );
-          }
-
-          return null;
-        })()}
+        ListFooterComponent={<ListFooter footerSource={source} footerLoadingMore={loadingMore} footerHasMore={hasMore} />}
       />
     </View>
   );

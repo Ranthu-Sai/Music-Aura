@@ -1,17 +1,24 @@
-import React, { useEffect, useState, useMemo, useCallback } from 'react';
-import { View, Text, ScrollView, ActivityIndicator, StyleSheet, Image } from 'react-native';
-import { ThemeContext } from '../../Context/Context';
-import { MainWrapper } from '../../Layout/MainWrapper';
-import { PaddingConatiner } from '../../Layout/PaddingConatiner';
-import { Heading } from '../../Component/Global/Heading';
-import { EachSongCard } from '../../Component/Global/EachSongCard';
-import { getArtistTopSongs } from '../../Api/Artists';
-import { useActiveTrack } from 'react-native-track-player';
-import { GetLanguageValue } from '../../LocalStorage/Languages';
+import React, {useEffect, useState, useMemo, useCallback} from 'react';
+import {
+  View,
+  Text,
+  ScrollView,
+  ActivityIndicator,
+  StyleSheet,
+  Image,
+} from 'react-native';
+import {ThemeContext} from '../../Context/Context';
+import {MainWrapper} from '../../Layout/MainWrapper';
+import {PaddingConatiner} from '../../Layout/PaddingConatiner';
+import {Heading} from '../../Component/Global/Heading';
+import {EachSongCard} from '../../Component/Global/EachSongCard';
+import {getArtistTopSongs} from '../../Api/Artists';
+import {useActiveTrack} from 'react-native-track-player';
+import {GetLanguageValue} from '../../LocalStorage/Languages';
 
-export const ArtistSongsPage = ({ route }) => {
-  const { artistId, artistName, artistImage } = route.params;
-  const { currentThemeColors } = React.useContext(ThemeContext);
+export const ArtistSongsPage = ({route}) => {
+  const {artistId, artistName, artistImage} = route.params;
+  const {currentThemeColors} = React.useContext(ThemeContext);
   const [loading, setLoading] = useState(true);
   const [artistData, setArtistData] = useState(null);
   const activeTrack = useActiveTrack();
@@ -58,7 +65,7 @@ export const ArtistSongsPage = ({ route }) => {
     fetchArtistSongs();
   }, [fetchArtistSongs]);
 
-  const formatFollowers = (count) => {
+  const formatFollowers = count => {
     if (!count) {
       return '';
     }
@@ -76,20 +83,27 @@ export const ArtistSongsPage = ({ route }) => {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
           paddingBottom: activeTrack ? 105 : 70,
-        }}
-      >
+        }}>
         {/* Artist Header */}
-        <View style={[styles.header, { backgroundColor: currentThemeColors.secondaryBackground }]}>
+        <View
+          style={[
+            styles.header,
+            {backgroundColor: currentThemeColors.secondaryBackground},
+          ]}>
           <Image
-            source={{ uri: artistImage || artistData?.image }}
+            source={{uri: artistImage || artistData?.image}}
             style={styles.artistImage}
             resizeMode="cover"
           />
-          <Text style={[styles.artistName, { color: currentThemeColors.text }]}>
+          <Text style={[styles.artistName, {color: currentThemeColors.text}]}>
             {artistName || artistData?.name}
           </Text>
           {artistData?.followerCount && (
-            <Text style={[styles.followers, { color: currentThemeColors.secondaryText }]}>
+            <Text
+              style={[
+                styles.followers,
+                {color: currentThemeColors.secondaryText},
+              ]}>
               {formatFollowers(artistData.followerCount)}
             </Text>
           )}
@@ -97,7 +111,10 @@ export const ArtistSongsPage = ({ route }) => {
 
         {loading ? (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={currentThemeColors.primary} />
+            <ActivityIndicator
+              size="large"
+              color={currentThemeColors.primary}
+            />
           </View>
         ) : (
           <>
@@ -107,12 +124,16 @@ export const ArtistSongsPage = ({ route }) => {
 
             {normalizedSongs.length === 0 ? (
               <View style={styles.emptyContainer}>
-                <Text style={[styles.emptyText, { color: currentThemeColors.secondaryText }]}>
+                <Text
+                  style={[
+                    styles.emptyText,
+                    {color: currentThemeColors.secondaryText},
+                  ]}>
                   No songs found for the selected language
                 </Text>
               </View>
             ) : (
-              <View style={{ paddingHorizontal: 10 }}>
+              <View style={{paddingHorizontal: 10}}>
                 {normalizedSongs.map((song, index) => (
                   <EachSongCard
                     key={song.id || `song-${index}`}

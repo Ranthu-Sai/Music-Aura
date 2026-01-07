@@ -1,27 +1,39 @@
-import TrackPlayer from "react-native-track-player";
-import { GetPlaybackQuality } from "./LocalStorage/AppSettings";
-import NetInfo from "@react-native-community/netinfo";
-import { ToastAndroid, DeviceEventEmitter, InteractionManager } from "react-native";
-import historyManager from "./Utils/HistoryManager";
+import TrackPlayer from 'react-native-track-player';
+import {GetPlaybackQuality} from './LocalStorage/AppSettings';
+import NetInfo from '@react-native-community/netinfo';
+import {
+  ToastAndroid,
+  DeviceEventEmitter,
+  InteractionManager,
+} from 'react-native';
+import historyManager from './Utils/HistoryManager';
 
-
-import youtubeStreamingService from "./Utils/YouTubeStreamingService";
-import queueManager from "./Utils/QueueManager";
-import { enhanceYTMusicArtwork, getPrimaryArtworkUrl } from "./Utils/ArtworkEnhancer";
-import autoRecommendations from "./Utils/AutoRecommendations";
-import skipOperationManager from "./Utils/SkipOperationManager";
-import streamFetchManager from "./Utils/StreamFetchManager";
-import smartPrefetchManager from "./Utils/SmartPrefetchManager";
-import FormatTitleAndArtist from "./Utils/FormatTitleAndArtist";
+import youtubeStreamingService from './Utils/YouTubeStreamingService';
+import queueManager from './Utils/QueueManager';
+import {
+  enhanceYTMusicArtwork,
+  getPrimaryArtworkUrl,
+} from './Utils/ArtworkEnhancer';
+import autoRecommendations from './Utils/AutoRecommendations';
+import skipOperationManager from './Utils/SkipOperationManager';
+import streamFetchManager from './Utils/StreamFetchManager';
+import smartPrefetchManager from './Utils/SmartPrefetchManager';
+import FormatTitleAndArtist from './Utils/FormatTitleAndArtist';
 
 let isPlayerInitialized = false;
 const DEBUG_LOGS = false;
-const debugLog = (...args) => { if (DEBUG_LOGS) { console.log(...args); } };
+const debugLog = (...args) => {
+  if (DEBUG_LOGS) {
+    console.log(...args);
+  }
+};
 
 // Remove a specific track from the queue by its TrackPlayer index
 async function removeFromQueue(index) {
   try {
-    if (typeof index !== 'number' || index < 0) {return;}
+    if (typeof index !== 'number' || index < 0) {
+      return;
+    }
     await TrackPlayer.remove(index);
     console.log(`🗑️ Removed track at index ${index} from queue`);
   } catch (error) {
@@ -30,9 +42,13 @@ async function removeFromQueue(index) {
 }
 
 // Helper to extract artwork URL from various formats
-const extractArtwork = (song) => {
+const extractArtwork = song => {
   // Direct artwork/image string
-  if (song.artwork && typeof song.artwork === 'string' && song.artwork.length > 0) {
+  if (
+    song.artwork &&
+    typeof song.artwork === 'string' &&
+    song.artwork.length > 0
+  ) {
     return song.artwork;
   }
   if (song.image && typeof song.image === 'string' && song.image.length > 0) {
@@ -41,38 +57,64 @@ const extractArtwork = (song) => {
 
   // Object format with url/uri
   if (song.artwork && typeof song.artwork === 'object') {
-    if (song.artwork.url) { return song.artwork.url; }
-    if (song.artwork.uri) { return song.artwork.uri; }
+    if (song.artwork.url) {
+      return song.artwork.url;
+    }
+    if (song.artwork.uri) {
+      return song.artwork.uri;
+    }
   }
 
   // Array format (Saavn/OuterTune)
   if (song.image && Array.isArray(song.image)) {
-    const bestImage = song.image[2] || song.image[song.image.length - 1] || song.image[0];
-    if (bestImage?.url) { return bestImage.url; }
-    if (bestImage?.link) { return bestImage.link; }
-    if (typeof bestImage === 'string') { return bestImage; }
+    const bestImage =
+      song.image[2] || song.image[song.image.length - 1] || song.image[0];
+    if (bestImage?.url) {
+      return bestImage.url;
+    }
+    if (bestImage?.link) {
+      return bestImage.link;
+    }
+    if (typeof bestImage === 'string') {
+      return bestImage;
+    }
   }
 
   // Single Image Object format
   if (song.image && typeof song.image === 'object') {
-    if (song.image.url) { return song.image.url; }
-    if (song.image.uri) { return song.image.uri; }
+    if (song.image.url) {
+      return song.image.url;
+    }
+    if (song.image.uri) {
+      return song.image.uri;
+    }
   }
 
   // Thumbnail format (YTMusic)
   if (song.thumbnail) {
-    if (typeof song.thumbnail === 'string') { return song.thumbnail; }
-    if (typeof song.thumbnail === 'object' && song.thumbnail.url) { return song.thumbnail.url; }
+    if (typeof song.thumbnail === 'string') {
+      return song.thumbnail;
+    }
+    if (typeof song.thumbnail === 'object' && song.thumbnail.url) {
+      return song.thumbnail.url;
+    }
   }
 
   if (song.thumbnails && Array.isArray(song.thumbnails)) {
-    const bestThumb = song.thumbnails[song.thumbnails.length - 1] || song.thumbnails[0];
-    if (bestThumb?.url) { return bestThumb.url; }
+    const bestThumb =
+      song.thumbnails[song.thumbnails.length - 1] || song.thumbnails[0];
+    if (bestThumb?.url) {
+      return bestThumb.url;
+    }
   }
 
   // Try to find any property that looks like a URL
-  if (song.artwork?.uri) { return song.artwork.uri; }
-  if (song.image?.uri) { return song.image.uri; }
+  if (song.artwork?.uri) {
+    return song.artwork.uri;
+  }
+  if (song.image?.uri) {
+    return song.image.uri;
+  }
 
   return undefined; // Return undefined instead of empty string to avoid TrackPlayer error
 };
@@ -101,8 +143,13 @@ const safeHttpGet = async (url, opts = {}) => {
       }
     }
 
-    const response = await fetch(url, controller ? { signal: controller.signal } : {});
-    if (timeoutId) { clearTimeout(timeoutId); }
+    const response = await fetch(
+      url,
+      controller ? {signal: controller.signal} : {},
+    );
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
 
     const contentType = response.headers?.get?.('content-type') || '';
     let data;
@@ -110,10 +157,14 @@ const safeHttpGet = async (url, opts = {}) => {
       data = await response.json();
     } else {
       const text = await response.text();
-      try { data = JSON.parse(text); } catch (e) { data = text; }
+      try {
+        data = JSON.parse(text);
+      } catch (e) {
+        data = text;
+      }
     }
 
-    return { data, status: response.status };
+    return {data, status: response.status};
   } catch (fetchErr) {
     throw fetchErr;
   }
@@ -174,14 +225,19 @@ export const setupPlayer = async () => {
 
         // Initialize SmartPrefetchManager for background prefetching
         smartPrefetchManager.initialize();
-
       } catch (setupError) {
         // Check if the error is about player already being initialized
-        if (setupError.message && setupError.message.includes('player has already been initialized')) {
+        if (
+          setupError.message &&
+          setupError.message.includes('player has already been initialized')
+        ) {
           isPlayerInitialized = true;
           smartPrefetchManager.initialize();
         } else {
-          console.error('Error setting up player in MusicPlayerFunctions:', setupError);
+          console.error(
+            'Error setting up player in MusicPlayerFunctions:',
+            setupError,
+          );
           throw setupError;
         }
       }
@@ -208,10 +264,14 @@ async function PlayOneSong(song) {
     // Get the appropriate URL based on playback quality setting
     // Prioritize downloadUrl for Saavn songs, fallback to url
     let playbackUrl = song.url;
-    let updatedSong = { ...song };
+    let updatedSong = {...song};
 
     // If downloadUrl exists (Saavn songs), use it instead of url
-    if (song.downloadUrl && Array.isArray(song.downloadUrl) && song.downloadUrl.length > 0) {
+    if (
+      song.downloadUrl &&
+      Array.isArray(song.downloadUrl) &&
+      song.downloadUrl.length > 0
+    ) {
       playbackUrl = song.downloadUrl;
       updatedSong.url = song.downloadUrl; // Ensure url is set for downstream processing
     }
@@ -222,14 +282,20 @@ async function PlayOneSong(song) {
       try {
         const qualityIndex = await getIndexQuality();
         // Prefer configured quality, fall back to highest available
-        const preferred = playbackUrl[qualityIndex] && (playbackUrl[qualityIndex].url || playbackUrl[qualityIndex].link || playbackUrl[qualityIndex].download);
+        const preferred =
+          playbackUrl[qualityIndex] &&
+          (playbackUrl[qualityIndex].url ||
+            playbackUrl[qualityIndex].link ||
+            playbackUrl[qualityIndex].download);
         if (preferred) {
           playbackUrl = preferred;
         } else {
           // Find highest-quality available by iterating from end
           for (let i = playbackUrl.length - 1; i >= 0; i--) {
             const candidate = playbackUrl[i];
-            const candidateUrl = candidate && (candidate.url || candidate.link || candidate.download);
+            const candidateUrl =
+              candidate &&
+              (candidate.url || candidate.link || candidate.download);
             if (candidateUrl) {
               playbackUrl = candidateUrl;
               break;
@@ -242,13 +308,21 @@ async function PlayOneSong(song) {
         }
       } catch (err) {
         // If quality lookup fails, ignore and continue — other handlers will try
-        console.warn('PlayOneSong: Failed to select quality from url array', err);
+        console.warn(
+          'PlayOneSong: Failed to select quality from url array',
+          err,
+        );
       }
     }
 
     // Check if this is a YouTube song (has videoId/id that looks like YouTube video ID)
     // Honor explicit flag `song.isYouTubeSong` when provided (e.g., callers that know the source)
-    const isYouTubeSong = (song.isYouTubeSong === true) || (song.id && typeof song.id === 'string' && song.id.length === 11 && !song.isLocalMusic);
+    const isYouTubeSong =
+      song.isYouTubeSong === true ||
+      (song.id &&
+        typeof song.id === 'string' &&
+        song.id.length === 11 &&
+        !song.isLocalMusic);
 
     if (isYouTubeSong) {
       try {
@@ -259,7 +333,7 @@ async function PlayOneSong(song) {
           song.id,
           async (videoId, signal) => {
             return await youtubeStreamingService.getStreamUrl(videoId, signal);
-          }
+          },
         );
 
         if (streamData && streamData.url) {
@@ -269,8 +343,8 @@ async function PlayOneSong(song) {
           updatedSong = {
             ...updatedSong,
             url: streamData.url,
-            headers: streamData.headers,  // CRITICAL: Pass headers to TrackPlayer
-            userAgent: streamData.headers?.['User-Agent'],  // Explicit for ExoPlayer
+            headers: streamData.headers, // CRITICAL: Pass headers to TrackPlayer
+            userAgent: streamData.headers?.['User-Agent'], // Explicit for ExoPlayer
             artwork: streamData.thumbnail || updatedSong.artwork,
             duration: streamData.duration || updatedSong.duration,
             // Only use stream title if we don't have a good title already
@@ -284,7 +358,10 @@ async function PlayOneSong(song) {
           skipOperationManager.resetErrorCounter();
         } else {
           console.error('Failed to get YouTube stream URL');
-          ToastAndroid.show('Failed to load YouTube stream', ToastAndroid.SHORT);
+          ToastAndroid.show(
+            'Failed to load YouTube stream',
+            ToastAndroid.SHORT,
+          );
           return;
         }
       } catch (error) {
@@ -296,8 +373,7 @@ async function PlayOneSong(song) {
         }
         return;
       }
-    }
-    else {
+    } else {
       // If song has multiple quality URLs, select based on setting
       if (song.downloadUrl && Array.isArray(song.downloadUrl)) {
         const qualityIndex = await getIndexQuality();
@@ -330,25 +406,48 @@ async function PlayOneSong(song) {
     }
 
     // Validate song URL - if missing, attempt a best-effort fetch for non-YouTube songs
-    if (!playbackUrl || typeof playbackUrl !== 'string' || playbackUrl.trim() === '') {
+    if (
+      !playbackUrl ||
+      typeof playbackUrl !== 'string' ||
+      playbackUrl.trim() === ''
+    ) {
       // Try to resolve missing URLs for non-YouTube tracks using API lookup + search fallback
       if (!isYouTubeSong && song.id) {
         try {
-          const { getSongData } = require('./Api/Songs');
+          const {getSongData} = require('./Api/Songs');
           const apiResp = await getSongData(song.id);
 
           let songInfo = apiResp;
-          if (apiResp && apiResp.data) { songInfo = apiResp.data; }
-          if (songInfo && songInfo.results && Array.isArray(songInfo.results) && songInfo.results.length > 0) {
+          if (apiResp && apiResp.data) {
+            songInfo = apiResp.data;
+          }
+          if (
+            songInfo &&
+            songInfo.results &&
+            Array.isArray(songInfo.results) &&
+            songInfo.results.length > 0
+          ) {
             songInfo = songInfo.results[0];
           }
 
-          const candidateDownload = songInfo?.downloadUrl || songInfo?.download_url || songInfo?.downloadUrls || songInfo?.media?.downloadUrl;
-          const candidateUrl = songInfo?.url || songInfo?.stream_url || songInfo?.playUrl || songInfo?.downloadUrl || songInfo?.download_url;
+          const candidateDownload =
+            songInfo?.downloadUrl ||
+            songInfo?.download_url ||
+            songInfo?.downloadUrls ||
+            songInfo?.media?.downloadUrl;
+          const candidateUrl =
+            songInfo?.url ||
+            songInfo?.stream_url ||
+            songInfo?.playUrl ||
+            songInfo?.downloadUrl ||
+            songInfo?.download_url;
 
           if (candidateDownload) {
             if (Array.isArray(candidateDownload)) {
-              playbackUrl = candidateDownload[0] || (candidateDownload.find(d => d?.url)?.url) || playbackUrl;
+              playbackUrl =
+                candidateDownload[0] ||
+                candidateDownload.find(d => d?.url)?.url ||
+                playbackUrl;
             } else if (typeof candidateDownload === 'string') {
               playbackUrl = candidateDownload;
             }
@@ -357,31 +456,70 @@ async function PlayOneSong(song) {
           }
 
           // If still missing, try a Saavn-style search by title+artist
-          if ((!playbackUrl || typeof playbackUrl !== 'string' || playbackUrl.trim() === '') && song.title) {
+          if (
+            (!playbackUrl ||
+              typeof playbackUrl !== 'string' ||
+              playbackUrl.trim() === '') &&
+            song.title
+          ) {
             try {
-              const query = encodeURIComponent((song.title || '') + ' ' + (song.artist || ''));
+              const query = encodeURIComponent(
+                (song.title || '') + ' ' + (song.artist || ''),
+              );
               const searchUrl = `https://jiosavan-api-with-playlist.vercel.app/api/search/songs?query=${query}&limit=1`;
-              const searchResp = await safeHttpGet(searchUrl, { timeout: 10000 });
-              const respData = (searchResp && (searchResp.data || searchResp)) || {};
-              const results = (respData && (respData.data?.results || respData.results)) || [];
+              const searchResp = await safeHttpGet(searchUrl, {timeout: 10000});
+              const respData =
+                (searchResp && (searchResp.data || searchResp)) || {};
+              const results =
+                (respData && (respData.data?.results || respData.results)) ||
+                [];
               if (results && results.length > 0) {
                 const first = results[0];
-                const cand = first?.downloadUrl || first?.download_url || first?.url || first?.stream_url || first?.playUrl;
+                const cand =
+                  first?.downloadUrl ||
+                  first?.download_url ||
+                  first?.url ||
+                  first?.stream_url ||
+                  first?.playUrl;
                 if (cand) {
-                  if (Array.isArray(cand)) { playbackUrl = cand[0] || (cand.find(d => d?.url)?.url) || playbackUrl; }
-                  else if (typeof cand === 'string') { playbackUrl = cand; }
+                  if (Array.isArray(cand)) {
+                    playbackUrl =
+                      cand[0] || cand.find(d => d?.url)?.url || playbackUrl;
+                  } else if (typeof cand === 'string') {
+                    playbackUrl = cand;
+                  }
                 }
                 // Merge any improved metadata
-                song.title = song.title || first.title || first.name || song.title;
-                song.artist = song.artist || first.artist || first.artists || first.primary_artists || first.subtitle || song.artist;
-                song.artwork = song.artwork || first.image || first.thumbnails || first.albumCover || first.cover || song.artwork;
+                song.title =
+                  song.title || first.title || first.name || song.title;
+                song.artist =
+                  song.artist ||
+                  first.artist ||
+                  first.artists ||
+                  first.primary_artists ||
+                  first.subtitle ||
+                  song.artist;
+                song.artwork =
+                  song.artwork ||
+                  first.image ||
+                  first.thumbnails ||
+                  first.albumCover ||
+                  first.cover ||
+                  song.artwork;
               }
             } catch (e) {
-              console.warn('PlayOneSong: search fallback failed', e?.message || e);
+              console.warn(
+                'PlayOneSong: search fallback failed',
+                e?.message || e,
+              );
             }
           }
 
-          if (playbackUrl && typeof playbackUrl === 'string' && playbackUrl.trim() !== '') {
+          if (
+            playbackUrl &&
+            typeof playbackUrl === 'string' &&
+            playbackUrl.trim() !== ''
+          ) {
             updatedSong.url = playbackUrl;
           }
         } catch (e) {
@@ -389,7 +527,11 @@ async function PlayOneSong(song) {
         }
       }
 
-      if (!playbackUrl || typeof playbackUrl !== 'string' || playbackUrl.trim() === '') {
+      if (
+        !playbackUrl ||
+        typeof playbackUrl !== 'string' ||
+        playbackUrl.trim() === ''
+      ) {
         console.error('PlayOneSong: Invalid or missing song URL', song);
         ToastAndroid.show('Cannot play song - invalid URL', ToastAndroid.SHORT);
         return;
@@ -397,7 +539,8 @@ async function PlayOneSong(song) {
     }
 
     // Check if the song is a local file (has a path or isLocalMusic property)
-    const isLocalFile = song.isLocalMusic || song.path || playbackUrl.startsWith('file://');
+    const isLocalFile =
+      song.isLocalMusic || song.path || playbackUrl.startsWith('file://');
 
     // If it's a local file, make sure the URL starts with file://
     if (isLocalFile && !playbackUrl.startsWith('file://') && song.path) {
@@ -423,8 +566,15 @@ async function PlayOneSong(song) {
     const currentQuality = qualityNames[qualityIndex] || 'Unknown';
 
     // Enhance artwork to highest quality for playing song (w500)
-    const enhancedArtwork = enhanceYTMusicArtwork(updatedSong.artwork || updatedSong.image, 'playing');
-    const playingArtwork = getPrimaryArtworkUrl(enhancedArtwork) || updatedSong.artwork || updatedSong.image || undefined;
+    const enhancedArtwork = enhanceYTMusicArtwork(
+      updatedSong.artwork || updatedSong.image,
+      'playing',
+    );
+    const playingArtwork =
+      getPrimaryArtworkUrl(enhancedArtwork) ||
+      updatedSong.artwork ||
+      updatedSong.image ||
+      undefined;
 
     const songForPlayback = {
       ...updatedSong,
@@ -432,7 +582,10 @@ async function PlayOneSong(song) {
       title: FormatTitleAndArtist(updatedSong.title, updatedSong.artist),
       artist: FormatTitleAndArtist(updatedSong.artist),
       currentPlayingQuality: currentQuality,
-      artwork: playingArtwork && playingArtwork.trim() !== '' ? playingArtwork : undefined, // Ensure never empty string
+      artwork:
+        playingArtwork && playingArtwork.trim() !== ''
+          ? playingArtwork
+          : undefined, // Ensure never empty string
     };
 
     await TrackPlayer.reset();
@@ -440,7 +593,7 @@ async function PlayOneSong(song) {
     await TrackPlayer.play();
 
     // Signal that this is a single song playback (enable auto-recommendations)
-    DeviceEventEmitter.emit('playback-mode-changed', { isPlaylist: false });
+    DeviceEventEmitter.emit('playback-mode-changed', {isPlaylist: false});
   } catch (error) {
     console.error('Error playing song:', error);
   }
@@ -448,7 +601,6 @@ async function PlayOneSong(song) {
 
 async function PlaySongWithRelated(videoId, artwork, songData = {}) {
   try {
-
     // Create song object
     const song = {
       id: videoId,
@@ -462,24 +614,36 @@ async function PlaySongWithRelated(videoId, artwork, songData = {}) {
       // Mark as YouTube song
       // Only mark as YouTube if it looks like a YouTube video id (11 chars)
       // or if the caller explicitly sets source='ytmusic'
-      isYouTubeSong: (typeof videoId === 'string' && videoId.length === 11) || songData.source === 'ytmusic',
+      isYouTubeSong:
+        (typeof videoId === 'string' && videoId.length === 11) ||
+        songData.source === 'ytmusic',
     };
 
     // If this is not a YouTube song and URL/download metadata is missing,
     // try to fetch Saavn song details from the API so we can obtain downloadUrl(s).
-    const isUrlMissing = (!song.url || (typeof song.url === 'string' && song.url.trim() === '') || (Array.isArray(song.url) && song.url.length === 0));
-    const isDownloadUrlMissing = !song.downloadUrl || (Array.isArray(song.downloadUrl) && song.downloadUrl.length === 0);
+    const isUrlMissing =
+      !song.url ||
+      (typeof song.url === 'string' && song.url.trim() === '') ||
+      (Array.isArray(song.url) && song.url.length === 0);
+    const isDownloadUrlMissing =
+      !song.downloadUrl ||
+      (Array.isArray(song.downloadUrl) && song.downloadUrl.length === 0);
 
     if (!song.isYouTubeSong && isUrlMissing && isDownloadUrlMissing) {
       try {
-        const { getSongData } = require('./Api/Songs');
+        const {getSongData} = require('./Api/Songs');
         const apiResp = await getSongData(song.id);
 
         // Normalize response into songInfo object
         let songInfo = apiResp;
 
         // Handle case where data is directly an array (Saavn API format)
-        if (apiResp && apiResp.data && Array.isArray(apiResp.data) && apiResp.data.length > 0) {
+        if (
+          apiResp &&
+          apiResp.data &&
+          Array.isArray(apiResp.data) &&
+          apiResp.data.length > 0
+        ) {
           songInfo = apiResp.data[0];
         }
         // Handle case where data.results is an array
@@ -488,13 +652,29 @@ async function PlaySongWithRelated(videoId, artwork, songData = {}) {
         }
 
         // Handle nested results array
-        if (songInfo && songInfo.results && Array.isArray(songInfo.results) && songInfo.results.length > 0) {
+        if (
+          songInfo &&
+          songInfo.results &&
+          Array.isArray(songInfo.results) &&
+          songInfo.results.length > 0
+        ) {
           songInfo = songInfo.results[0];
         }
 
         // Try common fields used across different APIs
-        const candidateDownload = songInfo?.downloadUrl || songInfo?.download_url || songInfo?.downloadUrls || songInfo?.downloadUrls || songInfo?.media?.downloadUrl || songInfo?.media?.download_url;
-        const candidateUrl = songInfo?.url || songInfo?.stream_url || songInfo?.playUrl || songInfo?.downloadUrl || songInfo?.download_url;
+        const candidateDownload =
+          songInfo?.downloadUrl ||
+          songInfo?.download_url ||
+          songInfo?.downloadUrls ||
+          songInfo?.downloadUrls ||
+          songInfo?.media?.downloadUrl ||
+          songInfo?.media?.download_url;
+        const candidateUrl =
+          songInfo?.url ||
+          songInfo?.stream_url ||
+          songInfo?.playUrl ||
+          songInfo?.downloadUrl ||
+          songInfo?.download_url;
 
         if (candidateDownload) {
           // If API returned an array or single URL, attach appropriately
@@ -502,7 +682,10 @@ async function PlaySongWithRelated(videoId, artwork, songData = {}) {
             song.downloadUrl = candidateDownload;
             // Keep song.url for backward compatibility (leave as array)
             song.url = candidateDownload;
-          } else if (typeof candidateDownload === 'string' && candidateDownload.length > 0) {
+          } else if (
+            typeof candidateDownload === 'string' &&
+            candidateDownload.length > 0
+          ) {
             song.url = candidateDownload;
           }
         } else if (candidateUrl) {
@@ -511,23 +694,50 @@ async function PlaySongWithRelated(videoId, artwork, songData = {}) {
         // If we found duration/title/artist from API, merge to improve metadata
         if (songInfo) {
           song.title = song.title || songInfo.title || songInfo.name;
-          song.artist = song.artist || songInfo.primary_artists || songInfo.artist || songInfo.artists || songInfo.subtitle;
-          song.duration = song.duration || songInfo.duration || songInfo.length || songInfo.track_length;
-          song.artwork = song.artwork || songInfo.image || songInfo.thumbnails || songInfo.albumCover || songInfo.cover;
+          song.artist =
+            song.artist ||
+            songInfo.primary_artists ||
+            songInfo.artist ||
+            songInfo.artists ||
+            songInfo.subtitle;
+          song.duration =
+            song.duration ||
+            songInfo.duration ||
+            songInfo.length ||
+            songInfo.track_length;
+          song.artwork =
+            song.artwork ||
+            songInfo.image ||
+            songInfo.thumbnails ||
+            songInfo.albumCover ||
+            songInfo.cover;
         }
         // If after the ID-based fetch we still don't have a usable URL,
         // try a Saavn-style search by title+artist against the provided
         // jiosavan API to locate a playable download URL.
-        if ((!song.url || (typeof song.url === 'string' && song.url.trim() === '')) && song.title) {
+        if (
+          (!song.url ||
+            (typeof song.url === 'string' && song.url.trim() === '')) &&
+          song.title
+        ) {
           try {
-            const query = encodeURIComponent((song.title || '') + ' ' + (song.artist || ''));
+            const query = encodeURIComponent(
+              (song.title || '') + ' ' + (song.artist || ''),
+            );
             const searchUrl = `https://jiosavan-api-with-playlist.vercel.app/api/search/songs?query=${query}&limit=1`;
-            const searchResp = await safeHttpGet(searchUrl, { timeout: 10000 });
-            const respData = (searchResp && (searchResp.data || searchResp)) || {};
-            const results = (respData && (respData.data?.results || respData.results)) || [];
+            const searchResp = await safeHttpGet(searchUrl, {timeout: 10000});
+            const respData =
+              (searchResp && (searchResp.data || searchResp)) || {};
+            const results =
+              (respData && (respData.data?.results || respData.results)) || [];
             if (results && results.length > 0) {
               const first = results[0];
-              const cand = first?.downloadUrl || first?.download_url || first?.url || first?.stream_url || first?.playUrl;
+              const cand =
+                first?.downloadUrl ||
+                first?.download_url ||
+                first?.url ||
+                first?.stream_url ||
+                first?.playUrl;
               if (cand) {
                 if (Array.isArray(cand)) {
                   song.downloadUrl = cand;
@@ -538,17 +748,34 @@ async function PlaySongWithRelated(videoId, artwork, songData = {}) {
               }
               // Merge any improved metadata
               song.title = song.title || first.title || first.name;
-              song.artist = song.artist || first.artist || first.artists || first.primary_artists || first.subtitle;
-              song.artwork = song.artwork || first.image || first.thumbnails || first.albumCover || first.cover;
+              song.artist =
+                song.artist ||
+                first.artist ||
+                first.artists ||
+                first.primary_artists ||
+                first.subtitle;
+              song.artwork =
+                song.artwork ||
+                first.image ||
+                first.thumbnails ||
+                first.albumCover ||
+                first.cover;
             }
           } catch (e) {
             // Non-fatal; continue without search results
-            console.warn('PlaySongWithRelated: Saavn search fallback failed', e?.message || e);
+            console.warn(
+              'PlaySongWithRelated: Saavn search fallback failed',
+              e?.message || e,
+            );
           }
         }
       } catch (e) {
         // Non-fatal; proceed — PlayOneSong will handle missing URL gracefully
-        console.warn('PlaySongWithRelated: failed to fetch song details for', song.id, e?.message || e);
+        console.warn(
+          'PlaySongWithRelated: failed to fetch song details for',
+          song.id,
+          e?.message || e,
+        );
       }
     }
 
@@ -556,7 +783,7 @@ async function PlaySongWithRelated(videoId, artwork, songData = {}) {
     await PlayOneSong(song);
 
     // Emit event to open queue when song is played from anywhere
-    DeviceEventEmitter.emit('songPlayed', { songId: videoId });
+    DeviceEventEmitter.emit('songPlayed', {songId: videoId});
 
     // Stop and Reset auto-recommendations before starting fresh
     if (autoRecommendations && typeof autoRecommendations.stop === 'function') {
@@ -566,40 +793,50 @@ async function PlaySongWithRelated(videoId, artwork, songData = {}) {
     // Build queue based on song type
     if (song.isYouTubeSong) {
       // Start auto-recommendations for YouTube Music songs
-      if (autoRecommendations && typeof autoRecommendations.start === 'function') {
+      if (
+        autoRecommendations &&
+        typeof autoRecommendations.start === 'function'
+      ) {
         autoRecommendations.start(videoId);
       }
       // Start continuous monitor to refill queue when low
-      if (queueManager && typeof queueManager.startContinuousQueueMonitor === 'function') {
+      if (
+        queueManager &&
+        typeof queueManager.startContinuousQueueMonitor === 'function'
+      ) {
         queueManager.startContinuousQueueMonitor(videoId);
       }
     } else {
       // Build queue for JioSaavn songs using recommendations API
       (async () => {
         try {
-          const { getRecommendedSongs } = require('./Api/Recommended');
+          const {getRecommendedSongs} = require('./Api/Recommended');
           const recommendations = await getRecommendedSongs(videoId);
 
           // Parse recommendations response
-          let songs = [];
+          let recSongs = [];
           if (recommendations?.data) {
-            songs = Array.isArray(recommendations.data) ? recommendations.data : [];
+            recSongs = Array.isArray(recommendations.data)
+              ? recommendations.data
+              : [];
           } else if (Array.isArray(recommendations)) {
-            songs = recommendations;
+            recSongs = recommendations;
           }
 
           // Format and filter songs to ensure they have all required fields
-          const formattedSongs = songs
+          const formattedSongs = recSongs
             .filter(s => s && s.id && s.id !== videoId)
             .map(s => {
               // Extract artwork URL from image array
               let artworkUrl = '';
               if (Array.isArray(s.image) && s.image.length > 0) {
                 // Get highest quality image (usually the last one)
-                artworkUrl = s.image[s.image.length - 1]?.url ||
+                artworkUrl =
+                  s.image[s.image.length - 1]?.url ||
                   s.image[2]?.url ||
                   s.image[1]?.url ||
-                  s.image[0]?.url || '';
+                  s.image[0]?.url ||
+                  '';
               } else if (typeof s.image === 'string') {
                 artworkUrl = s.image;
               }
@@ -608,11 +845,12 @@ async function PlaySongWithRelated(videoId, artwork, songData = {}) {
                 id: s.id,
                 name: s.name || s.title || 'Unknown',
                 title: s.name || s.title || 'Unknown',
-                artist: s.artists?.primary?.map(a => a.name).join(', ') ||
+                artist:
+                  s.artists?.primary?.map(a => a.name).join(', ') ||
                   s.primary_artists ||
                   s.artist ||
                   'Unknown Artist',
-                artists: s.artists || { primary: [{ name: 'Unknown Artist' }] },
+                artists: s.artists || {primary: [{name: 'Unknown Artist'}]},
                 image: s.image || [],
                 artwork: artworkUrl, // Set artwork as string URL for player
                 downloadUrl: s.downloadUrl || s.download_url || [],
@@ -647,11 +885,15 @@ async function AddPlaylist(songs, startSongId = null) {
     // Filter/Slice if startSongId is provided
     let tracksToAdd = [...songs];
     if (startSongId) {
-      const startIndex = songs.findIndex(s => s.id === startSongId || s.videoId === startSongId);
+      const startIndex = songs.findIndex(
+        s => s.id === startSongId || s.videoId === startSongId,
+      );
       if (startIndex !== -1) {
         tracksToAdd = songs.slice(startIndex);
       } else {
-        console.warn(`⚠️ Start song ID ${startSongId} not found in playlist, playing all`);
+        console.warn(
+          `⚠️ Start song ID ${startSongId} not found in playlist, playing all`,
+        );
       }
     }
 
@@ -669,70 +911,91 @@ async function AddPlaylist(songs, startSongId = null) {
     const qualityNames = ['12kbps', '48kbps', '96kbps', '160kbps', '320kbps'];
     const currentQuality = qualityNames[qualityIndex] || 'Unknown';
 
-    const processedSongs = await Promise.all(tracksToAdd.map(async (song, index) => {
-      let playbackUrl = song.url;
-      let updatedSong = { ...song };
+    const processedSongs = await Promise.all(
+      tracksToAdd.map(async (song, index) => {
+        let playbackUrl = song.url;
+        let updatedSong = {...song};
 
-      // Check if this is a YouTube song
-      const isYouTubeSong = song.id && typeof song.id === 'string' && song.id.length === 11 && !song.isLocalMusic;
+        // Check if this is a YouTube song
+        const isYouTubeSong =
+          song.id &&
+          typeof song.id === 'string' &&
+          song.id.length === 11 &&
+          !song.isLocalMusic;
 
-      if (isYouTubeSong) {
-        // Only fetch stream for the FIRST song immediately
-        // All others get a placeholder and will be fetched on demand
-        const isFirstSong = index === 0;
+        if (isYouTubeSong) {
+          // Only fetch stream for the FIRST song immediately
+          // All others get a placeholder and will be fetched on demand
+          const isFirstSong = index === 0;
 
-        if (isFirstSong) {
-          try {
-            debugLog('Fetching YouTube stream for first playlist song:', song.id);
-            const streamData = await youtubeStreamingService.getStreamUrl(song.id);
+          if (isFirstSong) {
+            try {
+              debugLog(
+                'Fetching YouTube stream for first playlist song:',
+                song.id,
+              );
+              const streamData = await youtubeStreamingService.getStreamUrl(
+                song.id,
+              );
 
-            if (streamData && streamData.url) {
-              playbackUrl = streamData.url;
-              updatedSong = {
-                ...updatedSong,
-                url: streamData.url,
-                headers: streamData.headers,
-                userAgent: streamData.headers?.['User-Agent'],
-                artwork: streamData.thumbnail || updatedSong.artwork,
-                duration: streamData.duration || updatedSong.duration,
-                title: streamData.title || updatedSong.title,
-                currentPlayingQuality: currentQuality,
-              };
+              if (streamData && streamData.url) {
+                playbackUrl = streamData.url;
+                updatedSong = {
+                  ...updatedSong,
+                  url: streamData.url,
+                  headers: streamData.headers,
+                  userAgent: streamData.headers?.['User-Agent'],
+                  artwork: streamData.thumbnail || updatedSong.artwork,
+                  duration: streamData.duration || updatedSong.duration,
+                  title: streamData.title || updatedSong.title,
+                  currentPlayingQuality: currentQuality,
+                };
+              }
+            } catch (error) {
+              console.error(
+                'Error fetching YouTube stream for first playlist song:',
+                error,
+              );
             }
-          } catch (error) {
-            console.error('Error fetching YouTube stream for first playlist song:', error);
+          } else {
+            // LAZY LOAD: Set placeholder URL and flag
+            playbackUrl = `ytmusic://${song.id || song.videoId}`;
+            updatedSong._needsStream = true;
+            updatedSong.isYTMusic = true;
+            updatedSong.url = playbackUrl;
+            updatedSong.currentPlayingQuality = currentQuality;
           }
         } else {
-          // LAZY LOAD: Set placeholder URL and flag
-          playbackUrl = `ytmusic://${song.id || song.videoId}`;
-          updatedSong._needsStream = true;
-          updatedSong.isYTMusic = true;
-          updatedSong.url = playbackUrl;
-          updatedSong.currentPlayingQuality = currentQuality;
+          // Standard file/download URL logic
+          if (song.downloadUrl && Array.isArray(song.downloadUrl)) {
+            updatedSong.url =
+              song.downloadUrl[qualityIndex]?.url ||
+              song.downloadUrl.find(d => d?.url)?.url ||
+              song.url;
+          } else if (song.download_url && Array.isArray(song.download_url)) {
+            updatedSong.url =
+              song.download_url[qualityIndex]?.url ||
+              song.download_url.find(d => d?.url)?.url ||
+              song.url;
+          }
         }
-      } else {
-        // Standard file/download URL logic
-        if (song.downloadUrl && Array.isArray(song.downloadUrl)) {
-          updatedSong.url = song.downloadUrl[qualityIndex]?.url || song.downloadUrl.find(d => d?.url)?.url || song.url;
-        } else if (song.download_url && Array.isArray(song.download_url)) {
-          updatedSong.url = song.download_url[qualityIndex]?.url || song.download_url.find(d => d?.url)?.url || song.url;
-        }
-      }
 
-      const artworkUrl = extractArtwork(song) || extractArtwork(updatedSong);
-      const enhancedArtwork = enhanceYTMusicArtwork(artworkUrl, 'playing');
-      const finalArtwork = getPrimaryArtworkUrl(enhancedArtwork) || artworkUrl || undefined;
+        const artworkUrl = extractArtwork(song) || extractArtwork(updatedSong);
+        const enhancedArtwork = enhanceYTMusicArtwork(artworkUrl, 'playing');
+        const finalArtwork =
+          getPrimaryArtworkUrl(enhancedArtwork) || artworkUrl || undefined;
 
-      return {
-        ...updatedSong,
-        url: playbackUrl || updatedSong.url,
-        title: FormatTitleAndArtist(updatedSong.title, updatedSong.artist),
-        artist: FormatTitleAndArtist(updatedSong.artist),
-        artwork: finalArtwork,
-        image: finalArtwork,
-        currentPlayingQuality: currentQuality,
-      };
-    }));
+        return {
+          ...updatedSong,
+          url: playbackUrl || updatedSong.url,
+          title: FormatTitleAndArtist(updatedSong.title, updatedSong.artist),
+          artist: FormatTitleAndArtist(updatedSong.artist),
+          artwork: finalArtwork,
+          image: finalArtwork,
+          currentPlayingQuality: currentQuality,
+        };
+      }),
+    );
 
     // BATCHED PLAYLIST ADDITION
     // 1. Add first batch for instant playback
@@ -744,7 +1007,7 @@ async function AddPlaylist(songs, startSongId = null) {
     await TrackPlayer.play();
 
     // Signal that this is a playlist/album playback (disable auto-recommendations)
-    DeviceEventEmitter.emit('playback-mode-changed', { isPlaylist: true });
+    DeviceEventEmitter.emit('playback-mode-changed', {isPlaylist: true});
 
     // 2. Add remaining songs in background
     const remainingSongs = processedSongs.slice(INITIAL_BATCH_SIZE);
@@ -757,26 +1020,33 @@ async function AddPlaylist(songs, startSongId = null) {
             const batch = remainingSongs.slice(i, i + BATCH_SIZE);
 
             // Small pause to let UI breathe
-            if (i > 0) { await new Promise(resolve => setTimeout(resolve, 50)); }
+            if (i > 0) {
+              await new Promise(resolve => setTimeout(resolve, 50));
+            }
 
             await TrackPlayer.add(batch);
           }
 
-          DeviceEventEmitter.emit('queue-updated', { count: processedSongs.length });
+          DeviceEventEmitter.emit('queue-updated', {
+            count: processedSongs.length,
+          });
         } catch (batchError) {
-          console.error('❌ Error adding background playlist batch:', batchError);
+          console.error(
+            '❌ Error adding background playlist batch:',
+            batchError,
+          );
         }
       });
     } else {
       // No remaining songs
-      DeviceEventEmitter.emit('queue-updated', { count: processedSongs.length });
+      DeviceEventEmitter.emit('queue-updated', {count: processedSongs.length});
     }
 
     // Prefetch next song check
     setTimeout(() => {
-      queueManager.prefetchNextTrack().catch(err =>
-        console.error('Error prefetching next track:', err)
-      );
+      queueManager
+        .prefetchNextTrack()
+        .catch(err => console.error('Error prefetching next track:', err));
     }, 1000);
 
     // Add recommendations after album/playlist songs to enable continuous playback
@@ -786,40 +1056,55 @@ async function AddPlaylist(songs, startSongId = null) {
         try {
           // Get the last song from the original songs array to base recommendations on
           const lastSong = processedSongs[processedSongs.length - 1];
-          if (!lastSong || !lastSong.id) { return; }
+          if (!lastSong || !lastSong.id) {
+            return;
+          }
 
           // Check if this is a YouTube Music song
-          const isYouTubeSong = lastSong.id && typeof lastSong.id === 'string' && lastSong.id.length === 11 && !lastSong.isLocalMusic;
+          const isYouTubeSong =
+            lastSong.id &&
+            typeof lastSong.id === 'string' &&
+            lastSong.id.length === 11 &&
+            !lastSong.isLocalMusic;
 
           if (isYouTubeSong) {
             // Fetch YouTube Music recommendations
-            const recommendations = await queueManager.buildQueueFromRecommendations(lastSong.id, 'ytmusic', 20);
+            const recommendations =
+              await queueManager.buildQueueFromRecommendations(
+                lastSong.id,
+                'ytmusic',
+                20,
+              );
             if (recommendations && recommendations.length > 0) {
               await AddSongsToQueue(recommendations);
             }
           } else {
             // Fetch JioSaavn recommendations
-            const { getRecommendedSongs } = require('./Api/Recommended');
+            const {getRecommendedSongs} = require('./Api/Recommended');
             const recommendations = await getRecommendedSongs(lastSong.id);
 
             // Parse recommendations response
-            let songs = [];
+            let recSongs = [];
             if (recommendations?.data) {
-              songs = Array.isArray(recommendations.data) ? recommendations.data : [];
+              recSongs = Array.isArray(recommendations.data)
+                ? recommendations.data
+                : [];
             } else if (Array.isArray(recommendations)) {
-              songs = recommendations;
+              recSongs = recommendations;
             }
 
             // Format songs
-            const formattedSongs = songs
+            const formattedSongs = recSongs
               .filter(s => s && s.id)
               .map(s => {
                 let artworkUrl = '';
                 if (Array.isArray(s.image) && s.image.length > 0) {
-                  artworkUrl = s.image[s.image.length - 1]?.url ||
+                  artworkUrl =
+                    s.image[s.image.length - 1]?.url ||
                     s.image[2]?.url ||
                     s.image[1]?.url ||
-                    s.image[0]?.url || '';
+                    s.image[0]?.url ||
+                    '';
                 } else if (typeof s.image === 'string') {
                   artworkUrl = s.image;
                 }
@@ -828,11 +1113,12 @@ async function AddPlaylist(songs, startSongId = null) {
                   id: s.id,
                   name: s.name || s.title || 'Unknown',
                   title: s.name || s.title || 'Unknown',
-                  artist: s.artists?.primary?.map(a => a.name).join(', ') ||
+                  artist:
+                    s.artists?.primary?.map(a => a.name).join(', ') ||
                     s.primary_artists ||
                     s.artist ||
                     'Unknown Artist',
-                  artists: s.artists || { primary: [{ name: 'Unknown Artist' }] },
+                  artists: s.artists || {primary: [{name: 'Unknown Artist'}]},
                   image: s.image || [],
                   artwork: artworkUrl,
                   downloadUrl: s.downloadUrl || s.download_url || [],
@@ -865,10 +1151,12 @@ async function AddSongsToQueue(songs) {
   const processedSongs = [];
 
   for (const song of songs) {
-    const hasValidYouTubeId = song.id && typeof song.id === 'string' && song.id.length === 11;
-    const isYTMusicSource = song.source === 'ytmusic' || song.isYTMusic === true;
+    const hasValidYouTubeId =
+      song.id && typeof song.id === 'string' && song.id.length === 11;
+    const isYTMusicSource =
+      song.source === 'ytmusic' || song.isYTMusic === true;
 
-    let processedSong = { ...song };
+    let processedSong = {...song};
 
     if ((hasValidYouTubeId && !song.isLocalMusic) || isYTMusicSource) {
       // LAZY LOAD: Do NOT fetch stream here. Just set placeholder.
@@ -884,26 +1172,33 @@ async function AddSongsToQueue(songs) {
         title: FormatTitleAndArtist(song.title, song.artist),
         artist: FormatTitleAndArtist(song.artist),
         // Ensure artwork is enhanced for notification
-        artwork: getPrimaryArtworkUrl(enhanceYTMusicArtwork(extractArtwork(song), 'playing')),
+        artwork: getPrimaryArtworkUrl(
+          enhanceYTMusicArtwork(extractArtwork(song), 'playing'),
+        ),
         image: extractArtwork(song),
         duration: song.duration,
       };
-
-
-
     } else {
       // Standard logic for downloads/local
       if (song.downloadUrl && Array.isArray(song.downloadUrl)) {
-        processedSong.url = song.downloadUrl[qualityIndex]?.url || song.downloadUrl.find(d => d?.url)?.url || song.url;
+        processedSong.url =
+          song.downloadUrl[qualityIndex]?.url ||
+          song.downloadUrl.find(d => d?.url)?.url ||
+          song.url;
       } else if (song.download_url && Array.isArray(song.download_url)) {
-        processedSong.url = song.download_url[qualityIndex]?.url || song.download_url.find(d => d?.url)?.url || song.url;
+        processedSong.url =
+          song.download_url[qualityIndex]?.url ||
+          song.download_url.find(d => d?.url)?.url ||
+          song.url;
       }
       processedSong.currentPlayingQuality = currentQuality;
       // Format title and artist for consistency
       processedSong.title = FormatTitleAndArtist(song.title, song.artist);
       processedSong.artist = FormatTitleAndArtist(song.artist);
       // Ensure artwork is set
-      processedSong.artwork = getPrimaryArtworkUrl(enhanceYTMusicArtwork(extractArtwork(song), 'playing'));
+      processedSong.artwork = getPrimaryArtworkUrl(
+        enhanceYTMusicArtwork(extractArtwork(song), 'playing'),
+      );
       processedSong.image = extractArtwork(song);
     }
 
@@ -917,12 +1212,16 @@ async function AddSongsToQueue(songs) {
       const existingUrls = new Set(
         existingQueue
           .map(s => (typeof s.url === 'string' ? s.url.trim() : ''))
-          .filter(Boolean)
+          .filter(Boolean),
       );
       const existingTitles = new Set(
         existingQueue
-          .map(s => `${(s.title || '').trim()}|${(s.artist || '').trim()}`.toLowerCase())
-          .filter(k => k !== '|')
+          .map(s =>
+            `${(s.title || '').trim()}|${(
+              s.artist || ''
+            ).trim()}`.toLowerCase(),
+          )
+          .filter(k => k !== '|'),
       );
 
       const uniqueProcessed = [];
@@ -930,27 +1229,41 @@ async function AddSongsToQueue(songs) {
       const seenUrls = new Set();
       const seenTitles = new Set();
       for (const p of processedSongs) {
-        if (!p) { continue; }
+        if (!p) {
+          continue;
+        }
         const id = p.id;
         const url = typeof p.url === 'string' ? p.url.trim() : '';
-        const titleKey = `${(p.title || '').trim()}|${(p.artist || '').trim()}`.toLowerCase();
+        const titleKey = `${(p.title || '').trim()}|${(
+          p.artist || ''
+        ).trim()}`.toLowerCase();
 
         const isDuplicateExisting =
           (id && existingIds.has(id)) ||
           (url && existingUrls.has(url)) ||
           (titleKey && titleKey !== '|' && existingTitles.has(titleKey));
-        if (isDuplicateExisting) { continue; }
+        if (isDuplicateExisting) {
+          continue;
+        }
 
         const isDuplicateIncoming =
           (id && seenIds.has(id)) ||
           (url && seenUrls.has(url)) ||
           (titleKey && titleKey !== '|' && seenTitles.has(titleKey));
-        if (isDuplicateIncoming) { continue; }
+        if (isDuplicateIncoming) {
+          continue;
+        }
 
         uniqueProcessed.push(p);
-        if (id) { seenIds.add(id); }
-        if (url) { seenUrls.add(url); }
-        if (titleKey && titleKey !== '|') { seenTitles.add(titleKey); }
+        if (id) {
+          seenIds.add(id);
+        }
+        if (url) {
+          seenUrls.add(url);
+        }
+        if (titleKey && titleKey !== '|') {
+          seenTitles.add(titleKey);
+        }
       }
 
       if (uniqueProcessed.length === 0) {
@@ -967,7 +1280,7 @@ async function AddSongsToQueue(songs) {
       await TrackPlayer.add(initialBatch);
 
       // Emit event to update UI immediately
-      DeviceEventEmitter.emit('queue-updated', { count: initialBatch.length });
+      DeviceEventEmitter.emit('queue-updated', {count: initialBatch.length});
 
       // 2. Add remaining songs in background batches
       const remainingSongs = songsToAdd.slice(INITIAL_BATCH_SIZE);
@@ -980,20 +1293,26 @@ async function AddSongsToQueue(songs) {
               const batch = remainingSongs.slice(i, i + BATCH_SIZE);
 
               // Small delay to allow UI frame updates between batches
-              if (i > 0) { await new Promise(resolve => setTimeout(resolve, 50)); }
+              if (i > 0) {
+                await new Promise(resolve => setTimeout(resolve, 50));
+              }
 
               await TrackPlayer.add(batch);
             }
 
             // Final event to ensuring everything is synced
-            DeviceEventEmitter.emit('queue-updated', { count: processedSongs.length });
+            DeviceEventEmitter.emit('queue-updated', {
+              count: processedSongs.length,
+            });
           } catch (batchError) {
             console.error('❌ Error adding background batch:', batchError);
           }
         });
       } else {
         // No remaining songs
-        DeviceEventEmitter.emit('queue-updated', { count: processedSongs.length });
+        DeviceEventEmitter.emit('queue-updated', {
+          count: processedSongs.length,
+        });
       }
     } catch (error) {
       console.error('❌ Failed to add songs to queue:', error.message);
@@ -1018,7 +1337,7 @@ async function SetProgressSong(value) {
 }
 
 async function PlayNextSong() {
-  const executed = await skipOperationManager.executeSkip(async (signal) => {
+  await skipOperationManager.executeSkip(async signal => {
     try {
       if (!isPlayerInitialized) {
         await setupPlayer();
@@ -1031,7 +1350,7 @@ async function PlayNextSong() {
       }
 
       const currentIndex = await TrackPlayer.getActiveTrackIndex();
-      const nextIndex = (typeof currentIndex === 'number') ? currentIndex + 1 : 1;
+      const nextIndex = typeof currentIndex === 'number' ? currentIndex + 1 : 1;
       const queue = await TrackPlayer.getQueue();
 
       if (nextIndex >= queue.length) {
@@ -1050,7 +1369,11 @@ async function PlayNextSong() {
           streamData = await smartPrefetchManager.fetchOnDemand(nextTrack.id);
         }
         if (streamData && streamData.url) {
-          await smartPrefetchManager.replaceTrackAndWait(nextIndex, nextTrack, streamData);
+          await smartPrefetchManager.replaceTrackAndWait(
+            nextIndex,
+            nextTrack,
+            streamData,
+          );
         }
       }
 
@@ -1075,7 +1398,7 @@ async function PlayNextSong() {
 
 async function PlayPreviousSong() {
   // Use SkipOperationManager to debounce and lock skip operations
-  const executed = await skipOperationManager.executeSkip(async (signal) => {
+  await skipOperationManager.executeSkip(async signal => {
     try {
       // Ensure player is initialized
       if (!isPlayerInitialized) {
@@ -1092,7 +1415,10 @@ async function PlayPreviousSong() {
 
       // Determine previous index and prefetch if needed
       const currentIndex = await TrackPlayer.getActiveTrackIndex();
-      const prevIndex = (typeof currentIndex === 'number' && currentIndex > 0) ? currentIndex - 1 : 0;
+      const prevIndex =
+        typeof currentIndex === 'number' && currentIndex > 0
+          ? currentIndex - 1
+          : 0;
       const queue = await TrackPlayer.getQueue();
       const prevTrack = queue[prevIndex];
 
@@ -1108,7 +1434,11 @@ async function PlayPreviousSong() {
           streamData = await smartPrefetchManager.fetchOnDemand(prevTrack.id);
         }
         if (streamData && streamData.url) {
-          await smartPrefetchManager.replaceTrackAndWait(prevIndex, prevTrack, streamData);
+          await smartPrefetchManager.replaceTrackAndWait(
+            prevIndex,
+            prevTrack,
+            streamData,
+          );
         }
       }
 
@@ -1137,7 +1467,9 @@ async function PlayPreviousSong() {
 async function SkipToTrack(trackIndex) {
   try {
     // Prevent queue cleanup on manual jump to preserve subsequent songs
-    try { smartPrefetchManager.suppressCleanupNextChange(); } catch (_) {}
+    try {
+      smartPrefetchManager.suppressCleanupNextChange();
+    } catch (_) {}
     // Stop tracking current song before switching
     await historyManager.stopTracking();
 
@@ -1151,14 +1483,20 @@ async function SkipToTrack(trackIndex) {
     // Get the queue to verify index is within bounds
     const queue = await TrackPlayer.getQueue();
     if (validIndex < 0 || validIndex >= queue.length) {
-      console.error('Track index out of bounds:', validIndex, 'Queue length:', queue.length);
+      console.error(
+        'Track index out of bounds:',
+        validIndex,
+        'Queue length:',
+        queue.length,
+      );
       return;
     }
 
     const targetTrack = queue[validIndex];
 
     // Check if track needs stream (random song selection)
-    const needsStream = targetTrack._needsStream ||
+    const needsStream =
+      targetTrack._needsStream ||
       targetTrack.url?.startsWith('ytmusic://') ||
       targetTrack.url?.includes('music.youtube.com');
 
@@ -1166,7 +1504,9 @@ async function SkipToTrack(trackIndex) {
       console.log('🎯 Random track selection - checking cache...');
 
       // FIRST: Check if SmartPrefetchManager has cached stream
-      const cachedStream = smartPrefetchManager.getPrefetchedStream(targetTrack.id);
+      const cachedStream = smartPrefetchManager.getPrefetchedStream(
+        targetTrack.id,
+      );
 
       let streamData = cachedStream;
 
@@ -1180,7 +1520,11 @@ async function SkipToTrack(trackIndex) {
 
       if (streamData && streamData.url) {
         // Replace track in queue with valid URL using SAFE non-blocking method
-        await smartPrefetchManager.replaceTrackAndWait(validIndex, targetTrack, streamData);
+        await smartPrefetchManager.replaceTrackAndWait(
+          validIndex,
+          targetTrack,
+          streamData,
+        );
         console.log('✅ Track replaced for random selection');
       } else {
         console.error('❌ Failed to get stream for random track');
@@ -1203,56 +1547,77 @@ async function SkipToTrack(trackIndex) {
   }
 }
 async function SetRepeatMode(mode) {
-  await TrackPlayer.setRepeatMode(mode)
+  await TrackPlayer.setRepeatMode(mode);
 }
 
 async function getIndexQuality() {
   const PlaybackQuality = [
-    { value: '12kbps' },
-    { value: '48kbps' },
-    { value: '96kbps' },
-    { value: '160kbps' },
-    { value: '320kbps' },
+    {value: '12kbps'},
+    {value: '48kbps'},
+    {value: '96kbps'},
+    {value: '160kbps'},
+    {value: '320kbps'},
   ];
-  const data = await GetPlaybackQuality()
-  let index = 4
+  const data = await GetPlaybackQuality();
+  let index = 4;
   PlaybackQuality.map((e, i) => {
     if (e.value === data) {
-      index = i
+      index = i;
     }
-  })
-  return index
+  });
+  return index;
 }
 
 async function AddOneSongToPlaylist(song) {
   try {
-    console.log('🎵 AddOneSongToPlaylist called with song:', song?.title || 'Unknown');
+    console.log(
+      '🎵 AddOneSongToPlaylist called with song:',
+      song?.title || 'Unknown',
+    );
 
     // Import the bottom sheet playlist selector manager
-    const { PlaylistSelectorBottomSheetManager } = require('./Utils/PlaylistSelectorBottomSheetManager');
+    const {
+      PlaylistSelectorBottomSheetManager,
+    } = require('./Utils/PlaylistSelectorBottomSheetManager');
 
     // Validate song object
     if (!song || !song.id) {
-      console.error('❌ Invalid song object provided to AddOneSongToPlaylist:', song);
+      console.error(
+        '❌ Invalid song object provided to AddOneSongToPlaylist:',
+        song,
+      );
       ToastAndroid.show('Invalid song data', ToastAndroid.SHORT);
       return false;
     }
 
     console.log('✅ Song validation passed, song ID:', song.id);
 
-    console.log('AddOneSongToPlaylist called with song (bottom sheet):', song.title);
+    console.log(
+      'AddOneSongToPlaylist called with song (bottom sheet):',
+      song.title,
+    );
 
     // Safe image URL extraction
-    const getImageUrl = (imageData) => {
-      if (!imageData) { return null; }
-      if (typeof imageData === 'string') { return imageData; }
+    const getImageUrl = imageData => {
+      if (!imageData) {
+        return null;
+      }
+      if (typeof imageData === 'string') {
+        return imageData;
+      }
       if (Array.isArray(imageData)) {
         for (const img of imageData) {
-          if (typeof img === 'string' && img.trim() !== '') { return img; }
-          if (img && typeof img === 'object' && img.url) { return img.url; }
+          if (typeof img === 'string' && img.trim() !== '') {
+            return img;
+          }
+          if (img && typeof img === 'object' && img.url) {
+            return img.url;
+          }
         }
       }
-      if (imageData && typeof imageData === 'object' && imageData.url) { return imageData.url; }
+      if (imageData && typeof imageData === 'object' && imageData.url) {
+        return imageData.url;
+      }
       return null;
     };
 
@@ -1294,4 +1659,4 @@ export {
   AddOneSongToPlaylist,
   PlaySongWithRelated,
   removeFromQueue,
-}
+};

@@ -1,4 +1,4 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const MAX_HISTORY_ITEMS = 20;
 
@@ -11,20 +11,22 @@ async function GetSearchHistory() {
       return [];
     }
   } catch (e) {
-    console.error("Error getting search history:", e);
+    console.error('Error getting search history:', e);
     return [];
   }
 }
 
 async function AddSearchHistory(query) {
   try {
-    if (!query || query.trim() === "") {
+    if (!query || query.trim() === '') {
       return [];
     }
 
     const history = await GetSearchHistory();
 
-    const filteredHistory = history.filter(item => item.toLowerCase() !== query.toLowerCase());
+    const filteredHistory = history.filter(
+      item => item.toLowerCase() !== query.toLowerCase(),
+    );
 
     const newHistory = [query, ...filteredHistory];
 
@@ -35,7 +37,7 @@ async function AddSearchHistory(query) {
 
     return trimmedHistory;
   } catch (e) {
-    console.error("Error adding search history:", e);
+    console.error('Error adding search history:', e);
     return [];
   }
 }
@@ -50,7 +52,7 @@ async function RemoveSearchHistoryItem(query) {
 
     return filteredHistory;
   } catch (e) {
-    console.error("Error removing search history item:", e);
+    console.error('Error removing search history item:', e);
   }
 }
 
@@ -59,8 +61,13 @@ async function ClearSearchHistory() {
     await AsyncStorage.removeItem('SearchHistory');
     return [];
   } catch (e) {
-    console.error("Error clearing search history:", e);
+    console.error('Error clearing search history:', e);
   }
 }
 
-export { GetSearchHistory, AddSearchHistory, RemoveSearchHistoryItem, ClearSearchHistory };
+export {
+  GetSearchHistory,
+  AddSearchHistory,
+  RemoveSearchHistoryItem,
+  ClearSearchHistory,
+};

@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { InteractionManager } from 'react-native';
-import { FileOperationErrorHandler } from './FileOperationErrorHandler';
-import { localTracksMetadataProcessor } from './LocalTracksMetadataProcessor';
+import {InteractionManager} from 'react-native';
+import {FileOperationErrorHandler} from './FileOperationErrorHandler';
+import {localTracksMetadataProcessor} from './LocalTracksMetadataProcessor';
 
 /**
  * LocalTracksMetadataManager - Persistent metadata management for local tracks
@@ -33,8 +33,12 @@ export class LocalTracksMetadataManager {
    * Ensure the manager is initialized before any operation
    */
   async ensureInitialized() {
-    if (this.isInitialized) {return;}
-    if (this.initializationPromise) {return this.initializationPromise;}
+    if (this.isInitialized) {
+      return;
+    }
+    if (this.initializationPromise) {
+      return this.initializationPromise;
+    }
     return this.initialize();
   }
 
@@ -61,8 +65,12 @@ export class LocalTracksMetadataManager {
    * Loads cached metadata from storage
    */
   async initialize() {
-    if (this.isInitialized) {return;}
-    if (this.initializationPromise) {return this.initializationPromise;}
+    if (this.isInitialized) {
+      return;
+    }
+    if (this.initializationPromise) {
+      return this.initializationPromise;
+    }
 
     this.initializationPromise = (async () => {
       try {
@@ -72,24 +80,39 @@ export class LocalTracksMetadataManager {
 
         // Check if we need to migrate data
         if (version !== CURRENT_VERSION) {
-          console.log('LocalTracksMetadataManager: Version mismatch, migrating...');
+          console.log(
+            'LocalTracksMetadataManager: Version mismatch, migrating...',
+          );
           try {
             await this.migrateMetadata(version);
           } catch (migrateError) {
-            console.warn('LocalTracksMetadataManager: Migration failed, will continue with empty cache:', migrateError);
+            console.warn(
+              'LocalTracksMetadataManager: Migration failed, will continue with empty cache:',
+              migrateError,
+            );
           }
         }
 
         const cachedMetadata = await AsyncStorage.getItem(METADATA_STORAGE_KEY);
-        console.log('LocalTracksMetadataManager: Cached metadata exists:', !!cachedMetadata);
+        console.log(
+          'LocalTracksMetadataManager: Cached metadata exists:',
+          !!cachedMetadata,
+        );
 
         if (cachedMetadata) {
           try {
             const metadata = JSON.parse(cachedMetadata);
             this.metadataCache = new Map(Object.entries(metadata));
-            console.log('LocalTracksMetadataManager: Loaded', this.metadataCache.size, 'cached tracks');
+            console.log(
+              'LocalTracksMetadataManager: Loaded',
+              this.metadataCache.size,
+              'cached tracks',
+            );
           } catch (parseError) {
-            console.error('LocalTracksMetadataManager: Corrupted metadata detected:', parseError);
+            console.error(
+              'LocalTracksMetadataManager: Corrupted metadata detected:',
+              parseError,
+            );
             // Silent failure for parse error - just start fresh
             this.metadataCache = new Map();
             await AsyncStorage.removeItem(METADATA_STORAGE_KEY);
@@ -99,9 +122,14 @@ export class LocalTracksMetadataManager {
         this.isInitialized = true;
         console.log('LocalTracksMetadataManager: Initialization complete');
       } catch (error) {
-        console.warn('LocalTracksMetadataManager: Initialization error:', error);
+        console.warn(
+          'LocalTracksMetadataManager: Initialization error:',
+          error,
+        );
         // Categorize error but don't throw if we can still function with empty cache
-        FileOperationErrorHandler.handleError(error, 'metadata_load', { showToast: false });
+        FileOperationErrorHandler.handleError(error, 'metadata_load', {
+          showToast: false,
+        });
         this.metadataCache = new Map();
         this.isInitialized = true;
       } finally {
@@ -117,7 +145,9 @@ export class LocalTracksMetadataManager {
    */
   async migrateMetadata(oldVersion) {
     try {
-      console.log(`LocalTracksMetadataManager: Migrating metadata from ${oldVersion} to ${CURRENT_VERSION}`);
+      console.log(
+        `LocalTracksMetadataManager: Migrating metadata from ${oldVersion} to ${CURRENT_VERSION}`,
+      );
 
       if (oldVersion) {
         // If we have an old version, clear old data as format might have changed
@@ -128,7 +158,9 @@ export class LocalTracksMetadataManager {
       await AsyncStorage.setItem(METADATA_VERSION_KEY, CURRENT_VERSION);
     } catch (error) {
       console.error('LocalTracksMetadataManager: Migration failed:', error);
-      FileOperationErrorHandler.handleError(error, 'metadata_migration', { showToast: false });
+      FileOperationErrorHandler.handleError(error, 'metadata_migration', {
+        showToast: false,
+      });
     }
   }
 
@@ -151,8 +183,13 @@ export class LocalTracksMetadataManager {
 
       return metadata || null;
     } catch (error) {
-      console.error(`LocalTracksMetadataManager: Failed to get metadata for ${trackId}:`, error);
-      FileOperationErrorHandler.handleError(error, 'metadata_get', { showToast: false });
+      console.error(
+        `LocalTracksMetadataManager: Failed to get metadata for ${trackId}:`,
+        error,
+      );
+      FileOperationErrorHandler.handleError(error, 'metadata_get', {
+        showToast: false,
+      });
       return null;
     }
   }
@@ -163,7 +200,9 @@ export class LocalTracksMetadataManager {
    * @returns {Object|null} The cached metadata or null
    */
   getMetadataSync(trackId) {
-    if (!this.isInitialized) {return null;}
+    if (!this.isInitialized) {
+      return null;
+    }
     return this.metadataCache.get(trackId) || null;
   }
 
@@ -187,8 +226,13 @@ export class LocalTracksMetadataManager {
       await this.saveMetadata(trackId, enrichedMetadata);
       this.notifySubscribers();
     } catch (error) {
-      console.error(`LocalTracksMetadataManager: Failed to set metadata for ${trackId}:`, error);
-      FileOperationErrorHandler.handleError(error, 'metadata_set', { showToast: false });
+      console.error(
+        `LocalTracksMetadataManager: Failed to set metadata for ${trackId}:`,
+        error,
+      );
+      FileOperationErrorHandler.handleError(error, 'metadata_set', {
+        showToast: false,
+      });
       throw error;
     }
   }
@@ -214,8 +258,13 @@ export class LocalTracksMetadataManager {
       this.metadataCache.set(trackId, updatedMetadata);
       await this.saveMetadata(trackId, updatedMetadata);
     } catch (error) {
-      console.error(`LocalTracksMetadataManager: Failed to update metadata for ${trackId}:`, error);
-      FileOperationErrorHandler.handleError(error, 'metadata_update', { showToast: false });
+      console.error(
+        `LocalTracksMetadataManager: Failed to update metadata for ${trackId}:`,
+        error,
+      );
+      FileOperationErrorHandler.handleError(error, 'metadata_update', {
+        showToast: false,
+      });
       throw error;
     }
   }
@@ -231,8 +280,13 @@ export class LocalTracksMetadataManager {
       this.metadataCache.delete(trackId);
       await this.persistAllMetadata();
     } catch (error) {
-      console.error(`LocalTracksMetadataManager: Failed to remove metadata for ${trackId}:`, error);
-      FileOperationErrorHandler.handleError(error, 'metadata_remove', { showToast: false });
+      console.error(
+        `LocalTracksMetadataManager: Failed to remove metadata for ${trackId}:`,
+        error,
+      );
+      FileOperationErrorHandler.handleError(error, 'metadata_remove', {
+        showToast: false,
+      });
       throw error;
     }
   }
@@ -276,8 +330,13 @@ export class LocalTracksMetadataManager {
 
       return result;
     } catch (error) {
-      console.error('LocalTracksMetadataManager: Failed to get bulk metadata:', error);
-      FileOperationErrorHandler.handleError(error, 'metadata_bulk_get', { showToast: false });
+      console.error(
+        'LocalTracksMetadataManager: Failed to get bulk metadata:',
+        error,
+      );
+      FileOperationErrorHandler.handleError(error, 'metadata_bulk_get', {
+        showToast: false,
+      });
       return {};
     }
   }
@@ -297,14 +356,20 @@ export class LocalTracksMetadataManager {
    * @param {Array} scannedTracks - Tracks found during file scan
    */
   async sync(scannedTracks) {
-    if (!this.isInitialized) {await this.initialize();}
+    if (!this.isInitialized) {
+      await this.initialize();
+    }
 
-    console.log('LocalTracksMetadataManager: Syncing', scannedTracks.length, 'tracks');
+    console.log(
+      'LocalTracksMetadataManager: Syncing',
+      scannedTracks.length,
+      'tracks',
+    );
     const currentTrackIds = new Set(scannedTracks.map(t => t.id));
 
     // Remove entries for deleted files
     let hasChanges = false;
-    for (const [trackId, metadata] of this.metadataCache) {
+    for (const [trackId] of this.metadataCache) {
       if (!currentTrackIds.has(trackId)) {
         this.metadataCache.delete(trackId);
         hasChanges = true;
@@ -343,7 +408,9 @@ export class LocalTracksMetadataManager {
    * Start background processing using InteractionManager
    */
   startBackgroundProcessing() {
-    if (this.isProcessing || this.processingQueue.length === 0) {return;}
+    if (this.isProcessing || this.processingQueue.length === 0) {
+      return;
+    }
 
     InteractionManager.runAfterInteractions(() => {
       this.processQueueInBatches();
@@ -354,20 +421,32 @@ export class LocalTracksMetadataManager {
    * Process queue in small batches with delays to keep UI smooth
    */
   async processQueueInBatches() {
-    if (this.isProcessing || this.processingQueue.length === 0) {return;}
+    if (this.isProcessing || this.processingQueue.length === 0) {
+      return;
+    }
 
     this.isProcessing = true;
-    console.log('LocalTracksMetadataManager: Background processing started for', this.processingQueue.length, 'tracks');
+    console.log(
+      'LocalTracksMetadataManager: Background processing started for',
+      this.processingQueue.length,
+      'tracks',
+    );
 
     while (this.processingQueue.length > 0) {
       const batch = this.processingQueue.splice(0, this.BATCH_SIZE);
 
       for (const track of batch) {
         try {
-          const enriched = await localTracksMetadataProcessor.extractMetadata(track.filePath);
+          const enriched = await localTracksMetadataProcessor.extractMetadata(
+            track.filePath,
+          );
           if (enriched) {
             // Extract usable artwork URI
-            const artworkInfo = await localTracksMetadataProcessor.extractArtwork(track.filePath, enriched);
+            const artworkInfo =
+              await localTracksMetadataProcessor.extractArtwork(
+                track.filePath,
+                enriched,
+              );
 
             const updatedMetadata = {
               ...track,
@@ -379,10 +458,13 @@ export class LocalTracksMetadataManager {
             this.metadataCache.set(track.id, updatedMetadata);
           } else {
             // Mark as processed even if failed to avoid re-processing
-            this.metadataCache.set(track.id, { ...track, isProcessed: true });
+            this.metadataCache.set(track.id, {...track, isProcessed: true});
           }
         } catch (error) {
-          console.warn(`LocalTracksMetadataManager: Failed to process ${track.id}:`, error);
+          console.warn(
+            `LocalTracksMetadataManager: Failed to process ${track.id}:`,
+            error,
+          );
         }
       }
 
@@ -404,10 +486,18 @@ export class LocalTracksMetadataManager {
   async clearAllMetadata() {
     try {
       this.metadataCache.clear();
-      await AsyncStorage.multiRemove([METADATA_STORAGE_KEY, METADATA_VERSION_KEY]);
+      await AsyncStorage.multiRemove([
+        METADATA_STORAGE_KEY,
+        METADATA_VERSION_KEY,
+      ]);
     } catch (error) {
-      console.error('LocalTracksMetadataManager: Failed to clear metadata:', error);
-      FileOperationErrorHandler.handleError(error, 'metadata_clear', { showToast: false });
+      console.error(
+        'LocalTracksMetadataManager: Failed to clear metadata:',
+        error,
+      );
+      FileOperationErrorHandler.handleError(error, 'metadata_clear', {
+        showToast: false,
+      });
       throw error;
     }
   }
@@ -425,15 +515,19 @@ export class LocalTracksMetadataManager {
     return {
       totalTracks: tracks.length,
       totalSize: JSON.stringify(Object.fromEntries(this.metadataCache)).length,
-      averageAge: tracks.length > 0
-        ? tracks.reduce((sum, track) => sum + (now - track.lastModified), 0) / tracks.length
-        : 0,
-      oldestTrack: tracks.length > 0
-        ? Math.min(...tracks.map(track => track.lastModified))
-        : null,
-      newestTrack: tracks.length > 0
-        ? Math.max(...tracks.map(track => track.lastModified))
-        : null,
+      averageAge:
+        tracks.length > 0
+          ? tracks.reduce((sum, track) => sum + (now - track.lastModified), 0) /
+            tracks.length
+          : 0,
+      oldestTrack:
+        tracks.length > 0
+          ? Math.min(...tracks.map(track => track.lastModified))
+          : null,
+      newestTrack:
+        tracks.length > 0
+          ? Math.max(...tracks.map(track => track.lastModified))
+          : null,
     };
   }
 
@@ -460,15 +554,20 @@ export class LocalTracksMetadataManager {
 
       if (toRemove.length > 0) {
         await this.persistAllMetadata();
-        console.log(`LocalTracksMetadataManager: Cleaned up ${toRemove.length} old metadata entries`);
+        console.log(
+          `LocalTracksMetadataManager: Cleaned up ${toRemove.length} old metadata entries`,
+        );
       }
     } catch (error) {
-      console.error('LocalTracksMetadataManager: Failed to cleanup metadata:', error);
-      FileOperationErrorHandler.handleError(error, 'metadata_cleanup', { showToast: false });
+      console.error(
+        'LocalTracksMetadataManager: Failed to cleanup metadata:',
+        error,
+      );
+      FileOperationErrorHandler.handleError(error, 'metadata_cleanup', {
+        showToast: false,
+      });
     }
   }
-
-
 
   /**
    * Save metadata to persistent storage
@@ -484,8 +583,13 @@ export class LocalTracksMetadataManager {
         await this.persistAllMetadata();
       }, 1000); // Save after 1 second of inactivity
     } catch (error) {
-      console.error('LocalTracksMetadataManager: Failed to schedule metadata save:', error);
-      FileOperationErrorHandler.handleError(error, 'metadata_save', { showToast: false });
+      console.error(
+        'LocalTracksMetadataManager: Failed to schedule metadata save:',
+        error,
+      );
+      FileOperationErrorHandler.handleError(error, 'metadata_save', {
+        showToast: false,
+      });
     }
   }
 
@@ -495,11 +599,19 @@ export class LocalTracksMetadataManager {
   async persistAllMetadata() {
     try {
       const metadataObject = Object.fromEntries(this.metadataCache);
-      await AsyncStorage.setItem(METADATA_STORAGE_KEY, JSON.stringify(metadataObject));
+      await AsyncStorage.setItem(
+        METADATA_STORAGE_KEY,
+        JSON.stringify(metadataObject),
+      );
       await AsyncStorage.setItem(METADATA_VERSION_KEY, CURRENT_VERSION);
     } catch (error) {
-      console.error('LocalTracksMetadataManager: Failed to persist metadata:', error);
-      FileOperationErrorHandler.handleError(error, 'metadata_persist', { showToast: false });
+      console.error(
+        'LocalTracksMetadataManager: Failed to persist metadata:',
+        error,
+      );
+      FileOperationErrorHandler.handleError(error, 'metadata_persist', {
+        showToast: false,
+      });
       throw error;
     }
   }
@@ -513,14 +625,23 @@ export class LocalTracksMetadataManager {
 
     try {
       const metadataObject = Object.fromEntries(this.metadataCache);
-      return JSON.stringify({
-        version: CURRENT_VERSION,
-        exportDate: new Date().toISOString(),
-        metadata: metadataObject,
-      }, null, 2);
+      return JSON.stringify(
+        {
+          version: CURRENT_VERSION,
+          exportDate: new Date().toISOString(),
+          metadata: metadataObject,
+        },
+        null,
+        2,
+      );
     } catch (error) {
-      console.error('LocalTracksMetadataManager: Failed to export metadata:', error);
-      FileOperationErrorHandler.handleError(error, 'metadata_export', { showToast: false });
+      console.error(
+        'LocalTracksMetadataManager: Failed to export metadata:',
+        error,
+      );
+      FileOperationErrorHandler.handleError(error, 'metadata_export', {
+        showToast: false,
+      });
       throw error;
     }
   }
@@ -540,10 +661,17 @@ export class LocalTracksMetadataManager {
       this.metadataCache = new Map(Object.entries(importData.metadata));
       await this.persistAllMetadata();
 
-      console.log(`LocalTracksMetadataManager: Imported ${this.metadataCache.size} metadata entries`);
+      console.log(
+        `LocalTracksMetadataManager: Imported ${this.metadataCache.size} metadata entries`,
+      );
     } catch (error) {
-      console.error('LocalTracksMetadataManager: Failed to import metadata:', error);
-      FileOperationErrorHandler.handleError(error, 'metadata_import', { showToast: false });
+      console.error(
+        'LocalTracksMetadataManager: Failed to import metadata:',
+        error,
+      );
+      FileOperationErrorHandler.handleError(error, 'metadata_import', {
+        showToast: false,
+      });
       throw error;
     }
   }

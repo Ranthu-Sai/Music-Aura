@@ -13,8 +13,11 @@ module.exports = {
     '.*NativeStreaming$': '<rootDir>/__mocks__/NativeStreaming.js',
     '\\.(png|jpg|jpeg|gif|webp|svg)$': '<rootDir>/__mocks__/fileMock.js',
     '^react-native-paper$': '<rootDir>/__mocks__/reactNativePaper.js',
-    '^@react-navigation/native$': '<rootDir>/__mocks__/reactNavigationNative.js',
-    '^@react-navigation/native-stack$': '<rootDir>/__mocks__/reactNavigationNativeStack.js',
-    '^@react-navigation/bottom-tabs$': '<rootDir>/__mocks__/reactNavigationBottomTabs.js',
+    '^@react-navigation/native$':
+      '<rootDir>/__mocks__/reactNavigationNative.js',
+    '^@react-navigation/native-stack$':
+      '<rootDir>/__mocks__/reactNavigationNativeStack.js',
+    '^@react-navigation/bottom-tabs$':
+      '<rootDir>/__mocks__/reactNavigationBottomTabs.js',
   },
 };

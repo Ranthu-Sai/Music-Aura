@@ -1,15 +1,13 @@
-import MaterialIcons from "react-native-vector-icons/MaterialIcons";
-import React from "react";
-import { useTheme } from "@react-navigation/native";
-import { Pressable, ActivityIndicator } from "react-native";
+import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import React from 'react';
+import {useTheme} from '@react-navigation/native';
+import {Pressable, ActivityIndicator} from 'react-native';
 
-export const GetLyricsButton = ({ onPress, loading = false }) => {
-  const theme = useTheme()
+export const GetLyricsButton = ({onPress, loading = false}) => {
+  const theme = useTheme();
 
   if (loading) {
-    return (
-      <ActivityIndicator size={25} color={theme.colors.primary} />
-    );
+    return <ActivityIndicator size={25} color={theme.colors.primary} />;
   }
 
   return (

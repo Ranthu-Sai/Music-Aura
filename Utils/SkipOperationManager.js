@@ -12,125 +12,125 @@
  */
 
 class SkipOperationManager {
-    constructor() {
-        this.isSkipping = false;
-        this.skipDebounceTimer = null;
-        this.abortController = null;
-        this.consecutiveSkipErrors = 0;
-        this.maxConsecutiveErrors = 3;
-        this.debounceDelay = 150; // ms
+  constructor() {
+    this.isSkipping = false;
+    this.skipDebounceTimer = null;
+    this.abortController = null;
+    this.consecutiveSkipErrors = 0;
+    this.maxConsecutiveErrors = 3;
+    this.debounceDelay = 150; // ms
+  }
+
+  /**
+   * Check if a skip operation is currently in progress
+   */
+  isOperationInProgress() {
+    return this.isSkipping;
+  }
+
+  /**
+   * Reset error counter (call on successful playback)
+   */
+  resetErrorCounter() {
+    this.consecutiveSkipErrors = 0;
+  }
+
+  /**
+   * Increment error counter
+   * @returns {boolean} true if max errors not exceeded, false otherwise
+   */
+  incrementErrorCounter() {
+    this.consecutiveSkipErrors++;
+    return this.consecutiveSkipErrors < this.maxConsecutiveErrors;
+  }
+
+  /**
+   * Get current error count
+   */
+  getErrorCount() {
+    return this.consecutiveSkipErrors;
+  }
+
+  /**
+   * Cancel any in-flight operations
+   */
+  cancelInFlightOperations() {
+    if (this.abortController) {
+      this.abortController.abort();
+      this.abortController = null;
+    }
+  }
+
+  /**
+   * Execute a skip operation with debouncing and locking
+   *
+   * @param {Function} operation - The skip operation to execute
+   * @param {boolean} immediate - If true, skip debouncing
+   * @returns {Promise<boolean>} - true if operation was executed, false if blocked
+   */
+  async executeSkip(operation, immediate = false) {
+    // Clear any pending debounced skip
+    if (this.skipDebounceTimer) {
+      clearTimeout(this.skipDebounceTimer);
+      this.skipDebounceTimer = null;
     }
 
-    /**
-     * Check if a skip operation is currently in progress
-     */
-    isOperationInProgress() {
-        return this.isSkipping;
+    // Cancel any in-flight fetch operations
+    this.cancelInFlightOperations();
+
+    // If already skipping, ignore new skip requests to prevent overlap
+    if (this.isSkipping) {
+      return false;
     }
 
-    /**
-     * Reset error counter (call on successful playback)
-     */
-    resetErrorCounter() {
-        this.consecutiveSkipErrors = 0;
+    // Execute immediately or with debounce
+    if (immediate) {
+      return await this._performSkip(operation);
+    } else {
+      return new Promise(resolve => {
+        this.skipDebounceTimer = setTimeout(async () => {
+          const result = await this._performSkip(operation);
+          resolve(result);
+        }, this.debounceDelay);
+      });
     }
+  }
 
-    /**
-     * Increment error counter
-     * @returns {boolean} true if max errors not exceeded, false otherwise
-     */
-    incrementErrorCounter() {
-        this.consecutiveSkipErrors++;
-        return this.consecutiveSkipErrors < this.maxConsecutiveErrors;
+  /**
+   * Internal method to perform the actual skip
+   * @private
+   */
+  async _performSkip(operation) {
+    this.isSkipping = true;
+    this.abortController = new AbortController();
+
+    try {
+      await operation(this.abortController.signal);
+      return true;
+    } catch (error) {
+      // Ignore abort errors (expected when cancelling)
+      if (error.name === 'AbortError') {
+      } else {
+        // Swallow errors to avoid noisy logs; return failure
+      }
+      return false;
+    } finally {
+      this.isSkipping = false;
+      this.abortController = null;
     }
+  }
 
-    /**
-     * Get current error count
-     */
-    getErrorCount() {
-        return this.consecutiveSkipErrors;
+  /**
+   * Clear all timers and controllers (cleanup)
+   */
+  cleanup() {
+    if (this.skipDebounceTimer) {
+      clearTimeout(this.skipDebounceTimer);
+      this.skipDebounceTimer = null;
     }
-
-    /**
-     * Cancel any in-flight operations
-     */
-    cancelInFlightOperations() {
-        if (this.abortController) {
-            this.abortController.abort();
-            this.abortController = null;
-        }
-    }
-
-    /**
-     * Execute a skip operation with debouncing and locking
-     *
-     * @param {Function} operation - The skip operation to execute
-     * @param {boolean} immediate - If true, skip debouncing
-     * @returns {Promise<boolean>} - true if operation was executed, false if blocked
-     */
-    async executeSkip(operation, immediate = false) {
-        // Clear any pending debounced skip
-        if (this.skipDebounceTimer) {
-            clearTimeout(this.skipDebounceTimer);
-            this.skipDebounceTimer = null;
-        }
-
-        // Cancel any in-flight fetch operations
-        this.cancelInFlightOperations();
-
-        // If already skipping, ignore new skip requests to prevent overlap
-        if (this.isSkipping) {
-            return false;
-        }
-
-        // Execute immediately or with debounce
-        if (immediate) {
-            return await this._performSkip(operation);
-        } else {
-            return new Promise((resolve) => {
-                this.skipDebounceTimer = setTimeout(async () => {
-                    const result = await this._performSkip(operation);
-                    resolve(result);
-                }, this.debounceDelay);
-            });
-        }
-    }
-
-    /**
-     * Internal method to perform the actual skip
-     * @private
-     */
-    async _performSkip(operation) {
-        this.isSkipping = true;
-        this.abortController = new AbortController();
-
-        try {
-            await operation(this.abortController.signal);
-            return true;
-        } catch (error) {
-            // Ignore abort errors (expected when cancelling)
-            if (error.name === 'AbortError') {
-            } else {
-                // Swallow errors to avoid noisy logs; return failure
-            }
-            return false;
-        } finally {
-            this.isSkipping = false;
-            this.abortController = null;
-        }
-    }
-
-    /**
-     * Clear all timers and controllers (cleanup)
-     */
-    cleanup() {
-        if (this.skipDebounceTimer) {
-            clearTimeout(this.skipDebounceTimer);
-            this.skipDebounceTimer = null;
-        }
-        this.cancelInFlightOperations();
-        this.isSkipping = false;
-    }
+    this.cancelInFlightOperations();
+    this.isSkipping = false;
+  }
 }
 
 // Singleton instance

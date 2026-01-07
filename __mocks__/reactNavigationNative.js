@@ -1,8 +1,9 @@
 const React = require('react');
 
 module.exports = {
-  NavigationContainer: ({ children }) => React.createElement(React.Fragment, null, children),
-  DefaultTheme: { colors: { primary: '#000', background: '#000', text: '#000' } },
+  NavigationContainer: ({children}) =>
+    React.createElement(React.Fragment, null, children),
+  DefaultTheme: {colors: {primary: '#000', background: '#000', text: '#000'}},
   useTheme: () => ({
     colors: {
       primary: '#6CC04A',

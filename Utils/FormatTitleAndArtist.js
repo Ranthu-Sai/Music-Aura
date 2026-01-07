@@ -1,22 +1,24 @@
 // Comprehensive title cleaning and HTML decoding
 // Optionally removes the artist name if it's found within the title string
-export default function FormatTitleAndArtist(data, artistName = "") {
-  if (!data) {return "";}
+export default function FormatTitleAndArtist(data, artistName = '') {
+  if (!data) {
+    return '';
+  }
   let str = data.toString();
 
   // 1. Decode common HTML entities
   str = str
-    .replaceAll("&quot;", '"')
-    .replaceAll("&apos;", "'")
-    .replaceAll("&#039;", "'")
-    .replaceAll("&amp;", "and")
-    .replaceAll("&trade;", "™")
-    .replaceAll("&rsquo;", "'")
-    .replaceAll("&lsquo;", "'")
-    .replaceAll("&ndash;", "–")
-    .replaceAll("&mdash;", "—")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">");
+    .replaceAll('&quot;', '"')
+    .replaceAll('&apos;', "'")
+    .replaceAll('&#039;', "'")
+    .replaceAll('&amp;', 'and')
+    .replaceAll('&trade;', '™')
+    .replaceAll('&rsquo;', "'")
+    .replaceAll('&lsquo;', "'")
+    .replaceAll('&ndash;', '–')
+    .replaceAll('&mdash;', '—')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>');
 
   // 2. Remove Artist name from title if present (Heuristic for "Artist - Title")
   if (artistName && typeof artistName === 'string' && artistName.length > 0) {
@@ -26,7 +28,13 @@ export default function FormatTitleAndArtist(data, artistName = "") {
       const skipLength = cleanArtist.length;
       const remaining = str.substring(skipLength).trim();
       // Remove leading dash or separator
-      if (remaining.startsWith("-") || remaining.startsWith("–") || remaining.startsWith("—") || remaining.startsWith("|") || remaining.startsWith("•")) {
+      if (
+        remaining.startsWith('-') ||
+        remaining.startsWith('–') ||
+        remaining.startsWith('—') ||
+        remaining.startsWith('|') ||
+        remaining.startsWith('•')
+      ) {
         str = remaining.substring(1).trim();
       } else {
         str = remaining;
@@ -34,8 +42,16 @@ export default function FormatTitleAndArtist(data, artistName = "") {
     }
     // Try to remove " - Artist" at end
     else if (str.toLowerCase().endsWith(cleanArtist)) {
-      const remaining = str.substring(0, str.length - cleanArtist.length).trim();
-      if (remaining.endsWith("-") || remaining.endsWith("–") || remaining.endsWith("—") || remaining.endsWith("|") || remaining.endsWith("•")) {
+      const remaining = str
+        .substring(0, str.length - cleanArtist.length)
+        .trim();
+      if (
+        remaining.endsWith('-') ||
+        remaining.endsWith('–') ||
+        remaining.endsWith('—') ||
+        remaining.endsWith('|') ||
+        remaining.endsWith('•')
+      ) {
         str = remaining.substring(0, remaining.length - 1).trim();
       } else {
         str = remaining;
@@ -45,8 +61,10 @@ export default function FormatTitleAndArtist(data, artistName = "") {
 
   // 3. Aggressively remove extra parts (garbage)
   // Remove everything in brackets or parentheses that contains common garbage keywords
-  const garbageInBrackets = /\s*[\(\[][^)\]]*(?:official|full|lyric|audio|video|visualizer|hq|hd|high|remastered|4k|1080p|original|soundtrack|prod\.|feat\.|ft\.|with|from|version|extended|edit|remix|karaoke|instrumental|cover|live|performance|session|directed|music)[^)\]]*[\)\]]/gi;
-  str = str.replace(garbageInBrackets, "");
+  const garbagePattern = '(?:official|full|lyric|audio|video|visualizer|hq|hd|high|remastered|4k|1080p|original|soundtrack|prod\\.|feat\\.|ft\\.|with|from|version|extended|edit|remix|karaoke|instrumental|cover|live|performance|session|directed|music)';
+  const garbageInParentheses = new RegExp('\\s*\\([^\\)]*' + garbagePattern + '[^\\)]*\\)', 'gi');
+  const garbageInSquareBrackets = new RegExp('\\s*\\[[^\\]]*' + garbagePattern + '[^\\]]*\\]', 'gi');
+  str = str.replace(garbageInParentheses, '').replace(garbageInSquareBrackets, '');
 
   // Remove known garbage words/suffixes that aren't in brackets
   const standaloneGarbage = [
@@ -64,7 +82,7 @@ export default function FormatTitleAndArtist(data, artistName = "") {
     /\s+original\s+sound.*/gi,
     /\s+lyrical.*/gi,
     /\s+etc.*/gi,
-    /\s*\-\s*Topic/g,
+    /\s*-\s*Topic/g,
   ];
 
   standaloneGarbage.forEach(pattern => {
@@ -73,7 +91,7 @@ export default function FormatTitleAndArtist(data, artistName = "") {
 
   // 4. Handle separators like " - ", " – ", " — ", " • "
   // If we haven't already solved it with the artist name check
-  const separators = [" - ", " – ", " — ", " • ", " | ", " / "];
+  const separators = [' - ', ' – ', ' — ', ' • ', ' | ', ' / '];
   for (const sep of separators) {
     if (str.includes(sep)) {
       const parts = str.split(sep);

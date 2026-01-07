@@ -3,16 +3,16 @@
  */
 import 'react-native-gesture-handler';
 import 'react-native-reanimated';
-import { AppRegistry, LogBox, Alert } from 'react-native';
+import {AppRegistry, LogBox} from 'react-native';
 import App from './App';
 import appJson from './app.json';
 const appName = appJson.name;
-import TrackPlayer, { Event } from "react-native-track-player";
-import { CacheManager } from './Utils/NavigationCacheManager';
+import TrackPlayer from 'react-native-track-player';
+import {CacheManager} from './Utils/NavigationCacheManager';
 import smartPrefetchManager from './Utils/SmartPrefetchManager';
-import { hideLogs, showLogs, suppressLogPrefixes } from './Utils/LogControl';
-import { PlayNextSong, PlayPreviousSong } from './MusicPlayerFunctions';
-import { PermissionsAndroid, Platform } from 'react-native';
+import {hideLogs, showLogs, suppressLogPrefixes} from './Utils/LogControl';
+
+import {PermissionsAndroid, Platform} from 'react-native';
 import DeviceInfo from 'react-native-device-info';
 
 // Logging: keep logs visible in development, hide only in production
@@ -24,24 +24,23 @@ if (__DEV__) {
 
 // Suppress noisy dev logs from specific modules while keeping other logs
 if (__DEV__) {
-  suppressLogPrefixes([
-    'useDeviceLibrary:',
-    'LocalTracksMetadataManager:',
-  ]);
+  suppressLogPrefixes(['useDeviceLibrary:', 'LocalTracksMetadataManager:']);
 }
 
 // Request notification permission for Android 13+
 if (Platform.OS === 'android') {
   const systemVersion = parseFloat(DeviceInfo.getSystemVersion());
   if (systemVersion >= 13) {
-    PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS).catch(() => {});
+    PermissionsAndroid.request(
+      PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS,
+    ).catch(() => {});
   }
 }
 
 // Optional extra hard-mute in production (already handled by hideLogs)
 // Keeping for parity but guarded to production only
 if (!__DEV__) {
-  const NOOP = () => { };
+  const NOOP = () => {};
   console.log = NOOP;
   console.info = NOOP;
   console.debug = NOOP;
@@ -67,7 +66,8 @@ LogBox.ignoreLogs([
 ]);
 
 // Global error handler — capture uncaught exceptions and prevent app from exiting
-const defaultErrorHandler = ErrorUtils.getGlobalHandler && ErrorUtils.getGlobalHandler();
+const defaultErrorHandler =
+  ErrorUtils.getGlobalHandler && ErrorUtils.getGlobalHandler();
 const errorHandler = (error, isFatal) => {
   try {
     console.error('Global caught error:', error, 'isFatal:', isFatal);
@@ -89,18 +89,21 @@ ErrorUtils.setGlobalHandler(errorHandler);
 
 // Catch unhandled promise rejections where supported
 try {
-  if (typeof global !== 'undefined' && typeof global.addEventListener === 'function') {
-    global.addEventListener('unhandledrejection', (evt) => {
+  if (
+    typeof global !== 'undefined' &&
+    typeof global.addEventListener === 'function'
+  ) {
+    global.addEventListener('unhandledrejection', evt => {
       try {
         console.error('Unhandled promise rejection:', evt.reason || evt);
         // prevent default behavior
         if (evt && typeof evt.preventDefault === 'function') {
           evt.preventDefault();
         }
-      } catch (e) { }
+      } catch (e) {}
     });
   }
-} catch (e) { }
+} catch (e) {}
 
 // Register the playback service using require to ensure proper headless loading
 TrackPlayer.registerPlaybackService(() => require('./service').default);

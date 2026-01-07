@@ -1,10 +1,10 @@
 export * from './Saavn/HomePage';
-import axios from "axios";
+import axios from 'axios';
 
 // JioSaavn API Fallback URLs
 const JIOSAAVN_API_FALLBACKS = [
-  'https://jiosaavn-api-2.vercel.app',     // Primary (currently used)
-  'https://saavn-api.vercel.app',          // Secondary fallback
+  'https://jiosaavn-api-2.vercel.app', // Primary (currently used)
+  'https://saavn-api.vercel.app', // Secondary fallback
   'https://jio-savan-api-sigma.vercel.app', // Tertiary fallback
 ];
 
@@ -15,26 +15,32 @@ const cache = {
   CACHE_DURATION: 180000, // 3 minutes
 };
 
-async function getHomePageData(languages){
+async function getHomePageData(languages) {
   // Return cached data if still valid
-  if (cache.data && cache.timestamp && (Date.now() - cache.timestamp) < cache.CACHE_DURATION) {
+  if (
+    cache.data &&
+    cache.timestamp &&
+    Date.now() - cache.timestamp < cache.CACHE_DURATION
+  ) {
     return cache.data;
   }
 
-  const baseUrl = "https://www.jiosaavn.com/api.php";
+  const baseUrl = 'https://www.jiosaavn.com/api.php';
   const defaultParams = {
-    ctx: "wap6dot0",
+    ctx: 'wap6dot0',
     api_version: 4,
-    _format: "json",
+    _format: 'json',
     _marker: 0,
   };
   const sources = {
-    launch_data: "__call=webapi.getLaunchData",
+    launch_data: '__call=webapi.getLaunchData',
   };
 
   const urls = [
     'https://jio-savan-api-sigma.vercel.app/modules?language=' + languages,
-    `${baseUrl}?${Object.keys(defaultParams).map(k => `${k}=${defaultParams[k]}`).join('&')}&${sources.launch_data}`,
+    `${baseUrl}?${Object.keys(defaultParams)
+      .map(k => `${k}=${defaultParams[k]}`)
+      .join('&')}&${sources.launch_data}`,
   ];
 
   // Add fallback API URLs with /modules endpoint
@@ -48,7 +54,7 @@ async function getHomePageData(languages){
         method: 'get',
         maxBodyLength: Infinity,
         url: url,
-        headers: { },
+        headers: {},
       };
       const response = await axios.request(config);
 
@@ -70,4 +76,4 @@ async function getHomePageData(languages){
   throw new Error('All home page API instances failed');
 }
 
-export {getHomePageData}
+export {getHomePageData};

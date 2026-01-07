@@ -1,24 +1,26 @@
-import React, { useState, useEffect } from 'react';
+import React, {useState, useEffect} from 'react';
 import {
   View,
-  Text,
   Modal,
   TouchableOpacity,
   ScrollView,
   TextInput,
   DeviceEventEmitter,
   StyleSheet,
-  Dimensions,
   ToastAndroid,
 } from 'react-native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import AntDesign from 'react-native-vector-icons/AntDesign';
-import { GetUserPlaylists, CreatePlaylist, AddToPlaylist } from '../../LocalStorage/StoreUserPlaylists';
-import { PlainText } from './PlainText';
-import { Heading } from './Heading';
-import { Spacer } from './Spacer';
+import {
+  GetUserPlaylists,
+  CreatePlaylist,
+  AddToPlaylist,
+} from '../../LocalStorage/StoreUserPlaylists';
+import {PlainText} from './PlainText';
+import {Heading} from './Heading';
+import {Spacer} from './Spacer';
 
-const { height, width } = Dimensions.get('window');
+
 
 const PlaylistSelector = () => {
   const [visible, setVisible] = useState(false);
@@ -28,11 +30,14 @@ const PlaylistSelector = () => {
   const [newPlaylistName, setNewPlaylistName] = useState('');
 
   useEffect(() => {
-    const subscription = DeviceEventEmitter.addListener('showPlaylistSelector', (data) => {
-      setSong(data.song);
-      setVisible(true);
-      loadPlaylists();
-    });
+    const subscription = DeviceEventEmitter.addListener(
+      'showPlaylistSelector',
+      data => {
+        setSong(data.song);
+        setVisible(true);
+        loadPlaylists();
+      },
+    );
 
     return () => subscription.remove();
   }, []);
@@ -57,8 +62,10 @@ const PlaylistSelector = () => {
     }
   };
 
-  const handleAddToPlaylist = async (playlistId) => {
-    if (!song) {return;}
+  const handleAddToPlaylist = async playlistId => {
+    if (!song) {
+      return;
+    }
 
     const result = await AddToPlaylist(playlistId, song);
     if (result.success) {
@@ -69,39 +76,58 @@ const PlaylistSelector = () => {
     }
   };
 
-  if (!visible) {return null;}
+  if (!visible) {
+    return null;
+  }
 
   return (
     <Modal
       transparent
       animationType="fade"
       visible={visible}
-      onRequestClose={() => setVisible(false)}
-    >
+      onRequestClose={() => setVisible(false)}>
       <TouchableOpacity
         style={styles.overlay}
         activeOpacity={1}
-        onPress={() => setVisible(false)}
-      >
+        onPress={() => setVisible(false)}>
         <TouchableOpacity
           activeOpacity={1}
           style={styles.container}
-          onPress={(e) => e.stopPropagation()}
-        >
+          onPress={e => e.stopPropagation()}>
           <View style={styles.header}>
-            <Heading text="Add to Playlist" nospace style={styles.headerTitle} />
-            <TouchableOpacity onPress={() => setVisible(false)} style={styles.closeButton}>
+            <Heading
+              text="Add to Playlist"
+              nospace
+              style={styles.headerTitle}
+            />
+            <TouchableOpacity
+              onPress={() => setVisible(false)}
+              style={styles.closeButton}>
               <AntDesign name="close" size={24} color="white" />
             </TouchableOpacity>
           </View>
 
-          <ScrollView style={styles.playlistList} showsVerticalScrollIndicator={false}>
+          <ScrollView
+            style={styles.playlistList}
+            showsVerticalScrollIndicator={false}>
             <TouchableOpacity
-              style={[styles.createButton, showCreateForm && styles.activeCreateButton]}
-              onPress={() => setShowCreateForm(!showCreateForm)}
-            >
-              <MaterialCommunityIcons name="playlist-plus" size={28} color={showCreateForm ? "white" : "#6CC04A"} />
-              <PlainText text="Create new playlist" style={[styles.createText, showCreateForm && styles.activeCreateText]} />
+              style={[
+                styles.createButton,
+                showCreateForm && styles.activeCreateButton,
+              ]}
+              onPress={() => setShowCreateForm(!showCreateForm)}>
+              <MaterialCommunityIcons
+                name="playlist-plus"
+                size={28}
+                color={showCreateForm ? 'white' : '#6CC04A'}
+              />
+              <PlainText
+                text="Create new playlist"
+                style={[
+                  styles.createText,
+                  showCreateForm && styles.activeCreateText,
+                ]}
+              />
             </TouchableOpacity>
 
             {showCreateForm && (
@@ -117,14 +143,12 @@ const PlaylistSelector = () => {
                 <View style={styles.formButtons}>
                   <TouchableOpacity
                     style={[styles.formButton, styles.cancelButton]}
-                    onPress={() => setShowCreateForm(false)}
-                  >
+                    onPress={() => setShowCreateForm(false)}>
                     <PlainText text="Cancel" />
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[styles.formButton, styles.saveButton]}
-                    onPress={handleCreatePlaylist}
-                  >
+                    onPress={handleCreatePlaylist}>
                     <PlainText text="Create" style={styles.saveButtonText} />
                   </TouchableOpacity>
                 </View>
@@ -138,15 +162,21 @@ const PlaylistSelector = () => {
                 <PlainText text="No playlists yet" style={styles.emptyText} />
               </View>
             ) : (
-              playlists.map((playlist) => (
+              playlists.map(playlist => (
                 <TouchableOpacity
                   key={playlist.id}
                   style={styles.playlistItem}
-                  onPress={() => handleAddToPlaylist(playlist.id)}
-                >
-                  <MaterialCommunityIcons name="playlist-music" size={24} color="white" />
+                  onPress={() => handleAddToPlaylist(playlist.id)}>
+                  <MaterialCommunityIcons
+                    name="playlist-music"
+                    size={24}
+                    color="white"
+                  />
                   <PlainText text={playlist.name} style={styles.playlistName} />
-                  <PlainText text={`${playlist.songs.length} songs`} style={styles.songCount} />
+                  <PlainText
+                    text={`${playlist.songs.length} songs`}
+                    style={styles.songCount}
+                  />
                 </TouchableOpacity>
               ))
             )}

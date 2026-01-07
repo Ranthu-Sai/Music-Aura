@@ -72,7 +72,7 @@ const isNetworkAvailable = async () => {
 };
 
 // Add a function to explicitly set offline mode
-const setOfflineMode = (isOffline) => {
+const setOfflineMode = isOffline => {
   _isOfflineMode = isOffline;
 };
 
@@ -87,7 +87,9 @@ const isOfflineMode = () => {
  * @param {number} maxItems Maximum number of items to keep
  */
 const cleanMemoryCache = (cache, maxItems) => {
-  if (cache.size <= maxItems) {return;}
+  if (cache.size <= maxItems) {
+    return;
+  }
 
   // Find the oldest entries and delete them
   const entries = [...cache.entries()];
@@ -104,7 +106,7 @@ const cleanMemoryCache = (cache, maxItems) => {
  * @param {string} key Cache key
  * @returns {Promise<Object|null>} Cached data or null if not found/expired
  */
-const getFromCache = async (key) => {
+const getFromCache = async key => {
   try {
     // Check memory caches first
 
@@ -112,7 +114,7 @@ const getFromCache = async (key) => {
     if (key.includes('search_')) {
       const memItem = searchMemoryCache.get(key);
       if (memItem) {
-        const { data, timestamp, expiration } = memItem;
+        const {data, timestamp, expiration} = memItem;
         const currentTime = new Date().getTime();
 
         // Check if memory cache has expired
@@ -130,7 +132,7 @@ const getFromCache = async (key) => {
     if (key.includes('playlist_')) {
       const memItem = playlistMemoryCache.get(key);
       if (memItem) {
-        const { data, timestamp, expiration } = memItem;
+        const {data, timestamp, expiration} = memItem;
         const currentTime = new Date().getTime();
 
         // Check if memory cache has expired
@@ -147,7 +149,7 @@ const getFromCache = async (key) => {
     if (key.includes('album_') && !key.includes('album_search_')) {
       const memItem = albumMemoryCache.get(key);
       if (memItem) {
-        const { data, timestamp, expiration } = memItem;
+        const {data, timestamp, expiration} = memItem;
         const currentTime = new Date().getTime();
 
         // Check if memory cache has expired
@@ -164,9 +166,11 @@ const getFromCache = async (key) => {
     try {
       const cachedItem = await AsyncStorage.getItem(key);
 
-      if (!cachedItem) {return null;}
+      if (!cachedItem) {
+        return null;
+      }
 
-      const { data, timestamp, expiration } = JSON.parse(cachedItem);
+      const {data, timestamp, expiration} = JSON.parse(cachedItem);
       const currentTime = new Date().getTime();
 
       // Check if cache has expired
@@ -178,10 +182,10 @@ const getFromCache = async (key) => {
 
       // Store in memory for faster access next time
       if (key.includes('playlist_')) {
-        playlistMemoryCache.set(key, { data, timestamp, expiration });
+        playlistMemoryCache.set(key, {data, timestamp, expiration});
         cleanMemoryCache(playlistMemoryCache, MAX_MEMORY_ITEMS.PLAYLISTS);
       } else if (key.includes('album_') && !key.includes('album_search_')) {
-        albumMemoryCache.set(key, { data, timestamp, expiration });
+        albumMemoryCache.set(key, {data, timestamp, expiration});
         cleanMemoryCache(albumMemoryCache, MAX_MEMORY_ITEMS.ALBUMS);
       }
 
@@ -204,7 +208,12 @@ const getFromCache = async (key) => {
  * @param {string|null} group Cache group for batch invalidation
  * @returns {Promise<void>}
  */
-const saveToCache = async (key, data, expiration = DEFAULT_CACHE_EXPIRATION, group = null) => {
+const saveToCache = async (
+  key,
+  data,
+  expiration = DEFAULT_CACHE_EXPIRATION,
+  group = null,
+) => {
   try {
     const cacheItem = {
       data,
@@ -228,8 +237,10 @@ const saveToCache = async (key, data, expiration = DEFAULT_CACHE_EXPIRATION, gro
     }
 
     // Store albums in memory first
-    if ((key.includes('album_') && !key.includes('album_search_')) ||
-        (group === CACHE_GROUPS.ALBUMS && !key.includes('search_'))) {
+    if (
+      (key.includes('album_') && !key.includes('album_search_')) ||
+      (group === CACHE_GROUPS.ALBUMS && !key.includes('search_'))
+    ) {
       cleanMemoryCache(albumMemoryCache, MAX_MEMORY_ITEMS.ALBUMS);
       albumMemoryCache.set(key, cacheItem);
     }
@@ -239,13 +250,14 @@ const saveToCache = async (key, data, expiration = DEFAULT_CACHE_EXPIRATION, gro
     try {
       // Only attempt to store moderate-sized data to prevent SQLite errors
       const dataSize = JSON.stringify(data).length;
-      if (dataSize < 500000) { // 500 KB limit per item
+      if (dataSize < 500000) {
+        // 500 KB limit per item
         await AsyncStorage.setItem(key, JSON.stringify(cacheItem));
 
         // Add to group index if appropriate
         if (group && group !== CACHE_GROUPS.SEARCH) {
           const groupKey = `cache_group_${group}`;
-          const groupItems = await AsyncStorage.getItem(groupKey) || '[]';
+          const groupItems = (await AsyncStorage.getItem(groupKey)) || '[]';
           const items = JSON.parse(groupItems);
 
           if (!items.includes(key)) {
@@ -258,11 +270,16 @@ const saveToCache = async (key, data, expiration = DEFAULT_CACHE_EXPIRATION, gro
           }
         }
       } else {
-        console.log(`Data for ${key} is too large (${dataSize} bytes), keeping in memory only`);
+        console.log(
+          `Data for ${key} is too large (${dataSize} bytes), keeping in memory only`,
+        );
       }
     } catch (storageError) {
       // Ignore storage errors since we have memory cache as backup
-      console.warn(`AsyncStorage save failed for ${key}, keeping in memory only:`, storageError.message);
+      console.warn(
+        `AsyncStorage save failed for ${key}, keeping in memory only:`,
+        storageError.message,
+      );
     }
   } catch (error) {
     console.error(`Error saving to cache for key ${key}:`, error);
@@ -294,7 +311,7 @@ const clearCache = async (group = null) => {
       if (group) {
         // Clear specific group
         const groupKey = `cache_group_${group}`;
-        const groupItems = await AsyncStorage.getItem(groupKey) || '[]';
+        const groupItems = (await AsyncStorage.getItem(groupKey)) || '[]';
         const items = JSON.parse(groupItems);
 
         // Remove all items in the group
@@ -309,8 +326,8 @@ const clearCache = async (group = null) => {
         const keys = await AsyncStorage.getAllKeys();
 
         // Filter only cache keys (ignore other app settings)
-        const cacheKeys = keys.filter(key =>
-          key.startsWith('api_cache_') || key.startsWith('cache_group_')
+        const cacheKeys = keys.filter(
+          key => key.startsWith('api_cache_') || key.startsWith('cache_group_'),
         );
 
         // Clear all cache keys
@@ -322,7 +339,10 @@ const clearCache = async (group = null) => {
       console.warn('AsyncStorage clear failed:', storageError);
     }
   } catch (error) {
-    console.error(`Error clearing cache${group ? ` for group ${group}` : ''}:`, error);
+    console.error(
+      `Error clearing cache${group ? ` for group ${group}` : ''}:`,
+      error,
+    );
   }
 };
 
@@ -335,7 +355,13 @@ const clearCache = async (group = null) => {
  * @param {boolean} forceRefresh Force refresh from API
  * @returns {Promise<Object>} Data from cache or API
  */
-const getCachedData = async (key, fetchFunction, expiration = DEFAULT_CACHE_EXPIRATION, group = null, forceRefresh = false) => {
+const getCachedData = async (
+  key,
+  fetchFunction,
+  expiration = DEFAULT_CACHE_EXPIRATION,
+  group = null,
+  forceRefresh = false,
+) => {
   try {
     // First check if we're in offline mode
     const networkAvailable = await isNetworkAvailable();
@@ -347,7 +373,7 @@ const getCachedData = async (key, fetchFunction, expiration = DEFAULT_CACHE_EXPI
 
       if (cachedData) {
         // Add a flag to indicate this came from cache during offline mode
-        return { ...cachedData, fromCache: true, offlineMode: true };
+        return {...cachedData, fromCache: true, offlineMode: true};
       }
 
       // If there's no cached data and we're offline, return a standard offline response
@@ -364,7 +390,7 @@ const getCachedData = async (key, fetchFunction, expiration = DEFAULT_CACHE_EXPI
 
       if (cachedData) {
         // Add a flag to indicate this came from cache
-        return { ...cachedData, fromCache: true };
+        return {...cachedData, fromCache: true};
       }
     }
 
@@ -378,7 +404,7 @@ const getCachedData = async (key, fetchFunction, expiration = DEFAULT_CACHE_EXPI
       }
 
       return data;
-      } catch (fetchError) {
+    } catch (fetchError) {
       // Handle network errors more gracefully
       console.error(`Error fetching data for key ${key}:`, fetchError);
 
@@ -389,7 +415,7 @@ const getCachedData = async (key, fetchFunction, expiration = DEFAULT_CACHE_EXPI
         const cachedData = await getFromCache(key);
 
         if (cachedData) {
-          return { ...cachedData, fromCache: true, offlineMode: true };
+          return {...cachedData, fromCache: true, offlineMode: true};
         }
       }
 

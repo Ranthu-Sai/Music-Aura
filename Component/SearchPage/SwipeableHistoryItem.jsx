@@ -1,24 +1,22 @@
-import React, { useRef, useState, useContext } from 'react';
-import { View, StyleSheet, Animated, Pressable, Dimensions, Text } from 'react-native';
-import { Swipeable } from 'react-native-gesture-handler';
-import MaterialIcons from "react-native-vector-icons/MaterialIcons";
-import Entypo from "react-native-vector-icons/Entypo";
+import React, {useRef, useContext} from 'react';
+import {
+  View,
+  StyleSheet,
+  Animated,
+  Pressable,
+  Text,
+} from 'react-native';
+import {Swipeable} from 'react-native-gesture-handler';
+import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import Entypo from 'react-native-vector-icons/Entypo';
 import Feather from 'react-native-vector-icons/Feather';
-import { useTheme } from '@react-navigation/native';
-import { ThemeContext } from '../../Context/Context';
+import {useTheme} from '@react-navigation/native';
+import {ThemeContext} from '../../Context/Context';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-
-const SwipeableHistoryItem = ({
-  item,
-  onPress,
-  onDelete,
-  onSwipeableOpen,
-}) => {
-  const { colors, dark } = useTheme();
-  const { currentThemeColors } = useContext(ThemeContext);
+const SwipeableHistoryItem = ({item, onPress, onDelete, onSwipeableOpen}) => {
+  const {dark} = useTheme();
+  const {currentThemeColors} = useContext(ThemeContext);
   const swipeableRef = useRef(null);
-  const [isSwiped, setIsSwiped] = useState(false);
 
   // Handle delete action with haptic feedback
   const handleDelete = () => {
@@ -26,14 +24,10 @@ const SwipeableHistoryItem = ({
     onDelete();
   };
 
-  // Handle swipe start/end
-  const handleSwipeStart = () => {
-    setIsSwiped(true);
-  };
+  // Handle swipe start/end (no visual state tracked currently)
+  const handleSwipeStart = () => {};
 
-  const handleSwipeEnd = () => {
-    setIsSwiped(false);
-  };
+  const handleSwipeEnd = () => {};
 
   // Render the delete action that appears when swiping left
   const renderRightActions = (progress, dragX) => {
@@ -44,11 +38,11 @@ const SwipeableHistoryItem = ({
 
     return (
       <View style={styles.rightAction}>
-        <Animated.View style={[styles.actionButton, { transform: [{ translateX: trans }] }]}>
+        <Animated.View
+          style={[styles.actionButton, {transform: [{translateX: trans}]}]}>
           <Pressable
-            style={[styles.deleteButton, { backgroundColor: '#FF3B30' }]}
-            onPress={handleDelete}
-          >
+            style={[styles.deleteButton, {backgroundColor: '#FF3B30'}]}
+            onPress={handleDelete}>
             <Feather name="trash-2" size={20} color="white" />
           </Pressable>
         </Animated.View>
@@ -68,57 +62,75 @@ const SwipeableHistoryItem = ({
         friction={2}
         overshootFriction={8}
         overshootRight={false}
-        containerStyle={styles.swipeableContainer}
-      >
+        containerStyle={styles.swipeableContainer}>
         <Pressable
           onPress={onPress}
-          style={({ pressed }) => ([
+          style={({pressed}) => [
             styles.historyItem,
             {
-              backgroundColor: currentThemeColors.secondaryBackground || (dark ? "rgba(255,255,255,0.08)" : 'rgba(0,0,0,0.04)'),
-              borderColor: currentThemeColors.secondaryText ? currentThemeColors.secondaryText + '22' : (dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)'),
+              backgroundColor:
+                currentThemeColors.secondaryBackground ||
+                (dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.04)'),
+              borderColor: currentThemeColors.secondaryText
+                ? currentThemeColors.secondaryText + '22'
+                : dark
+                ? 'rgba(255,255,255,0.1)'
+                : 'rgba(0,0,0,0.08)',
               opacity: pressed ? 0.7 : 1,
             },
-          ])}
-          android_ripple={{ color: dark ? "rgba(255,255,255,0.1)" : 'rgba(0,0,0,0.06)' }}
-        >
+          ]}
+          android_ripple={{
+            color: dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)',
+          }}>
           <View
             style={{
               width: 38,
               height: 38,
               borderRadius: 19,
-              backgroundColor: dark ? "rgba(255,255,255,0.1)" : 'rgba(0,0,0,0.06)',
-              justifyContent: "center",
-              alignItems: "center",
+              backgroundColor: dark
+                ? 'rgba(255,255,255,0.1)'
+                : 'rgba(0,0,0,0.06)',
+              justifyContent: 'center',
+              alignItems: 'center',
               marginRight: 12,
-            }}
-          >
-            <MaterialIcons name="history" size={20} color={dark ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.6)'} />
+            }}>
+            <MaterialIcons
+              name="history"
+              size={20}
+              color={dark ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.6)'}
+            />
           </View>
           <Text
             style={{
               flex: 1,
               color: currentThemeColors.text,
               fontSize: 17,
-              fontFamily: "roboto",
+              fontFamily: 'roboto',
             }}
-            numberOfLines={1}
-          >
+            numberOfLines={1}>
             {item}
           </Text>
           <Pressable
-            onPress={(e) => {
+            onPress={e => {
               e.stopPropagation();
               handleDelete();
             }}
             style={{
               padding: 8,
               borderRadius: 20,
-              backgroundColor: dark ? "rgba(255,255,255,0.05)" : 'rgba(0,0,0,0.04)',
+              backgroundColor: dark
+                ? 'rgba(255,255,255,0.05)'
+                : 'rgba(0,0,0,0.04)',
             }}
-            android_ripple={{ color: dark ? "rgba(255,255,255,0.1)" : 'rgba(0,0,0,0.06)', borderless: true }}
-          >
-            <Entypo name="cross" size={18} color={dark ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)'} />
+            android_ripple={{
+              color: dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)',
+              borderless: true,
+            }}>
+            <Entypo
+              name="cross"
+              size={18}
+              color={dark ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)'}
+            />
           </Pressable>
         </Pressable>
       </Swipeable>
@@ -137,8 +149,8 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   historyItem: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingVertical: 14,
     paddingHorizontal: 16,
     borderRadius: 12,

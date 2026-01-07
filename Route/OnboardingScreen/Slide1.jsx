@@ -1,6 +1,6 @@
-import React, { useEffect } from "react";
-import { View, StyleSheet, Dimensions, Text, StatusBar } from "react-native";
-import FastImage from "react-native-fast-image";
+import React, {useEffect} from 'react';
+import {View, StyleSheet, Dimensions, Text, StatusBar} from 'react-native';
+import FastImage from 'react-native-fast-image';
 import Animated, {
   FadeIn,
   useSharedValue,
@@ -8,41 +8,48 @@ import Animated, {
   withRepeat,
   withTiming,
   Easing,
-} from "react-native-reanimated";
-import { BottomNextAndPrevious } from "../../Component/RouteOnboarding/BottomNextAndPrevious";
+} from 'react-native-reanimated';
+import {BottomNextAndPrevious} from '../../Component/RouteOnboarding/BottomNextAndPrevious';
 
-const { width } = Dimensions.get("window");
+// width is intentionally unused here — kept for future layout adjustments
+const { } = Dimensions.get('window');
 
-export const Slide1 = ({ navigation }) => {
+export const Slide1 = ({navigation}) => {
   const glowValue = useSharedValue(0.5);
 
   useEffect(() => {
     glowValue.value = withRepeat(
-      withTiming(1, { duration: 2000, easing: Easing.inOut(Easing.ease) }),
+      withTiming(1, {duration: 2000, easing: Easing.inOut(Easing.ease)}),
       -1,
-      true
+      true,
     );
   }, [glowValue]);
 
   const animatedTextGlow = useAnimatedStyle(() => ({
-    textShadowRadius: 15 + (glowValue.value * 15),
-    opacity: 0.8 + (glowValue.value * 0.2),
+    textShadowRadius: 15 + glowValue.value * 15,
+    opacity: 0.8 + glowValue.value * 0.2,
   }));
 
   const animatedImageGlow = useAnimatedStyle(() => ({
-    shadowRadius: 20 + (glowValue.value * 20),
-    borderColor: `rgba(29, 185, 84, ${0.1 + (glowValue.value * 0.2)})`,
+    shadowRadius: 20 + glowValue.value * 20,
+    borderColor: `rgba(29, 185, 84, ${0.1 + glowValue.value * 0.2})`,
   }));
 
   return (
     <View style={styles.container}>
-      <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
+      <StatusBar
+        translucent
+        backgroundColor="transparent"
+        barStyle="light-content"
+      />
 
       <View style={styles.centerSection}>
-        <Animated.View entering={FadeIn.duration(800)} style={styles.imageContainer}>
+        <Animated.View
+          entering={FadeIn.duration(800)}
+          style={styles.imageContainer}>
           <Animated.View style={[styles.imageWrapper, animatedImageGlow]}>
             <FastImage
-              source={require("../../Images/Logo.jpg")}
+              source={require('../../Images/Logo.jpg')}
               style={styles.image}
               resizeMode="cover"
             />
@@ -50,7 +57,9 @@ export const Slide1 = ({ navigation }) => {
         </Animated.View>
 
         <View style={styles.content}>
-          <Animated.View entering={FadeIn.delay(300).duration(800)} style={{ alignItems: 'center' }}>
+          <Animated.View
+            entering={FadeIn.delay(300).duration(800)}
+            style={{alignItems: 'center'}}>
             <Text style={styles.topLabel}>Discover Music</Text>
             <Animated.Text style={[styles.subtitle, animatedTextGlow]}>
               Music Aura
@@ -63,7 +72,7 @@ export const Slide1 = ({ navigation }) => {
         <BottomNextAndPrevious
           delay={700}
           onNextPress={() => {
-            navigation.replace("Slide2");
+            navigation.replace('Slide2');
           }}
         />
       </View>
@@ -91,7 +100,7 @@ const styles = StyleSheet.create({
     borderRadius: 110,
     borderWidth: 1,
     shadowColor: '#1DB954',
-    shadowOffset: { width: 0, height: 0 },
+    shadowOffset: {width: 0, height: 0},
     shadowOpacity: 0.6,
     elevation: 20,
     backgroundColor: '#000',
@@ -120,7 +129,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     letterSpacing: -0.5,
     textShadowColor: '#1DB954',
-    textShadowOffset: { width: 0, height: 0 },
+    textShadowOffset: {width: 0, height: 0},
   },
   footer: {
     width: '100%',

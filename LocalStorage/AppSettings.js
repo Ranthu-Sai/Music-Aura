@@ -1,16 +1,16 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 async function GetFontSizeValue() {
   try {
     const value = await AsyncStorage.getItem('FontSize');
     if (value !== null) {
-      return value
+      return value;
     } else {
-      return 'Medium'
+      return 'Medium';
     }
   } catch (e) {
     // error reading value
-    return 'Medium'
+    return 'Medium';
   }
 }
 
@@ -28,13 +28,13 @@ async function GetPlaybackQuality() {
   try {
     const value = await AsyncStorage.getItem('PlaybackQuality');
     if (value !== null) {
-      return value
+      return value;
     } else {
-      return '320kbps'
+      return '320kbps';
     }
   } catch (e) {
     // error reading value
-    return '320kbps'
+    return '320kbps';
   }
 }
 
@@ -52,13 +52,13 @@ async function GetDownloadPath() {
   try {
     const value = await AsyncStorage.getItem('DownloadPath');
     if (value !== null) {
-      return value
+      return value;
     } else {
-      return 'Music'
+      return 'Music';
     }
   } catch (e) {
     // error reading value
-    return 'Music'
+    return 'Music';
   }
 }
 
@@ -76,13 +76,13 @@ async function GetTheme() {
   try {
     const value = await AsyncStorage.getItem('Theme');
     if (value !== null) {
-      return value
+      return value;
     } else {
-      return 'Default'
+      return 'Default';
     }
   } catch (e) {
     // error reading value
-    return 'Default'
+    return 'Default';
   }
 }
 
@@ -117,7 +117,7 @@ async function GetLastSong() {
     // Try to clear corrupted data
     try {
       await AsyncStorage.removeItem('LastSong');
-    } catch (_) { }
+    } catch (_) {}
     return null;
   }
 }
@@ -141,9 +141,9 @@ async function SetLastSong(song) {
       language: song.language || 'en',
       image: song.image || song.artwork || '',
       // Include optional fields if available
-      ...(song.downloadUrl && { downloadUrl: song.downloadUrl }),
-      ...(song.artistID && { artistID: song.artistID }),
-      ...(song.headers && { headers: song.headers }),
+      ...(song.downloadUrl && {downloadUrl: song.downloadUrl}),
+      ...(song.artistID && {artistID: song.artistID}),
+      ...(song.headers && {headers: song.headers}),
     };
 
     const jsonValue = JSON.stringify(songToSave);
@@ -154,7 +154,6 @@ async function SetLastSong(song) {
     return false;
   }
 }
-
 
 async function GetLyricsSettings() {
   try {
@@ -204,4 +203,4 @@ export {
   SetLastSong,
   GetLyricsSettings,
   SetLyricsSettings,
-}
+};

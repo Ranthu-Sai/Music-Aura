@@ -1,10 +1,19 @@
-import React, { useMemo } from 'react';
-import { View, StyleSheet, ScrollView, useWindowDimensions, Image, Modal, TouchableOpacity, ActivityIndicator } from 'react-native';
+import React, {useMemo} from 'react';
+import {
+  View,
+  StyleSheet,
+  ScrollView,
+  useWindowDimensions,
+  Image,
+  Modal,
+  TouchableOpacity,
+  ActivityIndicator,
+} from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
-import { PlainText } from '../Global/PlainText';
-import { SmallText } from '../Global/SmallText';
-import useSongDetails, { cleanText } from '../../hooks/useSongDetails';
+import {PlainText} from '../Global/PlainText';
+import {SmallText} from '../Global/SmallText';
+import useSongDetails, {cleanText} from '../../hooks/useSongDetails';
 
 // Simple theme object
 const defaultTheme = {
@@ -32,7 +41,7 @@ const styles = StyleSheet.create({
   modalContainer: {
     elevation: 8,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: {width: 0, height: 4},
     shadowOpacity: 0.3,
     shadowRadius: 8,
     alignSelf: 'center',
@@ -180,10 +189,18 @@ const styles = StyleSheet.create({
   },
 });
 
-const InfoSection = ({ title, icon, children }) => {
+const InfoSection = ({title, icon, children}) => {
   return (
-    <View style={[styles.sectionSurface, { backgroundColor: defaultTheme.colors.surface }]}>
-      <View style={[styles.sectionHeader, { borderBottomColor: defaultTheme.colors.outlineVariant }]}>
+    <View
+      style={[
+        styles.sectionSurface,
+        {backgroundColor: defaultTheme.colors.surface},
+      ]}>
+      <View
+        style={[
+          styles.sectionHeader,
+          {borderBottomColor: defaultTheme.colors.outlineVariant},
+        ]}>
         {icon && (
           <MaterialIcons
             name={icon}
@@ -194,7 +211,10 @@ const InfoSection = ({ title, icon, children }) => {
         )}
         <PlainText
           text={title}
-          style={StyleSheet.flatten([styles.sectionTitle, { color: defaultTheme.colors.onSurface }])}
+          style={StyleSheet.flatten([
+            styles.sectionTitle,
+            {color: defaultTheme.colors.onSurface},
+          ])}
         />
       </View>
       {children}
@@ -202,22 +222,34 @@ const InfoSection = ({ title, icon, children }) => {
   );
 };
 
-const SongInfoModal = ({ visible, onDismiss, track }) => {
+const SongInfoModal = ({visible, onDismiss, track}) => {
   const dimensions = useWindowDimensions();
-  const { songDetails, loading, error, reload } = useSongDetails(track);
+  const {songDetails, loading, error, reload} = useSongDetails(track);
 
-  const trackTitle = useMemo(() => cleanText(track?.title) || songDetails?.basicInfo?.[0]?.value || 'Unknown Track', [track?.title, songDetails?.basicInfo]);
+  const trackTitle = useMemo(
+    () =>
+      cleanText(track?.title) ||
+      songDetails?.basicInfo?.[0]?.value ||
+      'Unknown Track',
+    [track?.title, songDetails?.basicInfo],
+  );
   const trackSubtitle = useMemo(() => {
     const artist = cleanText(track?.artist);
-    if (artist) {return artist;}
+    if (artist) {
+      return artist;
+    }
 
     // Try to find Artist or Artists in basicInfo
-    const artistInfo = songDetails?.basicInfo?.find(item => item.label === 'Artist' || item.label === 'Artists');
+    const artistInfo = songDetails?.basicInfo?.find(
+      item => item.label === 'Artist' || item.label === 'Artists',
+    );
     return artistInfo?.value || 'Unknown Artist';
   }, [track?.artist, songDetails?.basicInfo]);
 
   const renderSection = (title, icon, rows) => {
-    if (!rows || rows.length === 0) {return null;}
+    if (!rows || rows.length === 0) {
+      return null;
+    }
 
     return (
       <InfoSection title={title} icon={icon}>
@@ -226,7 +258,10 @@ const SongInfoModal = ({ visible, onDismiss, track }) => {
             <View style={styles.listItem}>
               <PlainText
                 text={row.label}
-                style={StyleSheet.flatten([styles.infoLabel, { color: defaultTheme.colors.onSurfaceVariant }])}
+                style={StyleSheet.flatten([
+                  styles.infoLabel,
+                  {color: defaultTheme.colors.onSurfaceVariant},
+                ])}
                 numberOfLines={2}
               />
               <PlainText
@@ -234,14 +269,21 @@ const SongInfoModal = ({ visible, onDismiss, track }) => {
                 style={StyleSheet.flatten([
                   styles.infoValue,
                   {
-                    color: row.highlight ? defaultTheme.colors.primary : defaultTheme.colors.onSurface,
+                    color: row.highlight
+                      ? defaultTheme.colors.primary
+                      : defaultTheme.colors.onSurface,
                   },
                 ])}
                 numberOfLines={2}
               />
             </View>
             {index < rows.length - 1 && (
-              <View style={[styles.rowDivider, { backgroundColor: defaultTheme.colors.outlineVariant }]} />
+              <View
+                style={[
+                  styles.rowDivider,
+                  {backgroundColor: defaultTheme.colors.outlineVariant},
+                ]}
+              />
             )}
           </React.Fragment>
         ))}
@@ -254,7 +296,9 @@ const SongInfoModal = ({ visible, onDismiss, track }) => {
   }, [track?.currentPlayingQuality]);
 
   const renderChips = (title, icon, chips) => {
-    if (!chips || chips.length === 0) {return null;}
+    if (!chips || chips.length === 0) {
+      return null;
+    }
 
     return (
       <InfoSection title={title} icon={icon}>
@@ -268,13 +312,22 @@ const SongInfoModal = ({ visible, onDismiss, track }) => {
                 style={[
                   styles.chip,
                   isCurrentlyPlaying
-                    ? { backgroundColor: defaultTheme.colors.primary, borderColor: defaultTheme.colors.primary }
-                    : { backgroundColor: 'transparent', borderColor: defaultTheme.colors.outlineVariant },
-                ]}
-              >
+                    ? {
+                        backgroundColor: defaultTheme.colors.primary,
+                        borderColor: defaultTheme.colors.primary,
+                      }
+                    : {
+                        backgroundColor: 'transparent',
+                        borderColor: defaultTheme.colors.outlineVariant,
+                      },
+                ]}>
                 <SmallText
                   text={chip.label}
-                  style={{ color: isCurrentlyPlaying ? defaultTheme.colors.onPrimary : defaultTheme.colors.onSurfaceVariant }}
+                  style={{
+                    color: isCurrentlyPlaying
+                      ? defaultTheme.colors.onPrimary
+                      : defaultTheme.colors.onSurfaceVariant,
+                  }}
                 />
               </View>
             );
@@ -292,11 +345,18 @@ const SongInfoModal = ({ visible, onDismiss, track }) => {
       onRequestClose={onDismiss}
       transparent
       animationType="fade"
-      statusBarTranslucent
-    >
+      statusBarTranslucent>
       <View style={styles.modalBackdrop}>
-        <View style={[styles.modalContainer, { maxWidth: Math.min(dimensions.width - 32, 520) }]}>
-          <View style={[styles.modalSurface, { backgroundColor: defaultTheme.colors.background }]}>
+        <View
+          style={[
+            styles.modalContainer,
+            {maxWidth: Math.min(dimensions.width - 32, 520)},
+          ]}>
+          <View
+            style={[
+              styles.modalSurface,
+              {backgroundColor: defaultTheme.colors.background},
+            ]}>
             <View
               style={[
                 styles.header,
@@ -304,49 +364,71 @@ const SongInfoModal = ({ visible, onDismiss, track }) => {
                   borderBottomColor: defaultTheme.colors.outlineVariant,
                   backgroundColor: defaultTheme.colors.surface,
                 },
-              ]}
-            >
-              {(songDetails?.imageUrl || track?.artwork || track?.image) ? (
-                <Image source={{ uri: songDetails?.imageUrl || track?.artwork || track?.image }} style={styles.coverArt} resizeMode="cover" />
+              ]}>
+              {songDetails?.imageUrl || track?.artwork || track?.image ? (
+                <Image
+                  source={{
+                    uri:
+                      songDetails?.imageUrl || track?.artwork || track?.image,
+                  }}
+                  style={styles.coverArt}
+                  resizeMode="cover"
+                />
               ) : (
                 <View
                   style={[
                     styles.coverArt,
                     styles.placeholderArt,
-                    { backgroundColor: defaultTheme.colors.surfaceVariant },
-                  ]}
-                >
-                  <MaterialIcons name="music-note" size={34} color={defaultTheme.colors.onSurfaceVariant} />
+                    {backgroundColor: defaultTheme.colors.surfaceVariant},
+                  ]}>
+                  <MaterialIcons
+                    name="music-note"
+                    size={34}
+                    color={defaultTheme.colors.onSurfaceVariant}
+                  />
                 </View>
               )}
               <View style={styles.headerContent}>
                 <PlainText
                   text={trackTitle}
-                  style={StyleSheet.flatten([styles.trackTitle, { color: defaultTheme.colors.onSurface }])}
+                  style={StyleSheet.flatten([
+                    styles.trackTitle,
+                    {color: defaultTheme.colors.onSurface},
+                  ])}
                   numberOfLines={1}
                 />
                 <SmallText
                   text={trackSubtitle}
-                  style={StyleSheet.flatten([styles.trackSubtitle, { color: defaultTheme.colors.onSurfaceVariant }])}
+                  style={StyleSheet.flatten([
+                    styles.trackSubtitle,
+                    {color: defaultTheme.colors.onSurfaceVariant},
+                  ])}
                   numberOfLines={1}
                 />
               </View>
-              <TouchableOpacity
-                onPress={onDismiss}
-                style={styles.closeButton}
-              >
-                <MaterialCommunityIcons name="close" size={22} color={defaultTheme.colors.onSurfaceVariant} />
+              <TouchableOpacity onPress={onDismiss} style={styles.closeButton}>
+                <MaterialCommunityIcons
+                  name="close"
+                  size={22}
+                  color={defaultTheme.colors.onSurfaceVariant}
+                />
               </TouchableOpacity>
             </View>
 
             <ScrollView
-              contentContainerStyle={StyleSheet.flatten([styles.scrollContent, { paddingBottom: 32 }])}
-              style={{ maxHeight: modalMaxHeight - 130 }}
-              showsVerticalScrollIndicator={false}
-            >
+              contentContainerStyle={StyleSheet.flatten([
+                styles.scrollContent,
+                {paddingBottom: 32},
+              ])}
+              style={{maxHeight: modalMaxHeight - 130}}
+              showsVerticalScrollIndicator={false}>
               {loading ? (
                 <View style={styles.loadingContainer}>
-                  <ActivityIndicator animating size="large" color={defaultTheme.colors.primary} />
+                  <ActivityIndicator
+                    animating
+                    size="large"
+                    color={defaultTheme.colors.primary}
+                  />
                   <PlainText
                     text="Fetching song details…"
                     style={{
@@ -357,42 +439,84 @@ const SongInfoModal = ({ visible, onDismiss, track }) => {
                 </View>
               ) : error ? (
                 <View style={styles.errorContainer}>
-                  <MaterialIcons name="error-outline" size={50} color={defaultTheme.colors.error} />
-                  <PlainText
-                    text="Unable to load details"
-                    style={StyleSheet.flatten([styles.errorTitle, { color: defaultTheme.colors.error }])}
+                  <MaterialIcons
+                    name="error-outline"
+                    size={50}
+                    color={defaultTheme.colors.error}
                   />
                   <PlainText
-                    text={error || 'Please check your connection and try again.'}
-                    style={StyleSheet.flatten([styles.errorDescription, { color: defaultTheme.colors.onSurfaceVariant }])}
+                    text="Unable to load details"
+                    style={StyleSheet.flatten([
+                      styles.errorTitle,
+                      {color: defaultTheme.colors.error},
+                    ])}
+                  />
+                  <PlainText
+                    text={
+                      error || 'Please check your connection and try again.'
+                    }
+                    style={StyleSheet.flatten([
+                      styles.errorDescription,
+                      {color: defaultTheme.colors.onSurfaceVariant},
+                    ])}
                   />
                   <TouchableOpacity
                     onPress={reload}
-                    style={[styles.retryButton, { backgroundColor: defaultTheme.colors.primary }]}
-                  >
-                    <MaterialCommunityIcons name="refresh" size={18} color={defaultTheme.colors.onPrimary} />
-                    <PlainText text="Try again" style={{ color: defaultTheme.colors.onPrimary, marginLeft: 8 }} />
+                    style={[
+                      styles.retryButton,
+                      {backgroundColor: defaultTheme.colors.primary},
+                    ]}>
+                    <MaterialCommunityIcons
+                      name="refresh"
+                      size={18}
+                      color={defaultTheme.colors.onPrimary}
+                    />
+                    <PlainText
+                      text="Try again"
+                      style={{
+                        color: defaultTheme.colors.onPrimary,
+                        marginLeft: 8,
+                      }}
+                    />
                   </TouchableOpacity>
                 </View>
               ) : songDetails ? (
                 <>
-                  {renderSection('Track information', 'music-note', songDetails.basicInfo)}
-                  {songDetails.featuredArtists ? renderSection('Featured artists', 'group', [
-                    { label: 'Artists', value: songDetails.featuredArtists },
-                  ]) : null}
-                  {renderSection('Additional details', 'info-outline', songDetails.additionalInfo)}
-                  {renderSection('Media information', 'album', songDetails.mediaInfo)}
+                  {renderSection(
+                    'Track information',
+                    'music-note',
+                    songDetails.basicInfo,
+                  )}
+                  {songDetails.featuredArtists
+                    ? renderSection('Featured artists', 'group', [
+                        {label: 'Artists', value: songDetails.featuredArtists},
+                      ])
+                    : null}
+                  {renderSection(
+                    'Additional details',
+                    'info-outline',
+                    songDetails.additionalInfo,
+                  )}
+                  {renderSection(
+                    'Media information',
+                    'album',
+                    songDetails.mediaInfo,
+                  )}
                   {renderChips(
                     'Available qualities',
                     'high-quality',
-                    songDetails.availableQualities?.map((quality) => ({
+                    songDetails.availableQualities?.map(quality => ({
                       label: quality,
-                    }))
+                    })),
                   )}
                 </>
               ) : (
                 <View style={styles.loadingContainer}>
-                  <ActivityIndicator animating size="small" color={defaultTheme.colors.primary} />
+                  <ActivityIndicator
+                    animating
+                    size="small"
+                    color={defaultTheme.colors.primary}
+                  />
                 </View>
               )}
             </ScrollView>

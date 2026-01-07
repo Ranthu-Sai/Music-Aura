@@ -1,20 +1,20 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-async function GetQueueSongs(){
+async function GetQueueSongs() {
   try {
     const value = await AsyncStorage.getItem('QueueSongs');
     if (value !== null) {
-      return JSON.parse(value)
+      return JSON.parse(value);
     } else {
-      return []
+      return [];
     }
   } catch (e) {
     // error reading value
-    return []
+    return [];
   }
 }
 
-async function SetQueueSongs(queue){
+async function SetQueueSongs(queue) {
   try {
     const jsonValue = JSON.stringify(queue);
     await AsyncStorage.setItem('QueueSongs', jsonValue);
@@ -24,4 +24,4 @@ async function SetQueueSongs(queue){
     return false;
   }
 }
-export {GetQueueSongs, SetQueueSongs}
+export {GetQueueSongs, SetQueueSongs};

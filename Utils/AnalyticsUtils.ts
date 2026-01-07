@@ -1,5 +1,8 @@
-import { getApp } from '@react-native-firebase/app';
-import { getAnalytics, FirebaseAnalyticsTypes } from '@react-native-firebase/analytics';
+import {getApp} from '@react-native-firebase/app';
+import {
+  getAnalytics,
+  FirebaseAnalyticsTypes,
+} from '@react-native-firebase/analytics';
 
 // Lazily initialize analyticsInstance. Avoid calling native APIs at module
 // load time because that can throw if the native Firebase modules are not
@@ -7,7 +10,9 @@ import { getAnalytics, FirebaseAnalyticsTypes } from '@react-native-firebase/ana
 let analyticsInstance: FirebaseAnalyticsTypes.Module | null = null;
 
 function getAnalyticsIfAvailable(): FirebaseAnalyticsTypes.Module | null {
-  if (analyticsInstance) {return analyticsInstance;}
+  if (analyticsInstance) {
+    return analyticsInstance;
+  }
   try {
     const app = getApp();
     analyticsInstance = getAnalytics(app);
@@ -48,7 +53,9 @@ class AnalyticsService {
   setAnalyticsCollectionEnabled = async (enabled: boolean) => {
     try {
       const instance = getAnalyticsIfAvailable();
-      if (!instance) {return;}
+      if (!instance) {
+        return;
+      }
       await instance.setAnalyticsCollectionEnabled(enabled);
     } catch (error) {
       // Silent error handling for analytics
@@ -63,7 +70,9 @@ class AnalyticsService {
   logScreenView = async (screenName: string, screenClass?: string) => {
     try {
       const instance = getAnalyticsIfAvailable();
-      if (!instance) {return;}
+      if (!instance) {
+        return;
+      }
       await instance.logScreenView({
         screen_name: screenName,
         screen_class: screenClass || screenName,
@@ -81,7 +90,9 @@ class AnalyticsService {
   logEvent = async (eventName: string, params?: Record<string, any>) => {
     try {
       const instance = getAnalyticsIfAvailable();
-      if (!instance) {return;}
+      if (!instance) {
+        return;
+      }
       await instance.logEvent(eventName, params);
     } catch (error) {
       // Silent error handling for analytics
@@ -96,7 +107,9 @@ class AnalyticsService {
   setUserProperty = async (name: string, value: string) => {
     try {
       const instance = getAnalyticsIfAvailable();
-      if (!instance) {return;}
+      if (!instance) {
+        return;
+      }
       await instance.setUserProperty(name, value);
     } catch (error) {
       // Silent error handling for analytics
@@ -124,7 +137,11 @@ class AnalyticsService {
    * @param contentType The type of content ('song' or 'album')
    * @param contentName The name of the content
    */
-  logDownloadStart = (contentId: string, contentType: 'song' | 'album', contentName: string) => {
+  logDownloadStart = (
+    contentId: string,
+    contentType: 'song' | 'album',
+    contentName: string,
+  ) => {
     this.logEvent(AnalyticsEvents.DOWNLOAD_START, {
       content_id: contentId,
       content_type: contentType,
@@ -144,7 +161,7 @@ class AnalyticsService {
     contentId: string,
     contentType: 'song' | 'album',
     contentName: string,
-    success: boolean
+    success: boolean,
   ) => {
     this.logEvent(AnalyticsEvents.DOWNLOAD_COMPLETE, {
       content_id: contentId,

@@ -1,5 +1,5 @@
 // service.js
-import TrackPlayer, { Capability, Event } from "react-native-track-player";
+import TrackPlayer, {Capability, Event} from 'react-native-track-player';
 import historyManager from './Utils/HistoryManager';
 import autoRecommendations from './Utils/AutoRecommendations';
 import smartPrefetchManager from './Utils/SmartPrefetchManager';
@@ -12,11 +12,19 @@ export default async function PlaybackService() {
   // Register remote handlers immediately so notification actions work
   // even when the app is backgrounded or killed
   TrackPlayer.addEventListener(Event.RemotePlay, async () => {
-    try { await TrackPlayer.play(); } catch (e) { console.warn('RemotePlay handler failed', e); }
+    try {
+      await TrackPlayer.play();
+    } catch (e) {
+      console.warn('RemotePlay handler failed', e);
+    }
   });
 
   TrackPlayer.addEventListener(Event.RemotePause, async () => {
-    try { await TrackPlayer.pause(); } catch (e) { console.warn('RemotePause handler failed', e); }
+    try {
+      await TrackPlayer.pause();
+    } catch (e) {
+      console.warn('RemotePause handler failed', e);
+    }
   });
 
   // Next: use TrackPlayer's skipToNext to avoid headless index issues
@@ -25,7 +33,9 @@ export default async function PlaybackService() {
       try {
         const active = await TrackPlayer.getActiveTrack();
         const queue = await TrackPlayer.getQueue();
-        const currentIndex = queue.findIndex(t => t && active && t.id === active.id);
+        const currentIndex = queue.findIndex(
+          t => t && active && t.id === active.id,
+        );
 
         if (currentIndex >= 0) {
           const nextIndex = currentIndex + 1;
@@ -33,10 +43,18 @@ export default async function PlaybackService() {
           if (nextTrack) {
             // Ensure next track has a valid stream BEFORE skipping
             if (smartPrefetchManager.needsStream(nextTrack)) {
-              const cached = smartPrefetchManager.getPrefetchedStream(nextTrack.id);
-              const data = cached || await smartPrefetchManager.fetchOnDemand(nextTrack.id);
+              const cached = smartPrefetchManager.getPrefetchedStream(
+                nextTrack.id,
+              );
+              const data =
+                cached ||
+                (await smartPrefetchManager.fetchOnDemand(nextTrack.id));
               if (data && data.url) {
-                await smartPrefetchManager.replaceTrackImmediately(nextIndex, nextTrack, data);
+                await smartPrefetchManager.replaceTrackImmediately(
+                  nextIndex,
+                  nextTrack,
+                  data,
+                );
               }
             }
             await TrackPlayer.skip(nextIndex);
@@ -47,9 +65,14 @@ export default async function PlaybackService() {
             const t2 = q2[nextIndex + 1];
             if (t2 && smartPrefetchManager.needsStream(t2)) {
               const c2 = smartPrefetchManager.getPrefetchedStream(t2.id);
-              const d2 = c2 || await smartPrefetchManager.fetchOnDemand(t2.id);
+              const d2 =
+                c2 || (await smartPrefetchManager.fetchOnDemand(t2.id));
               if (d2 && d2.url) {
-                await smartPrefetchManager.replaceTrackImmediately(nextIndex + 1, t2, d2);
+                await smartPrefetchManager.replaceTrackImmediately(
+                  nextIndex + 1,
+                  t2,
+                  d2,
+                );
               }
             }
             return;
@@ -71,17 +94,27 @@ export default async function PlaybackService() {
       try {
         const active = await TrackPlayer.getActiveTrack();
         const queue = await TrackPlayer.getQueue();
-        const currentIndex = queue.findIndex(t => t && active && t.id === active.id);
+        const currentIndex = queue.findIndex(
+          t => t && active && t.id === active.id,
+        );
 
         if (currentIndex >= 0) {
           const prevIndex = currentIndex - 1;
           const prevTrack = queue[prevIndex];
           if (prevTrack && prevIndex >= 0) {
             if (smartPrefetchManager.needsStream(prevTrack)) {
-              const cached = smartPrefetchManager.getPrefetchedStream(prevTrack.id);
-              const data = cached || await smartPrefetchManager.fetchOnDemand(prevTrack.id);
+              const cached = smartPrefetchManager.getPrefetchedStream(
+                prevTrack.id,
+              );
+              const data =
+                cached ||
+                (await smartPrefetchManager.fetchOnDemand(prevTrack.id));
               if (data && data.url) {
-                await smartPrefetchManager.replaceTrackImmediately(prevIndex, prevTrack, data);
+                await smartPrefetchManager.replaceTrackImmediately(
+                  prevIndex,
+                  prevTrack,
+                  data,
+                );
               }
             }
             await TrackPlayer.skip(prevIndex);
@@ -98,12 +131,20 @@ export default async function PlaybackService() {
     });
   });
 
-  TrackPlayer.addEventListener(Event.RemoteSeek, async (e) => {
-    try { await TrackPlayer.seekTo(e.position); } catch (e2) { console.warn('RemoteSeek failed', e2); }
+  TrackPlayer.addEventListener(Event.RemoteSeek, async e => {
+    try {
+      await TrackPlayer.seekTo(e.position);
+    } catch (e2) {
+      console.warn('RemoteSeek failed', e2);
+    }
   });
 
   TrackPlayer.addEventListener(Event.RemoteStop, async () => {
-    try { await TrackPlayer.pause(); } catch (e) { console.warn('RemoteStop handler failed', e); }
+    try {
+      await TrackPlayer.pause();
+    } catch (e) {
+      console.warn('RemoteStop handler failed', e);
+    }
   });
 
   // Initialize player setup asynchronously
@@ -123,12 +164,15 @@ export default async function PlaybackService() {
       }
 
       // Simple Event-Driven History Tracking
-      TrackPlayer.addEventListener(Event.PlaybackActiveTrackChanged, async (event) => {
-        if (event.track?.id) {
-          // Just log the track change, HistoryManager handles the "add unique" logic
-          await historyManager.startTracking(event.track);
-        }
-      });
+      TrackPlayer.addEventListener(
+        Event.PlaybackActiveTrackChanged,
+        async event => {
+          if (event.track?.id) {
+            // Just log the track change, HistoryManager handles the "add unique" logic
+            await historyManager.startTracking(event.track);
+          }
+        },
+      );
 
       // Auto-recommendations listeners
       autoRecommendations.initializeListeners();
@@ -140,7 +184,10 @@ export default async function PlaybackService() {
         smartPrefetchManager.setHeadlessMode(true);
         smartPrefetchManager.initialize();
       } catch (e) {
-        console.warn('SmartPrefetchManager initialization in service failed', e);
+        console.warn(
+          'SmartPrefetchManager initialization in service failed',
+          e,
+        );
       }
 
       await TrackPlayer.updateOptions({
@@ -162,16 +209,26 @@ export default async function PlaybackService() {
           Capability.SkipToPrevious,
           Capability.SeekTo,
         ],
-        compactCapabilities: [Capability.Play, Capability.Pause, Capability.SkipToNext, Capability.SkipToPrevious],
+        compactCapabilities: [
+          Capability.Play,
+          Capability.Pause,
+          Capability.SkipToNext,
+          Capability.SkipToPrevious,
+        ],
       });
 
       // Initialize history manager (now lightweight)
       await historyManager.initialize();
-
     } catch (error) {
-      if (error.message && error.message.includes('player has already been initialized')) {
+      if (
+        error.message &&
+        error.message.includes('player has already been initialized')
+      ) {
         isPlayerInitialized = true;
-      } else if (error.message && error.message.includes('app must be in the foreground')) {
+      } else if (
+        error.message &&
+        error.message.includes('app must be in the foreground')
+      ) {
         // Player initialization failed because app is in background - this is expected
         // The player will be initialized when the app comes to foreground
         console.warn('Player setup deferred: App is in background');

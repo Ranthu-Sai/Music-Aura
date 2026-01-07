@@ -1,16 +1,14 @@
-import React, { useRef, useState, useEffect } from "react";
-import BottomSheet from "@gorhom/bottom-sheet";
-import { QueueRenderSongs } from "./QueueRenderSongs";
-import { PlainText } from "../Global/PlainText";
-import Entypo from "react-native-vector-icons/Entypo";
-import { View, TouchableOpacity, StyleSheet } from "react-native";
-import Octicons from "react-native-vector-icons/Octicons";
-import AntDesign from "react-native-vector-icons/AntDesign";
-import Icon from "react-native-vector-icons/MaterialCommunityIcons";
+import React, {useRef, useState, useEffect} from 'react';
+import BottomSheet from '@gorhom/bottom-sheet';
+import {QueueRenderSongs} from './QueueRenderSongs';
+import {PlainText} from '../Global/PlainText';
+import {View, TouchableOpacity, StyleSheet} from 'react-native';
+import AntDesign from 'react-native-vector-icons/AntDesign';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
 // Module-level refs used by the hoisted handle component
-const _queueIndexRef = { current: -1 };
-const _queueCloseRef = { current: () => {} };
+const _queueIndexRef = {current: -1};
+const _queueCloseRef = {current: () => {}};
 
 const QueueHandleComponent = () => {
   const idx = _queueIndexRef.current;
@@ -19,15 +17,26 @@ const QueueHandleComponent = () => {
     <View style={styles.headerContainer}>
       <View style={styles.handleBar} />
       <View style={styles.titleRow}>
-        <Icon name="playlist-music" size={24} color="white" style={{ marginRight: 8 }} />
-        <PlainText text={"Next in Queue"} style={{ fontWeight: 'bold', fontSize: 18 }} />
+        <Icon
+          name="playlist-music"
+          size={24}
+          color="white"
+          style={{marginRight: 8}}
+        />
+        <PlainText
+          text={'Next in Queue'}
+          style={{fontWeight: 'bold', fontSize: 18}}
+        />
         {idx >= 0 && (
           <TouchableOpacity
             activeOpacity={0.7}
             onPress={handleClose}
-            style={styles.closeButton}
-          >
-            <AntDesign name="closecircle" size={32} color="rgba(255,255,255,0.7)" />
+            style={styles.closeButton}>
+            <AntDesign
+              name="closecircle"
+              size={32}
+              color="rgba(255,255,255,0.7)"
+            />
           </TouchableOpacity>
         )}
       </View>
@@ -36,7 +45,7 @@ const QueueHandleComponent = () => {
 };
 
 const QueueBottomSheet = React.forwardRef((props, ref) => {
-  const backgroundColor = 'rgba(15,15,15,0.92)'
+  const backgroundColor = 'rgba(15,15,15,0.92)';
   const bottomSheetRef = useRef(null);
   const [index, setIndex] = useState(0);
 
@@ -69,8 +78,8 @@ const QueueBottomSheet = React.forwardRef((props, ref) => {
   return (
     <BottomSheet
       index={-1}
-      onChange={(idx) => {
-        setIndex(idx)
+      onChange={idx => {
+        setIndex(idx);
       }}
       enablePanDownToClose={true}
       animateOnMount={true}
@@ -81,9 +90,8 @@ const QueueBottomSheet = React.forwardRef((props, ref) => {
         backgroundColor: backgroundColor,
         borderTopLeftRadius: 30,
         borderTopRightRadius: 30,
-      }}
-    >
-      <View style={{ flex: 1, backgroundColor: 'transparent' }}>
+      }}>
+      <View style={{flex: 1, backgroundColor: 'transparent'}}>
         <QueueRenderSongs />
       </View>
     </BottomSheet>
@@ -92,7 +100,7 @@ const QueueBottomSheet = React.forwardRef((props, ref) => {
 
 const styles = StyleSheet.create({
   headerContainer: {
-    alignItems: "center",
+    alignItems: 'center',
     paddingTop: 12,
     paddingBottom: 8,
     borderBottomWidth: 1,
@@ -106,15 +114,15 @@ const styles = StyleSheet.create({
     marginBottom: 15,
   },
   titleRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    width: "100%",
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
     paddingHorizontal: 20,
     marginBottom: 5,
   },
   closeButton: {
-    position: "absolute",
+    position: 'absolute',
     right: 20,
     padding: 5,
   },
