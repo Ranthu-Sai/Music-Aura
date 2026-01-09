@@ -239,7 +239,7 @@ export const FullScreenMusic = memo(({color, Index, setIndex}) => {
 
   const {width} = Dimensions.get('window');
   const currentPlaying = useActiveTrack();
-  const {lyricsCacheRef, lyricsSettings} = useContext(ActionsContext);
+  const {lyricsCacheRef, lyricsSettings, refreshLyrics} = useContext(ActionsContext);
   const navigation = useNavigation();
   const theme = useTheme();
 
@@ -377,9 +377,37 @@ export const FullScreenMusic = memo(({color, Index, setIndex}) => {
         : `${currentPlaying?.artist}-${currentPlaying?.title}-${sourceSuffix}`;
       const hasLyrics = lyricsCacheRef?.current?.[cacheKey];
       if (!hasLyrics) {
-        setLyric({});
-        setLoading(false);
-        setShowDailog(false);
+        // If the lyrics modal is currently open, try fetching the new source instead of closing it.
+        if (ShowDailog) {
+          (async () => {
+            try {
+              setLoading(true);
+              setLyricsFetchInProgress(true);
+              const results = await refreshLyrics(
+                currentPlaying.id,
+                currentPlaying.artist,
+                currentPlaying.title,
+                currentPlaying.language,
+                sourceSuffix,
+              );
+              if (results) {
+                setLyric(results);
+              } else {
+                setLyric({lyrics: 'No Lyrics Found'});
+              }
+            } catch (e) {
+              console.error('Error refreshing lyrics on source change:', e);
+              setLyric({lyrics: 'No Lyrics Found'});
+            } finally {
+              setLoading(false);
+              setLyricsFetchInProgress(false);
+            }
+          })();
+        } else {
+          setLyric({});
+          setLoading(false);
+          setShowDailog(false);
+        }
       } else {
         setLyric(hasLyrics);
       }
@@ -388,8 +416,11 @@ export const FullScreenMusic = memo(({color, Index, setIndex}) => {
     currentPlaying?.id,
     currentPlaying?.artist,
     currentPlaying?.title,
+    currentPlaying?.language,
     lyricsCacheRef,
     lyricsSettings?.source,
+    refreshLyrics,
+    ShowDailog,
   ]);
 
   // Reset loading state when lyrics dialog is closed

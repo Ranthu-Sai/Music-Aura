@@ -76,7 +76,6 @@ class YouTubeStreamingService {
         videoId,
         cookies || '',
         3,
-        8000,
       );
 
       if (result && result.url) {
@@ -124,7 +123,6 @@ class YouTubeStreamingService {
     videoId,
     cookies = '',
     maxAttempts = 3,
-    timeoutMs = 8000,
   ) {
     let attempt = 0;
     let lastError = null;
@@ -135,12 +133,8 @@ class YouTubeStreamingService {
     while (attempt < maxAttempts) {
       attempt += 1;
       try {
-        const result = await Promise.race([
-          callNative(),
-          new Promise((_, rej) =>
-            setTimeout(() => rej(new Error('timeout')), timeoutMs),
-          ),
-        ]);
+        // Wait for native module to return (no short timeout)
+        const result = await callNative();
 
         if (
           result &&

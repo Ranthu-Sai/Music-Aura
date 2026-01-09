@@ -141,6 +141,8 @@ const ContextState = props => {
     background: 'rgba(0,0,0,1)',
     textColor: '#FFFFFF',
     animation: 'Smooth',
+    anchorLine: 2,
+    offsetMs: 0,
   });
   const hasSetupRef = useRef(false);
   const wasPlayingBeforeInterruption = useRef(false); // Track if we were playing before interruption
@@ -602,6 +604,9 @@ const ContextState = props => {
       const Lyrics = await getYTLyricsSongData(art, tt, lang, false, source);
       if (Lyrics?.success && lyricsCacheRef?.current) {
         lyricsCacheRef.current[cacheKey] = Lyrics.data;
+      }
+      // Return data whether success or not so UI can show attemptedSources or error details
+      if (Lyrics?.data) {
         return Lyrics.data;
       }
       return null;

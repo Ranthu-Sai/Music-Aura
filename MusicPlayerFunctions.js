@@ -1,4 +1,4 @@
-import TrackPlayer from 'react-native-track-player';
+import TrackPlayer, {Capability} from 'react-native-track-player';
 import {GetPlaybackQuality} from './LocalStorage/AppSettings';
 import NetInfo from '@react-native-community/netinfo';
 import {
@@ -193,31 +193,28 @@ export const setupPlayer = async () => {
             alwaysPauseOnInterruption: false,
           },
           capabilities: [
-            'play',
-            'pause',
-            'stop',
-            'seekTo',
-            'skip',
-            'skipToNext',
-            'skipToPrevious',
+            Capability.Play,
+            Capability.Pause,
+            Capability.Stop,
+            Capability.SeekTo,
+            Capability.SkipToNext,
+            Capability.SkipToPrevious,
           ],
           compactCapabilities: [
-            'play',
-            'pause',
-            'stop',
-            'seekTo',
-            'skip',
-            'skipToNext',
-            'skipToPrevious',
+            Capability.Play,
+            Capability.Pause,
+            Capability.Stop,
+            Capability.SeekTo,
+            Capability.SkipToNext,
+            Capability.SkipToPrevious,
           ],
           notificationCapabilities: [
-            'play',
-            'pause',
-            'stop',
-            'seekTo',
-            'skip',
-            'skipToNext',
-            'skipToPrevious',
+            Capability.Play,
+            Capability.Pause,
+            Capability.Stop,
+            Capability.SeekTo,
+            Capability.SkipToNext,
+            Capability.SkipToPrevious,
           ],
         });
 
@@ -467,7 +464,7 @@ async function PlayOneSong(song) {
                 (song.title || '') + ' ' + (song.artist || ''),
               );
               const searchUrl = `https://jiosavan-api-with-playlist.vercel.app/api/search/songs?query=${query}&limit=1`;
-              const searchResp = await safeHttpGet(searchUrl, {timeout: 10000});
+              const searchResp = await safeHttpGet(searchUrl);
               const respData =
                 (searchResp && (searchResp.data || searchResp)) || {};
               const results =
@@ -725,7 +722,7 @@ async function PlaySongWithRelated(videoId, artwork, songData = {}) {
               (song.title || '') + ' ' + (song.artist || ''),
             );
             const searchUrl = `https://jiosavan-api-with-playlist.vercel.app/api/search/songs?query=${query}&limit=1`;
-            const searchResp = await safeHttpGet(searchUrl, {timeout: 10000});
+            const searchResp = await safeHttpGet(searchUrl);
             const respData =
               (searchResp && (searchResp.data || searchResp)) || {};
             const results =
@@ -1349,19 +1346,36 @@ async function PlayNextSong() {
         throw new Error('AbortError');
       }
 
-      const currentIndex = await TrackPlayer.getActiveTrackIndex();
-      const nextIndex = typeof currentIndex === 'number' ? currentIndex + 1 : 1;
+      // Determine current index robustly (some players may return -1)
       const queue = await TrackPlayer.getQueue();
+      const activeTrack = await TrackPlayer.getActiveTrack();
+      let currentIndex = await TrackPlayer.getActiveTrackIndex();
+      if ((typeof currentIndex !== 'number' || currentIndex < 0) && activeTrack) {
+        currentIndex = queue.findIndex(t => t && t.id === activeTrack.id);
+      }
 
+      let nextIndex = typeof currentIndex === 'number' && currentIndex >= 0 ? currentIndex + 1 : 0;
+
+      // If nextIndex is beyond queue, nothing to play
       if (nextIndex >= queue.length) {
         return;
       }
 
-      const nextTrack = queue[nextIndex];
+      // Skip forward until we find a different track (guard against duplicates)
+      let nextTrack = queue[nextIndex];
+      while (nextTrack && activeTrack && nextTrack.id === activeTrack.id) {
+        nextIndex += 1;
+        if (nextIndex >= queue.length) {
+          return;
+        }
+        nextTrack = queue[nextIndex];
+      }
+
       if (!nextTrack) {
         return;
       }
 
+      // Prefetch stream if needed
       if (smartPrefetchManager.needsStream(nextTrack)) {
         const cached = smartPrefetchManager.getPrefetchedStream(nextTrack.id);
         let streamData = cached;
@@ -1377,8 +1391,21 @@ async function PlayNextSong() {
         }
       }
 
+      // Try skipping by index first, fallback to skipToNext if needed
       await TrackPlayer.skip(nextIndex);
       await TrackPlayer.play();
+
+      // Verify that active track changed; if not, attempt skipToNext and play
+      const afterTrack = await TrackPlayer.getActiveTrack();
+      if (afterTrack && activeTrack && afterTrack.id === activeTrack.id) {
+        console.warn('Skip by index did not change track; attempting skipToNext fallback');
+        try {
+          await TrackPlayer.skipToNext();
+          await TrackPlayer.play();
+        } catch (e) {
+          console.error('skipToNext fallback failed:', e);
+        }
+      }
 
       const newTrack = await TrackPlayer.getActiveTrack();
       if (newTrack) {

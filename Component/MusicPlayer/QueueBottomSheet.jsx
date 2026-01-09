@@ -1,4 +1,4 @@
-import React, {useRef, useState, useEffect} from 'react';
+import React, {useRef, useState, useEffect, useCallback} from 'react';
 import BottomSheet from '@gorhom/bottom-sheet';
 import {QueueRenderSongs} from './QueueRenderSongs';
 import {PlainText} from '../Global/PlainText';
@@ -6,13 +6,11 @@ import {View, TouchableOpacity, StyleSheet} from 'react-native';
 import AntDesign from 'react-native-vector-icons/AntDesign';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
-// Module-level refs used by the hoisted handle component
-const _queueIndexRef = {current: -1};
+// Module-level ref for close function (kept for external access if needed)
 const _queueCloseRef = {current: () => {}};
 
-const QueueHandleComponent = () => {
-  const idx = _queueIndexRef.current;
-  const handleClose = _queueCloseRef.current;
+// Separated Handle component to avoid unstable nested component warning
+const LocalQueueHandle = ({index, handleClose}) => {
   return (
     <View style={styles.headerContainer}>
       <View style={styles.handleBar} />
@@ -27,10 +25,13 @@ const QueueHandleComponent = () => {
           text={'Next in Queue'}
           style={{fontWeight: 'bold', fontSize: 18}}
         />
-        {idx >= 0 && (
+        {index >= 0 && (
           <TouchableOpacity
             activeOpacity={0.7}
             onPress={handleClose}
+            hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}
+            accessibilityLabel="Close queue"
+            accessibilityRole="button"
             style={styles.closeButton}>
             <AntDesign
               name="closecircle"
@@ -66,14 +67,16 @@ const QueueBottomSheet = React.forwardRef((props, ref) => {
     close: handleClose,
   }));
 
-  // keep module refs in sync so the hoisted handle component can read them
-  useEffect(() => {
-    _queueIndexRef.current = index;
-  }, [index]);
-
+  // keep module ref for close in sync for external use (if any)
   useEffect(() => {
     _queueCloseRef.current = handleClose;
   }, [handleClose]);
+
+  // Stable handle component renderer
+  const renderHandle = useCallback(
+    () => <LocalQueueHandle index={index} handleClose={handleClose} />,
+    [index, handleClose]
+  );
 
   return (
     <BottomSheet
@@ -85,7 +88,7 @@ const QueueBottomSheet = React.forwardRef((props, ref) => {
       animateOnMount={true}
       snapPoints={['70%']}
       ref={bottomSheetRef}
-      handleComponent={QueueHandleComponent}
+      handleComponent={renderHandle}
       backgroundStyle={{
         backgroundColor: backgroundColor,
         borderTopLeftRadius: 30,

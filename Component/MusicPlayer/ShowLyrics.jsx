@@ -243,19 +243,27 @@ export const ShowLyrics = ({
         displayLyrics &&
         displayLyrics.length > 0
       ? (() => {
-          const pos = position * 1000;
+          const offsetMs = Number(lyricsSettings.offsetMs || 0);
+          const pos = position * 1000 + offsetMs;
           // Find the current line more accurately
           for (let i = 0; i < displayLyrics.length; i++) {
-            if (
-              pos >= displayLyrics[i].start_time &&
-              pos <= displayLyrics[i].end_time
-            ) {
+            const start = displayLyrics[i].start_time;
+            const end = displayLyrics[i].end_time;
+            if (start != null && end != null) {
+              if (pos >= start && pos <= end) {
+                return i;
+              }
+            }
+          }
+          // If no exact match, find the closest previous timed line
+          for (let i = displayLyrics.length - 1; i >= 0; i--) {
+            if (displayLyrics[i].start_time != null && displayLyrics[i].start_time <= pos) {
               return i;
             }
           }
-          // If no exact match, find the closest previous line
-          for (let i = displayLyrics.length - 1; i >= 0; i--) {
-            if (displayLyrics[i].start_time <= pos) {
+          // Fallback: first timed line
+          for (let i = 0; i < displayLyrics.length; i++) {
+            if (displayLyrics[i].start_time != null) {
               return i;
             }
           }
@@ -286,17 +294,21 @@ export const ShowLyrics = ({
       shouldAutoScroll
     ) {
       try {
-        flatListRef.current.scrollToIndex({
-          index: currentIndex,
+        // Place the current line at a preferred row (2nd by default) instead of centering at bottom
+        const ITEM_HEIGHT = 70;
+        const preferredRow = Number(lyricsSettings.anchorLine) || 2; // allow user override via settings in future
+        const offset = Math.max(0, (currentIndex - (preferredRow - 1)) * ITEM_HEIGHT);
+        flatListRef.current.scrollToOffset({
+          offset: offset,
           animated: lyricsSettings.animation !== 'Static',
-          viewPosition: 0.5,
         });
       } catch (e) {
-        // Fallback for safety
+        // Fallback: center if precise offset fails
         try {
-          flatListRef.current.scrollToOffset({
-            offset: currentIndex * 70,
-            animated: true,
+          flatListRef.current.scrollToIndex({
+            index: currentIndex,
+            animated: lyricsSettings.animation !== 'Static',
+            viewPosition: 0.5,
           });
         } catch (err) {}
       }
@@ -309,6 +321,7 @@ export const ShowLyrics = ({
     lyricsMode,
     lastManualScrollTime,
     lyricsSettings.animation,
+    lyricsSettings.anchorLine,
   ]);
 
   const renderItem = useCallback(
@@ -389,17 +402,24 @@ export const ShowLyrics = ({
                 right: 0,
                 alignItems: 'center',
               }}>
-              <Text
-                numberOfLines={1}
-                ellipsizeMode="middle"
-                style={{
-                  color: 'white',
-                  fontSize: width * 0.045,
-                  fontWeight: '600',
-                  maxWidth: width * 0.6,
-                }}>
-                {cleanSongTitle(currentSong?.title)}
-              </Text>
+              <View style={{alignItems: 'center'}}>
+                <Text
+                  numberOfLines={1}
+                  ellipsizeMode="middle"
+                  style={{
+                    color: 'white',
+                    fontSize: width * 0.045,
+                    fontWeight: '600',
+                    maxWidth: width * 0.6,
+                  }}>
+                  {cleanSongTitle(currentSong?.title)}
+                </Text>
+                {Lyric?.source ? (
+                  <Text style={{color: '#AAA', fontSize: 12, marginTop: 4}}>
+                    Source: {Lyric.source}{lyricsSettings.offsetMs ? ` • Offset: ${lyricsSettings.offsetMs}ms` : ''}
+                  </Text>
+                ) : null}
+              </View>
             </View>
             <Pressable
               onPress={() => setShowDailog(false)}
@@ -457,6 +477,53 @@ export const ShowLyrics = ({
                   Time Synced
                 </Text>
               </Pressable>
+
+              {/* Quick Sync button - align lyrics to current playback */}
+              {lyricsMode === 'time-synced' && displayLyrics && displayLyrics.length > 0 ? (
+                <Pressable
+                  onPress={async () => {
+                    try {
+                      const posMs = Math.round(position * 1000);
+                      // Find nearest timed line to current pos (ignoring current offset)
+                      let nearestIdx = -1;
+                      for (let i = 0; i < displayLyrics.length; i++) {
+                        const l = displayLyrics[i];
+                        if (l.start_time != null && l.end_time != null && posMs >= l.start_time && posMs <= l.end_time) {
+                          nearestIdx = i; break;
+                        }
+                      }
+                      if (nearestIdx === -1) {
+                        // fallback to closest start_time by abs difference
+                        let bestDiff = Number.MAX_SAFE_INTEGER;
+                        for (let i = 0; i < displayLyrics.length; i++) {
+                          const l = displayLyrics[i];
+                          if (l.start_time != null) {
+                            const d = Math.abs(l.start_time - posMs);
+                            if (d < bestDiff) { bestDiff = d; nearestIdx = i; }
+                          }
+                        }
+                      }
+                      if (nearestIdx >= 0) {
+                        const cur = displayLyrics[nearestIdx];
+                        const offset = posMs - cur.start_time;
+                        await handleUpdateSetting('offsetMs', offset);
+                      }
+                    } catch (e) {
+                      console.warn('Sync failed', e);
+                    }
+                  }}
+                  style={{
+                    marginLeft: 10,
+                    paddingHorizontal: 10,
+                    paddingVertical: 6,
+                    borderRadius: 12,
+                    backgroundColor: 'rgba(255,255,255,0.06)',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}>
+                  <Text style={{color: 'white', fontSize: width * 0.03}}>Sync</Text>
+                </Pressable>
+              ) : null}
             </View>
             <View style={{flex: 1, alignItems: 'flex-end'}}>
               <Pressable
@@ -496,7 +563,7 @@ export const ShowLyrics = ({
                     }}
                     data={displayLyrics}
                     renderItem={renderItem}
-                    keyExtractor={item => item.id}
+                    keyExtractor={(item, index) => (item?.id ? String(item.id) : String(index))}
                     showsVerticalScrollIndicator={false}
                     contentContainerStyle={{
                       paddingBottom: 300,
@@ -530,15 +597,63 @@ export const ShowLyrics = ({
                       alignItems: 'center',
                       paddingTop: 100,
                     }}>
-                    <Text
-                      style={{
-                        color: 'rgba(255,255,255,0.8)',
-                        fontSize: width * 0.05,
-                        textAlign: 'center',
-                        paddingHorizontal: 20,
-                      }}>
-                      Time-synced lyrics not found
-                    </Text>
+                    {lyricsSettings.source !== 'All' && Lyric?.attemptedSources ? (
+                      <>
+                        <Text
+                          style={{
+                            color: 'rgba(255,255,255,0.85)',
+                            fontSize: width * 0.045,
+                            textAlign: 'center',
+                            paddingHorizontal: 20,
+                            marginBottom: 12,
+                          }}>
+                          No time-synced lyrics found for the selected source ({lyricsSettings.source}).
+                        </Text>
+
+                        {/* If plain lyrics are available from the selected source, offer to show them */}
+                        {Lyric?.lyrics ? (
+                          <>
+                            <Text style={{color: '#AAA', fontSize: 12, textAlign: 'center', paddingHorizontal: 20, marginBottom: 8}}>
+                              Plain lyrics are available for this source.
+                            </Text>
+                            <Pressable
+                              onPress={() => handleRegularMode()}
+                              style={{
+                                backgroundColor: theme.colors.primary,
+                                padding: 12,
+                                borderRadius: 10,
+                                marginBottom: 8,
+                              }}>
+                              <Text style={{color: 'black', fontWeight: 'bold'}}>Show Plain Lyrics</Text>
+                            </Pressable>
+                          </>
+                        ) : null}
+
+                        <Text style={{color: '#AAA', fontSize: 12, textAlign: 'center', paddingHorizontal: 20}}>
+                          Attempted sources: {Lyric?.attemptedSources?.join(', ')}
+                        </Text>
+                        <Spacer height={12} />
+                        <Pressable
+                          onPress={() => handleUpdateSetting('source', 'All')}
+                          style={{
+                            backgroundColor: theme.colors.primary,
+                            padding: 12,
+                            borderRadius: 10,
+                          }}>
+                          <Text style={{color: 'black', fontWeight: 'bold'}}>Try All Sources</Text>
+                        </Pressable>
+                      </>
+                    ) : (
+                      <Text
+                        style={{
+                          color: 'rgba(255,255,255,0.8)',
+                          fontSize: width * 0.05,
+                          textAlign: 'center',
+                          paddingHorizontal: 20,
+                        }}>
+                        Time-synced lyrics not found
+                      </Text>
+                    )}
                   </View>
                 )
               ) : Lyric?.lyrics ? (
@@ -574,16 +689,44 @@ export const ShowLyrics = ({
                     alignItems: 'center',
                     paddingTop: 100,
                   }}>
-                  <Text
-                    style={{
-                      color: 'white',
-                      fontSize: width * 0.06,
-                      textAlign: 'center',
-                    }}>
-                    {Lyric?.lyrics === 'No Lyrics Found'
-                      ? 'No Lyrics Found'
-                      : 'Loading lyrics...'}
-                  </Text>
+                  {lyricsSettings.source !== 'All' && Lyric?.attemptedSources ? (
+                    <>
+                      <Text
+                        style={{
+                          color: 'rgba(255,255,255,0.9)',
+                          fontSize: width * 0.05,
+                          textAlign: 'center',
+                          paddingHorizontal: 20,
+                          marginBottom: 8,
+                        }}>
+                        No lyrics found for selected source ({lyricsSettings.source}).
+                      </Text>
+                      <Text style={{color: '#AAA', fontSize: 12, textAlign: 'center', paddingHorizontal: 20}}>
+                        Attempted sources: {Lyric?.attemptedSources?.join(', ')}
+                      </Text>
+                      <Spacer height={12} />
+                      <Pressable
+                        onPress={() => handleUpdateSetting('source', 'All')}
+                        style={{
+                          backgroundColor: theme.colors.primary,
+                          padding: 12,
+                          borderRadius: 10,
+                        }}>
+                        <Text style={{color: 'black', fontWeight: 'bold'}}>Try All Sources</Text>
+                      </Pressable>
+                    </>
+                  ) : (
+                    <Text
+                      style={{
+                        color: 'white',
+                        fontSize: width * 0.06,
+                        textAlign: 'center',
+                      }}>
+                      {Lyric?.lyrics === 'No Lyrics Found'
+                        ? 'No Lyrics Found'
+                        : 'Loading lyrics...'}
+                    </Text>
+                  )}
                 </View>
               )}
             </>
@@ -711,9 +854,10 @@ export const ShowLyrics = ({
             <View style={[styles.optionsRow, {flexWrap: 'wrap'}]}>
               {[
                 'All',
-                'LRCLib',
-                'BetterLyrics',
                 'RenderAPI',
+                'GenzAPI',
+                'Sublyrics',
+                'LRCLib',
                 'AutoEngine',
                 'OVH',
                 'Musixmatch',
@@ -823,6 +967,29 @@ export const ShowLyrics = ({
                         styles.activeOptionText,
                     ]}>
                     {anim}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+
+            {/* Anchor Line: top (1), 2nd, 3rd */}
+            <Text style={styles.settingLabel}>Anchor Line</Text>
+            <View style={styles.optionsRow}>
+              {[{label: 'Top', val: 1}, {label: '2nd', val: 2}, {label: '3rd', val: 3}].map(opt => (
+                <Pressable
+                  key={opt.val}
+                  onPress={() => handleUpdateSetting('anchorLine', opt.val)}
+                  style={[
+                    styles.optionButton,
+                    lyricsSettings.anchorLine === opt.val && styles.activeOption,
+                  ]}>
+                  <Text
+                    style={[
+                      styles.optionText,
+                      lyricsSettings.anchorLine === opt.val &&
+                        styles.activeOptionText,
+                    ]}>
+                    {opt.label}
                   </Text>
                 </Pressable>
               ))}

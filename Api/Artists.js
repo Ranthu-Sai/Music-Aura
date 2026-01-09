@@ -90,11 +90,9 @@ export async function getTrendingArtists(language = null) {
   // If language is specified and not 'All', get trending artists from language-specific modules
   if (language && language !== 'All' && language !== '') {
     try {
-      // Try multiple fallback APIs for the /modules endpoint as they are more reliable for trending content
+      // Try the single reliably supported /modules API
       const moduleApis = [
-        'https://jio-savan-api-sigma.vercel.app', // Working API - highest priority
-        'https://jiosaavn-api-2.vercel.app', // Fallback
-        'https://saavn-api.vercel.app', // Last resort
+        'https://jio-savan-api-sigma.vercel.app', // Working API - only reliably supported host
       ];
 
       for (const apiBase of moduleApis) {
@@ -246,9 +244,7 @@ export async function getLanguageTopArtists(language) {
   try {
     // First try the modules API for this language - it provides real artist objects with images
     const moduleApis = [
-      'https://jio-savan-api-sigma.vercel.app', // Working API - highest priority
-      'https://jiosaavn-api-2.vercel.app', // Fallback
-      'https://saavn-api.vercel.app', // Last resort
+      'https://jio-savan-api-sigma.vercel.app', // Working API - only reliably supported host
     ];
 
     for (const apiBase of moduleApis) {
@@ -320,7 +316,7 @@ export async function getLanguageTopArtists(language) {
         const vercelRes = await retryWithBackoff(
           () =>
             axios.get(
-              `https://jiosaavn-api-2.vercel.app/search/songs?query=${encodeURIComponent(
+              `https://jio-savan-api-sigma.vercel.app/search/songs?query=${encodeURIComponent(
                 searchQuery,
               )}`,
               {timeout: 10000},

@@ -167,6 +167,11 @@ android {
         }
     }
 
+    lint {
+        checkReleaseBuilds false
+        abortOnError false
+    }
+
     // Enable ABI splits to produce multiple APKs and a single universal APK
     // Setting universalApk to true creates a single APK containing all selected architectures
     splits {

@@ -26,11 +26,9 @@ import {useActiveTrack} from 'react-native-track-player';
 import {EachArtistChip} from '../../Component/Global/EachArtistChip';
 import {getTrendingArtists, getLanguageTopArtists} from '../../Api/Artists';
 
-// JioSaavn API Fallback URLs (for future use if primary API fails)
+// JioSaavn API Fallback URLs (only hosts that support /modules endpoint)
 const JIOSAAVN_API_FALLBACKS = [
-  'https://jiosaavn-api-2.vercel.app', // Primary (currently used)
-  'https://saavn-api.vercel.app', // Secondary fallback
-  'https://jio-savan-api-sigma.vercel.app', // Tertiary fallback
+  'https://jio-savan-api-sigma.vercel.app', // Primary fallback
 ];
 
 // Skeleton loading component
@@ -181,18 +179,32 @@ export const Home = () => {
           const response = await fetch(`${apiBase}/playlists?id=${id}`);
           const data = await response.json();
 
-          if (data.status === 'SUCCESS' && data.results) {
-            const playlist = data.results;
+          // Support multiple response shapes: { status, results } or { status, data }
+          let playlist = null;
+          if (data && data.status === 'SUCCESS') {
+            if (data.results) {
+              playlist = data.results;
+            } else if (data.data) {
+              playlist = data.data;
+            }
+          }
+
+          // Some APIs return an array or slightly different structure; normalize defensively
+          if (!playlist && Array.isArray(data) && data.length > 0) {
+            playlist = data[0];
+          }
+
+          if (playlist && playlist.id) {
             // Transform API response to match our chart format
             fetchedPlaylists.push({
               id: playlist.id,
-              title: playlist.name,
-              subtitle: `${playlist.songCount} songs`,
-              language: playlist.name.toLowerCase().includes('hindi')
+              title: playlist.name || playlist.title || '',
+              subtitle: `${playlist.songCount || playlist.songs?.length || 0} songs`,
+              language: (playlist.name || '').toLowerCase().includes('hindi')
                 ? 'hindi'
-                : playlist.name.toLowerCase().includes('telugu')
+                : (playlist.name || '').toLowerCase().includes('telugu')
                 ? 'telugu'
-                : playlist.name.toLowerCase().includes('bhojpuri')
+                : (playlist.name || '').toLowerCase().includes('bhojpuri')
                 ? 'bhojpuri'
                 : 'all',
               image: playlist.image
@@ -206,7 +218,7 @@ export const Home = () => {
                     {url: 'https://via.placeholder.com/300x300?text=No+Image'},
                     {url: 'https://via.placeholder.com/300x300?text=No+Image'},
                   ],
-              followerCount: playlist.followerCount,
+              followerCount: playlist.followerCount || 0,
               type: 'playlist',
             });
             success = true;

@@ -167,6 +167,8 @@ async function GetLyricsSettings() {
         background: 'rgba(0,0,0,1)',
         textColor: '#FFFFFF',
         animation: 'Smooth',
+        anchorLine: 2,
+        offsetMs: 0,
       };
     }
   } catch (e) {
