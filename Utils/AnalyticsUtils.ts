@@ -1,4 +1,4 @@
-import {getApp} from '@react-native-firebase/app';
+import getApp from '@react-native-firebase/app';
 import {
   getAnalytics,
   FirebaseAnalyticsTypes,
@@ -14,10 +14,21 @@ function getAnalyticsIfAvailable(): FirebaseAnalyticsTypes.Module | null {
     return analyticsInstance;
   }
   try {
-    const app = getApp();
-    analyticsInstance = getAnalytics(app);
+    // Try getting analytics without providing an app (works with many package versions).
+    analyticsInstance = getAnalytics();
     return analyticsInstance;
   } catch (error) {
+    // Fallback: if the imported module is callable, call it to obtain an app.
+    try {
+      if (typeof (getApp as any) === 'function') {
+        const app = (getApp as any)();
+        analyticsInstance = getAnalytics(app as any);
+        return analyticsInstance;
+      }
+    } catch (e) {
+      // ignore and fall through
+    }
+
     // Native Firebase not available — return null and let callers silently no-op.
     analyticsInstance = null;
     return null;
