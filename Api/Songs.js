@@ -89,7 +89,14 @@ async function getYTMusicSuggestions(query) {
 
     return {suggestions, quickResults: []};
   } catch (error) {
-    return {suggestions: [], quickResults: []};
+    // YT Music suggestions endpoint can be unreliable or return 404.
+    // Fall back to the public YouTube suggestions API to preserve UX.
+    try {
+      const fallback = await getYoutubeSuggestions(query);
+      return {suggestions: fallback.suggestions || [], quickResults: []};
+    } catch (e) {
+      return {suggestions: [], quickResults: []};
+    }
   }
 }
 
@@ -146,6 +153,18 @@ async function getSearchSuggestions(query) {
       results[2].status === 'fulfilled'
         ? results[2].value
         : {suggestions: [], quickResults: []};
+
+    // Log any engines that rejected for debugging
+    const failedEngines = [];
+    if (results[0].status !== 'fulfilled') failedEngines.push('Saavn');
+    if (results[1].status !== 'fulfilled') failedEngines.push('YTMusic');
+    if (results[2].status !== 'fulfilled') failedEngines.push('YouTube');
+    if (failedEngines.length) {
+      // Not fatal; keep UX graceful but surface information to logs
+      console.warn(
+        `Search suggestions: engine failures for query "${query}": ${failedEngines.join(', ')}`,
+      );
+    }
 
     // Combine suggestions with a prioritized approach
     const combinedSuggestions = [];
