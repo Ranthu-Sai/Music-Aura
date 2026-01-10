@@ -6,6 +6,7 @@ import FastImage from 'react-native-fast-image';
 import {PlaySongWithRelated} from '../../MusicPlayerFunctions';
 import React, {memo, useContext, useState, useCallback, useMemo} from 'react';
 import {ActionsContext} from '../../Context/Context';
+import {getSongStreamingUrl} from '../../Api/Artists';
 import {useActiveTrack, usePlaybackState} from 'react-native-track-player';
 import FormatTitleAndArtist from '../../Utils/FormatTitleAndArtist';
 import {EachSongMenuButton} from '../MusicPlayer/EachSongMenuButton';
@@ -62,6 +63,7 @@ export const EachSongCard = memo(function EachSongCard({
   isHistory,
   onRemove,
   source,
+  item,
 }) {
   const width1 = Dimensions.get('window').width;
   const {updateTrack, setVisible, lyricsCacheRef} = useContext(ActionsContext);
@@ -81,33 +83,33 @@ export const EachSongCard = memo(function EachSongCard({
     if (Array.isArray(img) && img.length > 0) {
       // Create a copy and reverse to search from highest quality
       const reversed = [...img].reverse();
-      for (const item of reversed) {
-        if (!item) {
+      for (const it of reversed) {
+        if (!it) {
           continue;
         }
-        if (typeof item === 'string' && item.trim().length > 0) {
-          return item;
+        if (typeof it === 'string' && it.trim().length > 0) {
+          return it;
         }
         if (
-          item.url &&
-          typeof item.url === 'string' &&
-          item.url.trim().length > 0
+          it.url &&
+          typeof it.url === 'string' &&
+          it.url.trim().length > 0
         ) {
-          return item.url;
+          return it.url;
         }
         if (
-          item.uri &&
-          typeof item.uri === 'string' &&
-          item.uri.trim().length > 0
+          it.uri &&
+          typeof it.uri === 'string' &&
+          it.uri.trim().length > 0
         ) {
-          return item.uri;
+          return it.uri;
         }
         if (
-          item.link &&
-          typeof item.link === 'string' &&
-          item.link.trim().length > 0
+          it.link &&
+          typeof it.link === 'string' &&
+          it.link.trim().length > 0
         ) {
-          return item.link;
+          return it.link;
         }
       }
     }
@@ -153,15 +155,17 @@ export const EachSongCard = memo(function EachSongCard({
     return null;
   }, []);
 
+  const displayTitle = title || item?.name || item?.title || '';
+
   const artworkUri = useMemo(
     () =>
-      normalizeArtwork(image) ||
+      normalizeArtwork(image || item?.image || item?.artwork) ||
       (url &&
       typeof url === 'string' &&
       (url.startsWith('/') || url.startsWith('file://'))
         ? 'https://img.icons8.com/ios-filled/100/1DB954/music-track.png'
         : 'https://via.placeholder.com/60x60/cccccc/000000?text=No+Img'),
-    [image, url, normalizeArtwork],
+    [image, url, normalizeArtwork, item],
   );
 
 
@@ -188,6 +192,22 @@ export const EachSongCard = memo(function EachSongCard({
           getIndexQuality,
         } = require('../../MusicPlayerFunctions');
         const FormatArtist = require('../../Utils/FormatArtists').default;
+
+        // Ensure missing streaming URLs are fetched for songs in this list
+        try {
+          const missing = Data.data.songs.filter(s => !s.downloadUrl || !s.hasStreaming);
+          if (missing.length > 0) {
+            await Promise.all(
+              missing.map(async s => {
+                const urls = await getSongStreamingUrl(s.id);
+                s.downloadUrl = urls || s.encrypted_media_url;
+                s.hasStreaming = !!urls;
+              }),
+            );
+          }
+        } catch (e) {
+          console.warn('Failed to fetch missing streaming urls before playing playlist', e);
+        }
 
         const quality = await getIndexQuality();
         const ForMusicPlayer = Data.data.songs.map((e, i) => {
@@ -224,6 +244,22 @@ export const EachSongCard = memo(function EachSongCard({
           getIndexQuality,
         } = require('../../MusicPlayerFunctions');
 
+        // Ensure missing streaming URLs are fetched for songs in this list (array mode)
+        try {
+          const missing = Data.filter(s => !s.downloadUrl || !s.hasStreaming);
+          if (missing.length > 0) {
+            await Promise.all(
+              missing.map(async s => {
+                const urls = await getSongStreamingUrl(s.id);
+                s.downloadUrl = urls || s.encrypted_media_url || s.url;
+                s.hasStreaming = !!urls;
+              }),
+            );
+          }
+        } catch (e) {
+          console.warn('Failed to fetch missing streaming urls before playing list', e);
+        }
+
         const quality = await getIndexQuality();
         const ForMusicPlayer = Data.map((e, i) => {
           // Handle the case where downloadUrl might be a single URL or an array
@@ -250,8 +286,8 @@ export const EachSongCard = memo(function EachSongCard({
         await updateTrack();
       } else {
         // Single song mode: Use existing behavior with recommendations
-        await PlaySongWithRelated(id, image, {
-          title,
+        await PlaySongWithRelated(id, artworkUri, {
+          title: displayTitle,
           artist,
           url,
           duration,
@@ -267,8 +303,6 @@ export const EachSongCard = memo(function EachSongCard({
   }, [
     isLoading,
     id,
-    image,
-    title,
     artist,
     url,
     duration,
@@ -276,6 +310,8 @@ export const EachSongCard = memo(function EachSongCard({
     updateTrack,
     lyricsCacheRef,
     Data,
+    artworkUri,
+    displayTitle,
   ]);
 
   return (
@@ -316,7 +352,7 @@ export const EachSongCard = memo(function EachSongCard({
               flex: 1,
             }}>
             <PlainText
-              text={FormatTitleAndArtist(title, artist)}
+              text={FormatTitleAndArtist(displayTitle, artist)}
               style={{
                 width: titleandartistwidth
                   ? titleandartistwidth
@@ -337,9 +373,9 @@ export const EachSongCard = memo(function EachSongCard({
           Onpress={() => {
             setVisible({
               visible: true,
-              title,
+              title: displayTitle,
               artist,
-              image,
+              image: artworkUri,
               id,
               url,
               duration,

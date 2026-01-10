@@ -246,25 +246,20 @@ class InnerTubeClient {
     const results = [];
     try {
       // Dump entire response for debugging
-      console.log('=== FULL SEARCH RESPONSE ===');
-      console.log(JSON.stringify(data, null, 2).substring(0, 5000)); // First 5000 chars
-      console.log('=== END RESPONSE ===');
 
       const contents =
         data?.contents?.tabbedSearchResultsRenderer?.tabs?.[0]?.tabRenderer
           ?.content?.sectionListRenderer?.contents;
       if (!contents) {
-        console.log('InnerTube Search: No contents found');
+
         return [];
       }
-
-      console.log(`InnerTube Search: Found ${contents.length} sections`);
 
       // Extract results from all relevant shelves (musicShelfRenderer, musicCardShelfRenderer)
       for (const section of contents) {
         // Handle musicShelfRenderer (normal list results)
         if (section.musicShelfRenderer) {
-          console.log('  -> Processing musicShelfRenderer');
+
           section.musicShelfRenderer.contents?.forEach(item => {
             const parsed = this.parseItem(item);
             if (parsed) {
@@ -275,7 +270,7 @@ class InnerTubeClient {
 
         // Handle musicCardShelfRenderer (Top Result)
         if (section.musicCardShelfRenderer) {
-          console.log('  -> Processing musicCardShelfRenderer (Top Result)');
+
           const cardShelf = section.musicCardShelfRenderer;
 
           // Top result can have sub-items (buttons, links) but we want the main item
@@ -297,11 +292,7 @@ class InnerTubeClient {
 
         // Check inside itemSectionRenderer wrapper (sometimes used for no results or specific groupings)
         if (section.itemSectionRenderer?.contents) {
-          console.log(
-            '  -> itemSectionRenderer has',
-            section.itemSectionRenderer.contents.length,
-            'items',
-          );
+
           for (const item of section.itemSectionRenderer.contents) {
             if (item.musicShelfRenderer) {
               item.musicShelfRenderer.contents?.forEach(shelfItem => {
@@ -326,7 +317,6 @@ class InnerTubeClient {
         return true;
       });
 
-      console.log(`InnerTube Search: Returning ${finalResults.length} results`);
       return finalResults;
     } catch (e) {
       console.error('Parse Search Error', e);
@@ -1000,9 +990,7 @@ class InnerTubeClient {
           p => p.key === 'browse_id',
         )?.value;
 
-      console.log(
-        `InnerTube parseAlbum: title="${title}", artist="${artist}", year="${year}", tracks=${tracks.length}, thumbnails=${thumbnails.length}`,
-      );
+
 
       // Return in format expected by getYTMusicAlbumData
       return {
@@ -1150,7 +1138,7 @@ class InnerTubeClient {
         const LOG_VERBOSE = false;
         const debugLog = (...args) => {
           if (LOG_VERBOSE) {
-            console.log(...args);
+
           }
         };
         debugLog('InnerTube parseNext: No panel found');
@@ -1173,7 +1161,7 @@ class InnerTubeClient {
             const LOG_VERBOSE = false;
             const debugLog = (...args) => {
               if (LOG_VERBOSE) {
-                console.log(...args);
+
               }
             };
             debugLog(`🎵 Found automix playlist ID: ${automixPlaylistId}`);
@@ -1194,7 +1182,7 @@ class InnerTubeClient {
       const LOG_VERBOSE = false;
       const debugLog = (...args) => {
         if (LOG_VERBOSE) {
-          console.log(...args);
+
         }
       };
       debugLog(

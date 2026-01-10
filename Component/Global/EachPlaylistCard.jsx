@@ -5,7 +5,7 @@ import {SmallText} from './SmallText';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import LinearGradient from 'react-native-linear-gradient';
 import FastImage from 'react-native-fast-image';
-import {memo, useState} from 'react';
+import {memo, useState, useEffect} from 'react';
 import {useNavigation} from '@react-navigation/native';
 
 export const EachPlaylistCard = memo(function EachPlaylistCard({
@@ -17,9 +17,29 @@ export const EachPlaylistCard = memo(function EachPlaylistCard({
   ImageStyle,
 }) {
   const navigation = useNavigation();
-  const [imageUri, setImageUri] = useState(
-    image || 'https://via.placeholder.com/150x150/cccccc/000000?text=No+Image',
-  );
+
+  const computeImageUri = img => {
+    if (!img) {return 'https://via.placeholder.com/150x150/cccccc/000000?text=No+Image';}
+    if (typeof img === 'string') {return img;}
+    if (Array.isArray(img)) {
+      for (let i = img.length - 1; i >= 0; i--) {
+        const it = img[i];
+        if (!it) {continue;}
+        if (typeof it === 'string') {return it;}
+        if (it.url) {return it.url;}
+        if (it.link) {return it.link;}
+      }
+    }
+    if (img.url) {return img.url;}
+    if (img.link) {return img.link;}
+    return 'https://via.placeholder.com/150x150/cccccc/000000?text=No+Image';
+  };
+
+  const [imageUri, setImageUri] = useState(computeImageUri(image));
+
+  useEffect(() => {
+    setImageUri(computeImageUri(image));
+  }, [image]);
   return (
     <Pressable
       onPress={() => {

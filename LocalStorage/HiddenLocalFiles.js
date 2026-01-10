@@ -24,7 +24,7 @@ export async function hideFile(filePath) {
     if (!hiddenFiles.includes(filePath)) {
       hiddenFiles.push(filePath);
       await AsyncStorage.setItem(HIDDEN_FILES_KEY, JSON.stringify(hiddenFiles));
-      console.log('File hidden:', filePath);
+
     }
     return true;
   } catch (error) {
@@ -41,7 +41,7 @@ export async function unhideFile(filePath) {
     const hiddenFiles = await getHiddenFiles();
     const filtered = hiddenFiles.filter(path => path !== filePath);
     await AsyncStorage.setItem(HIDDEN_FILES_KEY, JSON.stringify(filtered));
-    console.log('File unhidden:', filePath);
+
     return true;
   } catch (error) {
     console.error('Error unhiding file:', error);
@@ -68,7 +68,7 @@ export async function isFileHidden(filePath) {
 export async function clearHiddenFiles() {
   try {
     await AsyncStorage.removeItem(HIDDEN_FILES_KEY);
-    console.log('All hidden files cleared');
+
     return true;
   } catch (error) {
     console.error('Error clearing hidden files:', error);

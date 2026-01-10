@@ -1,18 +1,17 @@
-<p align="center">
-  <img src="Images/ic_launcher-playstore.png" alt="Music Aura logo" width="120" />
-</p>
+<div align="center">
+  <img src="Images/ic_launcher-playstore.png" alt="Music Aura logo" width="200" />
+  <h1>Music Aura</h1>
+</div>
 
-# Music Aura
+[![Release](https://img.shields.io/github/v/release/Ranthu-Sai/Music-Aura)](https://github.com/Ranthu-Sai/Music-Aura/releases) [![License](https://img.shields.io/github/license/Ranthu-Sai/Music-Aura)](https://github.com/Ranthu-Sai/Music-Aura/blob/main/LICENSE)
 
-[![Release](https://img.shields.io/github/v/release/Ranthu-Sai/Music-Aura)](https://github.com/Ranthu-Sai/Music-Aura/releases) [![License](https://img.shields.io/github/license/Ranthu-Sai/Music-Aura)](LICENSE)
+[![Version](https://img.shields.io/badge/version-2.0.0-blue)](https://github.com/Ranthu-Sai/Music-Aura/releases)  [![Platform](https://img.shields.io/badge/platform-React_Native-61B21E)](https://github.com/Ranthu-Sai/Music-Aura)  [![Node](https://img.shields.io/badge/node-%3E=_18-brightgreen)](https://nodejs.org/)
 
-[![Version](https://img.shields.io/badge/version-2.0.0-blue)] [![Platform](https://img.shields.io/badge/platform-React_Native-61B21E)] [![Node](https://img.shields.io/badge/node-%3E=_18-brightgreen)]
+[![Stars](https://img.shields.io/github/stars/Ranthu-Sai/Music-Aura?style=social)](https://github.com/Ranthu-Sai/Music-Aura/stargazers)  [![Forks](https://img.shields.io/github/forks/Ranthu-Sai/Music-Aura?style=social)](https://github.com/Ranthu-Sai/Music-Aura/network/members)  [![Issues](https://img.shields.io/github/issues/Ranthu-Sai/Music-Aura)](https://github.com/Ranthu-Sai/Music-Aura/issues)  [![Contributors](https://img.shields.io/github/contributors/Ranthu-Sai/Music-Aura)](https://github.com/Ranthu-Sai/Music-Aura/graphs/contributors)
 
-[![Stars](https://img.shields.io/github/stars/Ranthu-Sai/Music-Aura?style=social)] [![Forks](https://img.shields.io/github/forks/Ranthu-Sai/Music-Aura?style=social)] [![Issues](https://img.shields.io/github/issues/Ranthu-Sai/Music-Aura)] [![Contributors](https://img.shields.io/github/contributors/Ranthu-Sai/Music-Aura)]
+[![Dependabot Status](https://img.shields.io/dependabot/gh/Ranthu-Sai/Music-Aura?path=package.json)](https://github.com/Ranthu-Sai/Music-Aura/security/dependabot)  [![Last Commit](https://img.shields.io/github/last-commit/Ranthu-Sai/Music-Aura)](https://github.com/Ranthu-Sai/Music-Aura/commits/main)  [![Repo Size](https://img.shields.io/github/repo-size/Ranthu-Sai/Music-Aura)](https://github.com/Ranthu-Sai/Music-Aura)  [![Top Language](https://img.shields.io/github/languages/top/Ranthu-Sai/Music-Aura)](https://github.com/Ranthu-Sai/Music-Aura)
 
-[![Dependabot Status](https://img.shields.io/dependabot/gh/Ranthu-Sai/Music-Aura?path=package.json)] [![Last Commit](https://img.shields.io/github/last-commit/Ranthu-Sai/Music-Aura)] [![Repo Size](https://img.shields.io/github/repo-size/Ranthu-Sai/Music-Aura)] [![Top Language](https://img.shields.io/github/languages/top/Ranthu-Sai/Music-Aura)]
-
-[![Tests](https://img.shields.io/badge/tests-Jest-blue)] [![Vulnerabilities](https://snyk.io/test/github/Ranthu-Sai/Music-Aura/badge.svg)]
+[![Tests](https://img.shields.io/badge/tests-Jest-blue)](https://github.com/Ranthu-Sai/Music-Aura/actions)  [![Vulnerabilities](https://snyk.io/test/github/Ranthu-Sai/Music-Aura/badge.svg)](https://snyk.io/test/github/Ranthu-Sai/Music-Aura)
 
 A polished, open‑source React Native music player with an emphasis on offline playback, local library integration, and a clean, modern UI.
 
@@ -22,7 +21,7 @@ A polished, open‑source React Native music player with an emphasis on offline 
 
 - **Ad‑free music player** with background playback and queue management
 - Offline support: download songs, manage local files, and scan device storage
-- Multiple sources supported (JioSavan, YouTube) as well as local files
+- Multiple sources supported as well as local files
 - **Theming & accessibility** with light/dark modes and responsive layout
 - **Caching**, **lyrics**, and **recommendations** for a smoother UX
 - Built with: **React Native**, **react-native-track-player**, **reanimated**, **Firebase Analytics**
@@ -47,6 +46,7 @@ A polished, open‑source React Native music player with an emphasis on offline 
 
 ---
 
+<a id="about"></a>
 ## About
 
 Music Aura is a full‑featured React Native music player focused on providing a smooth listening experience with strong offline capabilities. The app integrates multiple third‑party music sources and maintains a local music library scanner, download manager, and a robust playback queue.
@@ -55,12 +55,13 @@ This repository contains the app code (Android / iOS), utilities for caching and
 
 ---
 
+<a id="features"></a>
 ## Features
 
 - Playback: background audio, play / pause, seek, skip, queue, and repeat modes 🔊
 - Download manager: save songs to the device and manage the download path 💾
 - Local library scan: automatically detects and indexes music files on the device 📁
-- Multi‑source search: JioSavan and YouTube integrations 🔎
+- Multi‑source search: Multple sources integrations 🔎
 - Playlist support: create, like, and manage playlists ❤️
 - Lyrics caching and metadata enhancement for richer UI 🎵
 - Theming: **light** and **dark** with adaptive sizes and fonts 🎨
@@ -69,6 +70,7 @@ This repository contains the app code (Android / iOS), utilities for caching and
 
 ---
 
+<a id="tech-stack"></a>
 ## Tech Stack
 
 - React Native (>= 0.73)
@@ -83,10 +85,10 @@ See `package.json` for complete dependencies and versions.
 
 ---
 
-<a name="project-structure"></a>
+<a id="project-structure"></a>
 ## Project structure (short)
 
-- `Api/` – adapters for Saavn / YT / other service APIs
+- `Api/` – adapters for other service APIs
 - `Component/` – UI components (Player, Playlist, Search, Library)
 - `Context/` – global app state (player state, theme, queue)
 - `Utils/` – helper modules (DownloadHelper, CacheManager, LRU cache)
@@ -97,6 +99,7 @@ See `package.json` for complete dependencies and versions.
 
 ---
 
+<a id="getting-started-dev"></a>
 ## Getting Started (Dev)
 
 ### Prerequisites
@@ -163,6 +166,7 @@ Tip: Use `react-native-bundle-visualizer` (`npm run bundle:visualize`) to inspec
 ---
 
 <a name="testing--linting"></a>
+<a id="testing--linting"></a>
 ## Testing & Linting
 
 - Run unit tests: `npm run test` (uses Jest)
@@ -170,6 +174,7 @@ Tip: Use `react-native-bundle-visualizer` (`npm run bundle:visualize`) to inspec
 
 ---
 
+<a id="contributing"></a>
 ## Contributing
 
 Thank you for considering contributing! A few simple guidelines:
@@ -184,6 +189,7 @@ We appreciate clear commit messages and single-purpose PRs. See the Issues tab t
 ---
 
 <a name="roadmap--issues"></a>
+<a id="roadmap--issues"></a>
 ## Roadmap & Issues
 
 Check the repository Issues and Projects for planned items and features. If you want to request a feature or report a bug, please open an issue with clear reproduction steps.
@@ -191,6 +197,7 @@ Check the repository Issues and Projects for planned items and features. If you 
 ---
 
 <a name="license--legal"></a>
+<a id="license--legal"></a>
 ## License & Legal
 
 Music Aura is distributed under the **MIT License** — see `LICENSE` for details.
@@ -200,6 +207,7 @@ Important: This app integrates third‑party streaming sources and is intended f
 ---
 
 <a name="maintainers--contact"></a>
+<a id="maintainers--contact"></a>
 ## Maintainers & Contact
 
 Maintained by the original author and community contributors. For serious issues or inquiries, open an issue or pull request on GitHub.

@@ -8,13 +8,13 @@ import queueManager from './Utils/QueueManager';
 let isPlayerInitialized = false;
 
 export default async function PlaybackService() {
-  console.log('PlaybackService starting (headless) at', new Date().toISOString());
+
   // Queue remote actions to avoid race conditions without relying on timers
   let actionChain = Promise.resolve();
   // Register remote handlers immediately so notification actions work
   // even when the app is backgrounded or killed
   TrackPlayer.addEventListener(Event.RemotePlay, async () => {
-    console.log('RemotePlay event received at', new Date().toISOString());
+
     actionChain = actionChain.catch(() => {}).then(async () => {
       try {
         await TrackPlayer.play();
@@ -25,7 +25,7 @@ export default async function PlaybackService() {
   });
 
   TrackPlayer.addEventListener(Event.RemotePause, async () => {
-    console.log('RemotePause event received at', new Date().toISOString());
+
     actionChain = actionChain.catch(() => {}).then(async () => {
       try {
         await TrackPlayer.pause();
@@ -37,7 +37,7 @@ export default async function PlaybackService() {
 
   // Some Android notification skins send a single Play/Pause toggle action
   TrackPlayer.addEventListener(Event.RemotePlayPause, async () => {
-    console.log('RemotePlayPause (toggle) event received at', new Date().toISOString());
+
     actionChain = actionChain.catch(() => {}).then(async () => {
       try {
         const state = await TrackPlayer.getState();
@@ -55,12 +55,11 @@ export default async function PlaybackService() {
 
   // Next: perform an immediate native skip (fast) and queue background repairs
   TrackPlayer.addEventListener(Event.RemoteNext, async () => {
-    console.log('RemoteNext event received at', new Date().toISOString());
 
     // Immediate fast path: perform native skip without waiting on the action chain
     (async () => {
       try {
-        console.log('Immediate skipToNext (fast path)');
+
         await TrackPlayer.skipToNext();
         await TrackPlayer.play();
       } catch (e) {
@@ -77,7 +76,6 @@ export default async function PlaybackService() {
         const active = await TrackPlayer.getActiveTrack();
         const activeIndex = await TrackPlayer.getActiveTrackIndex();
         const queue = await TrackPlayer.getQueue();
-        console.log('Post-skip (background repair): activeIndex=', activeIndex, 'queueLength=', queue.length);
 
         if (active && smartPrefetchManager.needsStream(active)) {
           try {
@@ -101,7 +99,7 @@ export default async function PlaybackService() {
           if (!queue || queue.length <= MIN_QUEUE_LENGTH) {
             const refId = active?.id;
             if (refId) {
-              console.log('Queue short after skip; fetching recommendations for:', refId);
+
               const recs = await queueManager.buildQueueFromRecommendations(
                 refId,
                 active?.isYTMusic ? 'ytmusic' : active?.source || 'saavn',
@@ -110,7 +108,6 @@ export default async function PlaybackService() {
 
               if (recs && recs.length > 0) {
                 await TrackPlayer.add(recs);
-                console.log('Appended', recs.length, 'recommendations to queue');
 
                 // Kick off prefetch for immediate next track
                 try {
@@ -132,12 +129,11 @@ export default async function PlaybackService() {
 
   // Previous: perform an immediate native previous (fast) and queue background repairs
   TrackPlayer.addEventListener(Event.RemotePrevious, async () => {
-    console.log('RemotePrevious event received at', new Date().toISOString());
 
     // Immediate fast path
     (async () => {
       try {
-        console.log('Immediate skipToPrevious (fast path)');
+
         await TrackPlayer.skipToPrevious();
         await TrackPlayer.play();
       } catch (e) {
@@ -154,7 +150,6 @@ export default async function PlaybackService() {
         const active = await TrackPlayer.getActiveTrack();
         const activeIndex = await TrackPlayer.getActiveTrackIndex();
         const queue = await TrackPlayer.getQueue();
-        console.log('Post-previous (background repair): activeIndex=', activeIndex, 'queueLength=', queue.length);
 
         if (active && smartPrefetchManager.needsStream(active)) {
           try {
@@ -178,7 +173,7 @@ export default async function PlaybackService() {
           if (!queue || queue.length <= MIN_QUEUE_LENGTH) {
             const refId = active?.id;
             if (refId) {
-              console.log('Queue short after previous; fetching recommendations for:', refId);
+
               const recs = await queueManager.buildQueueFromRecommendations(
                 refId,
                 active?.isYTMusic ? 'ytmusic' : active?.source || 'saavn',
@@ -187,7 +182,6 @@ export default async function PlaybackService() {
 
               if (recs && recs.length > 0) {
                 await TrackPlayer.add(recs);
-                console.log('Appended', recs.length, 'recommendations to queue (previous)');
 
                 // Kick off prefetch for immediate next track
                 try {
@@ -208,10 +202,47 @@ export default async function PlaybackService() {
   });
 
   TrackPlayer.addEventListener(Event.RemoteSeek, async e => {
-    console.log('RemoteSeek event received at', new Date().toISOString(), 'position:', e.position);
+
     actionChain = actionChain.catch(() => {}).then(async () => {
       try {
-        await TrackPlayer.seekTo(e.position);
+        // Normalize position units. Different Android notification skins sometimes send
+        // position as milliseconds, as a fraction (0..1), or as a percentage (0..100).
+        // Heuristics below try to make sense of the value so seeking works reliably.
+        let pos = typeof e.position === 'number' ? e.position : Number(e.position) || 0;
+        try {
+          const duration = await TrackPlayer.getDuration();
+          if (duration) {
+            // ms -> s
+            if (pos > Math.max(duration * 3, 100000)) {
+              pos = pos / 1000;
+
+            } else if (pos > 0 && pos <= 1) {
+              // fraction of duration
+              pos = pos * duration;
+
+            } else if (pos > 1 && pos <= 100 && pos < duration * 0.9) {
+              // percentage (0-100)
+              pos = (pos / 100) * duration;
+
+            }
+          } else if (pos > 100000) {
+            // No duration available but value looks like milliseconds
+            pos = pos / 1000;
+
+          }
+        } catch (dErr) {
+          // Ignore duration lookup errors and proceed with given value
+        }
+
+        await TrackPlayer.seekTo(pos);
+
+        // Read back position to encourage notification / media session state update on some devices
+        try {
+          await TrackPlayer.getPosition();
+
+        } catch (pErr) {
+          // no-op
+        }
       } catch (e2) {
         console.warn('RemoteSeek failed', e2);
       }
@@ -219,7 +250,7 @@ export default async function PlaybackService() {
   });
 
   TrackPlayer.addEventListener(Event.RemoteStop, async () => {
-    console.log('RemoteStop event received at', new Date().toISOString());
+
     actionChain = actionChain.catch(() => {}).then(async () => {
       try {
         await TrackPlayer.pause();
@@ -231,7 +262,7 @@ export default async function PlaybackService() {
 
   // Handle audio ducking (optional) — lower volume or pause when ducked
   TrackPlayer.addEventListener(Event.RemoteDuck, async e => {
-    console.log('RemoteDuck event received at', new Date().toISOString(), 'type:', e && e.permanent ? 'permanent' : 'temporary');
+
     actionChain = actionChain.catch(() => {}).then(async () => {
       try {
         if (e && e.permanent) {
@@ -249,10 +280,10 @@ export default async function PlaybackService() {
 
   // Initialize player setup asynchronously
   const initializePlayer = async () => {
-    console.log('initializePlayer invoked in service.js at', new Date().toISOString());
+
     try {
       if (!isPlayerInitialized) {
-        console.log('Calling TrackPlayer.setupPlayer from service (headless)');
+
         await TrackPlayer.setupPlayer({
           android: {
             appKilledPlaybackBehavior: 'ContinuePlayback',
@@ -320,7 +351,6 @@ export default async function PlaybackService() {
           Capability.SkipToPrevious,
         ],
       });
-      console.log('TrackPlayer.updateOptions completed at', new Date().toISOString());
 
       // Initialize history manager (now lightweight)
       await historyManager.initialize();

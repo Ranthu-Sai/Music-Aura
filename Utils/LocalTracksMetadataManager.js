@@ -74,15 +74,12 @@ export class LocalTracksMetadataManager {
 
     this.initializationPromise = (async () => {
       try {
-        console.log('LocalTracksMetadataManager: Initializing...');
+
         const version = await AsyncStorage.getItem(METADATA_VERSION_KEY);
-        console.log('LocalTracksMetadataManager: Stored version:', version);
 
         // Check if we need to migrate data
         if (version !== CURRENT_VERSION) {
-          console.log(
-            'LocalTracksMetadataManager: Version mismatch, migrating...',
-          );
+
           try {
             await this.migrateMetadata(version);
           } catch (migrateError) {
@@ -94,20 +91,13 @@ export class LocalTracksMetadataManager {
         }
 
         const cachedMetadata = await AsyncStorage.getItem(METADATA_STORAGE_KEY);
-        console.log(
-          'LocalTracksMetadataManager: Cached metadata exists:',
-          !!cachedMetadata,
-        );
+
 
         if (cachedMetadata) {
           try {
             const metadata = JSON.parse(cachedMetadata);
             this.metadataCache = new Map(Object.entries(metadata));
-            console.log(
-              'LocalTracksMetadataManager: Loaded',
-              this.metadataCache.size,
-              'cached tracks',
-            );
+
           } catch (parseError) {
             console.error(
               'LocalTracksMetadataManager: Corrupted metadata detected:',
@@ -120,7 +110,7 @@ export class LocalTracksMetadataManager {
         }
 
         this.isInitialized = true;
-        console.log('LocalTracksMetadataManager: Initialization complete');
+
       } catch (error) {
         console.warn(
           'LocalTracksMetadataManager: Initialization error:',
@@ -145,9 +135,7 @@ export class LocalTracksMetadataManager {
    */
   async migrateMetadata(oldVersion) {
     try {
-      console.log(
-        `LocalTracksMetadataManager: Migrating metadata from ${oldVersion} to ${CURRENT_VERSION}`,
-      );
+
 
       if (oldVersion) {
         // If we have an old version, clear old data as format might have changed
@@ -360,11 +348,7 @@ export class LocalTracksMetadataManager {
       await this.initialize();
     }
 
-    console.log(
-      'LocalTracksMetadataManager: Syncing',
-      scannedTracks.length,
-      'tracks',
-    );
+
     const currentTrackIds = new Set(scannedTracks.map(t => t.id));
 
     // Remove entries for deleted files
@@ -426,11 +410,7 @@ export class LocalTracksMetadataManager {
     }
 
     this.isProcessing = true;
-    console.log(
-      'LocalTracksMetadataManager: Background processing started for',
-      this.processingQueue.length,
-      'tracks',
-    );
+
 
     while (this.processingQueue.length > 0) {
       const batch = this.processingQueue.splice(0, this.BATCH_SIZE);
@@ -477,7 +457,7 @@ export class LocalTracksMetadataManager {
     }
 
     this.isProcessing = false;
-    console.log('LocalTracksMetadataManager: Background processing complete');
+
   }
 
   /**
@@ -554,9 +534,7 @@ export class LocalTracksMetadataManager {
 
       if (toRemove.length > 0) {
         await this.persistAllMetadata();
-        console.log(
-          `LocalTracksMetadataManager: Cleaned up ${toRemove.length} old metadata entries`,
-        );
+
       }
     } catch (error) {
       console.error(
@@ -661,9 +639,7 @@ export class LocalTracksMetadataManager {
       this.metadataCache = new Map(Object.entries(importData.metadata));
       await this.persistAllMetadata();
 
-      console.log(
-        `LocalTracksMetadataManager: Imported ${this.metadataCache.size} metadata entries`,
-      );
+
     } catch (error) {
       console.error(
         'LocalTracksMetadataManager: Failed to import metadata:',

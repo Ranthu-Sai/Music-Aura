@@ -22,19 +22,19 @@ const CLEANUP_INTERVAL_HOURS = 24; // How often to run cleanup (in hours)
  */
 const initializeCache = async () => {
   try {
-    console.log('Cache initialization started');
+
 
     // Check if we need to perform cleanup
     const shouldCleanup = await shouldPerformCleanup();
     if (shouldCleanup) {
-      console.log('Performing cache maintenance');
+
       await performCacheCleanup();
     }
 
     // Check cache version
     await validateCacheVersion();
 
-    console.log('Cache initialization completed');
+
     return true;
   } catch (error) {
     console.error('Error during cache initialization:', error);
@@ -120,7 +120,7 @@ const performCacheCleanup = async () => {
 
       // Remove expired items
       if (expiredItems.length > 0) {
-        console.log(`Removing ${expiredItems.length} expired cache items`);
+
         await AsyncStorage.multiRemove(expiredItems.map(item => item.key));
       }
 
@@ -178,7 +178,7 @@ const refreshCacheGroup = async group => {
     return false;
   }
 
-  console.log(`Refreshing cache group: ${group}`);
+
   await clearCache(group);
   return true;
 };

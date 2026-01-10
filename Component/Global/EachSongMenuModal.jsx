@@ -23,7 +23,6 @@ import {
 import {ActionsContext} from '../../Context/Context';
 import {DownloadSong} from '../../Utils/DownloadHelper';
 
-
 export const EachSongMenuModal = ({Visible, setVisible}) => {
   const {updateTrack} = useContext(ActionsContext);
 
@@ -336,16 +335,13 @@ export const EachSongMenuModal = ({Visible, setVisible}) => {
               colors={['#e53935', '#e35d5b']}
               icon={<AntDesign name={'delete'} size={25} color={'white'} />}
               Onpress={async () => {
-                console.log('=== DELETE BUTTON CLICKED ===');
+
                 const {DeviceEventEmitter} = require('react-native');
                 const {
                   hideFile,
                 } = require('../../LocalStorage/HiddenLocalFiles');
 
                 try {
-                  console.log('Delete button pressed for:', Visible.title);
-                  console.log('File path:', Visible.url);
-                  console.log('Song ID:', Visible.id);
 
                   // Show immediate feedback
                   ToastAndroid.show('Removing from app...', ToastAndroid.SHORT);
@@ -354,7 +350,7 @@ export const EachSongMenuModal = ({Visible, setVisible}) => {
                   await hideFile(Visible.url);
 
                   // Remove from app view immediately
-                  console.log('Emitting localSongDeleted event');
+
                   DeviceEventEmitter.emit('localSongDeleted', Visible.id);
 
                   // Close modal first
@@ -362,7 +358,7 @@ export const EachSongMenuModal = ({Visible, setVisible}) => {
 
                   // Call onRemove callback to refresh the list
                   if (Visible.onRemove) {
-                    console.log('Calling onRemove callback');
+
                     Visible.onRemove();
                   }
 
@@ -375,14 +371,11 @@ export const EachSongMenuModal = ({Visible, setVisible}) => {
                       } = require('../../Utils/LocalMusicScanner');
 
                       if (!isFileDeletable(Visible.url)) {
-                        console.log(
-                          'File is not deletable (protected directory)',
-                        );
+
                         return;
                       }
 
                       const result = await deleteLocalSong(Visible.url);
-                      console.log('Delete result:', result);
 
                       if (result.success) {
                         ToastAndroid.show(

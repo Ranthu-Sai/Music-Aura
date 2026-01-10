@@ -566,7 +566,7 @@ async function getYTLyricsSongData(
         artist,
       )}&song=${encodeURIComponent(
         title,
-      )}&tamps=true&pass=false&sequence=1,2,3,4,5,6`,
+      )}&tamps=true&pass=false`,
       timeout: 8000,
       transform: async data => {
         if (data.data) {
@@ -610,60 +610,62 @@ async function getYTLyricsSongData(
         return null;
       },
     },
-    {
-      url: `https://test-0k.onrender.com/lyrics/?artist=${encodeURIComponent(
-        artist,
-      )}&song=${encodeURIComponent(
-        title,
-      )}&tamps=true&pass=false&sequence=2,4,6,1,3,5`,
-      timeout: 8000,
-      transform: async data => {
-        if (data.data) {
-          if (data.data.lyrics) {
-            return {
-              success: true,
-              data: {
-                lyrics: data.data.lyrics,
-                timed_lyrics: data.data.timed_lyrics,
-              },
-            };
-          }
 
-          if (data.data.timestamped) {
-            const lines = data.data.timestamped.split(/\r?\n/).filter(l => l.trim());
-            const timed_lyrics = [];
-            for (const line of lines) {
-              const m = line.match(/\[(\d+):(\d+\.\d+)\]\s*(.*)/);
-              if (m) {
-                const minutes = parseInt(m[1], 10);
-                const seconds = parseFloat(m[2]);
-                const start_time = Math.round((minutes * 60 + seconds) * 1000);
-                const text = m[3].trim();
-                if (text) {
-                  timed_lyrics.push({start_time, text});
-                }
-              } else {
-                timed_lyrics.push({start_time: null, text: line.trim()});
-              }
-            }
-            const plain = data.data.timestamped.replace(/\[\d+:\d+\.\d+\]\s*/g, '').trim();
-            return {
-              success: true,
-              data: {
-                lyrics: plain || null,
-                timed_lyrics: timed_lyrics,
-              },
-            };
-          }
-        }
-        return null;
-      },
-    },
     {
       name: 'LRCLib',
-      url: `https://lrclib.net/api/get?artist=${encodeURIComponent(artist)}&track=${encodeURIComponent(title)}`,
+      url: `https://lrclib.net/api/get?artist_name=${encodeURIComponent(artist)}&track_name=${encodeURIComponent(title)}`,
       transform: async data => {
         try {
+          // Preferred LRCLib structured response: { plainLyrics, syncedLyrics }
+          if (data?.plainLyrics || data?.syncedLyrics) {
+            const lyrics = data.plainLyrics ? String(data.plainLyrics).trim() : null;
+            const synced = data.syncedLyrics ? String(data.syncedLyrics) : null;
+
+            const timed_lyrics = [];
+            if (synced) {
+              const lines = synced.split(/\r?\n/).filter(l => l.trim());
+              for (const line of lines) {
+                const m = line.match(/\[(\d+):(\d+\.\d+)\]\s*(.*)/);
+                if (m) {
+                  const minutes = parseInt(m[1], 10);
+                  const seconds = parseFloat(m[2]);
+                  const start_time = Math.round((minutes * 60 + seconds) * 1000);
+                  timed_lyrics.push({start_time, text: m[3].trim()});
+                } else {
+                  timed_lyrics.push({start_time: null, text: line.trim()});
+                }
+              }
+            } else if (lyrics) {
+              // attempt to parse timestamps embedded in plainLyrics
+              const lines = lyrics.split(/\r?\n/).filter(l => l.trim());
+              let foundTimestamp = false;
+              for (const line of lines) {
+                const m = line.match(/\[(\d+):(\d+\.\d+)\]\s*(.*)/);
+                if (m) {
+                  foundTimestamp = true;
+                  const minutes = parseInt(m[1], 10);
+                  const seconds = parseFloat(m[2]);
+                  const start_time = Math.round((minutes * 60 + seconds) * 1000);
+                  timed_lyrics.push({start_time, text: m[3].trim()});
+                } else {
+                  timed_lyrics.push({start_time: null, text: line.trim()});
+                }
+              }
+              if (!foundTimestamp) {
+                timed_lyrics.length = 0;
+              }
+            }
+
+            return {
+              success: true,
+              data: {
+                lyrics: lyrics || null,
+                timed_lyrics: timed_lyrics,
+              },
+            };
+          }
+
+          // Backwards compatibility: handle raw string responses or {lyrics}
           const raw = data?.result || data?.lyrics || data;
           if (!raw) {
             return null;
@@ -697,8 +699,7 @@ async function getYTLyricsSongData(
           if (data?.lyrics) {
             return { success: true, data: { lyrics: data.lyrics } };
           }
-        } catch (e) {}
-        return null;
+        } catch (e) {}        return null;
       },
     },
 
@@ -750,10 +751,11 @@ async function getYTLyricsSongData(
               }
             }
             const songId = selected.id;
-            // Get lyrics - try multiple endpoints
+            // Get lyrics - try the reliable wrapper endpoint. The direct jiosaavn.com
+            // lyrics endpoint expects a lyrics_id and is not usable with song ids, so we
+            // only query the wrapper here.
             const lyricsUrls = [
               `https://jiosavan-api-with-playlist.vercel.app/api/songs/${songId}/lyrics`,
-              `https://www.jiosaavn.com/api.php?__call=lyrics.getLyrics&ctx=wap6dot0&api_version=4&_format=json&_marker=0&id=${songId}`,
             ];
 
             for (const lyricsUrl of lyricsUrls) {
@@ -810,10 +812,7 @@ async function getYTLyricsSongData(
             result.data.timed_lyrics = normalizeTimedLyrics(result.data.timed_lyrics);
           }
         } catch (err) {}
-        console.log(
-          'Lyrics source succeeded:',
-          api.url || 'jiosaavn-fallback',
-        );
+
         return result;
       }
     } catch (e) {
@@ -829,7 +828,7 @@ async function getYTLyricsSongData(
               result.data.timed_lyrics = normalizeTimedLyrics(result.data.timed_lyrics);
             }
           } catch (err) {}
-          console.log('Lyrics source succeeded: jiosaavn-fallback');
+
           return result;
         }
       }

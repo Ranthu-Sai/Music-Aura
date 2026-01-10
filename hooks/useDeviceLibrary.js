@@ -17,7 +17,7 @@ import {localTracksMetadataManager} from '../Utils/LocalTracksMetadataManager';
  */
 
 export const useDeviceLibrary = (options = {}) => {
-  console.log('useDeviceLibrary: Hook called with options:', options);
+
   const [tracks, setTracks] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
@@ -86,9 +86,7 @@ export const useDeviceLibrary = (options = {}) => {
           );
         }
 
-        console.log('useDeviceLibrary: Requesting permissions:', permissions);
         const granted = await PermissionsAndroid.requestMultiple(permissions);
-        console.log('useDeviceLibrary: Permission results:', granted);
 
         let permissionStatus = false;
         if (Platform.Version >= 33) {
@@ -101,10 +99,7 @@ export const useDeviceLibrary = (options = {}) => {
             PermissionsAndroid.RESULTS.GRANTED;
         }
 
-        console.log(
-          'useDeviceLibrary: Final permission status:',
-          permissionStatus,
-        );
+
         setHasPermission(permissionStatus);
         return permissionStatus;
       } else {
@@ -140,10 +135,7 @@ export const useDeviceLibrary = (options = {}) => {
           );
         }
 
-        console.log(
-          'useDeviceLibrary: Permission check result:',
-          permissionGranted,
-        );
+
         setHasPermission(permissionGranted);
         return permissionGranted;
       } else {
@@ -162,37 +154,29 @@ export const useDeviceLibrary = (options = {}) => {
    */
   const scanDirectory = useCallback(
     async (directoryPath, depth = 0) => {
-      console.log(
-        'useDeviceLibrary: scanDirectory called with path:',
-        directoryPath,
-        'depth:',
-        depth,
-      );
+
       if (depth > defaultOptions.maxScanDepth) {
-        console.log('useDeviceLibrary: Max depth reached');
+
         return [];
       }
       if (abortController.current?.signal.aborted) {
-        console.log('useDeviceLibrary: Scan aborted');
+
         return [];
       }
 
       const audioFiles = [];
 
       try {
-        console.log('useDeviceLibrary: Reading directory:', directoryPath);
+
         const exists = await RNFS.exists(directoryPath);
-        console.log('useDeviceLibrary: Directory exists:', exists);
 
         if (!exists) {
-          console.log('useDeviceLibrary: Directory does not exist, skipping');
+
           return [];
         }
 
         const items = await RNFS.readDir(directoryPath);
-        console.log(
-          `useDeviceLibrary: Found ${items.length} items in ${directoryPath}`,
-        );
+
 
         for (const item of items) {
           if (abortController.current?.signal.aborted) {
@@ -243,11 +227,7 @@ export const useDeviceLibrary = (options = {}) => {
         // Don't throw error for individual directory failures
       }
 
-      console.log(
-        'useDeviceLibrary: scanDirectory returning',
-        audioFiles.length,
-        'audio files',
-      );
+
       return audioFiles;
     },
     [defaultOptions],
@@ -295,20 +275,15 @@ export const useDeviceLibrary = (options = {}) => {
    * Scan device for audio files
    */
   const scanLibrary = useCallback(async () => {
-    console.log(
-      'useDeviceLibrary: scanLibrary called, isScanning:',
-      isScanning,
-      'hasPermission:',
-      hasPermission,
-    );
+
     if (isScanning) {
-      console.log('useDeviceLibrary: Already scanning, returning');
+
       return;
     }
     if (!hasPermission) {
-      console.log('useDeviceLibrary: No permission, requesting...');
+
       const permissionGranted = await requestPermissions();
-      console.log('useDeviceLibrary: Permission granted:', permissionGranted);
+
       if (!permissionGranted) {
         setError(new Error('Storage permission required to scan local music'));
         return;
@@ -323,10 +298,7 @@ export const useDeviceLibrary = (options = {}) => {
 
     try {
       const allAudioFiles = [];
-      console.log(
-        'useDeviceLibrary: Starting scan with paths:',
-        defaultOptions.scanPaths,
-      );
+
 
       // Scan all configured paths and update UI incrementally
       for (const scanPath of defaultOptions.scanPaths) {
@@ -336,9 +308,7 @@ export const useDeviceLibrary = (options = {}) => {
         try {
           const files = await scanDirectory(scanPath);
           if (files.length > 0) {
-            console.log(
-              `useDeviceLibrary: Found ${files.length} files in ${scanPath}`,
-            );
+
             files.forEach(f => allAudioFiles.push(f));
 
             // De-duplicate and update UI with basic tracks found so far
@@ -383,13 +353,10 @@ export const useDeviceLibrary = (options = {}) => {
       allAudioFiles.length = 0;
       allAudioFiles.push(...uniqueFiles);
 
-      console.log(
-        'useDeviceLibrary: Total audio files found:',
-        allAudioFiles.length,
-      );
+
 
       if (allAudioFiles.length === 0) {
-        console.log('useDeviceLibrary: No audio files found');
+
         // Only clear tracks if this was a manual refresh/force scan
         // This prevents clearing cached results if an auto-scan fails temporarily
         setTracks(prev => (prev.length > 0 ? prev : []));
@@ -400,9 +367,7 @@ export const useDeviceLibrary = (options = {}) => {
       setScanProgress({current: 0, total: allAudioFiles.length});
 
       // Create basic track objects immediately from file paths
-      console.log(
-        'useDeviceLibrary: Creating basic track objects and checking cache...',
-      );
+
       const basicTracks = allAudioFiles.map(filePath => {
         const trackId = localTracksMetadataProcessor.generateTrackId(filePath);
         const fileName = filePath.split('/').pop().split('\\').pop();
@@ -429,21 +394,15 @@ export const useDeviceLibrary = (options = {}) => {
       });
 
       // Filter out hidden files
-      console.log('useDeviceLibrary: Filtering hidden files...');
+
       const {getHiddenFiles} = require('../LocalStorage/HiddenLocalFiles');
       const hiddenFiles = await getHiddenFiles();
-      console.log('useDeviceLibrary: Hidden files count:', hiddenFiles.length);
 
       // Only filter if showHidden option is not enabled
       const visibleTracks = defaultOptions.showHidden
         ? basicTracks
         : basicTracks.filter(track => !hiddenFiles.includes(track.filePath));
-      console.log(
-        'useDeviceLibrary: Visible tracks after filtering:',
-        visibleTracks.length,
-        'of',
-        basicTracks.length,
-      );
+
 
       // Show basic results immediately
       visibleTracks.sort((a, b) =>
@@ -453,11 +412,7 @@ export const useDeviceLibrary = (options = {}) => {
       setLastScanTime(Date.now());
 
       // Start background metadata extraction via the manager (matches Orbit's logic)
-      console.log(
-        'useDeviceLibrary: Starting background sync for',
-        visibleTracks.length,
-        'tracks',
-      );
+
       localTracksMetadataManager.sync(visibleTracks);
 
       return visibleTracks;
@@ -526,7 +481,7 @@ export const useDeviceLibrary = (options = {}) => {
    * Remove track by ID
    */
   const removeTrack = useCallback(trackId => {
-    console.log('useDeviceLibrary: Removing track:', trackId);
+
     setTracks(prev => prev.filter(track => track.id !== trackId));
   }, []);
 
@@ -572,7 +527,7 @@ export const useDeviceLibrary = (options = {}) => {
 
     const initializeHook = async () => {
       try {
-        console.log('useDeviceLibrary: Initializing metadata manager...');
+
         await localTracksMetadataManager.initialize();
 
         if (!isMounted) {
@@ -581,11 +536,7 @@ export const useDeviceLibrary = (options = {}) => {
 
         // Load cached tracks immediately
         const cachedTracks = await localTracksMetadataManager.getAllMetadata();
-        console.log(
-          'useDeviceLibrary: Loaded',
-          cachedTracks.length,
-          'tracks from cache',
-        );
+
         if (cachedTracks.length > 0) {
           // Sort cached tracks before setting
           cachedTracks.sort((a, b) =>
@@ -595,10 +546,9 @@ export const useDeviceLibrary = (options = {}) => {
         }
 
         const hasPerm = await checkPermissions();
-        console.log('useDeviceLibrary: Permission state:', hasPerm);
 
         if (defaultOptions.autoScan && hasPerm) {
-          console.log('useDeviceLibrary: Auto-scan enabled, starting scan...');
+
           scanLibrary();
         }
       } catch (err) {
@@ -633,8 +583,6 @@ export const useDeviceLibrary = (options = {}) => {
       stopScan();
     };
   }, [checkPermissions, defaultOptions.autoScan, scanLibrary, stopScan]);
-
-  console.log('useDeviceLibrary: Returning hook result');
 
   return {
     // State

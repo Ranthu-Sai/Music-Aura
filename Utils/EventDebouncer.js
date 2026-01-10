@@ -94,7 +94,7 @@ export function deduplicateEventHandler(
     const currentKey = keyExtractor(eventData);
 
     if (currentKey === lastKey) {
-      console.log('🔄 Skipping duplicate event');
+
       return;
     }
 

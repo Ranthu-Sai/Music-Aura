@@ -24,7 +24,7 @@ let isPlayerInitialized = false;
 const DEBUG_LOGS = false;
 const debugLog = (...args) => {
   if (DEBUG_LOGS) {
-    console.log(...args);
+
   }
 };
 
@@ -35,7 +35,7 @@ async function removeFromQueue(index) {
       return;
     }
     await TrackPlayer.remove(index);
-    console.log(`🗑️ Removed track at index ${index} from queue`);
+
   } catch (error) {
     console.error('Error removing track from queue:', error);
   }
@@ -182,7 +182,6 @@ export const setupPlayer = async () => {
           autoHandleInterruptions: true,
           autoUpdateMetadata: true,
         });
-        console.log('Player initialized successfully in MusicPlayerFunctions');
 
         // NOTE: Remote control listeners (play, pause, next, previous) are registered in service.js
         // to avoid duplicate event listeners. DO NOT add them here.
@@ -548,7 +547,7 @@ async function PlayOneSong(song) {
     if (!isLocalFile) {
       const netInfo = await NetInfo.fetch();
       if (!netInfo.isConnected) {
-        console.log('Cannot play online song while offline');
+
         // Return early or try to play a cached version
         return;
       }
@@ -1528,7 +1527,6 @@ async function SkipToTrack(trackIndex) {
       targetTrack.url?.includes('music.youtube.com');
 
     if (needsStream && !targetTrack._prefetched) {
-      console.log('🎯 Random track selection - checking cache...');
 
       // FIRST: Check if SmartPrefetchManager has cached stream
       const cachedStream = smartPrefetchManager.getPrefetchedStream(
@@ -1538,9 +1536,9 @@ async function SkipToTrack(trackIndex) {
       let streamData = cachedStream;
 
       if (cachedStream) {
-        console.log('✅ Using cached prefetched stream for random selection');
+
       } else {
-        console.log('🔄 Track not in cache, fetching on-demand...');
+
         // Use SmartPrefetchManager for on-demand fetch (with retry)
         streamData = await smartPrefetchManager.fetchOnDemand(targetTrack.id);
       }
@@ -1552,7 +1550,7 @@ async function SkipToTrack(trackIndex) {
           targetTrack,
           streamData,
         );
-        console.log('✅ Track replaced for random selection');
+
       } else {
         console.error('❌ Failed to get stream for random track');
         ToastAndroid.show('Failed to load stream', ToastAndroid.SHORT);
@@ -1597,10 +1595,7 @@ async function getIndexQuality() {
 
 async function AddOneSongToPlaylist(song) {
   try {
-    console.log(
-      '🎵 AddOneSongToPlaylist called with song:',
-      song?.title || 'Unknown',
-    );
+
 
     // Import the bottom sheet playlist selector manager
     const {
@@ -1617,12 +1612,7 @@ async function AddOneSongToPlaylist(song) {
       return false;
     }
 
-    console.log('✅ Song validation passed, song ID:', song.id);
 
-    console.log(
-      'AddOneSongToPlaylist called with song (bottom sheet):',
-      song.title,
-    );
 
     // Safe image URL extraction
     const getImageUrl = imageData => {
@@ -1661,7 +1651,7 @@ async function AddOneSongToPlaylist(song) {
     };
 
     // Use the PlaylistSelectorBottomSheetManager to show the selection interface
-    console.log('📱 Attempting to show playlist selector...');
+
     const result = PlaylistSelectorBottomSheetManager.show(formattedSong);
     return result;
   } catch (error) {

@@ -146,7 +146,7 @@ const useAllSongsManager = ({
         // Check permissions first
         const permissionGranted = await checkLocalPermissions();
         if (!permissionGranted && !localPermission) {
-          console.log('useAllSongsManager: No permission for local songs');
+
           setLocalSongs([]);
           return [];
         }
@@ -155,32 +155,18 @@ const useAllSongsManager = ({
 
         // Scan device library if not already done or forced
         if ((deviceTracks.length === 0 || forceScan) && !isScanning) {
-          console.log(
-            'useAllSongsManager: Starting local scan (forceScan:',
-            forceScan,
-            ')',
-          );
+
           const scannedResults = await scanLibrary();
 
           if (scannedResults && scannedResults.length > 0) {
-            console.log(
-              'useAllSongsManager: Primary scanner found',
-              scannedResults.length,
-              'songs',
-            );
+
             currentDeviceTracks = scannedResults;
           } else {
             // Fallback to legacy scanner if useDeviceLibrary found nothing
-            console.log(
-              'useAllSongsManager: Primary scanner found nothing, trying legacy fallback...',
-            );
+
             const legacyResults = await scanLocalMusic();
             if (legacyResults && legacyResults.length > 0) {
-              console.log(
-                'useAllSongsManager: Legacy scanner found',
-                legacyResults.length,
-                'songs',
-              );
+
               // Map legacy results to current format
               currentDeviceTracks = legacyResults.map(s => ({
                 id: s.id,
@@ -191,9 +177,7 @@ const useAllSongsManager = ({
                 type: 'local',
               }));
             } else {
-              console.log(
-                'useAllSongsManager: Both scanners returned no results',
-              );
+
               currentDeviceTracks = [];
             }
           }
@@ -368,9 +352,7 @@ const useAllSongsManager = ({
           );
         }
 
-        console.log('useAllSongsManager: Requesting permissions:', permissions);
         const granted = await PermissionsAndroid.requestMultiple(permissions);
-        console.log('useAllSongsManager: Permission results:', granted);
 
         let permissionGranted = false;
         if (Platform.Version >= 33) {
@@ -383,10 +365,7 @@ const useAllSongsManager = ({
             PermissionsAndroid.RESULTS.GRANTED;
         }
 
-        console.log(
-          'useAllSongsManager: Final permission status:',
-          permissionGranted,
-        );
+
         setHasPermission(permissionGranted);
 
         if (permissionGranted) {
@@ -427,7 +406,7 @@ const useAllSongsManager = ({
                   text: 'Open Settings',
                   onPress: () => {
                     // This would need to be implemented to open app settings
-                    console.log('Open app settings');
+
                   },
                 },
               ],
@@ -499,10 +478,7 @@ const useAllSongsManager = ({
     const downloadListener = DeviceEventEmitter.addListener(
       'songDownloaded',
       async songData => {
-        console.log(
-          'useAllSongsManager: Song downloaded event received:',
-          songData,
-        );
+
 
         // Reload downloaded songs
         if (loadDownloadedSongsRef.current) {
@@ -517,10 +493,7 @@ const useAllSongsManager = ({
     const downloadedRemovedListener = DeviceEventEmitter.addListener(
       'downloadedSongRemoved',
       async songId => {
-        console.log(
-          'useAllSongsManager: Downloaded song removed event received:',
-          songId,
-        );
+
         setDownloadedSongs(prev => prev.filter(song => song.id !== songId));
         combineAllSongs();
       },
@@ -529,10 +502,7 @@ const useAllSongsManager = ({
     const localDeletedListener = DeviceEventEmitter.addListener(
       'localSongDeleted',
       async songId => {
-        console.log(
-          'useAllSongsManager: Local song deleted event received:',
-          songId,
-        );
+
         removeTrack(songId);
       },
     );
@@ -540,10 +510,7 @@ const useAllSongsManager = ({
     const localUnhiddenListener = DeviceEventEmitter.addListener(
       'localSongUnhidden',
       async songId => {
-        console.log(
-          'useAllSongsManager: Local song unhidden event received:',
-          songId,
-        );
+
         // Trigger refresh of device library
         if (deviceLibraryConfig.requestScan) {
           await deviceLibraryConfig.requestScan();

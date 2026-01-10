@@ -322,9 +322,35 @@ class SmartPrefetchManager {
             streamData,
           );
 
+          // Resolve current queue and index safety: ensure original track still exists
+          const queue = await TrackPlayer.getQueue();
+          let safeIndex = index;
+
+          if (!Array.isArray(queue) || queue.length === 0) {
+            // Queue empty - append and resolve
+            await TrackPlayer.add(updatedTrack);
+            return;
+          }
+
+          // If the provided index is out of range, try to find by id
+          if (safeIndex < 0 || safeIndex >= queue.length || queue[safeIndex]?.id !== originalTrack?.id) {
+            const found = queue.findIndex(t => t && t.id === originalTrack?.id);
+            if (found >= 0) {
+              safeIndex = found;
+            } else {
+              // Original track no longer in queue - append updated track instead
+              console.warn('replaceTrackAndWait: original track not found in queue, appending updated track');
+              await TrackPlayer.add(updatedTrack);
+              return;
+            }
+          }
+
           // Remove old track and insert new one at same position (safe)
-          await this._safeRemove(index);
-          await TrackPlayer.add(updatedTrack, index);
+          await this._safeRemove(safeIndex);
+          // Recompute queue length to avoid out-of-bounds insert
+          const newQueue = await TrackPlayer.getQueue();
+          const insertPos = Math.min(safeIndex, newQueue.length);
+          await TrackPlayer.add(updatedTrack, insertPos);
         } catch (error) {
           console.error('Error replacing track:', error.message);
         } finally {
@@ -340,8 +366,31 @@ class SmartPrefetchManager {
   async replaceTrackImmediately(index, originalTrack, streamData) {
     try {
       const updatedTrack = this._createUpdatedTrack(originalTrack, streamData);
-      await this._safeRemove(index);
-      await TrackPlayer.add(updatedTrack, index);
+
+      // Resolve current queue and ensure safe index. This avoids "index out of bounds"
+      const queue = await TrackPlayer.getQueue();
+      if (!Array.isArray(queue) || queue.length === 0) {
+        // Queue empty: append
+        await TrackPlayer.add(updatedTrack);
+        return;
+      }
+
+      let safeIndex = index;
+      if (safeIndex < 0 || safeIndex >= queue.length || queue[safeIndex]?.id !== originalTrack?.id) {
+        const found = queue.findIndex(t => t && t.id === originalTrack?.id);
+        if (found >= 0) {
+          safeIndex = found;
+        } else {
+          console.warn('replaceTrackImmediately: original track not found in queue, appending updated track');
+          await TrackPlayer.add(updatedTrack);
+          return;
+        }
+      }
+
+      await this._safeRemove(safeIndex);
+      const newQueue = await TrackPlayer.getQueue();
+      const insertPos = Math.min(safeIndex, newQueue.length);
+      await TrackPlayer.add(updatedTrack, insertPos);
     } catch (error) {
       console.error('Error in replaceTrackImmediately:', error.message);
     }
@@ -365,23 +414,31 @@ class SmartPrefetchManager {
    */
   async _replaceAndPlayTrack(index, originalTrack, streamData) {
     try {
-      // RACE CONDITION CHECK: Ensure index is still valid
+      // Resolve current queue and try to locate the original track if index changed
       const currentQ = await TrackPlayer.getQueue();
-      if (!currentQ[index] || currentQ[index].id !== originalTrack.id) {
-        console.warn('⚠️ Race condition prevented: Queue changed during fetch');
-        return;
+      let safeIndex = index;
+      if (!currentQ[safeIndex] || currentQ[safeIndex].id !== originalTrack.id) {
+        const found = currentQ.findIndex(t => t && t.id === originalTrack.id);
+        if (found >= 0) {
+          safeIndex = found;
+        } else {
+          console.warn('⚠️ Race condition prevented: original track not found in queue during replaceAndPlay');
+          return;
+        }
       }
 
       const updatedTrack = this._createUpdatedTrack(originalTrack, streamData);
 
       // Remove current track (safe)
-      await this._safeRemove(index);
+      await this._safeRemove(safeIndex);
 
-      // Add updated track at same position
-      await TrackPlayer.add(updatedTrack, index);
+      // Add updated track at same (or clamped) position
+      const newQueue = await TrackPlayer.getQueue();
+      const insertPos = Math.min(safeIndex, newQueue.length);
+      await TrackPlayer.add(updatedTrack, insertPos);
 
       // Skip to it and play
-      await TrackPlayer.skip(index);
+      await TrackPlayer.skip(insertPos);
       await TrackPlayer.play();
 
       // Success - Reset breaker
@@ -473,7 +530,7 @@ class SmartPrefetchManager {
       if (msg && msg.toLowerCase().includes('out of bounds')) {
         // debug log only in development - avoid console warning noise in production
         if (__DEV__) {
-          console.debug('Safe remove ignored out-of-bounds:', msg);
+
         }
         return;
       }

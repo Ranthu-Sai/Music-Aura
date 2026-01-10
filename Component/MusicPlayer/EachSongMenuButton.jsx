@@ -13,6 +13,7 @@ export const EachSongMenuButton = ({Onpress}) => {
         padding: 10,
         backgroundColor: 'rgb(28,28,28)',
         borderRadius: 100,
+        marginRight: 20, // nudge slightly left from the screen edge
       }}>
       <Entypo
         name={'dots-three-vertical'}

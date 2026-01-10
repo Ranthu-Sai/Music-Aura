@@ -93,12 +93,11 @@ class QueueManager {
       const recommendationsData = await getRecommendedSongs(songId);
 
       if (!recommendationsData?.data || recommendationsData.data.length === 0) {
-        console.log('⚠️ No recommendations found for song:', songId);
+
         return [];
       }
 
       const recommendations = recommendationsData.data.slice(0, limit);
-      console.log(`✅ Found ${recommendations.length} recommendations`);
 
       // Get quality index for URL selection
       const qualityIndex = await getIndexQuality();
@@ -194,11 +193,10 @@ class QueueManager {
       // Check cache first
       if (this.streamCache.has(track.id)) {
         const cached = this.streamCache.get(track.id);
-        console.log(`✅ Using cached stream for: ${track.title}`);
+
         return cached;
       }
 
-      console.log(`🔄 Fetching stream on-demand for: ${track.title}`);
       const streamData = await this._fetchStreamForSong(track, signal);
 
       if (streamData && streamData.url) {
@@ -220,7 +218,7 @@ class QueueManager {
 
         // Cache the stream (will expire in 2 minutes)
         this.streamCache.set(track.id, streamData);
-        console.log(`✅ Fetched and updated stream for: ${track.title}`);
+
         return streamData;
       }
 
@@ -228,7 +226,7 @@ class QueueManager {
       return null;
     } catch (error) {
       if (error.name === 'AbortError') {
-        console.log(`🚫 Stream fetch aborted for track ${trackIndex}`);
+
       } else {
         console.error('❌ Error fetching stream for track:', error);
       }
@@ -274,7 +272,7 @@ class QueueManager {
       return null;
     } catch (error) {
       if (error.message === 'AbortError' || error.name === 'AbortError') {
-        console.log(`🚫 Stream fetch aborted for: ${song.title}`);
+
       } else {
         console.error('❌ Error in _fetchStreamForSong:', error);
       }
@@ -317,7 +315,7 @@ class QueueManager {
       const LOG_VERBOSE = false;
       const debugLog = (...args) => {
         if (LOG_VERBOSE) {
-          console.log(...args);
+
         }
       };
       debugLog('📡 Starting continuous queue monitor');
@@ -336,7 +334,7 @@ class QueueManager {
       const LOG_VERBOSE = false;
       const debugLog = (...args) => {
         if (LOG_VERBOSE) {
-          console.log(...args);
+
         }
       };
       debugLog('🛑 Stopping continuous queue monitor');
@@ -370,7 +368,7 @@ class QueueManager {
       const LOG_VERBOSE = false;
       const debugLog = (...args) => {
         if (LOG_VERBOSE) {
-          console.log(...args);
+
         }
       };
       debugLog(
@@ -432,7 +430,7 @@ class QueueManager {
     const LOG_VERBOSE = false;
     const debugLog = (...args) => {
       if (LOG_VERBOSE) {
-        console.log(...args);
+
       }
     };
     debugLog('🗑️ Stream cache cleared');

@@ -17,7 +17,7 @@ import {CACHE_TTL, CACHE_LIMITS, isCacheStale} from './CacheConfig';
 const LOG_VERBOSE = false;
 const debugLog = (...args) => {
   if (LOG_VERBOSE) {
-    console.log(...args);
+
   }
 };
 
@@ -272,9 +272,7 @@ class NavigationCacheManager {
     const key = `${source}_${videoId}`;
     if (this.streamCache.has(key)) {
       this.streamCache.delete(key);
-      console.log(
-        `[CacheManager] Cleared stream cache for ${source}:${videoId}`,
-      );
+
     }
   }
   // ============================================
@@ -402,7 +400,7 @@ class NavigationCacheManager {
     ) {
       const oldestKey = this.accessOrder.shift();
       this.cache.delete(oldestKey);
-      console.log(`[CacheManager] LRU eviction: removed ${oldestKey}`);
+
     }
   }
 
@@ -415,9 +413,7 @@ class NavigationCacheManager {
       // Remove oldest entries (first inserted)
       const keysToRemove = Array.from(this.streamCache.keys()).slice(0, 10);
       keysToRemove.forEach(key => this.streamCache.delete(key));
-      console.log(
-        `[CacheManager] Stream cache cleanup: removed ${keysToRemove.length} entries`,
-      );
+
     }
   }
 
@@ -444,7 +440,7 @@ class NavigationCacheManager {
    */
   logStatus() {
     const stats = this.getStats();
-    console.log('[CacheManager] Status:', JSON.stringify(stats, null, 2));
+    console.debug('NavigationCacheManager stats:', stats);
   }
 }
 

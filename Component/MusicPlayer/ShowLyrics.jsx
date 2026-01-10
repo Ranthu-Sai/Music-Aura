@@ -122,6 +122,8 @@ export const ShowLyrics = ({
   const {lyricsSettings, setLyricsSettingsState, refreshLyrics} =
     React.useContext(ActionsContext);
   const [showSettings, setShowSettings] = React.useState(false);
+  // Track last fetched song+source to avoid redundant refreshes when props change frequently
+  const lastFetchedKeyRef = useRef(null);
 
   // Dynamic Styles based on settings
   const getFontSize = React.useCallback(
@@ -162,11 +164,27 @@ export const ShowLyrics = ({
           currentSong.language,
           value,
         );
+
+
+        // Always update UI state so the selected source shows feedback even if no lyrics found
         if (results) {
           setLyric(results);
+          // Record the successful fetch key so we don't immediately refetch for the same song+source
+          if (currentSong?.id) {
+            lastFetchedKeyRef.current = `${currentSong.id}-${value}`;
+          }
+        } else {
+          setLyric({lyrics: 'No Lyrics Found', attemptedSources: [], source: value});
+          if (currentSong?.id) {
+            lastFetchedKeyRef.current = `${currentSong.id}-${value}`;
+          }
         }
       } catch (err) {
         console.error('Refresh error:', err);
+        setLyric({lyrics: 'No Lyrics Found', attemptedSources: [], source: value});
+        if (currentSong?.id) {
+          lastFetchedKeyRef.current = `${currentSong.id}-${value}`;
+        }
       } finally {
         setLoading(false);
       }
@@ -180,7 +198,119 @@ export const ShowLyrics = ({
     }
   }, [ShowDailog]);
 
-  // Mode change handlers
+  // When opening the lyrics modal, if the currently selected source is RenderAPI
+  // and the cached result looks incomplete (very short plain text or very few lines),
+  // force a refresh from RenderAPI to fetch the complete result.
+  useEffect(() => {
+    let cancelled = false;
+    const tryRefreshRenderAPI = async () => {
+      if (!ShowDailog) {return;}
+      if (!Lyric || !Lyric.source) {return;}
+      if (Lyric.source !== 'RenderAPI') {return;}
+
+      const plainLen = (Lyric?.lyrics || '').replaceAll('<br>', '').trim().length;
+      const timedCount = (Lyric?.timed_lyrics || Lyric?.timedLyrics || []).length || 0;
+
+      // Thresholds: very short plain text or very few timed lines => consider incomplete
+      if (plainLen < 100 || timedCount < 3) {
+        try {
+          setLoading(true);
+          const refreshed = await refreshLyrics(
+            currentSong.id,
+            currentSong.artist,
+            currentSong.title,
+            currentSong.language,
+            'RenderAPI',
+          );
+          if (!cancelled && refreshed) {
+            setLyric(refreshed);
+          }
+        } catch (e) {
+          // RenderAPI refresh failed; keep warning for diagnostics
+          console.warn('RenderAPI refresh failed:', e);
+        } finally {
+          if (!cancelled) {setLoading(false);}
+        }
+      }
+    };
+
+    tryRefreshRenderAPI();
+    return () => {
+      cancelled = true;
+    };
+  }, [ShowDailog, Lyric?.source, Lyric, currentSong?.id, currentSong?.artist, currentSong?.title, currentSong?.language, refreshLyrics, setLoading, setLyric]);
+
+  // When the shown song changes while the lyrics modal is open, refresh lyrics automatically
+  useEffect(() => {
+    let cancelled = false;
+    let timer = null;
+
+    // Consider a lyrics response complete if it has reasonable length/timed lines
+    const isLyricsComplete = lyric => {
+      const plainLen = (lyric?.lyrics || '').replaceAll('<br>', '').trim().length;
+      const timedCount = (lyric?.timed_lyrics || lyric?.timedLyrics || []).length || 0;
+      return plainLen >= 100 || timedCount >= 3;
+    };
+
+    const refreshOnSongChange = async () => {
+      if (!ShowDailog) {return;}
+      if (!currentSong?.id) {return;}
+
+      const songKey = `${currentSong.id}-${lyricsSettings.source || 'All'}`;
+      // Skip if we've already fetched for this song+source
+      if (lastFetchedKeyRef.current === songKey) {return;}
+
+      // If we already have a complete lyric from an acceptable source, skip refetch
+      if (Lyric && Lyric.source) {
+        if (isLyricsComplete(Lyric) && (lyricsSettings.source === 'All' || Lyric.source === lyricsSettings.source)) {
+          lastFetchedKeyRef.current = songKey;
+          return;
+        }
+      }
+
+      try {
+        // Debounce to avoid transient updates triggering fetches
+        if (timer) {clearTimeout(timer);}
+        const shouldShowLoadingOverlay = !Lyric || !Lyric.lyrics || Lyric.lyrics === 'No Lyrics Found';
+
+        timer = setTimeout(async () => {
+          if (cancelled) {return;}
+          // Only show the full loading overlay when there's nothing to display yet; otherwise fetch in background
+          if (shouldShowLoadingOverlay) { setLoading(true); }
+
+          // Keep existing Lyric until new data arrives to avoid flicker
+          const results = await refreshLyrics(
+            currentSong.id,
+            currentSong.artist,
+            currentSong.title,
+            currentSong.language,
+          );
+          if (cancelled) {return;}
+          if (results) {
+            setLyric(results);
+            lastFetchedKeyRef.current = songKey;
+          } else {
+            setLyric({lyrics: 'No Lyrics Found', attemptedSources: [], source: lyricsSettings.source || 'All'});
+            lastFetchedKeyRef.current = songKey;
+          }
+          if (shouldShowLoadingOverlay) { setLoading(false); }
+        }, 180);
+      } catch (err) {
+        if (!cancelled) {
+          setLyric({lyrics: 'No Lyrics Found', attemptedSources: [], source: lyricsSettings.source || 'All'});
+          lastFetchedKeyRef.current = songKey;
+          setLoading(false);
+        }
+      }
+    };
+
+    refreshOnSongChange();
+    return () => {
+      cancelled = true;
+      if (timer) {clearTimeout(timer);}
+    };
+  }, [ShowDailog, currentSong?.id, currentSong?.artist, currentSong?.title, currentSong?.language, refreshLyrics, setLyric, setLoading, lyricsSettings.source, Lyric]);
+
   const handleRegularMode = useCallback(() => {
     setLyricsMode('regular');
   }, []);
@@ -191,6 +321,14 @@ export const ShowLyrics = ({
       switchToTimeSynced();
     }
   }, [Lyric?.timed_lyrics]);
+
+  // Keep track of recently set Lyric for current song so we don't refetch unnecessarily
+  useEffect(() => {
+    if (!ShowDailog) {return;}
+    if (!Lyric || !currentSong?.id) {return;}
+    const key = `${currentSong.id}-${Lyric.source || lyricsSettings.source || 'All'}`;
+    lastFetchedKeyRef.current = key;
+  }, [Lyric, ShowDailog, currentSong?.id, lyricsSettings.source]);
 
   const handleShareLyrics = async () => {
     try {
@@ -243,16 +381,13 @@ export const ShowLyrics = ({
         displayLyrics &&
         displayLyrics.length > 0
       ? (() => {
-          const offsetMs = Number(lyricsSettings.offsetMs || 0);
-          const pos = position * 1000 + offsetMs;
+          const pos = Math.round(position * 1000);
           // Find the current line more accurately
           for (let i = 0; i < displayLyrics.length; i++) {
             const start = displayLyrics[i].start_time;
             const end = displayLyrics[i].end_time;
             if (start != null && end != null) {
-              if (pos >= start && pos <= end) {
-                return i;
-              }
+              if (pos >= start && pos <= end) {return i;}
             }
           }
           // If no exact match, find the closest previous timed line
@@ -263,9 +398,7 @@ export const ShowLyrics = ({
           }
           // Fallback: first timed line
           for (let i = 0; i < displayLyrics.length; i++) {
-            if (displayLyrics[i].start_time != null) {
-              return i;
-            }
+            if (displayLyrics[i].start_time != null) {return i;}
           }
           return 0;
         })()
@@ -416,7 +549,7 @@ export const ShowLyrics = ({
                 </Text>
                 {Lyric?.source ? (
                   <Text style={{color: '#AAA', fontSize: 12, marginTop: 4}}>
-                    Source: {Lyric.source}{lyricsSettings.offsetMs ? ` • Offset: ${lyricsSettings.offsetMs}ms` : ''}
+                    Source: {Lyric.source}
                   </Text>
                 ) : null}
               </View>
@@ -478,52 +611,7 @@ export const ShowLyrics = ({
                 </Text>
               </Pressable>
 
-              {/* Quick Sync button - align lyrics to current playback */}
-              {lyricsMode === 'time-synced' && displayLyrics && displayLyrics.length > 0 ? (
-                <Pressable
-                  onPress={async () => {
-                    try {
-                      const posMs = Math.round(position * 1000);
-                      // Find nearest timed line to current pos (ignoring current offset)
-                      let nearestIdx = -1;
-                      for (let i = 0; i < displayLyrics.length; i++) {
-                        const l = displayLyrics[i];
-                        if (l.start_time != null && l.end_time != null && posMs >= l.start_time && posMs <= l.end_time) {
-                          nearestIdx = i; break;
-                        }
-                      }
-                      if (nearestIdx === -1) {
-                        // fallback to closest start_time by abs difference
-                        let bestDiff = Number.MAX_SAFE_INTEGER;
-                        for (let i = 0; i < displayLyrics.length; i++) {
-                          const l = displayLyrics[i];
-                          if (l.start_time != null) {
-                            const d = Math.abs(l.start_time - posMs);
-                            if (d < bestDiff) { bestDiff = d; nearestIdx = i; }
-                          }
-                        }
-                      }
-                      if (nearestIdx >= 0) {
-                        const cur = displayLyrics[nearestIdx];
-                        const offset = posMs - cur.start_time;
-                        await handleUpdateSetting('offsetMs', offset);
-                      }
-                    } catch (e) {
-                      console.warn('Sync failed', e);
-                    }
-                  }}
-                  style={{
-                    marginLeft: 10,
-                    paddingHorizontal: 10,
-                    paddingVertical: 6,
-                    borderRadius: 12,
-                    backgroundColor: 'rgba(255,255,255,0.06)',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}>
-                  <Text style={{color: 'white', fontSize: width * 0.03}}>Sync</Text>
-                </Pressable>
-              ) : null}
+
             </View>
             <View style={{flex: 1, alignItems: 'flex-end'}}>
               <Pressable
@@ -851,36 +939,38 @@ export const ShowLyrics = ({
 
             {/* Source */}
             <Text style={styles.settingLabel}>Lyrics Source</Text>
-            <View style={[styles.optionsRow, {flexWrap: 'wrap'}]}>
-              {[
-                'All',
-                'RenderAPI',
-                'GenzAPI',
-                'Sublyrics',
-                'LRCLib',
-                'AutoEngine',
-                'OVH',
-                'Musixmatch',
-                'JioSaavn',
-              ].map(src => (
-                <Pressable
-                  key={src}
-                  onPress={() => handleUpdateSetting('source', src)}
-                  style={[
-                    styles.optionButton,
-                    lyricsSettings.source === src && styles.activeOption,
-                    {marginBottom: 10},
-                  ]}>
-                  <Text
+            {/* Single-line horizontal list for sources (including RenderAPI) */}
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{paddingVertical: 8}}>
+              <View style={{flexDirection: 'row', alignItems: 'center'}}>
+                {[
+                  'All',
+                  'LRCLib',
+                  'OVH',
+                  'JioSaavn',
+                  'RenderAPI',
+                ].map((src, idx) => (
+                  <Pressable
+                    key={src}
+                    onPress={() => handleUpdateSetting('source', src)}
                     style={[
-                      styles.optionText,
-                      lyricsSettings.source === src && styles.activeOptionText,
+                      styles.optionButton,
+                      lyricsSettings.source === src && styles.activeOption,
+                      {marginRight: idx === 4 ? 0 : 10},
                     ]}>
-                    {src}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
+                    <Text
+                      style={[
+                        styles.optionText,
+                        lyricsSettings.source === src && styles.activeOptionText,
+                      ]}>
+                      {src}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            </ScrollView>
 
             {/* Background Theme */}
             <Text style={styles.settingLabel}>Background Theme</Text>
@@ -972,10 +1062,10 @@ export const ShowLyrics = ({
               ))}
             </View>
 
-            {/* Anchor Line: top (1), 2nd, 3rd */}
+            {/* Anchor Line: 1st, 2nd, 3rd */}
             <Text style={styles.settingLabel}>Anchor Line</Text>
             <View style={styles.optionsRow}>
-              {[{label: 'Top', val: 1}, {label: '2nd', val: 2}, {label: '3rd', val: 3}].map(opt => (
+              {[{label: '1st', val: 1}, {label: '2nd', val: 2}, {label: '3rd', val: 3}].map(opt => (
                 <Pressable
                   key={opt.val}
                   onPress={() => handleUpdateSetting('anchorLine', opt.val)}

@@ -185,7 +185,7 @@ async function ClearSelectedCache(selectedKeys) {
               await ReactNativeBlobUtil.fs.mkdir(downloadPath);
               // Scan to update MediaStore
               await ReactNativeBlobUtil.fs.scanFile([{path: downloadPath}]);
-              console.log(`Cleared offline downloads at: ${downloadPath}`);
+
             }
           } catch (err) {
             console.warn(`Failed to clear downloads at ${downloadPath}:`, err);
@@ -195,7 +195,7 @@ async function ClearSelectedCache(selectedKeys) {
         // Clear downloaded songs metadata from AsyncStorage
         try {
           await AsyncStorage.removeItem('downloadedSongsMetadata');
-          console.log('Cleared downloaded songs metadata');
+
         } catch (err) {
           console.warn('Failed to clear downloaded songs metadata:', err);
         }

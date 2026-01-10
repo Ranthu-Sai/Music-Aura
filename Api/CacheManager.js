@@ -270,9 +270,7 @@ const saveToCache = async (
           }
         }
       } else {
-        console.log(
-          `Data for ${key} is too large (${dataSize} bytes), keeping in memory only`,
-        );
+        // Data too large for AsyncStorage; keep in-memory only
       }
     } catch (storageError) {
       // Ignore storage errors since we have memory cache as backup

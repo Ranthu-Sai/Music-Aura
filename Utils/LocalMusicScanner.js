@@ -1,7 +1,6 @@
 import ReactNativeBlobUtil from 'react-native-blob-util';
 import {Platform, PermissionsAndroid} from 'react-native';
 
-
 const AUDIO_EXTENSIONS = [
   'mp3',
   'm4a',
@@ -172,7 +171,6 @@ export function isFileDeletable(filePath) {
  */
 export async function deleteLocalSong(filePath) {
   try {
-    console.log('deleteLocalSong: Starting deletion for path:', filePath);
 
     if (!filePath) {
       console.error('deleteLocalSong: No file path provided');
@@ -192,13 +190,10 @@ export async function deleteLocalSong(filePath) {
       console.warn('deleteLocalSong: Failed to decode URI:', decodeError);
     }
 
-    console.log('deleteLocalSong: Normalized path:', cleanPath);
-
     const exists = await ReactNativeBlobUtil.fs.exists(cleanPath);
-    console.log('deleteLocalSong: File exists:', exists);
 
     if (!exists) {
-      console.log('deleteLocalSong: File does not exist at path:', cleanPath);
+
       // Still try to clean up metadata cache
       try {
         const {
@@ -209,9 +204,7 @@ export async function deleteLocalSong(filePath) {
         } = require('./LocalTracksMetadataManager');
         const trackId = localTracksMetadataProcessor.generateTrackId(cleanPath);
         await localTracksMetadataManager.removeMetadata(trackId);
-        console.log(
-          'deleteLocalSong: Cleaned up metadata for non-existent file',
-        );
+
       } catch (metaError) {
         console.warn(
           'deleteLocalSong: Failed to remove metadata for non-existent file:',
@@ -244,12 +237,9 @@ export async function deleteLocalSong(filePath) {
       };
     }
 
-    console.log('deleteLocalSong: Attempting to unlink file...');
-
     // Check if it's a directory
     try {
       const stat = await ReactNativeBlobUtil.fs.stat(cleanPath);
-      console.log('deleteLocalSong: File stat:', stat);
 
       if (stat.type === 'directory') {
         console.error('deleteLocalSong: Path is a directory, not a file');
@@ -265,7 +255,7 @@ export async function deleteLocalSong(filePath) {
     // Try direct deletion
     try {
       await ReactNativeBlobUtil.fs.unlink(cleanPath);
-      console.log('deleteLocalSong: Unlink successful');
+
     } catch (unlinkError) {
       console.error('deleteLocalSong: Direct unlink failed:', unlinkError);
 
@@ -301,7 +291,7 @@ export async function deleteLocalSong(filePath) {
         await ReactNativeBlobUtil.fs.scanFile([
           {path: cleanPath, mime: 'audio/*'},
         ]);
-        console.log('deleteLocalSong: MediaStore scan completed');
+
       } catch (scanError) {
         console.warn('deleteLocalSong: MediaStore scan failed:', scanError);
       }
@@ -310,10 +300,7 @@ export async function deleteLocalSong(filePath) {
     // Verify deletion with a small delay
     await new Promise(resolve => setTimeout(resolve, 150));
     const stillExists = await ReactNativeBlobUtil.fs.exists(cleanPath);
-    console.log(
-      'deleteLocalSong: File still exists after deletion:',
-      stillExists,
-    );
+
 
     if (stillExists) {
       console.error(
@@ -330,7 +317,7 @@ export async function deleteLocalSong(filePath) {
     // Remove from metadata cache
     try {
       await localTracksMetadataManager.removeMetadata(trackId);
-      console.log('deleteLocalSong: Metadata cache cleared for:', trackId);
+
     } catch (metaError) {
       console.warn(
         'deleteLocalSong: Failed to remove metadata cache:',
@@ -338,7 +325,6 @@ export async function deleteLocalSong(filePath) {
       );
     }
 
-    console.log('deleteLocalSong: Deletion completed successfully');
     return {success: true};
   } catch (e) {
     console.error('deleteLocalSong: Error deleting file:', e);

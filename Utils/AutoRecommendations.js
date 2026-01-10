@@ -176,7 +176,7 @@ class AutoRecommendations {
         const LOG_VERBOSE = false;
         const debugLog = (...args) => {
           if (LOG_VERBOSE) {
-            console.log(...args);
+
           }
         };
         debugLog(

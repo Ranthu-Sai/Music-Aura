@@ -24,7 +24,7 @@ import {TopHeader} from '../../Component/Home/TopHeader';
 import {DisplayTopGenres} from '../../Component/Home/DisplayTopGenres';
 import {useActiveTrack} from 'react-native-track-player';
 import {EachArtistChip} from '../../Component/Global/EachArtistChip';
-import {getTrendingArtists, getLanguageTopArtists} from '../../Api/Artists';
+import {getLanguageTopArtists} from '../../Api/Artists';
 
 // JioSaavn API Fallback URLs (only hosts that support /modules endpoint)
 const JIOSAAVN_API_FALLBACKS = [
@@ -77,7 +77,6 @@ export const Home = () => {
 
   const [viralHitsId, setViralHitsId] = useState(null);
   const [trendingLangId, setTrendingLangId] = useState(null);
-  const [topArtists, setTopArtists] = useState([]);
   const [languageTopArtists, setLanguageTopArtists] = useState([]);
   const [currentLanguage, setCurrentLanguage] = useState('All');
   const [secondaryDataLoaded, setSecondaryDataLoaded] = useState(false);
@@ -138,13 +137,7 @@ export const Home = () => {
     return cols;
   }, [trendingAlbums]);
 
-  const artistColumns = useMemo(() => {
-    const cols = [];
-    for (let i = 0; i < topArtists.length; i = i + 2) {
-      cols.push(topArtists.slice(i, i + 2));
-    }
-    return cols;
-  }, [topArtists]);
+  // Top artists removed from the Home page
 
   const languageTopArtistColumns = useMemo(() => {
     const cols = [];
@@ -324,25 +317,13 @@ export const Home = () => {
       try {
         setLoadingSecondary(true);
 
-        // Load artists
+        // Load artists (only language-specific latest artists retained)
         try {
-          const [trending, languageTop] = await Promise.allSettled([
-            getTrendingArtists(), // General top artists
-            Languages && Languages !== 'All'
-              ? getLanguageTopArtists(Languages)
-              : Promise.resolve([]),
-          ]);
-
-          if (trending.status === 'fulfilled' && trending.value) {
-            setTopArtists(trending.value.slice(0, 16));
-          }
-
-          if (
-            languageTop.status === 'fulfilled' &&
-            languageTop.value &&
-            languageTop.value.length > 0
-          ) {
-            setLanguageTopArtists(languageTop.value.slice(0, 16));
+          const languageTop = Languages && Languages !== 'All'
+            ? await getLanguageTopArtists(Languages)
+            : [];
+          if (languageTop && languageTop.length > 0) {
+            setLanguageTopArtists(languageTop.slice(0, 16));
           } else {
             setLanguageTopArtists([]);
           }
@@ -389,7 +370,6 @@ export const Home = () => {
       secondaryDataLoaded,
       refreshing,
       setLoadingSecondary,
-      setTopArtists,
       setLanguageTopArtists,
       setViralHitsId,
       setTrendingLangId,
@@ -673,53 +653,7 @@ export const Home = () => {
               <HorizontalScrollSongs id={getChartId(2)} />
             </PaddingConatiner>
 
-            {/* Top Artists Section (moved to bottom) */}
-            {LoadingSecondary ? (
-              <>
-                <PaddingConatiner>
-                  <SkeletonLoader
-                    width={120}
-                    height={24}
-                    style={{marginBottom: 10}}
-                  />
-                </PaddingConatiner>
-                <HorizontalSkeletonList
-                  itemCount={6}
-                  itemWidth={80}
-                  itemHeight={80}
-                />
-              </>
-            ) : (
-              topArtists.length > 0 && (
-                <>
-                  <PaddingConatiner>
-                    <Heading text={'Top Artists'} />
-                  </PaddingConatiner>
-                  <FlatList
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    data={artistColumns}
-                    keyExtractor={(item, index) => `artist-col-${index}`}
-                    contentContainerStyle={{paddingHorizontal: 6}}
-                    renderItem={({item}) => (
-                      <View style={{marginRight: 8, alignItems: 'center'}}>
-                        {(item || []).map((artist, idx) => (
-                          <View
-                            key={artist?.id ?? `artist-${idx}`}
-                            style={{marginBottom: idx === 0 ? 6 : 0}}>
-                            <EachArtistChip
-                              id={artist.id}
-                              name={artist.name}
-                              image={artist.image}
-                            />
-                          </View>
-                        ))}
-                      </View>
-                    )}
-                  />
-                </>
-              )
-            )}
+
 
             {/* Trending Section */}
             {LoadingSecondary ? (

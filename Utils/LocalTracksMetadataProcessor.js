@@ -37,25 +37,17 @@ export class LocalTracksMetadataProcessor {
    * @returns {Promise<Object>} Processed track metadata
    */
   async processFile(filePath, options = {}) {
-    console.log('LocalTracksMetadataProcessor: Processing file:', filePath);
+
     try {
       // Validate file path and format
       if (!(await this.validateFile(filePath))) {
-        console.log(
-          'LocalTracksMetadataProcessor: File validation failed for:',
-          filePath,
-        );
+
         throw new Error(`Invalid or unsupported file: ${filePath}`);
       }
 
       // Check cache first
       const cacheKey = this.generateTrackId(filePath);
-      console.log(
-        'LocalTracksMetadataProcessor: Cache key for',
-        filePath,
-        'is',
-        cacheKey,
-      );
+
 
       // Ensure metadata manager is initialized
       if (!localTracksMetadataManager.isInitialized) {
@@ -63,16 +55,10 @@ export class LocalTracksMetadataProcessor {
       }
 
       let metadata = await localTracksMetadataManager.getMetadata(cacheKey);
-      console.log(
-        'LocalTracksMetadataProcessor: Cached metadata found:',
-        !!metadata,
-      );
+
 
       if (metadata && !options.forceRefresh) {
-        console.log(
-          'LocalTracksMetadataProcessor: Using cached metadata for:',
-          filePath,
-        );
+
         // Check if file has been modified since last processing
         const fileStats = await RNFS.stat(filePath);
         if (metadata.fileModified === fileStats.mtime) {
@@ -80,10 +66,7 @@ export class LocalTracksMetadataProcessor {
         }
       }
 
-      console.log(
-        'LocalTracksMetadataProcessor: Extracting fresh metadata for:',
-        filePath,
-      );
+
       // Extract metadata
       metadata = await this.extractMetadata(filePath, options);
 
@@ -101,10 +84,7 @@ export class LocalTracksMetadataProcessor {
 
       // Cache the metadata
       await localTracksMetadataManager.setMetadata(cacheKey, metadata);
-      console.log(
-        'LocalTracksMetadataProcessor: Successfully processed:',
-        filePath,
-      );
+
 
       return metadata;
     } catch (error) {
@@ -164,9 +144,7 @@ export class LocalTracksMetadataProcessor {
       // Try to extract real metadata first
       let result = null;
       try {
-        console.log(
-          `LocalTracksMetadataProcessor: Extracting metadata for ${filePath}`,
-        );
+
         result = await AudioMetadataParser.extractMetadata(filePath);
       } catch (e) {
         console.warn(
@@ -180,10 +158,7 @@ export class LocalTracksMetadataProcessor {
         result.metadata &&
         (result.metadata.title || result.metadata.artist)
       ) {
-        console.log(
-          `LocalTracksMetadataProcessor: Found metadata for ${fileName}:`,
-          result.metadata.title,
-        );
+
         return {
           id: this.generateTrackId(filePath),
           title: result.metadata.title || fileName.replace(/\.[^/.]+$/, ''),

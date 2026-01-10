@@ -35,6 +35,7 @@ import {getYTLyricsSongData, getSongData} from '../../Api/Songs';
 import {GetLanguageValue} from '../../LocalStorage/Languages';
 import {ShowLyrics} from './ShowLyrics';
 import Context, {ActionsContext} from '../../Context/Context';
+import {Repeats} from '../../Utils/Repeats';
 import TrackPlayer, {useActiveTrack} from 'react-native-track-player';
 import {Gesture, GestureDetector} from 'react-native-gesture-handler';
 import {
@@ -249,7 +250,27 @@ export const FullScreenMusic = memo(({color, Index, setIndex}) => {
   const [showMenu, setShowMenu] = useState(false);
   const [lyricsFetchInProgress, setLyricsFetchInProgress] = useState(false);
   const queueBottomSheetRef = useRef(null);
-  const [showRepeatModal, setShowRepeatModal] = useState(false);
+  // Repeat modal removed: repeat toggles on icon press now
+
+  const {Repeat} = useContext(Context);
+  const {setRepeat} = useContext(ActionsContext);
+
+  const onToggleRepeat = useCallback(async () => {
+    try {
+      if (Repeat === Repeats.NoRepeat) {
+        setRepeat(Repeats.RepeatAll);
+        await SetRepeatMode(RepeatMode.Queue);
+      } else if (Repeat === Repeats.RepeatAll) {
+        setRepeat(Repeats.RepeatOne);
+        await SetRepeatMode(RepeatMode.Track);
+      } else {
+        setRepeat(Repeats.NoRepeat);
+        await SetRepeatMode(RepeatMode.Off);
+      }
+    } catch (e) {
+      // ignore
+    }
+  }, [Repeat, setRepeat]);
 
   const [playbackRate, setPlaybackRate] = useState(1);
   const [showSleepModal, setShowSleepModal] = useState(false);
@@ -945,113 +966,7 @@ export const FullScreenMusic = memo(({color, Index, setIndex}) => {
               </Pressable>
             </Modal>
 
-            {/* Repeat options modal */}
-            <Modal
-              visible={showRepeatModal}
-              transparent
-              animationType="fade"
-              onRequestClose={() => setShowRepeatModal(false)}>
-              <Pressable
-                style={{
-                  flex: 1,
-                  backgroundColor: 'rgba(0,0,0,0.6)',
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                }}
-                onPress={() => setShowRepeatModal(false)}>
-                <View
-                  style={{
-                    backgroundColor: theme.dark ? '#121212' : '#FFFFFF',
-                    borderRadius: 16,
-                    width: '70%',
-                    paddingVertical: 8,
-                    borderWidth: 1,
-                    borderColor: theme.dark
-                      ? 'rgba(255,255,255,0.08)'
-                      : 'rgba(0,0,0,0.08)',
-                  }}>
-                  <TouchableOpacity
-                    onPress={async () => {
-                      try {
-                        await SetRepeatMode(RepeatMode.Off);
-                      } catch (_) {}
-                      setShowRepeatModal(false);
-                    }}
-                    style={{
-                      paddingHorizontal: 16,
-                      paddingVertical: 14,
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                    }}>
-                    <PlainText text="Repeat Off" />
-                    <MaterialCommunityIcons
-                      name="repeat-off"
-                      size={20}
-                      color={theme.colors.text}
-                    />
-                  </TouchableOpacity>
-                  <View
-                    style={{
-                      height: 1,
-                      backgroundColor: theme.dark
-                        ? 'rgba(255,255,255,0.06)'
-                        : 'rgba(0,0,0,0.06)',
-                    }}
-                  />
-                  <TouchableOpacity
-                    onPress={async () => {
-                      try {
-                        await SetRepeatMode(RepeatMode.Queue);
-                      } catch (_) {}
-                      setShowRepeatModal(false);
-                    }}
-                    style={{
-                      paddingHorizontal: 16,
-                      paddingVertical: 14,
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                    }}>
-                    <PlainText text="Repeat All" />
-                    <MaterialCommunityIcons
-                      name="repeat"
-                      size={20}
-                      color={theme.colors.text}
-                    />
-                  </TouchableOpacity>
-                  <View
-                    style={{
-                      height: 1,
-                      backgroundColor: theme.dark
-                        ? 'rgba(255,255,255,0.06)'
-                        : 'rgba(0,0,0,0.06)',
-                    }}
-                  />
-                  <TouchableOpacity
-                    onPress={async () => {
-                      try {
-                        await SetRepeatMode(RepeatMode.Track);
-                      } catch (_) {}
-                      setShowRepeatModal(false);
-                    }}
-                    style={{
-                      paddingHorizontal: 16,
-                      paddingVertical: 14,
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                    }}>
-                    <PlainText text="Repeat One" />
-                    <MaterialCommunityIcons
-                      name="repeat-once"
-                      size={20}
-                      color={theme.colors.text}
-                    />
-                  </TouchableOpacity>
-                </View>
-              </Pressable>
-            </Modal>
+
 
             <Modal
               visible={showMenu}
@@ -1170,7 +1085,7 @@ export const FullScreenMusic = memo(({color, Index, setIndex}) => {
 
             <Spacer height={25} />
             <ControlsSection
-              onOpenRepeatOptions={() => setShowRepeatModal(true)}
+              onOpenRepeatOptions={onToggleRepeat}
             />
 
             {/* Bottom Action Pill Bar */}

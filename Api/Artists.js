@@ -606,6 +606,86 @@ export async function getArtistTopSongs(artistId, limit = 20, language = null) {
   }
 }
 
+// Fast fetch that returns the list of songs WITHOUT resolving streaming URLs when skipStreaming is true.
+export async function getArtistSongList(artistId, limit = 20, language = null, skipStreaming = false) {
+  try {
+    const response = await retryWithBackoff(
+      () =>
+        axios.get('https://www.jiosaavn.com/api.php', {
+          params: {
+            __call: 'artist.getArtistPageDetails',
+            artistId: artistId,
+            n_song: limit,
+            n_album: 0,
+            page: 0,
+            _format: 'json',
+            _marker: 0,
+          },
+          timeout: 20000, // 20s timeout
+        }),
+      3,
+      1500,
+    );
+
+    if (response.data) {
+      let songs = response.data.topSongs?.songs || [];
+
+      // Filter by language if specified
+      if (language && language !== 'All' && language !== '') {
+        songs = songs.filter(
+          song => song.language?.toLowerCase() === language.toLowerCase(),
+        );
+      }
+
+      if (skipStreaming) {
+        // Return quickly without resolving streaming URLs
+        return {
+          id: artistId,
+          name: response.data.name,
+          image: formatArtistImage(response.data.image),
+          followerCount: response.data.follower_count,
+          songs: songs.map(s => ({...s, hasStreaming: false})),
+        };
+      }
+
+      // Otherwise, resolve streaming URLs as usual
+      const songsWithStreaming = await Promise.all(
+        songs.map(async song => {
+          const streamingUrls = await getStreamingUrl(song.id);
+
+          return {
+            ...song,
+            downloadUrl: streamingUrls || song.encrypted_media_url,
+            hasStreaming: !!streamingUrls,
+          };
+        }),
+      );
+
+      return {
+        id: artistId,
+        name: response.data.name,
+        image: formatArtistImage(response.data.image),
+        followerCount: response.data.follower_count,
+        songs: songsWithStreaming,
+      };
+    }
+
+    return null;
+  } catch (error) {
+    return null;
+  }
+}
+
+// Export helper to fetch streaming URLs for a single song on demand
+export async function getSongStreamingUrl(songId) {
+  try {
+    const urls = await getStreamingUrl(songId);
+    return urls;
+  } catch (e) {
+    return null;
+  }
+}
+
 /**
  * Get trending/chart playlists
  * @returns {Promise<Array>} Array of trending playlists

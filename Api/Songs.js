@@ -135,11 +135,7 @@ async function getYTMusicSuggestions(query) {
   } catch (error) {
     // Fail silently for unreliable YT Music endpoint — return empty suggestions.
     // Don't fallback to YouTube suggestions; we want each engine to run independently.
-    console.info(
-      `YTMusic suggestions request failed for query "${query}": ${
-        error && error.message
-      }. Returning empty suggestions from YTMusic.`,
-    );
+
     return {suggestions: [], quickResults: []};
   }
 }
@@ -203,9 +199,7 @@ async function getSearchSuggestions(query) {
     }
     if (failedEngines.length) {
       // Not fatal; surface information to logs at info level so we can monitor engine availability
-      console.info(
-        `Search suggestions: engine failures for query "${query}": ${failedEngines.join(', ')}`,
-      );
+
     }
 
     // Combine suggestions with a prioritized approach
@@ -862,8 +856,11 @@ async function getYTSearchPlaylistData(searchText, page, limit) {
 async function getLyricsSongData(id) {
   const urls = [
     `https://jiosavan-api-with-playlist.vercel.app/api/songs/${id}/lyrics`,
-    `https://www.jiosaavn.com/api.php?__call=lyrics.getLyrics&ctx=wap6dot0&api_version=4&_format=json&_marker=0&id=${id}`,
   ];
+  // Note: removed the direct jiosaavn.com lyrics.php endpoint — it requires a lyrics_id and
+  // does not work with the song id. Use the wrapper endpoint above which is reliable when
+  // lyrics are available.
+
 
   for (let baseUrl of urls) {
     try {
@@ -907,19 +904,28 @@ async function getYTLyricsSongData(
 
   const fetchPromise = (async () => {
     try {
+      const cacheOptions = {type: 'lyrics', expiration: 60 * 24 * 7};
+      if (requestedSource === 'RenderAPI') {
+        // Force a fresh fetch when the user explicitly requests RenderAPI to avoid stale/partial cache
+        cacheOptions.forceRefresh = true;
+      }
+
       return await getCachedData(
         persistentKey,
         async () => {
 
             const apis = [
+            // NOTE: RenderAPI is deprecated but available on-demand. When a user
+            // explicitly selects 'RenderAPI' we will try other providers first and
+            // fall back to RenderAPI (appended last) so it acts as a last-resort.
             {
               name: 'RenderAPI',
               url: `https://test-0k.onrender.com/lyrics/?artist=${encodeURIComponent(
                 artist,
               )}&song=${encodeURIComponent(
                 title,
-              )}&tamps=true&pass=false&sequence=1,2,3,4,5,6`,
-              timeout: 5000,
+              )}&tamps=true&pass=false`,
+              // No explicit timeout here: allow RenderAPI to take longer on slow networks
               transform: async data => {
                 if (data.data?.lyrics) {
                   return {
@@ -953,54 +959,65 @@ async function getYTLyricsSongData(
                 return null;
               },
             },
-            {
-              name: 'RenderAPI_Alt',
-              url: `https://test-0k.onrender.com/lyrics/?artist=${encodeURIComponent(
-                artist,
-              )}&song=${encodeURIComponent(
-                title,
-              )}&tamps=true&pass=false&sequence=2,4,6,1,3,5`,
-              timeout: 5000,
-              transform: async data => {
-                if (data.data?.lyrics) {
-                  return {
-                    success: true,
-                    data: {
-                      lyrics: data.data.lyrics,
-                      timed_lyrics: data.data.timed_lyrics,
-                    },
-                  };
-                }
-                if (data.data?.timestamped) {
-                  const lines = data.data.timestamped.split(/\r?\n/).filter(l => l.trim());
-                  const timed_lyrics = [];
-                  for (const line of lines) {
-                    const m = line.match(/\[(\d+):(\d+\.\d+)\]\s*(.*)/);
-                    if (m) {
-                      const minutes = parseInt(m[1], 10);
-                      const seconds = parseFloat(m[2]);
-                      const start_time = Math.round((minutes * 60 + seconds) * 1000);
-                      const text = m[3].trim();
-                      if (text) {
-                        timed_lyrics.push({start_time, text});
-                      }
-                    } else {
-                      timed_lyrics.push({start_time: null, text: line.trim()});
-                    }
-                  }
-                  const plain = data.data.timestamped.replace(/\[\d+:\d+\.\d+\]\s*/g, '').trim();
-                  return { success: true, data: { lyrics: plain || null, timed_lyrics } };
-                }
-                return null;
-              },
-            },
+
+
             {
               name: 'LRCLib',
-              url: `https://lrclib.net/api/get?artist=${encodeURIComponent(artist)}&track=${encodeURIComponent(title)}`,
+              url: `https://lrclib.net/api/get?artist_name=${encodeURIComponent(artist)}&track_name=${encodeURIComponent(title)}`,
               // No timeout set per user request
               transform: async data => {
                 try {
-                  // lrclib sometimes returns timestamped text or structured result
+                  // Preferred LRCLib structured response: { plainLyrics, syncedLyrics }
+                  if (data?.plainLyrics || data?.syncedLyrics) {
+                    const lyrics = data.plainLyrics ? String(data.plainLyrics).trim() : null;
+                    const synced = data.syncedLyrics ? String(data.syncedLyrics) : null;
+
+                    const timed_lyrics = [];
+                    if (synced) {
+                      const lines = synced.split(/\r?\n/).filter(l => l.trim());
+                      for (const line of lines) {
+                        const m = line.match(/\[(\d+):(\d+\.\d+)\]\s*(.*)/);
+                        if (m) {
+                          const minutes = parseInt(m[1], 10);
+                          const seconds = parseFloat(m[2]);
+                          const start_time = Math.round((minutes * 60 + seconds) * 1000);
+                          timed_lyrics.push({start_time, text: m[3].trim()});
+                        } else {
+                          timed_lyrics.push({start_time: null, text: line.trim()});
+                        }
+                      }
+                    } else if (lyrics) {
+                      // attempt to parse timestamps embedded in plainLyrics
+                      const lines = lyrics.split(/\r?\n/).filter(l => l.trim());
+                      let foundTimestamp = false;
+                      for (const line of lines) {
+                        const m = line.match(/\[(\d+):(\d+\.\d+)\]\s*(.*)/);
+                        if (m) {
+                          foundTimestamp = true;
+                          const minutes = parseInt(m[1], 10);
+                          const seconds = parseFloat(m[2]);
+                          const start_time = Math.round((minutes * 60 + seconds) * 1000);
+                          timed_lyrics.push({start_time, text: m[3].trim()});
+                        } else {
+                          timed_lyrics.push({start_time: null, text: line.trim()});
+                        }
+                      }
+                      if (!foundTimestamp) {
+                        // no timestamps found - clear timed_lyrics
+                        timed_lyrics.length = 0;
+                      }
+                    }
+
+                    return {
+                      success: true,
+                      data: {
+                        lyrics: lyrics || null,
+                        timed_lyrics: timed_lyrics,
+                      },
+                    };
+                  }
+
+                  // Backwards compatibility: handle raw string responses or {lyrics}
                   const raw = data?.result || data?.lyrics || data;
                   if (!raw) {
                     return null;
@@ -1038,25 +1055,7 @@ async function getYTLyricsSongData(
                 return null;
               },
             },
-            {
-              name: 'AutoEngine',
-              url: `https://automatic-engine-nc2j.onrender.com/lyrics/?artist=${encodeURIComponent(
-                artist,
-              )}&song=${encodeURIComponent(title)}&tamps=true&pass=false`,
-              timeout: 5000,
-              transform: async data => {
-                if (data.data?.lyrics) {
-                  return {
-                    success: true,
-                    data: {
-                      lyrics: data.data.lyrics,
-                      timed_lyrics: data.data.timed_lyrics,
-                    },
-                  };
-                }
-                return null;
-              },
-            },
+
             {
               name: 'OVH',
               url: `https://api.lyrics.ovh/v1/${encodeURIComponent(
@@ -1068,58 +1067,8 @@ async function getYTLyricsSongData(
                   ? {success: true, data: {lyrics: data.lyrics}}
                   : null,
             },
-            {
-              name: 'Musixmatch',
-              url: `https://api.musixmatch.com/ws/1.1/matcher.lyrics.get?q_artist=${encodeURIComponent(
-                artist,
-              )}&q_track=${encodeURIComponent(
-                title,
-              )}&apikey=2d782bc7a52a41ba2fc1ef05b9cf40d7`,
-              timeout: 5000,
-              transform: async data => {
-                if (data?.message?.body?.lyrics?.lyrics_body) {
-                  return {
-                    success: true,
-                    data: {lyrics: data.message.body.lyrics.lyrics_body},
-                  };
-                }
-                return null;
-              },
-            },
-            {
-              name: 'GenzAPI',
-              url: `https://genz-lyrics.onrender.com/lyrics/?artist=${encodeURIComponent(artist)}&song=${encodeURIComponent(title)}&tamps=true&pass=false`,
-              timeout: 5000,
-              transform: async data => {
-                if (data.data?.lyrics) {
-                  return {
-                    success: true,
-                    data: {
-                      lyrics: data.data.lyrics,
-                      timed_lyrics: data.data.timed_lyrics,
-                    },
-                  };
-                }
-                return null;
-              },
-            },
-            {
-              name: 'Sublyrics',
-              url: `https://sub-lyrics.onrender.com/lyrics/?artist=${encodeURIComponent(artist)}&song=${encodeURIComponent(title)}&tamps=true&pass=false`,
-              timeout: 5000,
-              transform: async data => {
-                if (data.data?.lyrics) {
-                  return {
-                    success: true,
-                    data: {
-                      lyrics: data.data.lyrics,
-                      timed_lyrics: data.data.timed_lyrics,
-                    },
-                  };
-                }
-                return null;
-              },
-            },
+
+
             {
               name: 'JioSaavn',
               url: null,
@@ -1166,15 +1115,11 @@ async function getYTLyricsSongData(
           const filteredApis =
             requestedSource === 'All'
               ? apis
-              : apis.filter(api =>
-                  requestedSource === 'RenderAPI'
-                    ? api.name.startsWith('RenderAPI')
-                    : api.name === requestedSource,
-                );
+              : apis.filter(api => api.name === requestedSource);
 
           // If requested specific source is not available, return gracefully
           if (requestedSource !== 'All' && filteredApis.length === 0) {
-            console.info('Requested lyrics source not available:', requestedSource);
+
             return {success: false, data: {lyrics: 'Requested source unavailable'}};
           }
 
@@ -1191,9 +1136,9 @@ async function getYTLyricsSongData(
                     }
                     return null;
                   }
-                  const response = await axios.get(api.url, {
-                    timeout: api.timeout || 10000,
-                  });
+                  // In 'All' mode we intentionally do not set a timeout so provider
+                  // endpoints can take their time and succeed on slow networks.
+                  const response = await axios.get(api.url);
                   const result = await api.transform(response.data);
                   if (result) {
                     return {api: api.name, res: result};
@@ -1208,23 +1153,40 @@ async function getYTLyricsSongData(
             const settled = await Promise.all(workers);
             const successes = settled.filter(Boolean);
 
-            // Prefer timed_lyrics results first
+            // Choose the best provider among successes by scoring completeness.
+            // Prefer providers with timed_lyrics (more lines preferred), otherwise prefer
+            // the provider with the longest plain lyrics string. This reduces cases where
+            // a fast-but-truncated provider wins over a slower but complete provider.
             let chosen = null;
+            let bestScore = -1;
             for (const s of successes) {
-              if (s.res?.data?.timed_lyrics && s.res.data.timed_lyrics.length) {
-                chosen = s;
-                break;
+              const res = s.res;
+              let score = 0;
+
+              // Prefer timed lyrics; give higher base score so it's always chosen over plain text
+              if (res?.data?.timed_lyrics && Array.isArray(res.data.timed_lyrics)) {
+                const length = res.data.timed_lyrics.length;
+                score = 1000 + length;
+              } else if (Array.isArray(res?.timed_lyrics)) {
+                score = 1000 + res.timed_lyrics.length;
+              } else if (res?.data?.lyrics) {
+                score = String(res.data.lyrics).length;
+              } else if (res?.lyrics) {
+                score = String(res.lyrics).length;
               }
-            }
-            // Otherwise choose any with plain lyrics
-            if (!chosen && successes.length > 0) {
-              chosen = successes.find(s => s.res?.data?.lyrics) || successes[0];
+
+              if (score > bestScore) {
+                bestScore = score;
+                chosen = s;
+              }
             }
 
             if (chosen) {
-              console.log('Lyrics source selected (All mode):', chosen.api);
               // annotate returned result with source name for telemetry and UI debugging
               try { chosen.res.source = chosen.api; } catch (e) {}
+              // Also embed the source into the data object so callers that only use data
+              // (e.g., refreshLyrics returns Lyrics.data) can still see which provider was used.
+              try { if (chosen.res?.data) {chosen.res.data.source = chosen.api;} } catch (e) {}
               try {
                 if (chosen.res?.data?.timed_lyrics) {
                   chosen.res.data.timed_lyrics = normalizeTimedLyrics(chosen.res.data.timed_lyrics);
@@ -1232,18 +1194,25 @@ async function getYTLyricsSongData(
                   chosen.res.timed_lyrics = normalizeTimedLyrics(chosen.res.timed_lyrics);
                 }
               } catch (e) {}
+
               return chosen.res;
             }
           } else {
             const attemptedSources = [];
             const errorsBySource = {};
+            // For single-source requests, retry the selected provider a couple of times
+            const maxAttempts = 2;
+
             for (const api of filteredApis) {
-              try {
-                attemptedSources.push(api.name || api.url || 'unknown');
-                if (!api.url) {
+              attemptedSources.push(api.name || api.url || 'unknown');
+
+              // APIs without URLs are internal transforms
+              if (!api.url) {
+                try {
                   const res = await api.transform(null);
                   if (res) {
                     try { res.source = api.name; } catch (e) {}
+                    try { if (res?.data) {res.data.source = api.name;} } catch (e) {}
                     try {
                       if (res?.data?.timed_lyrics) {
                         res.data.timed_lyrics = normalizeTimedLyrics(res.data.timed_lyrics);
@@ -1255,25 +1224,53 @@ async function getYTLyricsSongData(
                     return res;
                   }
                   continue;
+                } catch (e) {
+                  errorsBySource[api.name || api.url || 'unknown'] = e && (e.message || String(e));
+                  continue;
                 }
-                const response = await axios.get(api.url, {
-                  timeout: api.timeout || 10000,
-                });
-                const result = await api.transform(response.data);
-                if (result) {
-                  try { result.source = api.name; } catch (e) {}
-                  try {
-                    if (result?.data?.timed_lyrics) {
-                      result.data.timed_lyrics = normalizeTimedLyrics(result.data.timed_lyrics);
-                    } else if (result?.timed_lyrics) {
-                      result.timed_lyrics = normalizeTimedLyrics(result.timed_lyrics);
-                    }
-                  } catch (e) {}
-                  result.attemptedSources = attemptedSources;
-                  return result;
+              }
+
+              // Try with retries for network robustness (useful for selected provider)
+              let lastError = null;
+              for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+                try {
+
+                  const response = await axios.get(api.url, {
+                    timeout: api.timeout || 10000,
+                  });
+                  const result = await api.transform(response.data);
+                  if (result) {
+                    try { result.source = api.name; } catch (e) {}
+                    try { if (result?.data) {result.data.source = api.name;} } catch (e) {}
+                    try {
+                      if (result?.data?.timed_lyrics) {
+                        result.data.timed_lyrics = normalizeTimedLyrics(result.data.timed_lyrics);
+                      } else if (result?.timed_lyrics) {
+                        result.timed_lyrics = normalizeTimedLyrics(result.timed_lyrics);
+                      }
+                    } catch (e) {}
+
+                    result.attemptedSources = attemptedSources;
+                    return result;
+                  }
+                  // If no result, break and record
+                  lastError = new Error('No result from transform');
+                  break;
+                } catch (err) {
+                  lastError = err;
+                  const status = err?.response?.status;
+                  const statusText = err?.response?.statusText || err.message;
+                  errorsBySource[api.name || api.url || 'unknown'] = status ? `HTTP ${status} ${statusText}` : (err.message || String(err));
+                  // Small backoff before retry
+                  if (attempt < maxAttempts) {
+                    await new Promise(res => setTimeout(res, 250 * attempt));
+                    continue;
+                  }
                 }
-              } catch (e) {
-                errorsBySource[api.name || api.url || 'unknown'] = e && (e.message || String(e));
+              }
+
+              // If we exhausted attempts and no result, continue to next api (for specific-source it's usually a single api)
+              if (lastError) {
                 continue;
               }
             }

@@ -85,12 +85,7 @@ async function finalizeDownload(
   showSystemNotification = true,
 ) {
   const filePath = res.path();
-  console.log(
-    'DownloadHelper: Finalizing download for',
-    fileName,
-    'at',
-    filePath,
-  );
+
 
   try {
     // 1. Scan file for MediaStore (makes it visible in other players and file managers)
@@ -119,9 +114,7 @@ async function finalizeDownload(
         await ReactNativeBlobUtil.android.addCompleteDownload(
           notificationConfig,
         );
-        console.log(
-          'DownloadHelper: System notification triggered successfully',
-        );
+
       } catch (notifyErr) {
         console.warn(
           'DownloadHelper: System notification failed, trying fallback path format:',
@@ -229,12 +222,7 @@ export async function DownloadSong(song) {
       return;
     }
 
-    console.log(
-      'DownloadHelper: Resolving path for',
-      song.title,
-      'with base preference:',
-      path,
-    );
+
 
     const deriveExt = () => {
       const lower = (downloadLink || '').toLowerCase();
@@ -301,7 +289,6 @@ export async function DownloadSong(song) {
     const musicAuraDir = `${baseDir}/Music Aura`;
     const finalPath = `${musicAuraDir}/${fileName}`;
 
-    console.log('DownloadHelper: Final target path:', finalPath);
     ToastAndroid.show('Download Started', ToastAndroid.SHORT);
 
     try {
@@ -405,9 +392,7 @@ export async function DownloadSong(song) {
             (err.message.includes('null') ||
               err.message.includes('FileStorage'))
           ) {
-            console.log(
-              'DownloadHelper: Attempting fallback download method...',
-            );
+
             startDownload(false)
               .then(async res => {
                 // useDownloadManager: false needs manual notification

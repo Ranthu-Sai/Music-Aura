@@ -129,7 +129,6 @@ async function getYTMusicAlbumData(browseId) {
 
     // Extract album name
     const albumName = header?.title?.runs?.[0]?.text || 'Unknown Album';
-    console.log('📋 Album Name:', albumName);
 
     // Extract album thumbnail
     let thumbnail =
@@ -142,7 +141,6 @@ async function getYTMusicAlbumData(browseId) {
       thumbnail = YTArtworkUtils.upgradeArtworkQuality(thumbnail);
       thumbnail = YTArtworkUtils.upgradeYtimgQuality(thumbnail);
     }
-    console.log('📋 Album Thumbnail:', thumbnail ? 'Found' : 'Not found');
 
     // Extract year and artist from subtitle
     const subtitle = header?.subtitle?.runs || [];
@@ -172,7 +170,6 @@ async function getYTMusicAlbumData(browseId) {
         ?.musicShelfRenderer;
 
     if (musicShelf && musicShelf.contents) {
-      console.log('📋 Found', musicShelf.contents.length, 'songs');
 
       for (const item of musicShelf.contents) {
         const musicItem = item.musicResponsiveListItemRenderer;
@@ -265,14 +262,7 @@ async function getYTMusicAlbumData(browseId) {
       0,
     );
 
-    console.log(
-      '✅ YT Music Album:',
-      albumName,
-      '|',
-      songs.length,
-      'songs |',
-      year,
-    );
+
 
     const albumData = {
       data: {

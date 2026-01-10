@@ -164,10 +164,47 @@ async function getPlaylistData(id) {
         };
         const response = await axios.request(config);
 
-        // Cache the response
-        playlistCache.set(id, {data: response.data, timestamp: Date.now()});
+        let responseData = response.data;
 
-        return response.data;
+        // If the Saavn playlist reports a songCount larger than the returned songs,
+        // try to page through the playlist to collect all tracks (defensive fallback).
+        try {
+          const songCount = responseData?.data?.songCount || 0;
+          const currentSongs = responseData?.data?.songs || [];
+          if (songCount && currentSongs.length < songCount) {
+            const perPage = 100; // fetch big pages to reduce number of requests
+            const pages = Math.ceil(songCount / perPage);
+            const aggregated = [...currentSongs];
+            for (let p = 1; p <= pages; p++) {
+              try {
+                const pageResp = await axios.get(
+                  `${baseUrl}?${Object.keys(defaultParams)
+                    .map(k => `${k}=${defaultParams[k]}`)
+                    .join('&')}&__call=webapi.get&type=playlist&p=${p}&n=${perPage}&includeMetaTags=0&id=${id}`,
+                );
+                const pageData = pageResp.data;
+                const pageSongs = pageData?.data?.songs || pageData?.songs || [];
+                for (const s of pageSongs) {
+                  if (!aggregated.find(x => x.id === s.id)) {
+                    aggregated.push(s);
+                  }
+                }
+              } catch (err) {
+                // ignore page fetch errors and continue
+                console.warn(`Failed to fetch Saavn playlist page ${p} for ${id}:`, err?.message || err);
+              }
+            }
+            responseData.data.songs = aggregated;
+          }
+        } catch (e) {
+          // ignore any pagination errors and proceed with what we have
+          console.warn('Saavn playlist pagination fallback failed:', e?.message || e);
+        }
+
+        // Cache the response
+        playlistCache.set(id, {data: responseData, timestamp: Date.now()});
+
+        return responseData;
       } catch (error) {
         continue;
       }

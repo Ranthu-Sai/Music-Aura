@@ -109,9 +109,7 @@ class UpdateService {
       if (!response.ok) {
         if (response.status === 404) {
           // Lower-severity log when repo/releases are missing
-          console.debug(
-            `[UpdateService] GitHub releases not found for ${GITHUB_OWNER}/${GITHUB_REPO} (HTTP 404)`,
-          );
+
           return null;
         }
         throw new Error(`GitHub API error: ${response.status}`);

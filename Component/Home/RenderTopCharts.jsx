@@ -19,21 +19,44 @@ export const RenderTopCharts = ({playlist}) => {
             gap: 15,
           }}>
           {}
-          {e.map((col, index) => (
-            <View
-              key={col?.id ?? `col-${i}-${index}`}
-              style={{
-                marginRight: 15,
-              }}>
-              <EachPlaylistCard
-                image={col.image[2].url || col.image[2].link}
-                name={col.title}
-                follower={col.subtitle}
-                key={i + index}
-                id={col.id}
-              />
-            </View>
-          ))}
+          {e.map((col, index) => {
+            // Defensive extraction of image URL and title to support different API shapes
+            const resolveImage = image => {
+              if (!image) {return 'https://via.placeholder.com/150x150?text=No+Image';}
+              if (typeof image === 'string') {return image;}
+              if (Array.isArray(image)) {
+                for (let k = image.length - 1; k >= 0; k--) {
+                  const it = image[k];
+                  if (!it) {continue;}
+                  if (typeof it === 'string') {return it;}
+                  if (it.url) {return it.url;}
+                  if (it.link) {return it.link;}
+                }
+              }
+              if (image.url) {return image.url;}
+              if (image.link) {return image.link;}
+              return 'https://via.placeholder.com/150x150?text=No+Image';
+            };
+
+            const imageUrl = resolveImage(col?.image);
+            const title = col?.title || col?.name || col?.subtitle || '';
+
+            return (
+              <View
+                key={col?.id ?? `col-${i}-${index}`}
+                style={{
+                  marginRight: 15,
+                }}>
+                <EachPlaylistCard
+                  image={imageUrl}
+                  name={title}
+                  follower={col?.subtitle}
+                  key={i + index}
+                  id={col?.id}
+                />
+              </View>
+            );
+          })}
         </View>
       ))}
     </>

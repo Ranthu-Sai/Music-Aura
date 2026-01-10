@@ -607,6 +607,7 @@ const ContextState = props => {
       }
       // Return data whether success or not so UI can show attemptedSources or error details
       if (Lyrics?.data) {
+
         return Lyrics.data;
       }
       return null;
