@@ -47,3 +47,16 @@
 -dontwarn java.beans.Introspector
 -dontwarn java.beans.PropertyDescriptor
 -dontwarn javax.script.ScriptEngineFactory
+-dontwarn com.google.re2j.Matcher
+-dontwarn com.google.re2j.Pattern
+
+# Keep jsoup classes
+-keep class org.jsoup.** { *; }
+-keepattributes *Annotation*
+-dontwarn org.jsoup.**
+
+# Keep Fresco classes (image pipeline)
+-keep class com.facebook.imagepipeline.** { *; }
+-dontwarn com.facebook.imagepipeline.**
+-keep,allowobfuscation interface com.facebook.imagepipeline.image.CloseableImage
+-keep class com.facebook.imagepipeline.image.CloseableAnimatedImage { *; }

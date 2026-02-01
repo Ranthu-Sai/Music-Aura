@@ -12,7 +12,6 @@ import {
 } from '../Api/Songs';
 import {View, Keyboard} from 'react-native';
 import SongDisplay from '../Component/SearchPage/SongDisplay';
-import {LoadingComponent} from '../Component/Global/Loading';
 import {getSearchPlaylistData} from '../Api/Playlist';
 import PlaylistDisplay from '../Component/SearchPage/PlaylistDisplay';
 import {getSearchAlbumData} from '../Api/Album';
@@ -27,6 +26,11 @@ import {
 } from '../LocalStorage/SearchHistory';
 import ContentTypeToggle from '../Component/Global/ContentTypeToggle';
 import SearchSuggestions from '../Component/SearchPage/SearchSuggestions';
+import {
+  ShimmerSearchResults,
+  ShimmerSearchAlbums,
+  ShimmerSearchPlaylists,
+} from '../Component/Global/ShimmerEffect';
 
 // Add cache for search results
 const searchCache = new Map();
@@ -354,7 +358,13 @@ export const SearchPage = ({navigation}) => {
 
       <Spacer height={5} />
 
-      {Loading && <LoadingComponent loading={Loading} />}
+      {Loading && (
+        <>
+          {ActiveTab === 0 && <ShimmerSearchResults itemCount={8} />}
+          {ActiveTab === 1 && <ShimmerSearchAlbums itemCount={6} />}
+          {ActiveTab === 2 && <ShimmerSearchPlaylists itemCount={6} />}
+        </>
+      )}
 
       {!Loading && (
         <View style={{flex: 1}}>

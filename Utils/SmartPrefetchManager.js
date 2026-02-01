@@ -338,8 +338,7 @@ class SmartPrefetchManager {
             if (found >= 0) {
               safeIndex = found;
             } else {
-              // Original track no longer in queue - append updated track instead
-              console.warn('replaceTrackAndWait: original track not found in queue, appending updated track');
+              // Original track no longer in queue - append updated track instead (this is normal during rapid skips)
               await TrackPlayer.add(updatedTrack);
               return;
             }
@@ -381,7 +380,7 @@ class SmartPrefetchManager {
         if (found >= 0) {
           safeIndex = found;
         } else {
-          console.warn('replaceTrackImmediately: original track not found in queue, appending updated track');
+          // Track not found - append instead (normal during rapid navigation)
           await TrackPlayer.add(updatedTrack);
           return;
         }
@@ -422,7 +421,7 @@ class SmartPrefetchManager {
         if (found >= 0) {
           safeIndex = found;
         } else {
-          console.warn('⚠️ Race condition prevented: original track not found in queue during replaceAndPlay');
+          // Track not found during playback attempt - skip recovery
           return;
         }
       }

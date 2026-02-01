@@ -258,16 +258,19 @@ export const ArtistSongsPage = ({route}) => {
         title={item.title}
         artist={item.artist}
         image={item.image}
-        url={item.url}
+        url={item.downloadUrl || item.url}
         duration={item.duration}
         language={item.language}
         artistID={item.artistID}
         albumName={item.albumName}
         releaseDate={item.releaseDate}
-        source="artist"
+        albumId={item.albumId}
+        source="saavn"
+        Data={normalizedSongs}
+        index={index}
       />
     )
-  ), []);
+  ), [normalizedSongs]);
 
   const ListFooter = useMemo(() => {
     return (isFetchingMore && !isResolvingInitial) ? (

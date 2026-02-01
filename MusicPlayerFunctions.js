@@ -584,9 +584,20 @@ async function PlayOneSong(song) {
           : undefined, // Ensure never empty string
     };
 
-    await TrackPlayer.reset();
-    await TrackPlayer.add([songForPlayback]);
-    await TrackPlayer.play();
+    // Check if this song is already in the queue (navigating via next/prev buttons)
+    const queue = await TrackPlayer.getQueue();
+    const existingIndex = queue.findIndex(track => track.id === songForPlayback.id);
+
+    if (existingIndex >= 0) {
+      // Song is already in queue - just skip to it instead of resetting
+      await TrackPlayer.skip(existingIndex);
+      await TrackPlayer.play();
+    } else {
+      // New song being played - reset queue and add it
+      await TrackPlayer.reset();
+      await TrackPlayer.add([songForPlayback]);
+      await TrackPlayer.play();
+    }
 
     // Signal that this is a single song playback (enable auto-recommendations)
     DeviceEventEmitter.emit('playback-mode-changed', {isPlaylist: false});

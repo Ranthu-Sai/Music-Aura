@@ -5,49 +5,7 @@ import {EachSongCard} from '../Global/EachSongCard';
 import {PlainText} from '../Global/PlainText';
 import {SmallText} from '../Global/SmallText';
 import {useTheme} from '@react-navigation/native';
-
-// Simple skeleton row for loadingMore moved to module scope to avoid nested component
-const SkeletonRow = () => (
-  <View
-    style={{
-      flexDirection: 'row',
-      paddingHorizontal: 15,
-      paddingVertical: 12,
-      alignItems: 'center',
-    }}>
-    <View
-      style={{
-        width: 56,
-        height: 56,
-        borderRadius: 6,
-        backgroundColor: '#2a2a2a',
-        marginRight: 12,
-        opacity: 0.5,
-      }}
-    />
-    <View style={{flex: 1}}>
-      <View
-        style={{
-          width: '60%',
-          height: 12,
-          backgroundColor: '#2a2a2a',
-          borderRadius: 6,
-          marginBottom: 8,
-          opacity: 0.5,
-        }}
-      />
-      <View
-        style={{
-          width: '40%',
-          height: 10,
-          backgroundColor: '#2a2a2a',
-          borderRadius: 6,
-          opacity: 0.5,
-        }}
-      />
-    </View>
-  </View>
-);
+import {ShimmerSearchResults} from '../Global/ShimmerEffect';
 
 // Module-scoped footer to avoid defining components during render
 const ListFooter = ({footerSource, footerLoadingMore, footerHasMore}) => {
@@ -55,20 +13,10 @@ const ListFooter = ({footerSource, footerLoadingMore, footerHasMore}) => {
     return null;
   }
   if (footerLoadingMore) {
-    return (
-      <View>
-        <SkeletonRow />
-        <SkeletonRow />
-        <SkeletonRow />
-      </View>
-    );
+    return <ShimmerSearchResults itemCount={3} />;
   }
   if (footerHasMore && !footerLoadingMore) {
-    return (
-      <View>
-        <SkeletonRow />
-      </View>
-    );
+    return <ShimmerSearchResults itemCount={1} />;
   }
   return null;
 };
@@ -91,18 +39,18 @@ export default function SongDisplay({
     if (data?.data?.results) {
       const seen = new Set();
       const dedupedResults = data.data.results.filter(item => {
-        if (!item?.id) return false;
-        if (seen.has(item.id)) return false;
+        if (!item?.id) {return false;}
+        if (seen.has(item.id)) {return false;}
         seen.add(item.id);
         return true;
       });
-      
+
       setDisplayData({
         ...data,
         data: {
           ...data.data,
-          results: dedupedResults
-        }
+          results: dedupedResults,
+        },
       });
     } else {
       setDisplayData(data);

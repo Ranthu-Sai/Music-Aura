@@ -2,7 +2,7 @@ import {EachSongCard} from './EachSongCard';
 import {Dimensions, ScrollView, View} from 'react-native';
 import React, {useEffect, useState, useCallback, useMemo} from 'react';
 import {getPlaylistData} from '../../Api/Playlist';
-import {LoadingComponent} from './Loading';
+import {ShimmerHorizontalSongList} from './ShimmerEffect';
 import {Heading} from './Heading';
 import FormatArtist from '../../Utils/FormatArtists';
 import {Spacer} from './Spacer';
@@ -118,14 +118,7 @@ export const HorizontalScrollSongs = React.memo(({id}) => {
           </View>
         </ScrollView>
       )}
-      {Loading && (
-        <View
-          style={{
-            height: 280,
-          }}>
-          <LoadingComponent loading={Loading} />
-        </View>
-      )}
+      {Loading && <ShimmerHorizontalSongList />}
     </>
   );
 });

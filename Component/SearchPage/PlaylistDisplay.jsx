@@ -1,10 +1,10 @@
 import React, {useRef} from 'react';
-import {Dimensions, FlatList, View, ActivityIndicator} from 'react-native';
-import {useTheme} from '@react-navigation/native';
+import {Dimensions, FlatList, View} from 'react-native';
 import {EachPlaylistCard} from '../Global/EachPlaylistCard';
 import {PlainText} from '../Global/PlainText';
 import {SmallText} from '../Global/SmallText';
 import {useActiveTrack} from 'react-native-track-player';
+import {ShimmerSearchPlaylists} from '../Global/ShimmerEffect';
 
 export default function PlaylistDisplay({
   data,
@@ -17,7 +17,6 @@ export default function PlaylistDisplay({
   const Data = data;
   const flatListRef = useRef(null);
   const activeTrack = useActiveTrack();
-  const theme = useTheme();
 
   const width = Dimensions.get('window').width;
   return (
@@ -68,11 +67,7 @@ export default function PlaylistDisplay({
           onEndReached={hasMore ? loadMore : null}
           onEndReachedThreshold={0.5}
           ListFooterComponent={
-            loadingMore ? (
-              <View style={{padding: 20, alignItems: 'center', width: '100%'}}>
-                <ActivityIndicator size="small" color={theme.colors.text} />
-              </View>
-            ) : null
+            loadingMore ? <ShimmerSearchPlaylists itemCount={2} /> : null
           }
         />
       )}

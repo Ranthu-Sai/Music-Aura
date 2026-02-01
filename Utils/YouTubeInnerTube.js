@@ -24,7 +24,7 @@ class YouTubeInnerTubeClient {
   async getStreamUrl(videoId, cookies = '') {
     try {
       console.log(`📡 InnerTube: Fetching stream for ${videoId}`);
-      
+
       const headers = {
         'Content-Type': 'application/json',
         'User-Agent': 'com.google.android.youtube/19.09.37 (Linux; U; Android 13) gzip',
@@ -58,7 +58,7 @@ class YouTubeInnerTubeClient {
       }
 
       const data = await response.json();
-      
+
       console.log(`📦 InnerTube response status for ${videoId}:`, data.playabilityStatus?.status);
 
       // Check for errors
@@ -110,7 +110,7 @@ class YouTubeInnerTubeClient {
           : '';
 
       console.log(`✅ InnerTube success for ${videoId}: ${title} by ${author}`);
-      
+
       return {
         url: bestAudio.url,
         title: title,

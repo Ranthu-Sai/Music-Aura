@@ -1,10 +1,10 @@
 import React from 'react';
-import {Dimensions, FlatList, View, ActivityIndicator} from 'react-native';
-import {useTheme} from '@react-navigation/native';
+import {Dimensions, FlatList, View} from 'react-native';
 import {PlainText} from '../Global/PlainText';
 import {SmallText} from '../Global/SmallText';
 import {EachAlbumCard} from '../Global/EachAlbumCard';
 import {useActiveTrack} from 'react-native-track-player';
+import {ShimmerSearchAlbums} from '../Global/ShimmerEffect';
 
 export default function AlbumsDisplay({
   data,
@@ -16,7 +16,6 @@ export default function AlbumsDisplay({
 }) {
   const songsData = data;
   const activeTrack = useActiveTrack();
-  const theme = useTheme();
 
   function FormatArtist(artists) {
     let artist = '';
@@ -75,11 +74,7 @@ export default function AlbumsDisplay({
           onEndReached={hasMore ? loadMore : null}
           onEndReachedThreshold={0.5}
           ListFooterComponent={
-            loadingMore ? (
-              <View style={{padding: 20, alignItems: 'center', width: '100%'}}>
-                <ActivityIndicator size="small" color={theme.colors.text} />
-              </View>
-            ) : null
+            loadingMore ? <ShimmerSearchAlbums itemCount={2} /> : null
           }
         />
       )}

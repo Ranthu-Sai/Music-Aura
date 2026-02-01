@@ -12,7 +12,6 @@ import {RouteHeading} from '../../Component/Home/RouteHeading';
 import {PaddingConatiner} from '../../Layout/PaddingConatiner';
 import {EachAlbumCard} from '../../Component/Global/EachAlbumCard';
 import {RenderTopCharts} from '../../Component/Home/RenderTopCharts';
-import {LoadingComponent} from '../../Component/Global/Loading';
 import React, {useEffect, useState, useRef, useMemo, useCallback} from 'react';
 import {useIsFocused} from '@react-navigation/native';
 import {getHomePageData} from '../../Api/HomePage';
@@ -25,48 +24,17 @@ import {DisplayTopGenres} from '../../Component/Home/DisplayTopGenres';
 import {useActiveTrack} from 'react-native-track-player';
 import {EachArtistChip} from '../../Component/Global/EachArtistChip';
 import {getLanguageTopArtists} from '../../Api/Artists';
+import {
+  ShimmerHorizontalList,
+  ShimmerTrendingSongsList,
+  ShimmerArtistChips,
+  ShimmerFullPage,
+} from '../../Component/Global/ShimmerEffect';
 
 // JioSaavn API Fallback URLs (only hosts that support /modules endpoint)
 const JIOSAAVN_API_FALLBACKS = [
   'https://jio-savan-api-sigma.vercel.app', // Primary fallback
 ];
-
-// Skeleton loading component
-const SkeletonLoader = ({width, height, style}) => (
-  <View
-    style={[
-      {
-        backgroundColor: '#2a2a2a',
-        borderRadius: 8,
-        width: width || 100,
-        height: height || 20,
-        opacity: 0.5,
-      },
-      style,
-    ]}
-  />
-);
-
-// Skeleton for horizontal lists
-const HorizontalSkeletonList = ({
-  itemCount = 5,
-  itemWidth = 120,
-  itemHeight = 120,
-}) => (
-  <View
-    style={{flexDirection: 'row', paddingHorizontal: 15, marginVertical: 10}}>
-    {Array.from({length: itemCount}).map((_, index) => (
-      <SkeletonLoader
-        key={index}
-        width={itemWidth}
-        height={itemHeight}
-        style={{marginRight: 15}}
-      />
-    ))}
-  </View>
-);
-
-
 
 export const Home = () => {
   const [Loading, setLoading] = useState(true);
@@ -427,8 +395,9 @@ export const Home = () => {
 
   return (
     <MainWrapper>
-      <LoadingComponent loading={Loading} />
-      {!Loading && (
+      {Loading ? (
+        <ShimmerFullPage />
+      ) : (
         <Animated.View entering={FadeIn.duration(400)}>
           <ScrollView
             onScroll={e => {
@@ -519,9 +488,16 @@ export const Home = () => {
             />
 
             {/* Latest Artists (language-specific) + Recommended Playlists remain here */}
-            {languageTopArtists.length > 0 &&
-              currentLanguage !== 'All' &&
-              !LoadingSecondary && (
+            {LoadingSecondary && currentLanguage !== 'All' ? (
+              <>
+                <PaddingConatiner>
+                  <Heading text={'Latest Artists'} />
+                </PaddingConatiner>
+                <ShimmerArtistChips itemCount={8} />
+              </>
+            ) : (
+              languageTopArtists.length > 0 &&
+              currentLanguage !== 'All' && (
                 <>
                   <PaddingConatiner>
                     <Heading text={'Latest Artists'} />
@@ -549,7 +525,8 @@ export const Home = () => {
                     )}
                   />
                 </>
-              )}
+              )
+            )}
 
             <PaddingConatiner>
               <Heading text={'Recommended Playlists'} />
@@ -600,11 +577,10 @@ export const Home = () => {
             {/* Viral Hits moved here under Top Charts */}
             {LoadingSecondary ? (
               <>
-                <HorizontalSkeletonList
-                  itemCount={4}
-                  itemWidth={140}
-                  itemHeight={140}
-                />
+                <PaddingConatiner>
+                  <Heading text={'Viral Hits'} />
+                </PaddingConatiner>
+                <ShimmerHorizontalList itemCount={5} />
               </>
             ) : (
               viralHitsId && (
@@ -658,11 +634,10 @@ export const Home = () => {
             {/* Trending Section */}
             {LoadingSecondary ? (
               <>
-                <HorizontalSkeletonList
-                  itemCount={4}
-                  itemWidth={140}
-                  itemHeight={140}
-                />
+                <PaddingConatiner>
+                  <Heading text={'Trending Now'} />
+                </PaddingConatiner>
+                <ShimmerTrendingSongsList itemCount={6} />
               </>
             ) : (
               trendingLangId && (
