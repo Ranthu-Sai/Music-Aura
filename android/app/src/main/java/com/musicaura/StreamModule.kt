@@ -31,15 +31,25 @@ class StreamModule(reactContext: ReactApplicationContext) : ReactContextBaseJava
         // Run on background thread to prevent UI freeze
         Thread {
             try {
+                // Reinitialize NewPipe to avoid stale cache issues
+                val client = OkHttpClient.Builder()
+                    .followRedirects(true)
+                    .followSslRedirects(true)
+                    .build()
+                val downloader = NewPipeDownloader(client)
+                NewPipe.init(downloader)
+                
                 // Set cookies if provided
                 if (cookies != null && cookies.isNotEmpty()) {
-                    NewPipeDownloaderInstance.downloader?.setCookies(cookies)
+                    downloader.setCookies(cookies)
                 }
 
                 val service = ServiceList.YouTube
                 val url = "https://www.youtube.com/watch?v=$videoId"
                 
-                // Get stream info (Synchronous Network Call)
+                android.util.Log.d("StreamModule", "Fetching stream for: $videoId")
+                
+                // Get stream info with fresh extractor
                 val streamInfo = StreamInfo.getInfo(service, url)
                 
                 // Get audio streams

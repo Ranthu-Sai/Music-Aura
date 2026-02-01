@@ -87,7 +87,26 @@ export default function SongDisplay({
   const playbackState = usePlaybackState();
 
   useEffect(() => {
-    setDisplayData(data);
+    // Deduplicate results to avoid duplicate key warnings
+    if (data?.data?.results) {
+      const seen = new Set();
+      const dedupedResults = data.data.results.filter(item => {
+        if (!item?.id) return false;
+        if (seen.has(item.id)) return false;
+        seen.add(item.id);
+        return true;
+      });
+      
+      setDisplayData({
+        ...data,
+        data: {
+          ...data.data,
+          results: dedupedResults
+        }
+      });
+    } else {
+      setDisplayData(data);
+    }
   }, [data, source]);
 
   const width = Dimensions.get('window').width;
@@ -160,7 +179,7 @@ export default function SongDisplay({
     <View>
       <FlatList
         showsVerticalScrollIndicator={false}
-        keyExtractor={(item, index) => item?.id?.toString() || index.toString()}
+        keyExtractor={(item, index) => `${item?.id}_${index}`}
         contentContainerStyle={{paddingBottom: 220}}
         data={displayData.data.results}
         onEndReached={hasMore ? loadMore : null}
