@@ -60,3 +60,8 @@
 -dontwarn com.facebook.imagepipeline.**
 -keep,allowobfuscation interface com.facebook.imagepipeline.image.CloseableImage
 -keep class com.facebook.imagepipeline.image.CloseableAnimatedImage { *; }
+
+# R8 warning suppression: CloseableAnimatedImage extends CloseableImage (interface)
+# This is a known harmless warning from some Fresco builds; add targeted dontwarn rules
+-dontwarn com.facebook.imagepipeline.image.CloseableAnimatedImage
+-dontwarn com.facebook.imagepipeline.image.CloseableImage

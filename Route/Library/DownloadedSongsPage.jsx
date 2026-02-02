@@ -19,6 +19,7 @@ import {useNavigation} from '@react-navigation/native';
 import AntDesign from 'react-native-vector-icons/AntDesign';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import useAllSongsManager from '../../Component/Offline/AllSongsManager';
+import {ShimmerSearchResults} from '../../Component/Global/ShimmerEffect';
 
 
 export const AllSongsPage = () => {
@@ -287,28 +288,30 @@ export const AllSongsPage = () => {
         <View style={{paddingHorizontal: 10, marginTop: 20}}>
           {isLoading || isRequestingPermission || isScanningLocal ? (
             <View style={{marginTop: 50}}>
-              <ActivityIndicator size="large" color="#1DB954" />
-              <Text
-                style={{color: 'white', textAlign: 'center', marginTop: 10}}>
-                {isRequestingPermission
-                  ? 'Requesting permissions...'
-                  : isScanningLocal
-                  ? 'Scanning local storage...'
-                  : 'Loading songs...'}
-              </Text>
-              <Text
-                style={{
-                  color: 'white',
-                  opacity: 0.5,
-                  textAlign: 'center',
-                  fontSize: 10,
-                }}>
-                {isRequestingPermission
-                  ? 'Please grant storage permissions to access your music.'
-                  : isScanningLocal
-                  ? 'Scanning your device for music files...'
-                  : 'Please wait while we load your music.'}
-              </Text>
+              {isRequestingPermission || isScanningLocal ? (
+                <>
+                  <ActivityIndicator size="large" color="#1DB954" />
+                  <Text
+                    style={{color: 'white', textAlign: 'center', marginTop: 10}}>
+                    {isRequestingPermission
+                      ? 'Requesting permissions...'
+                      : 'Scanning local storage...'}
+                  </Text>
+                  <Text
+                    style={{
+                      color: 'white',
+                      opacity: 0.5,
+                      textAlign: 'center',
+                      fontSize: 10,
+                    }}>
+                    {isRequestingPermission
+                      ? 'Please grant storage permissions to access your music.'
+                      : 'Scanning your device for music files...'}
+                  </Text>
+                </>
+              ) : (
+                <ShimmerSearchResults itemCount={8} />
+              )}
             </View>
           ) : !hasPermission ? (
             <View style={{marginTop: 50, alignItems: 'center'}}>

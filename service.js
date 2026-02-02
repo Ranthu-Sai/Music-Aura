@@ -1,48 +1,59 @@
 // service.js
-import TrackPlayer, {Capability, Event} from 'react-native-track-player';
+import TrackPlayer, {Capability, Event, State} from 'react-native-track-player';
 import historyManager from './Utils/HistoryManager';
 import autoRecommendations from './Utils/AutoRecommendations';
-import smartPrefetchManager from './Utils/SmartPrefetchManager';
-import queueManager from './Utils/QueueManager';
+// SmartPrefetchManager is initialized from UI; disabled in headless to preserve queue order
 
 let isPlayerInitialized = false;
+let initializePromise = null;
+
+// Queue remote actions to avoid race conditions without relying on timers
+// Legacy actionChain no longer required after making handlers immediate
+// Keeping for reference but unused
+// let actionChain = Promise.resolve();
+// Track temporary ducking state to restore playback and volume when interruptions end
+let wasPausedByDuck = false;
+let previousVolume = 1.0;
 
 export default async function PlaybackService() {
 
-  // Queue remote actions to avoid race conditions without relying on timers
-  let actionChain = Promise.resolve();
-  // Register remote handlers immediately so notification actions work
+  // Register remote handlers synchronously at module level so notification actions work
   // even when the app is backgrounded or killed
-  TrackPlayer.addEventListener(Event.RemotePlay, async () => {
-
-    actionChain = actionChain.catch(() => {}).then(async () => {
+  TrackPlayer.addEventListener(Event.RemotePlay, () => {
+    (async () => {
       try {
+        if (!isPlayerInitialized && initializePromise) {
+          try { await initializePromise; } catch {}
+        }
         await TrackPlayer.play();
       } catch (e) {
         console.warn('RemotePlay handler failed', e);
       }
-    });
+    })();
   });
 
-  TrackPlayer.addEventListener(Event.RemotePause, async () => {
-
-    actionChain = actionChain.catch(() => {}).then(async () => {
+  TrackPlayer.addEventListener(Event.RemotePause, () => {
+    (async () => {
       try {
+        if (!isPlayerInitialized && initializePromise) {
+          try { await initializePromise; } catch {}
+        }
         await TrackPlayer.pause();
       } catch (e) {
         console.warn('RemotePause handler failed', e);
       }
-    });
+    })();
   });
 
   // Some Android notification skins send a single Play/Pause toggle action
-  TrackPlayer.addEventListener(Event.RemotePlayPause, async () => {
-
-    actionChain = actionChain.catch(() => {}).then(async () => {
+  TrackPlayer.addEventListener(Event.RemotePlayPause, () => {
+    (async () => {
       try {
+        if (!isPlayerInitialized && initializePromise) {
+          try { await initializePromise; } catch {}
+        }
         const state = await TrackPlayer.getState();
-        // State.Playing == 3 (TrackPlayer.State.Playing) but use truthy check
-        if (state === TrackPlayer.STATE_PLAYING || state === 3) {
+        if (state === State.Playing) {
           await TrackPlayer.pause();
         } else {
           await TrackPlayer.play();
@@ -50,160 +61,37 @@ export default async function PlaybackService() {
       } catch (e) {
         console.warn('RemotePlayPause handler failed', e);
       }
-    });
+    })();
   });
 
   // Next: perform an immediate native skip (fast) and queue background repairs
-  TrackPlayer.addEventListener(Event.RemoteNext, async () => {
-
-    // Immediate fast path: perform native skip without waiting on the action chain
+  TrackPlayer.addEventListener(Event.RemoteNext, () => {
     (async () => {
       try {
-
+        // Keep behavior minimal to preserve queue order
         await TrackPlayer.skipToNext();
         await TrackPlayer.play();
       } catch (e) {
-        console.warn('Immediate skipToNext failed', e);
+        console.warn('RemoteNext failed', e);
       }
     })();
-
-    // Background repair task queued so it does not delay the immediate response
-    actionChain = actionChain.catch(() => {}).then(async () => {
-      try {
-        // Small delay to allow native player to update active track
-        await new Promise(res => setTimeout(res, 120));
-
-        const active = await TrackPlayer.getActiveTrack();
-        const activeIndex = await TrackPlayer.getActiveTrackIndex();
-        const queue = await TrackPlayer.getQueue();
-
-        if (active && smartPrefetchManager.needsStream(active)) {
-          try {
-            const cached = smartPrefetchManager.getPrefetchedStream(active.id);
-            const data = cached || (await smartPrefetchManager.fetchOnDemand(active.id));
-            if (data && data.url) {
-              const idx = typeof activeIndex === 'number' && activeIndex >= 0 ? activeIndex : queue.findIndex(t => t && t.id === active.id);
-              if (idx >= 0) {
-                await smartPrefetchManager.replaceTrackImmediately(idx, active, data);
-                await TrackPlayer.play();
-              }
-            }
-          } catch (e) {
-            console.warn('Failed to ensure stream for active track after skip (background):', e);
-          }
-        }
-
-        // If queue is short (e.g., single song), append recommendations to avoid repeats
-        try {
-          const MIN_QUEUE_LENGTH = 3;
-          if (!queue || queue.length <= MIN_QUEUE_LENGTH) {
-            const refId = active?.id;
-            if (refId) {
-
-              const recs = await queueManager.buildQueueFromRecommendations(
-                refId,
-                active?.isYTMusic ? 'ytmusic' : active?.source || 'saavn',
-                10,
-              );
-
-              if (recs && recs.length > 0) {
-                await TrackPlayer.add(recs);
-
-                // Kick off prefetch for immediate next track
-                try {
-                  await queueManager.prefetchNextTrack();
-                } catch (pfErr) {
-                  console.warn('prefetchNextTrack failed after appending recommendations', pfErr);
-                }
-              }
-            }
-          }
-        } catch (e) {
-          console.warn('Failed to append recommendations after skip (background):', e);
-        }
-      } catch (err) {
-        console.error('RemoteNext background handler failed', err);
-      }
-    });
   });
 
   // Previous: perform an immediate native previous (fast) and queue background repairs
-  TrackPlayer.addEventListener(Event.RemotePrevious, async () => {
-
-    // Immediate fast path
+  TrackPlayer.addEventListener(Event.RemotePrevious, () => {
     (async () => {
       try {
-
+        // Keep behavior minimal to preserve queue order
         await TrackPlayer.skipToPrevious();
         await TrackPlayer.play();
       } catch (e) {
-        console.warn('Immediate skipToPrevious failed', e);
+        console.warn('RemotePrevious failed', e);
       }
     })();
-
-    // Background repair task queued so it does not delay the immediate response
-    actionChain = actionChain.catch(() => {}).then(async () => {
-      try {
-        // Allow native to settle
-        await new Promise(res => setTimeout(res, 120));
-
-        const active = await TrackPlayer.getActiveTrack();
-        const activeIndex = await TrackPlayer.getActiveTrackIndex();
-        const queue = await TrackPlayer.getQueue();
-
-        if (active && smartPrefetchManager.needsStream(active)) {
-          try {
-            const cached = smartPrefetchManager.getPrefetchedStream(active.id);
-            const data = cached || (await smartPrefetchManager.fetchOnDemand(active.id));
-            if (data && data.url) {
-              const idx = typeof activeIndex === 'number' && activeIndex >= 0 ? activeIndex : queue.findIndex(t => t && t.id === active.id);
-              if (idx >= 0) {
-                await smartPrefetchManager.replaceTrackImmediately(idx, active, data);
-                await TrackPlayer.play();
-              }
-            }
-          } catch (e) {
-            console.warn('Failed to ensure stream for active track after previous (background):', e);
-          }
-        }
-
-        // If queue is short after previous, append recommendations to avoid repeating the same song
-        try {
-          const MIN_QUEUE_LENGTH = 3;
-          if (!queue || queue.length <= MIN_QUEUE_LENGTH) {
-            const refId = active?.id;
-            if (refId) {
-
-              const recs = await queueManager.buildQueueFromRecommendations(
-                refId,
-                active?.isYTMusic ? 'ytmusic' : active?.source || 'saavn',
-                10,
-              );
-
-              if (recs && recs.length > 0) {
-                await TrackPlayer.add(recs);
-
-                // Kick off prefetch for immediate next track
-                try {
-                  await queueManager.prefetchNextTrack();
-                } catch (pfErr) {
-                  console.warn('prefetchNextTrack failed after appending recommendations (previous)', pfErr);
-                }
-              }
-            }
-          }
-        } catch (e) {
-          console.warn('Failed to append recommendations after previous (background):', e);
-        }
-      } catch (err) {
-        console.error('RemotePrevious background handler failed', err);
-      }
-    });
   });
 
-  TrackPlayer.addEventListener(Event.RemoteSeek, async e => {
-
-    actionChain = actionChain.catch(() => {}).then(async () => {
+  TrackPlayer.addEventListener(Event.RemoteSeek, e => {
+    (async () => {
       try {
         // Normalize position units. Different Android notification skins sometimes send
         // position as milliseconds, as a fraction (0..1), or as a percentage (0..100).
@@ -246,36 +134,61 @@ export default async function PlaybackService() {
       } catch (e2) {
         console.warn('RemoteSeek failed', e2);
       }
-    });
+    })();
   });
 
-  TrackPlayer.addEventListener(Event.RemoteStop, async () => {
-
-    actionChain = actionChain.catch(() => {}).then(async () => {
+  TrackPlayer.addEventListener(Event.RemoteStop, () => {
+    (async () => {
       try {
         await TrackPlayer.pause();
       } catch (e) {
         console.warn('RemoteStop handler failed', e);
       }
-    });
+    })();
   });
 
-  // Handle audio ducking (optional) — lower volume or pause when ducked
-  TrackPlayer.addEventListener(Event.RemoteDuck, async e => {
-
-    actionChain = actionChain.catch(() => {}).then(async () => {
+  // Handle audio ducking — lower volume or pause when ducked, resume when it ends
+  TrackPlayer.addEventListener(Event.RemoteDuck, e => {
+    (async () => {
       try {
-        if (e && e.permanent) {
+        // Permanent interruptions: another app took exclusive focus (e.g., voice call)
+        if (e?.permanent) {
+          wasPausedByDuck = true;
           await TrackPlayer.pause();
-        } else {
-          // For temporary ducking, pause to avoid harsh audio overlap
-          await TrackPlayer.pause();
-          // Optionally resume after a short timeout — but we avoid auto-resume to let user decide
+          return;
+        }
+
+        // Temporary ducking: lower volume; if OS requests pause, pause
+        if (e?.ducking) {
+          try {
+            // Remember previous volume and apply duck volume when provided
+            const vol = await TrackPlayer.getVolume?.();
+            if (typeof vol === 'number') {previousVolume = vol;}
+          } catch {}
+          const duckVolume = typeof e.volume === 'number' ? e.volume : 0.2;
+          try { await TrackPlayer.setVolume(duckVolume); } catch {}
+
+          if (e?.paused) {
+            wasPausedByDuck = true;
+            await TrackPlayer.pause();
+          }
+          return;
+        }
+
+        // Ducking ended: restore volume and resume if we paused due to duck
+        try { await TrackPlayer.setVolume(previousVolume); } catch {}
+        if (wasPausedByDuck) {
+          wasPausedByDuck = false;
+          try {
+            await TrackPlayer.play();
+          } catch (playErr) {
+            console.warn('RemoteDuck resume play failed', playErr);
+          }
         }
       } catch (err) {
         console.warn('RemoteDuck handler failed', err);
       }
-    });
+    })();
   });
 
   // Initialize player setup asynchronously
@@ -310,18 +223,9 @@ export default async function PlaybackService() {
       // Auto-recommendations listeners
       autoRecommendations.initializeListeners();
 
-      // Ensure Smart Prefetch Manager is active in headless/background service
-      // so remote next/previous work reliably when the app is closed
-      try {
-        // Mark prefetch manager as headless to disable grace period
-        smartPrefetchManager.setHeadlessMode(true);
-        smartPrefetchManager.initialize();
-      } catch (e) {
-        console.warn(
-          'SmartPrefetchManager initialization in service failed',
-          e,
-        );
-      }
+      // Disable headless SmartPrefetchManager to avoid background queue mutations
+      // Prefetching will be managed when the app is in foreground via UI flows
+      // to preserve strict queue order during notification interactions
 
       await TrackPlayer.updateOptions({
         android: {
@@ -373,7 +277,7 @@ export default async function PlaybackService() {
     }
   };
 
-  // Return initialization promise as expected by react-native-track-player
-  // to properly wire up the headless service lifecycle.
-  return initializePlayer();
+  // Kick off initialization and retain promise for remote handlers
+  initializePromise = initializePlayer();
+  return initializePromise;
 }

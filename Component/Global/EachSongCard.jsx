@@ -3,6 +3,7 @@ import {useNavigation} from '@react-navigation/native';
 import {PlainText} from './PlainText';
 import {SmallText} from './SmallText';
 import FastImage from 'react-native-fast-image';
+import {ShimmerEffect} from './ShimmerEffect';
 import {PlaySongWithRelated} from '../../MusicPlayerFunctions';
 import React, {memo, useContext, useState, useCallback, useMemo} from 'react';
 import {ActionsContext} from '../../Context/Context';
@@ -27,16 +28,28 @@ const SongStatusImage = memo(({id, artworkUri}) => {
     return {uri: artworkUri};
   }, [isCurrentSong, isPlaying, artworkUri]);
 
+  const isGif = useMemo(() => typeof source !== 'object' || !source.uri, [source]);
+  const [loaded, setLoaded] = useState(false);
+
   return (
-    <FastImage
-      source={source}
-      resizeMode={FastImage.resizeMode.cover}
-      style={{
-        height: 60,
-        width: 60,
-        borderRadius: 8,
-      }}
-    />
+    <View style={{height: 60, width: 60, borderRadius: 8, overflow: 'hidden'}}>
+      {!isGif && !loaded && (
+        <ShimmerEffect width={60} height={60} borderRadius={8} />
+      )}
+      <FastImage
+        source={source}
+        resizeMode={FastImage.resizeMode.cover}
+        onLoadEnd={() => setLoaded(true)}
+        style={{
+          height: 60,
+          width: 60,
+          borderRadius: 8,
+          position: 'absolute',
+          top: 0,
+          left: 0,
+        }}
+      />
+    </View>
   );
 });
 
@@ -351,22 +364,40 @@ export const EachSongCard = memo(function EachSongCard({
             style={{
               flex: 1,
             }}>
-            <PlainText
-              text={FormatTitleAndArtist(displayTitle, artist)}
-              style={{
-                width: titleandartistwidth
-                  ? titleandartistwidth
-                  : width1 * 0.67,
-              }}
-            />
-            <SmallText
-              text={FormatTitleAndArtist(artist)}
-              style={{
-                width: titleandartistwidth
-                  ? titleandartistwidth
-                  : width1 * 0.67,
-              }}
-            />
+            {displayTitle ? (
+              <PlainText
+                text={FormatTitleAndArtist(displayTitle, artist)}
+                style={{
+                  width: titleandartistwidth
+                    ? titleandartistwidth
+                    : width1 * 0.67,
+                }}
+              />
+            ) : (
+              <ShimmerEffect
+                width={titleandartistwidth ? titleandartistwidth : width1 * 0.5}
+                height={16}
+                borderRadius={5}
+              />
+            )}
+            {artist ? (
+              <SmallText
+                text={FormatTitleAndArtist(artist)}
+                style={{
+                  width: titleandartistwidth
+                    ? titleandartistwidth
+                    : width1 * 0.67,
+                }}
+              />
+            ) : (
+              <View style={{marginTop: 6}}>
+                <ShimmerEffect
+                  width={titleandartistwidth ? titleandartistwidth : width1 * 0.35}
+                  height={14}
+                  borderRadius={4}
+                />
+              </View>
+            )}
           </View>
         </Pressable>
         <EachSongMenuButton

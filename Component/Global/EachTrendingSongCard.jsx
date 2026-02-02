@@ -2,6 +2,7 @@ import {Pressable, View} from 'react-native';
 import {PlainText} from './PlainText';
 import {SmallText} from './SmallText';
 import FastImage from 'react-native-fast-image';
+import {ShimmerEffect} from './ShimmerEffect';
 import React, {memo, useContext, useState, useCallback, useMemo} from 'react';
 import {PlaySongWithRelated} from '../../MusicPlayerFunctions';
 import {ActionsContext} from '../../Context/Context';
@@ -50,6 +51,7 @@ export const EachTrendingSongCard = memo(function EachTrendingSongCard({
   const [imageUri, setImageUri] = useState(
     image || 'https://via.placeholder.com/150x150/cccccc/000000?text=No+Image',
   );
+  const [imageLoaded, setImageLoaded] = useState(false);
 
   const artistsNames = useMemo(() => FormatArtist(artists), [artists]);
   const formattedName = useMemo(() => FormatTitleAndArtist(name || ''), [name]);
@@ -102,31 +104,51 @@ export const EachTrendingSongCard = memo(function EachTrendingSongCard({
         overflow: 'hidden',
         opacity: isLoading ? 0.5 : 1,
       }}>
-      <FastImage
-        source={{
-          uri: imageUri,
-          priority: 'high',
-        }}
-        onError={() =>
-          setImageUri(
-            'https://via.placeholder.com/150x150/cccccc/000000?text=No+Image',
-          )
-        }
-        style={{
-          height: 140,
-          width: '100%',
-          borderRadius: 8,
-          justifyContent: 'center',
-          alignItems: 'center',
-        }}>
-        <TrendingSongStatusIcon id={id} />
-      </FastImage>
+      <View style={{height: 140, width: '100%', borderRadius: 8, overflow: 'hidden'}}>
+        {!imageLoaded && (
+          <ShimmerEffect width={150} height={140} borderRadius={8} />
+        )}
+        <FastImage
+          source={{
+            uri: imageUri,
+            priority: 'high',
+          }}
+          onLoadEnd={() => setImageLoaded(true)}
+          onError={() => {
+            setImageLoaded(true);
+            setImageUri(
+              'https://via.placeholder.com/150x150/cccccc/000000?text=No+Image',
+            );
+          }}
+          style={{
+            height: 140,
+            width: '100%',
+            borderRadius: 8,
+            justifyContent: 'center',
+            alignItems: 'center',
+            position: 'absolute',
+            top: 0,
+            left: 0,
+          }}>
+          <TrendingSongStatusIcon id={id} />
+        </FastImage>
+      </View>
       <View
         style={{
           padding: 8,
         }}>
-        <PlainText text={formattedName} numberOfLine={2} />
-        <SmallText text={artistsNames} maxLine={1} />
+        {formattedName ? (
+          <PlainText text={formattedName} numberOfLine={2} />
+        ) : (
+          <ShimmerEffect width={135} height={18} borderRadius={6} />
+        )}
+        {artistsNames ? (
+          <SmallText text={artistsNames} maxLine={1} />
+        ) : (
+          <View style={{marginTop: 6}}>
+            <ShimmerEffect width={115} height={15} borderRadius={5} />
+          </View>
+        )}
       </View>
     </Pressable>
   );

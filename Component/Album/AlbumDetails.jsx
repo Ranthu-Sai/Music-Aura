@@ -349,10 +349,12 @@ export const AlbumDetails = ({
           ) : (
             <MaterialIcons name="play-arrow" size={22} color="#FFFFFF" />
           )}
-          <PlainText
-            text={isPlayingLoading ? 'Loading...' : 'Play'}
-            style={styles.buttonText}
-          />
+          {!isPlayingLoading && (
+            <PlainText
+              text={'Play'}
+              style={styles.buttonText}
+            />
+          )}
         </TouchableOpacity>
 
         {/* Shuffle Button */}

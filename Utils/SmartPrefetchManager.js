@@ -52,6 +52,9 @@ class SmartPrefetchManager {
 
     // One-shot suppression of cleanup on next track change
     this.suppressNextCleanup = false;
+
+    // Preserve strict queue order: disable auto-removal and auto-skip
+    this.preserveOrder = true;
   }
 
   // ==========================================
@@ -161,12 +164,17 @@ class SmartPrefetchManager {
       this._cancelPendingPrefetch();
       this.currentTrackIndex = event.index;
 
-      // 🧹 QUEUE CLEANUP: Remove old tracks, keep only 5 previous
-      // Skip cleanup if explicitly suppressed for manual jumps
-      if (!this.suppressNextCleanup) {
-        await this._cleanupOldTracks(event.index);
+      // 🧹 QUEUE CLEANUP: disabled when preserving strict order
+      if (!this.preserveOrder) {
+        // Skip cleanup if explicitly suppressed for manual jumps
+        if (!this.suppressNextCleanup) {
+          await this._cleanupOldTracks(event.index);
+        } else {
+          this.suppressNextCleanup = false; // reset one-shot flag
+        }
       } else {
-        this.suppressNextCleanup = false; // reset one-shot flag
+        // Do not mutate queue when preserving order
+        this.suppressNextCleanup = false;
       }
 
       // 🚀 IMMEDIATE ACTION: Prefetch next 3 songs aggressively
@@ -327,8 +335,10 @@ class SmartPrefetchManager {
           let safeIndex = index;
 
           if (!Array.isArray(queue) || queue.length === 0) {
-            // Queue empty - append and resolve
-            await TrackPlayer.add(updatedTrack);
+            // Preserve order: do not append when queue unknown
+            if (!this.preserveOrder) {
+              await TrackPlayer.add(updatedTrack);
+            }
             return;
           }
 
@@ -338,8 +348,10 @@ class SmartPrefetchManager {
             if (found >= 0) {
               safeIndex = found;
             } else {
-              // Original track no longer in queue - append updated track instead (this is normal during rapid skips)
-              await TrackPlayer.add(updatedTrack);
+              // Preserve order: if not found, skip modification
+              if (!this.preserveOrder) {
+                await TrackPlayer.add(updatedTrack);
+              }
               return;
             }
           }
@@ -369,8 +381,10 @@ class SmartPrefetchManager {
       // Resolve current queue and ensure safe index. This avoids "index out of bounds"
       const queue = await TrackPlayer.getQueue();
       if (!Array.isArray(queue) || queue.length === 0) {
-        // Queue empty: append
-        await TrackPlayer.add(updatedTrack);
+        // Preserve order: do not append when queue unknown
+        if (!this.preserveOrder) {
+          await TrackPlayer.add(updatedTrack);
+        }
         return;
       }
 
@@ -380,8 +394,10 @@ class SmartPrefetchManager {
         if (found >= 0) {
           safeIndex = found;
         } else {
-          // Track not found - append instead (normal during rapid navigation)
-          await TrackPlayer.add(updatedTrack);
+          // Preserve order: if not found, skip modification
+          if (!this.preserveOrder) {
+            await TrackPlayer.add(updatedTrack);
+          }
           return;
         }
       }
@@ -399,6 +415,15 @@ class SmartPrefetchManager {
    * Replace a track in queue with updated URL (non-blocking, fire-and-forget)
    */
   async _replaceTrackInQueue(index, originalTrack, streamData) {
+    // In preserve-order mode: only replace if original track exists at expected index
+    if (this.preserveOrder) {
+      const queue = await TrackPlayer.getQueue();
+      const trackAtIndex = queue[index];
+      if (!trackAtIndex || trackAtIndex.id !== originalTrack?.id) {
+        return; // skip modification to keep order stable
+      }
+    }
+
     // In headless service, InteractionManager may not run; replace immediately
     if (this.isHeadless) {
       await this.replaceTrackImmediately(index, originalTrack, streamData);
@@ -451,33 +476,24 @@ class SmartPrefetchManager {
    * Skip to next valid track when current one fails completely
    */
   async _skipToNextValidTrack(failedIndex) {
-    // Delay to prevent CPU spike (Cool-down)
-    await new Promise(resolve => setTimeout(resolve, 500));
+    // When preserving order, avoid auto-removal/auto-skip; just pause
+    if (this.preserveOrder) {
+      try {
+        await TrackPlayer.pause();
+      } catch (e) {}
+      return;
+    }
 
+    // Original behavior when not preserving strict order
+    await new Promise(resolve => setTimeout(resolve, 500));
     try {
       const queue = await TrackPlayer.getQueue();
-
-      // Safety check
-      if (failedIndex >= queue.length) {
-        return;
-      }
-
-      // Remove the failed track (safe)
+      if (failedIndex >= queue.length) {return;}
       await this._safeRemove(failedIndex);
-
-      // Get new queue state
       const newQueue = await TrackPlayer.getQueue();
-
-      if (newQueue.length === 0) {
-        await TrackPlayer.stop();
-        return;
-      }
-
-      // Try to play the next track (now at same index)
+      if (newQueue.length === 0) { await TrackPlayer.stop(); return; }
       const nextTrack = newQueue[failedIndex] || newQueue[0];
-
       if (nextTrack && this.needsStream(nextTrack)) {
-        // Fetch stream on-demand for next track
         const streamData = await this.fetchOnDemand(nextTrack.id, true);
         if (streamData && streamData.url) {
           const nextIndex = failedIndex < newQueue.length ? failedIndex : 0;
@@ -485,8 +501,6 @@ class SmartPrefetchManager {
           return;
         }
       }
-
-      // Just try to play whatever is next
       await TrackPlayer.play();
     } catch (error) {
       console.error('Error skipping to next valid track:', error.message);

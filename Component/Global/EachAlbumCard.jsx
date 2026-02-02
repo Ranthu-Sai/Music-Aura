@@ -2,6 +2,7 @@ import {Pressable, View} from 'react-native';
 import {PlainText} from './PlainText';
 import {SmallText} from './SmallText';
 import FastImage from 'react-native-fast-image';
+import {ShimmerEffect} from './ShimmerEffect';
 import {memo, useState} from 'react';
 import {useNavigation} from '@react-navigation/native';
 import FormatTitleAndArtist from '../../Utils/FormatTitleAndArtist';
@@ -55,6 +56,7 @@ export const EachAlbumCard = memo(function EachAlbumCard({
     resolveImageUri(image) ||
     'https://via.placeholder.com/150x150/cccccc/000000?text=No+Image';
   const [imageUri, setImageUri] = useState(initialUri);
+  const [imageLoaded, setImageLoaded] = useState(false);
   let artistsNames = '';
   if (!Search) {
     if (Array.isArray(artists) && artists.length > 3) {
@@ -113,31 +115,59 @@ export const EachAlbumCard = memo(function EachAlbumCard({
         overflow: 'hidden',
         ...mainContainerStyle,
       }}>
-      <FastImage
-        source={{
-          uri: imageUri,
-          priority: 'high',
-        }}
-        onError={() =>
-          setImageUri(
-            'https://via.placeholder.com/150x150/cccccc/000000?text=No+Image',
-          )
-        }
-        style={{
-          height: 180,
-          width: '100%',
-          borderRadius: 8,
-        }}
-        resizeMode="contain"
-      />
+      <View style={{height: 180, width: '100%', borderRadius: 8, overflow: 'hidden'}}>
+        {!imageLoaded && (
+          <ShimmerEffect width={180} height={180} borderRadius={8} />
+        )}
+        <FastImage
+          source={{
+            uri: imageUri,
+            priority: 'high',
+          }}
+          onLoadEnd={() => setImageLoaded(true)}
+          onError={() => {
+            setImageLoaded(true);
+            setImageUri(
+              'https://via.placeholder.com/150x150/cccccc/000000?text=No+Image',
+            );
+          }}
+          style={{
+            height: 180,
+            width: '100%',
+            borderRadius: 8,
+            position: 'absolute',
+            top: 0,
+            left: 0,
+          }}
+          resizeMode="contain"
+        />
+      </View>
       <View
         style={{
           padding: 8,
           height: 60,
           alignItems: 'center',
         }}>
-        <PlainText text={formattedText(name)} />
-        <SmallText text={!Search ? artistsNames : artists} maxLine={1} />
+        {name ? (
+          <PlainText text={formattedText(name)} />
+        ) : (
+          <ShimmerEffect width={160} height={16} borderRadius={5} />
+        )}
+        {!Search ? (
+          artistsNames ? (
+            <SmallText text={artistsNames} maxLine={1} />
+          ) : (
+            <View style={{marginTop: 6}}>
+              <ShimmerEffect width={140} height={14} borderRadius={4} />
+            </View>
+          )
+        ) : artists ? (
+          <SmallText text={artists} maxLine={1} />
+        ) : (
+          <View style={{marginTop: 6}}>
+            <ShimmerEffect width={140} height={14} borderRadius={4} />
+          </View>
+        )}
       </View>
     </Pressable>
   );

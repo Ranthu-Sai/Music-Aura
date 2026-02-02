@@ -5,16 +5,36 @@ import Reanimated, {FadeIn} from 'react-native-reanimated';
 const {width: SCREEN_WIDTH} = Dimensions.get('window');
 
 /**
- * Modern Shimmer Effect Component
- * Creates smooth, delightful loading animations with pulse and wave effects
+ * Lightweight Shimmer Effect Component (Static)
+ * Simple static placeholder without animations to prevent memory leaks
  */
 export const ShimmerEffect = ({width, height, borderRadius = 8, style}) => {
+  return (
+    <View
+      style={[
+        styles.shimmerContainer,
+        {width, height, borderRadius, backgroundColor: '#1c1c1e'},
+        style,
+      ]}
+    />
+  );
+};
+
+/**
+ * Animated Shimmer Effect Component (Use sparingly - creates animations)
+ * Creates smooth, delightful loading animations with pulse and wave effects
+ */
+export const AnimatedShimmerEffect = ({width, height, borderRadius = 8, style}) => {
   const pulseAnim = useRef(new Animated.Value(0)).current;
   const waveAnim = useRef(new Animated.Value(0)).current;
+  const animationsRef = useRef({pulse: null, wave: null});
 
   useEffect(() => {
+    // Use a local animations object so cleanup isn't impacted by ref changes
+    const animations = {pulse: null, wave: null};
+
     // Pulse animation
-    Animated.loop(
+    animations.pulse = Animated.loop(
       Animated.sequence([
         Animated.timing(pulseAnim, {
           toValue: 1,
@@ -27,16 +47,34 @@ export const ShimmerEffect = ({width, height, borderRadius = 8, style}) => {
           useNativeDriver: false,
         }),
       ]),
-    ).start();
+    );
+    animations.pulse.start();
 
     // Wave animation
-    Animated.loop(
+    animations.wave = Animated.loop(
       Animated.timing(waveAnim, {
         toValue: 1,
         duration: 1800,
         useNativeDriver: true,
       }),
-    ).start();
+    );
+    animations.wave.start();
+
+    // Persist to ref for external debugging/visibility
+    animationsRef.current = animations;
+
+    // Cleanup: Stop animations and reset values when component unmounts
+    return () => {
+      if (animations.pulse) {
+        animations.pulse.stop();
+      }
+      if (animations.wave) {
+        animations.wave.stop();
+      }
+      // Reset animated values to prevent memory leaks
+      pulseAnim.setValue(0);
+      waveAnim.setValue(0);
+    };
   }, [pulseAnim, waveAnim]);
 
   const shimmerWidth = typeof width === 'number' ? width : SCREEN_WIDTH - 30;
@@ -98,21 +136,32 @@ export const ShimmerSongCard = () => (
  * Shimmer Card for Album/Playlist Items
  */
 export const ShimmerAlbumCard = () => (
-  <View style={styles.albumCardContainer}>
+  <View style={{
+    borderRadius: 8,
+    height: 250,
+    width: 180,
+    backgroundColor: 'rgba(55,55,79,0)',
+    overflow: 'hidden',
+    marginVertical: 8,
+  }}>
     <ShimmerEffect width={180} height={180} borderRadius={8} />
-    <View style={{marginTop: 10, width: 180}}>
+    <View style={{
+      padding: 8,
+      height: 60,
+      alignItems: 'center',
+    }}>
       <ShimmerEffect
         width={160}
         height={16}
         borderRadius={5}
       />
-    </View>
-    <View style={{marginTop: 6, width: 180}}>
-      <ShimmerEffect
-        width={140}
-        height={14}
-        borderRadius={5}
-      />
+      <View style={{marginTop: 6}}>
+        <ShimmerEffect
+          width={140}
+          height={14}
+          borderRadius={5}
+        />
+      </View>
     </View>
   </View>
 );
@@ -122,9 +171,9 @@ export const ShimmerAlbumCard = () => (
  */
 export const ShimmerHorizontalList = ({
   itemCount = 5,
-  itemWidth = 140,
-  itemHeight = 140,
-  CardComponent = ShimmerSongCard,
+  itemWidth = 180,
+  itemHeight = 250,
+  CardComponent = ShimmerAlbumCard,
 }) => (
   <Reanimated.View
     entering={FadeIn.duration(400)}
@@ -176,21 +225,27 @@ export const ShimmerTrendingSongsList = ({itemCount = 6}) => (
       <Reanimated.View
         key={`shimmer-trending-${index}`}
         entering={FadeIn.delay(index * 80).duration(400)}
-        style={{marginRight: 12}}>
+        style={{
+          marginRight: 12,
+          width: 150,
+          borderRadius: 8,
+          backgroundColor: 'rgba(55,55,79,0)',
+          overflow: 'hidden',
+        }}>
         <ShimmerEffect width={150} height={140} borderRadius={8} />
-        <View style={{marginTop: 12, width: 150}}>
+        <View style={{padding: 8}}>
           <ShimmerEffect
             width={135}
             height={18}
             borderRadius={6}
           />
-        </View>
-        <View style={{marginTop: 8, width: 150}}>
-          <ShimmerEffect
-            width={115}
-            height={15}
-            borderRadius={5}
-          />
+          <View style={{marginTop: 6}}>
+            <ShimmerEffect
+              width={115}
+              height={15}
+              borderRadius={5}
+            />
+          </View>
         </View>
       </Reanimated.View>
     ))}
@@ -257,43 +312,119 @@ export const ShimmerTopCharts = ({itemCount = 4}) => (
 );
 
 /**
- * Full Page Shimmer Loader (Initial Load)
+ * Full Page Shimmer Loader (Initial Load) — scrollable and mirrors Home layout exactly
  */
 export const ShimmerFullPage = () => (
-  <View style={styles.fullPageContainer}>
-    {/* Header Skeleton */}
-    <View style={styles.headerSection}>
-      <ShimmerEffect width={160} height={40} borderRadius={12} />
-      <ShimmerEffect width={110} height={36} borderRadius={10} />
+  <ScrollView contentContainerStyle={{paddingBottom: 120}} showsVerticalScrollIndicator={false}>
+    {/* RouteHeading (Header) */}
+    <View style={{
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingHorizontal: 15,
+      paddingTop: 20,
+      paddingBottom: 10,
+    }}>
+      <ShimmerEffect width={140} height={36} borderRadius={10} />
+      <ShimmerEffect width={36} height={36} borderRadius={18} />
     </View>
 
-    {/* Top Genres Chips */}
-    <View style={{paddingHorizontal: 15, marginTop: 20, marginBottom: 15}}>
-      <View style={{flexDirection: 'row', flexWrap: 'wrap'}}>
-        {Array.from({length: 6}).map((_, i) => (
-          <View key={`genre-${i}`} style={{marginRight: 8, marginBottom: 8}}>
-            <ShimmerEffect width={85} height={36} borderRadius={18} />
+    {/* DisplayTopGenres */}
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      contentContainerStyle={{gap: 10, paddingHorizontal: 10, marginVertical: 10}}>
+      {Array.from({length: 8}).map((_, i) => (
+        <ShimmerEffect key={`genre-${i}`} width={85} height={40} borderRadius={20} />
+      ))}
+    </ScrollView>
+
+    {/* Latest Top Songs Heading + Content */}
+    <View style={{paddingHorizontal: 15, marginTop: 12, marginBottom: 8}}>
+      <ShimmerEffect width={180} height={28} borderRadius={6} />
+    </View>
+    <ShimmerTrendingSongsList itemCount={6} />
+
+    {/* HorizontalScrollSongs placeholder (after Latest Top Songs) */}
+    <View style={{paddingHorizontal: 15, marginTop: 20, marginBottom: 8}}>
+      <ShimmerEffect width={200} height={28} borderRadius={6} />
+    </View>
+    <ShimmerHorizontalSongList />
+
+    {/* Trending Albums Heading + Content */}
+    <View style={{paddingHorizontal: 15, marginTop: 20, marginBottom: 8}}>
+      <ShimmerEffect width={190} height={28} borderRadius={6} />
+    </View>
+    <ShimmerHorizontalList itemCount={6} />
+
+    {/* Latest Artists (conditional - shown only when language !== 'All') */}
+    <View style={{paddingHorizontal: 15, marginTop: 20, marginBottom: 8}}>
+      <ShimmerEffect width={160} height={28} borderRadius={6} />
+    </View>
+    <ShimmerArtistChips itemCount={8} />
+
+    {/* Recommended Playlists Heading + Content */}
+    <View style={{paddingHorizontal: 15, marginTop: 20, marginBottom: 8}}>
+      <ShimmerEffect width={240} height={28} borderRadius={6} />
+    </View>
+    <ShimmerHorizontalList itemCount={6} />
+
+    {/* HorizontalScrollSongs placeholder (after Recommended Playlists) */}
+    <View style={{paddingHorizontal: 15, marginTop: 20, marginBottom: 8}}>
+      <ShimmerEffect width={200} height={28} borderRadius={6} />
+    </View>
+    <ShimmerHorizontalSongList />
+
+    {/* Top Charts Heading + Content */}
+    <View style={{paddingHorizontal: 15, marginTop: 20, marginBottom: 8}}>
+      <ShimmerEffect width={140} height={28} borderRadius={6} />
+    </View>
+    <View style={{paddingHorizontal: 10, marginVertical: 10}}>
+      <View style={{flexDirection: 'row'}}>
+        {Array.from({length: 4}).map((_, index) => (
+          <View key={`chart-${index}`} style={{marginRight: 12}}>
+            <ShimmerEffect width={180} height={200} borderRadius={16} />
+            <View style={{marginTop: 12}}>
+              <ShimmerEffect width={160} height={18} borderRadius={6} />
+            </View>
+            <View style={{marginTop: 6}}>
+              <ShimmerEffect width={140} height={14} borderRadius={5} />
+            </View>
           </View>
         ))}
       </View>
     </View>
 
-    {/* Section Title */}
-    <View style={styles.sectionTitle}>
-      <ShimmerEffect width={190} height={30} borderRadius={8} />
+    {/* Viral Hits Heading + Content */}
+    <View style={{paddingHorizontal: 15, marginTop: 20, marginBottom: 8}}>
+      <ShimmerEffect width={130} height={28} borderRadius={6} />
     </View>
+    <ShimmerHorizontalSongList />
 
-    {/* Horizontal List */}
-    <ShimmerTrendingSongsList itemCount={3} />
-
-    {/* Section Title */}
-    <View style={styles.sectionTitle}>
-      <ShimmerEffect width={210} height={30} borderRadius={8} />
+    {/* HorizontalScrollSongs placeholder (after Viral Hits) */}
+    <View style={{paddingHorizontal: 15, marginTop: 20, marginBottom: 8}}>
+      <ShimmerEffect width={200} height={28} borderRadius={6} />
     </View>
+    <ShimmerHorizontalSongList />
 
-    {/* Horizontal List */}
-    <ShimmerHorizontalList itemCount={3} />
-  </View>
+    {/* Recommended Albums Heading + Content */}
+    <View style={{paddingHorizontal: 15, marginTop: 20, marginBottom: 8}}>
+      <ShimmerEffect width={220} height={28} borderRadius={6} />
+    </View>
+    <ShimmerHorizontalList itemCount={6} />
+
+    {/* HorizontalScrollSongs placeholder (after Recommended Albums) */}
+    <View style={{paddingHorizontal: 15, marginTop: 20, marginBottom: 8}}>
+      <ShimmerEffect width={200} height={28} borderRadius={6} />
+    </View>
+    <ShimmerHorizontalSongList />
+
+    {/* Trending Now Heading + Content */}
+    <View style={{paddingHorizontal: 15, marginTop: 20, marginBottom: 8}}>
+      <ShimmerEffect width={170} height={28} borderRadius={6} />
+    </View>
+    <ShimmerHorizontalSongList />
+  </ScrollView>
 );
 
 /**

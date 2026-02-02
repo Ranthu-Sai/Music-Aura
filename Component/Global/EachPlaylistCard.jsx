@@ -5,6 +5,7 @@ import {SmallText} from './SmallText';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import LinearGradient from 'react-native-linear-gradient';
 import FastImage from 'react-native-fast-image';
+import {ShimmerEffect} from './ShimmerEffect';
 import {memo, useState, useEffect} from 'react';
 import {useNavigation} from '@react-navigation/native';
 
@@ -36,6 +37,7 @@ export const EachPlaylistCard = memo(function EachPlaylistCard({
   };
 
   const [imageUri, setImageUri] = useState(computeImageUri(image));
+  const [imageLoaded, setImageLoaded] = useState(false);
 
   useEffect(() => {
     setImageUri(computeImageUri(image));
@@ -83,24 +85,34 @@ export const EachPlaylistCard = memo(function EachPlaylistCard({
           </View>
         </View>
       ) : (
-        <FastImage
-          source={{
-            uri: imageUri,
-            priority: 'high',
-          }}
-          onError={() =>
-            setImageUri(
-              'https://via.placeholder.com/150x150/cccccc/000000?text=No+Image',
-            )
-          }
-          style={{
-            width: '100%',
-            aspectRatio: 1,
-            borderRadius: 8,
-            ...ImageStyle,
-          }}
-          resizeMode="contain"
-        />
+        <View style={{width: '100%', aspectRatio: 1, borderRadius: 8, overflow: 'hidden'}}>
+          {!imageLoaded && (
+            <ShimmerEffect width={180} height={180} borderRadius={8} />
+          )}
+          <FastImage
+            source={{
+              uri: imageUri,
+              priority: 'high',
+            }}
+            onLoadEnd={() => setImageLoaded(true)}
+            onError={() => {
+              setImageLoaded(true);
+              setImageUri(
+                'https://via.placeholder.com/150x150/cccccc/000000?text=No+Image',
+              );
+            }}
+            style={{
+              width: '100%',
+              aspectRatio: 1,
+              borderRadius: 8,
+              ...ImageStyle,
+              position: 'absolute',
+              top: 0,
+              left: 0,
+            }}
+            resizeMode="contain"
+          />
+        </View>
       )}
       <View
         style={{
@@ -108,8 +120,18 @@ export const EachPlaylistCard = memo(function EachPlaylistCard({
           width: '100%',
           alignItems: 'center',
         }}>
-        <PlainText text={name} style={{fontWeight: 'bold'}} />
-        {follower && <SmallText text={follower} />}
+        {name ? (
+          <PlainText text={name} style={{fontWeight: 'bold'}} />
+        ) : (
+          <ShimmerEffect width={160} height={16} borderRadius={5} />
+        )}
+        {follower ? (
+          <SmallText text={follower} />
+        ) : (
+          <View style={{marginTop: 6}}>
+            <ShimmerEffect width={120} height={14} borderRadius={4} />
+          </View>
+        )}
       </View>
     </Pressable>
   );

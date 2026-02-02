@@ -15,6 +15,7 @@ import Clipboard from '@react-native-clipboard/clipboard';
 import TrackPlayer, {useProgress} from 'react-native-track-player';
 import {Spacer} from '../Global/Spacer';
 import {LoadingComponent} from '../Global/Loading';
+import {ShimmerEffect} from '../Global/ShimmerEffect';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import FormatTitleAndArtist from '../../Utils/FormatTitleAndArtist';
@@ -804,16 +805,22 @@ export const ShowLyrics = ({
                       </Pressable>
                     </>
                   ) : (
-                    <Text
-                      style={{
-                        color: 'white',
-                        fontSize: width * 0.06,
-                        textAlign: 'center',
-                      }}>
-                      {Lyric?.lyrics === 'No Lyrics Found'
-                        ? 'No Lyrics Found'
-                        : 'Loading lyrics...'}
-                    </Text>
+                    Lyric?.lyrics === 'No Lyrics Found' ? (
+                      <Text
+                        style={{
+                          color: 'white',
+                          fontSize: width * 0.06,
+                          textAlign: 'center',
+                        }}>
+                        No Lyrics Found
+                      </Text>
+                    ) : (
+                      <View style={{alignItems: 'center'}}>
+                        <ShimmerEffect width={width * 0.8} height={160} borderRadius={10} />
+                        <Spacer height={12} />
+                        <ShimmerEffect width={width * 0.6} height={16} borderRadius={6} />
+                      </View>
+                    )
                   )}
                 </View>
               )}

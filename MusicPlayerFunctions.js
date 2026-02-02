@@ -889,17 +889,19 @@ async function AddPlaylist(songs, startSongId = null) {
       return;
     }
 
-    // Filter/Slice if startSongId is provided
+    // Keep all songs in the queue but remember which index to start from
     let tracksToAdd = [...songs];
+    let startIndex = 0;
+
     if (startSongId) {
-      const startIndex = songs.findIndex(
+      const foundIndex = songs.findIndex(
         s => s.id === startSongId || s.videoId === startSongId,
       );
-      if (startIndex !== -1) {
-        tracksToAdd = songs.slice(startIndex);
+      if (foundIndex !== -1) {
+        startIndex = foundIndex;
       } else {
         console.warn(
-          `⚠️ Start song ID ${startSongId} not found in playlist, playing all`,
+          `⚠️ Start song ID ${startSongId} not found in playlist, starting from beginning`,
         );
       }
     }
@@ -1011,6 +1013,12 @@ async function AddPlaylist(songs, startSongId = null) {
 
     await TrackPlayer.reset();
     await TrackPlayer.add(initialBatch);
+
+    // Skip to the song user clicked on if startIndex is within initial batch
+    if (startIndex < INITIAL_BATCH_SIZE) {
+      await TrackPlayer.skip(startIndex);
+    }
+
     await TrackPlayer.play();
 
     // Signal that this is a playlist/album playback (disable auto-recommendations)
@@ -1032,6 +1040,15 @@ async function AddPlaylist(songs, startSongId = null) {
             }
 
             await TrackPlayer.add(batch);
+
+            // If user clicked on a song in the remaining batch, skip to it once it's added
+            if (startIndex >= INITIAL_BATCH_SIZE && startIndex < INITIAL_BATCH_SIZE + i + BATCH_SIZE) {
+              try {
+                await TrackPlayer.skip(startIndex);
+              } catch (skipErr) {
+                console.warn('Could not skip to song in later batch:', skipErr);
+              }
+            }
           }
 
           DeviceEventEmitter.emit('queue-updated', {

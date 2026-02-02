@@ -5,13 +5,13 @@ import {
   TouchableOpacity,
   ToastAndroid,
   FlatList,
-  ActivityIndicator,
 } from 'react-native';
 import {useNavigation} from '@react-navigation/native';
 import AntDesign from 'react-native-vector-icons/AntDesign';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 
 import {getHiddenFiles, unhideFile} from '../../LocalStorage/HiddenLocalFiles';
+import {ShimmerSearchResults} from '../../Component/Global/ShimmerEffect';
 import {DeviceEventEmitter} from 'react-native';
 
 export const HiddenSongsPage = () => {
@@ -160,11 +160,10 @@ export const HiddenSongsPage = () => {
 
       {/* Content */}
       {isLoading ? (
-        <View style={{flex: 1, justifyContent: 'center', alignItems: 'center'}}>
-          <ActivityIndicator size="large" color="#1DB954" />
-          <Text style={{color: 'white', marginTop: 10}}>
-            Loading hidden songs...
-          </Text>
+        <View style={{flex: 1, justifyContent: 'center', alignItems: 'stretch'}}>
+          <View style={{paddingHorizontal: 10}}>
+            <ShimmerSearchResults itemCount={6} />
+          </View>
         </View>
       ) : hiddenSongs.length === 0 ? (
         <View

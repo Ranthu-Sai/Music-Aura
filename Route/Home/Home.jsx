@@ -30,6 +30,7 @@ import {
   ShimmerArtistChips,
   ShimmerFullPage,
 } from '../../Component/Global/ShimmerEffect';
+import {ErrorBoundary} from '../../Component/Global/ErrorBoundary';
 
 // JioSaavn API Fallback URLs (only hosts that support /modules endpoint)
 const JIOSAAVN_API_FALLBACKS = [
@@ -393,12 +394,18 @@ export const Home = () => {
 
   // Removed duplicate artist fetching - now handled in main fetchHomePageData
 
+  if (Loading) {
+    return (
+      <MainWrapper>
+        <ShimmerFullPage />
+      </MainWrapper>
+    );
+  }
+
   return (
     <MainWrapper>
-      {Loading ? (
-        <ShimmerFullPage />
-      ) : (
-        <Animated.View entering={FadeIn.duration(400)}>
+      <Animated.View entering={FadeIn.duration(400)}>
+        <ErrorBoundary name="HomeContent">
           <ScrollView
             onScroll={e => {
               if (e.nativeEvent.contentOffset.y > 200 && !showHeader) {
@@ -419,73 +426,81 @@ export const Home = () => {
             <PaddingConatiner>
               <Heading text={'Latest Top Songs'} />
             </PaddingConatiner>
-            <FlatList
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              data={trendingSongs}
-              keyExtractor={(item, index) =>
-                item?.id?.toString() ?? `trending-song-${index}`
-              }
-              contentContainerStyle={{paddingHorizontal: 10}}
-              renderItem={({item}) => (
-                <View style={{marginRight: 12}}>
-                  <EachTrendingSongCard
-                    image={
-                      item?.image?.[2]?.url ||
-                      item?.image?.[2]?.link ||
-                      item?.image?.[1]?.url ||
-                      item?.image?.[1]?.link ||
-                      item?.image?.[0]?.url ||
-                      item?.image?.[0]?.link ||
-                      item?.artwork ||
-                      item?.thumbnail ||
-                      'https://htmlcolorcodes.com/assets/images/colors/gray-color-solid-background-1920x1080.png'
-                    }
-                    name={item.name}
-                    artists={item.primaryArtists}
-                    id={item.id}
-                    url={item.downloadUrl}
-                    duration={item.duration}
-                    language={item.language}
-                    artistID={item.primary_artists_id}
-                  />
-                </View>
-              )}
-            />
+            {trendingSongs && trendingSongs.length > 0 ? (
+              <FlatList
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                data={trendingSongs}
+                keyExtractor={(item, index) =>
+                  item?.id?.toString() ?? `trending-song-${index}`
+                }
+                contentContainerStyle={{paddingHorizontal: 10}}
+                renderItem={({item}) => (
+                  <View style={{marginRight: 12}}>
+                    <EachTrendingSongCard
+                      image={
+                        item?.image?.[2]?.url ||
+                        item?.image?.[2]?.link ||
+                        item?.image?.[1]?.url ||
+                        item?.image?.[1]?.link ||
+                        item?.image?.[0]?.url ||
+                        item?.image?.[0]?.link ||
+                        item?.artwork ||
+                        item?.thumbnail ||
+                        'https://htmlcolorcodes.com/assets/images/colors/gray-color-solid-background-1920x1080.png'
+                      }
+                      name={item.name}
+                      artists={item.primaryArtists}
+                      id={item.id}
+                      url={item.downloadUrl}
+                      duration={item.duration}
+                      language={item.language}
+                      artistID={item.primary_artists_id}
+                    />
+                  </View>
+                )}
+              />
+            ) : (
+              <ShimmerTrendingSongsList itemCount={6} />
+            )}
             <PaddingConatiner>
               <HorizontalScrollSongs id={getChartId(0)} />
             </PaddingConatiner>
             <PaddingConatiner>
               <Heading text={'Trending Albums'} />
             </PaddingConatiner>
-            <FlatList
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              data={trendingAlbumColumns}
-              keyExtractor={(item, index) => `trending-album-col-${index}`}
-              contentContainerStyle={{paddingHorizontal: 10}}
-              renderItem={({item}) => (
-                <View style={{marginRight: 12}}>
-                  {(item || []).map((album, idx) => (
-                    <View
-                      key={album?.id ?? `trending-album-${idx}`}
-                      style={{marginBottom: idx === 0 ? 12 : 0}}>
-                      <EachAlbumCard
-                        image={
-                          album.image?.[2]?.url ||
-                          album.image?.[2]?.link ||
-                          album.image?.[0]?.url ||
-                          ''
-                        }
-                        artists={album.artists}
-                        name={album.name}
-                        id={album.id}
-                      />
-                    </View>
-                  ))}
-                </View>
-              )}
-            />
+            {trendingAlbumColumns && trendingAlbumColumns.length > 0 ? (
+              <FlatList
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                data={trendingAlbumColumns}
+                keyExtractor={(item, index) => `trending-album-col-${index}`}
+                contentContainerStyle={{paddingHorizontal: 10}}
+                renderItem={({item}) => (
+                  <View style={{marginRight: 12}}>
+                    {(item || []).map((album, idx) => (
+                      <View
+                        key={album?.id ?? `trending-album-${idx}`}
+                        style={{marginBottom: idx === 0 ? 12 : 0}}>
+                        <EachAlbumCard
+                          image={
+                            album.image?.[2]?.url ||
+                            album.image?.[2]?.link ||
+                            album.image?.[0]?.url ||
+                            ''
+                          }
+                          artists={album.artists}
+                          name={album.name}
+                          id={album.id}
+                        />
+                      </View>
+                    ))}
+                  </View>
+                )}
+              />
+            ) : (
+              <ShimmerHorizontalList itemCount={6} />
+            )}
 
             {/* Latest Artists (language-specific) + Recommended Playlists remain here */}
             {LoadingSecondary && currentLanguage !== 'All' ? (
@@ -531,34 +546,38 @@ export const Home = () => {
             <PaddingConatiner>
               <Heading text={'Recommended Playlists'} />
             </PaddingConatiner>
-            <FlatList
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              data={playlistColumns}
-              keyExtractor={(item, index) => `playlist-col-${index}`}
-              contentContainerStyle={{paddingHorizontal: 10}}
-              renderItem={({item}) => (
-                <View style={{marginRight: 12}}>
-                  {(item || []).map((pl, idx) => (
-                    <View
-                      key={pl?.id ?? `playlist-${idx}`}
-                      style={{marginBottom: idx === 0 ? 12 : 0}}>
-                      <EachPlaylistCard
-                        name={pl.title}
-                        follower={pl.subtitle}
-                        image={
-                          pl.image?.[2]?.url ||
-                          pl.image?.[2]?.link ||
-                          pl.image?.[0]?.url ||
-                          ''
-                        }
-                        id={pl.id}
-                      />
-                    </View>
-                  ))}
-                </View>
-              )}
-            />
+            {playlistColumns && playlistColumns.length > 0 ? (
+              <FlatList
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                data={playlistColumns}
+                keyExtractor={(item, index) => `playlist-col-${index}`}
+                contentContainerStyle={{paddingHorizontal: 10}}
+                renderItem={({item}) => (
+                  <View style={{marginRight: 12}}>
+                    {(item || []).map((pl, idx) => (
+                      <View
+                        key={pl?.id ?? `playlist-${idx}`}
+                        style={{marginBottom: idx === 0 ? 12 : 0}}>
+                        <EachPlaylistCard
+                          name={pl.title}
+                          follower={pl.subtitle}
+                          image={
+                            pl.image?.[2]?.url ||
+                            pl.image?.[2]?.link ||
+                            pl.image?.[0]?.url ||
+                            ''
+                          }
+                          id={pl.id}
+                        />
+                      </View>
+                    ))}
+                  </View>
+                )}
+              />
+            ) : (
+              <ShimmerHorizontalList itemCount={6} />
+            )}
 
             <PaddingConatiner>
               <HorizontalScrollSongs id={getChartId(1)} />
@@ -597,34 +616,38 @@ export const Home = () => {
             <PaddingConatiner>
               <Heading text={'Recommended Albums'} />
             </PaddingConatiner>
-            <FlatList
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              data={albumData}
-              keyExtractor={(e, i) => `album-row-${i}`}
-              contentContainerStyle={{paddingHorizontal: 10}}
-              renderItem={({item: e, index: i}) => (
-                <View
-                  style={{
-                    gap: 15,
-                    marginRight: 12,
-                  }}>
-                  {e.map((item, index) => (
-                    <View key={item?.id ?? `album-col-${i}-${index}`}>
-                      <EachAlbumCard
-                        image={
-                          item?.image[2]?.url || item?.image[2]?.link || ''
-                        }
-                        artists={item.artists}
-                        name={item.name}
-                        id={item.id}
-                        isSong={true}
-                      />
-                    </View>
-                  ))}
-                </View>
-              )}
-            />
+            {albumData && albumData.length > 0 ? (
+              <FlatList
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                data={albumData}
+                keyExtractor={(e, i) => `album-row-${i}`}
+                contentContainerStyle={{paddingHorizontal: 10}}
+                renderItem={({item: e, index: i}) => (
+                  <View
+                    style={{
+                      gap: 15,
+                      marginRight: 12,
+                    }}>
+                    {e.map((item, index) => (
+                      <View key={item?.id ?? `album-col-${i}-${index}`}>
+                        <EachAlbumCard
+                          image={
+                            item?.image[2]?.url || item?.image[2]?.link || ''
+                          }
+                          artists={item.artists}
+                          name={item.name}
+                          id={item.id}
+                          isSong={true}
+                        />
+                      </View>
+                    ))}
+                  </View>
+                )}
+              />
+            ) : (
+              <ShimmerHorizontalList itemCount={6} />
+            )}
             <PaddingConatiner>
               <HorizontalScrollSongs id={getChartId(2)} />
             </PaddingConatiner>
@@ -649,9 +672,9 @@ export const Home = () => {
               )
             )}
           </ScrollView>
-          <TopHeader showHeader={showHeader} />
-        </Animated.View>
-      )}
+        </ErrorBoundary>
+        <TopHeader showHeader={showHeader} />
+      </Animated.View>
     </MainWrapper>
   );
 };

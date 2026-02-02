@@ -14,7 +14,7 @@ import {AddSongsToQueue, SetRepeatMode} from '../MusicPlayerFunctions';
 import FormatArtist from '../Utils/FormatArtists';
 import {Repeats} from '../Utils/Repeats';
 import {GetLanguageValue} from '../LocalStorage/Languages';
-// import { SetQueueSongs } from "../LocalStorage/storeQueue";
+import {GetQueueSongs, SetQueueSongs} from '../LocalStorage/storeQueue';
 import {EachSongMenuModal} from '../Component/Global/EachSongMenuModal';
 import PlaylistSelector from '../Component/Global/PlaylistSelector';
 import {
@@ -189,6 +189,9 @@ const ContextState = props => {
 
         if (hasChanged || tracks.length > QueueRef.current.length) {
           setQueue(tracks);
+
+          // Persist queue to storage when it changes (non-blocking)
+          SetQueueSongs(tracks).catch(err => console.warn('Failed to save queue:', err));
         }
       } catch (error) {
         // Error silently handled
@@ -491,12 +494,13 @@ const ContextState = props => {
         retryCount++;
       }
 
-      // If no active track AND queue is empty, try to restore from saved last song
+      // If no active track AND queue is empty, try to restore from saved queue
       // Checking queue length prevents resetting the player if it's already loaded or playing
       if ((!song || !song.id) && (!queue || queue.length === 0)) {
-        const lastSong = await GetLastSong();
+        // First try to restore the full queue
+        const savedQueue = await GetQueueSongs();
 
-        if (lastSong && lastSong.id) {
+        if (savedQueue && savedQueue.length > 0) {
           try {
             // Ensure the player is initialized before attempting restore
             try {
@@ -504,25 +508,56 @@ const ContextState = props => {
             } catch (_) {
               // If already initialized, this will throw; safe to ignore
             }
-            // Reset player and add the last song
+
+            // Reset player and restore the entire saved queue
             await TrackPlayer.reset();
-            await TrackPlayer.add([lastSong]);
+            await TrackPlayer.add(savedQueue);
 
             // CRITICAL: Skip to track 0 to make it the active track
             // This ensures useActiveTrack() hook picks it up in MinimizedMusic
             await TrackPlayer.skip(0);
 
             // Update state immediately to show in mini player
-            song = lastSong;
-            setCurrentPlaying(lastSong);
+            song = savedQueue[0];
+            setCurrentPlaying(savedQueue[0]);
             setIndex(0);
 
-            // Auto-fill queue with recommended songs
-            await AddRecommendedSongs(0, song.id, true);
+            console.log(`✅ Restored queue with ${savedQueue.length} songs`);
           } catch (e) {
-            console.error('❌ Error restoring last song:', e);
+            console.error('❌ Error restoring saved queue:', e);
           }
         } else {
+          // Fallback: restore just the last song if queue save failed
+          const lastSong = await GetLastSong();
+
+          if (lastSong && lastSong.id) {
+            try {
+              // Ensure the player is initialized before attempting restore
+              try {
+                await TrackPlayer.setupPlayer();
+              } catch (_) {
+                // If already initialized, this will throw; safe to ignore
+              }
+              // Reset player and add the last song
+              await TrackPlayer.reset();
+              await TrackPlayer.add([lastSong]);
+
+              // CRITICAL: Skip to track 0 to make it the active track
+              // This ensures useActiveTrack() hook picks it up in MinimizedMusic
+              await TrackPlayer.skip(0);
+
+              // Update state immediately to show in mini player
+              song = lastSong;
+              setCurrentPlaying(lastSong);
+              setIndex(0);
+
+              // Auto-fill queue with recommended songs
+              await AddRecommendedSongs(0, song.id, true);
+            } catch (e) {
+              console.error('❌ Error restoring last song:', e);
+            }
+          } else {
+          }
         }
       } else {
         // Update current playing if there's already an active track
