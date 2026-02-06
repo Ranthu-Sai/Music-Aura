@@ -33,7 +33,7 @@ local.properties
 *.keystore
 !debug.keystore
 .idea/
-**/ .idea/
+**/.idea/
 
 # node.js
 #
@@ -74,10 +74,16 @@ yarn-error.log
 .env
 .env.local
 
-# Test and debug files
+# Temporary and debug files (modify if you have essential .ps1 or .py scripts)
 *.ps1
 *.py
 test_*.js
 temp_*
 instances.json
 release.md
+
+# Android generated files
+*.apk
+*.aab
+*.ap_
+*.dex
