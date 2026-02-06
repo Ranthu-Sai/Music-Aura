@@ -15,6 +15,10 @@ let initializePromise = null;
 let wasPausedByDuck = false;
 let previousVolume = 1.0;
 
+// Prevent rapid-fire skip operations that can cause queue corruption
+let lastSkipTime = 0;
+const SKIP_DEBOUNCE_MS = 300; // 300ms minimum between skips
+
 export default async function PlaybackService() {
 
   // Register remote handlers synchronously at module level so notification actions work
@@ -68,6 +72,13 @@ export default async function PlaybackService() {
   TrackPlayer.addEventListener(Event.RemoteNext, () => {
     (async () => {
       try {
+        // Debounce to prevent rapid-fire skips that can corrupt queue order
+        const now = Date.now();
+        if (now - lastSkipTime < SKIP_DEBOUNCE_MS) {
+          return;
+        }
+        lastSkipTime = now;
+
         // Keep behavior minimal to preserve queue order
         await TrackPlayer.skipToNext();
         await TrackPlayer.play();
@@ -81,6 +92,13 @@ export default async function PlaybackService() {
   TrackPlayer.addEventListener(Event.RemotePrevious, () => {
     (async () => {
       try {
+        // Debounce to prevent rapid-fire skips
+        const now = Date.now();
+        if (now - lastSkipTime < SKIP_DEBOUNCE_MS) {
+          return;
+        }
+        lastSkipTime = now;
+
         // Keep behavior minimal to preserve queue order
         await TrackPlayer.skipToPrevious();
         await TrackPlayer.play();
@@ -279,5 +297,4 @@ export default async function PlaybackService() {
 
   // Kick off initialization and retain promise for remote handlers
   initializePromise = initializePlayer();
-  return initializePromise;
 }

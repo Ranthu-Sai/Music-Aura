@@ -8,6 +8,9 @@ import {SettingsPage} from './SettingsPage';
 import {ClearCachePage} from './ClearCachePage';
 import {ChangeName} from './ChangeName';
 import {SelectLanguages} from './SelectLanguages';
+import {QualitySettings} from './QualitySettings';
+import {ThemeSettings} from './ThemeSettings';
+import {StorageSettings} from './StorageSettings';
 import ShowPlaylistofType from '../../Component/Discover/ShowPlaylistofType';
 import {AboutProject} from '../Library/AboutProject';
 import {ArtistSongsPage} from '../Artist/ArtistSongsPage';
@@ -35,6 +38,9 @@ export const HomeRoute = () => {
       <Stack.Screen name={'LikedSongs'} component={LikedSongPage} />
       <Stack.Screen name={'LikedPlaylists'} component={LikedPlaylistPage} />
       <Stack.Screen name={'Settings'} component={SettingsPage} />
+      <Stack.Screen name={'QualitySettings'} component={QualitySettings} />
+      <Stack.Screen name={'ThemeSettings'} component={ThemeSettings} />
+      <Stack.Screen name={'StorageSettings'} component={StorageSettings} />
       <Stack.Screen name={'ClearCache'} component={ClearCachePage} />
       <Stack.Screen name={'ChangeName'} component={ChangeName} />
       <Stack.Screen name={'SelectLanguages'} component={SelectLanguages} />

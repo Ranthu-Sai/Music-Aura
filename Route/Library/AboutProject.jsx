@@ -143,7 +143,7 @@ export const AboutProject = ({navigation}) => {
         <View style={styles.footer}>
           <PlainText text="Music Aura" style={styles.footerAppLogo} />
           <SmallText text="Designed for the ultimate music experience" />
-          <SmallText text="© 2025 Music Aura. All rights reserved." />
+          <SmallText text="© 2026 Music Aura. All rights reserved." />
         </View>
 
         <Spacer />

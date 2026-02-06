@@ -31,6 +31,7 @@ import {
   ShimmerFullPage,
 } from '../../Component/Global/ShimmerEffect';
 import {ErrorBoundary} from '../../Component/Global/ErrorBoundary';
+import {Spacer} from '../../Component/Global/Spacer';
 
 // JioSaavn API Fallback URLs (only hosts that support /modules endpoint)
 const JIOSAAVN_API_FALLBACKS = [
@@ -593,21 +594,21 @@ export const Home = () => {
               }}>
               <RenderTopCharts playlist={enhancedCharts} />
             </ScrollView>
-            {/* Viral Hits moved here under Top Charts */}
             {LoadingSecondary ? (
               <>
                 <PaddingConatiner>
-                  <Heading text={'Viral Hits'} />
+                  <Spacer />
+                  <Spacer />
+                  <Heading text="Please Wait..." nospace={true} />
+                  <Spacer />
                 </PaddingConatiner>
-                <ShimmerHorizontalList itemCount={5} />
+                <ShimmerHorizontalList itemCount={4} />
               </>
             ) : (
               viralHitsId && (
-                <>
-                  <PaddingConatiner>
-                    <HorizontalScrollSongs id={viralHitsId} />
-                  </PaddingConatiner>
-                </>
+                <PaddingConatiner>
+                  <HorizontalScrollSongs id={viralHitsId} />
+                </PaddingConatiner>
               )
             )}
             <PaddingConatiner>
@@ -651,24 +652,21 @@ export const Home = () => {
             <PaddingConatiner>
               <HorizontalScrollSongs id={getChartId(2)} />
             </PaddingConatiner>
-
-
-
-            {/* Trending Section */}
             {LoadingSecondary ? (
               <>
                 <PaddingConatiner>
-                  <Heading text={'Trending Now'} />
+                  <Spacer />
+                  <Spacer />
+                  <Heading text="Please Wait..." nospace={true} />
+                  <Spacer />
                 </PaddingConatiner>
-                <ShimmerTrendingSongsList itemCount={6} />
+                <ShimmerHorizontalList itemCount={4} />
               </>
             ) : (
               trendingLangId && (
-                <>
-                  <PaddingConatiner>
-                    <HorizontalScrollSongs id={trendingLangId} />
-                  </PaddingConatiner>
-                </>
+                <PaddingConatiner>
+                  <HorizontalScrollSongs id={trendingLangId} />
+                </PaddingConatiner>
               )
             )}
           </ScrollView>

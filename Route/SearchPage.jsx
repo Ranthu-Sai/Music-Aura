@@ -253,6 +253,17 @@ export const SearchPage = ({navigation}) => {
       searchTimeoutRef.current = setTimeout(() => {
         fetchSearchData(SearchText, 1, false);
       }, 200);
+    } else {
+      // Ensure loading state and related flags are cleared when search text is empty
+      setLoading(false);
+      setLoadingMore(false);
+      setData({data: {results: []}});
+      setHasMore(false);
+      setCurrentPage(1);
+      setConsecutiveDuplicatePages(0);
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
     }
 
     return () => {
@@ -358,7 +369,7 @@ export const SearchPage = ({navigation}) => {
 
       <Spacer height={5} />
 
-      {Loading && (
+      {SearchText && Loading && (
         <>
           {ActiveTab === 0 && <ShimmerSearchResults itemCount={8} />}
           {ActiveTab === 1 && <ShimmerSearchAlbums itemCount={6} />}

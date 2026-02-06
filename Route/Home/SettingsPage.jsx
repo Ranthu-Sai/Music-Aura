@@ -12,16 +12,11 @@ import {
   Alert,
 } from 'react-native';
 import {PlainText} from '../../Component/Global/PlainText';
-import {Dropdown} from 'react-native-element-dropdown';
 import {
   GetDownloadPath,
   GetFontSizeValue,
   GetPlaybackQuality,
-  SetDownloadPath,
-  SetFontSizeValue,
-  SetPlaybackQuality,
   GetTheme,
-  SetTheme,
 } from '../../LocalStorage/AppSettings';
 import {useEffect, useState, useContext, useCallback} from 'react';
 import {SmallText} from '../../Component/Global/SmallText';
@@ -102,116 +97,16 @@ const EachSettingsButton = ({
   );
 };
 
-const EachDropDownSetting = ({
-  data,
-  text,
-  placeholder,
-  OnChange,
-  currentThemeColors,
-  iconName,
-  delay = 0,
-}) => {
-  return (
-    <Animated.View
-      entering={FadeInRight.delay(delay).duration(400)}
-      style={{
-        backgroundColor:
-          currentThemeColors.secondaryBackground || 'rgba(255,255,255,0.05)',
-        padding: 16,
-        borderRadius: 16,
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 10,
-        elevation: 2,
-      }}>
-      <View
-        style={{flexDirection: 'row', alignItems: 'center', gap: 16, flex: 1}}>
-        <View
-          style={{
-            backgroundColor:
-              currentThemeColors?.text === '#000000'
-                ? 'rgba(0,0,0,0.06)'
-                : 'rgba(255,255,255,0.08)',
-            padding: 12,
-            borderRadius: 12,
-          }}>
-          <Icon
-            name={iconName}
-            size={22}
-            color={currentThemeColors.primary || '#1DB954'}
-          />
-        </View>
-        <PlainText text={text} style={{fontWeight: '600', fontSize: 16}} />
-      </View>
-      <Dropdown
-        placeholder={placeholder}
-        placeholderStyle={{
-          color: currentThemeColors.text,
-          fontSize: 14,
-          fontWeight: 'bold',
-        }}
-        itemTextStyle={{color: currentThemeColors.text}}
-        selectedTextStyle={{
-          color: currentThemeColors.primary || '#1DB954',
-          fontSize: 14,
-          fontWeight: '900',
-        }}
-        containerStyle={{
-          backgroundColor: currentThemeColors.secondaryBackground || '#1a1a1a',
-          borderRadius: 12,
-          borderWidth: 1,
-          borderColor: currentThemeColors.secondaryText
-            ? currentThemeColors.secondaryText + '22'
-            : 'rgba(0,0,0,0.1)',
-        }}
-        activeColor={
-          currentThemeColors.secondaryBackground || 'rgba(0,0,0,0.05)'
-        }
-        style={{width: 110}}
-        data={data}
-        labelField="value"
-        valueField="value"
-        onChange={OnChange}
-      />
-    </Animated.View>
-  );
-};
-
-import Context, {ThemeContext} from '../../Context/Context';
+import {ThemeContext} from '../../Context/Context';
 
 export const SettingsPage = ({navigation}) => {
-  const {setFontSize, setTheme, currentThemeColors} = useContext(ThemeContext);
-  const {activeTrack} = useContext(Context);
+  const {currentThemeColors} = useContext(ThemeContext);
   const [Font, setFont] = useState('Medium');
   const [Playback, setPlayback] = useState('320kbps');
   const [Download, setDownload] = useState('Music');
   const [Theme, setThemeState] = useState('Default');
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
   const appVersion = DeviceInfo.getVersion();
-
-  const FontSize = [{value: 'Small'}, {value: 'Medium'}, {value: 'Large'}];
-  const PlaybackQuality = [
-    {value: '96kbps'},
-    {value: '160kbps'},
-    {value: '320kbps'},
-  ];
-  const DownloadPath = [{value: 'Music'}, {value: 'Downloads'}];
-  const Themes = [
-    {value: 'Default'},
-    {value: 'Dark'},
-    {value: 'White'},
-    {value: 'Blue'},
-    {value: 'Purple'},
-    {value: 'Green'},
-    {value: 'Red'},
-    {value: 'Orange'},
-    {value: 'Pink'},
-    {value: 'Teal'},
-    {value: 'Amoled'},
-    {value: 'Sky'},
-    {value: 'Midnight'},
-  ];
 
   const loadData = useCallback(async () => {
     setFont(await GetFontSizeValue());
@@ -224,15 +119,21 @@ export const SettingsPage = ({navigation}) => {
     setIsCheckingUpdate(true);
     try {
       const result = await updateService.checkForUpdate(true); // Force check
-      if (result.updateAvailable) {
+      if (result && result.updateAvailable) {
         Alert.alert(
           'Update Available',
-          `Version ${result.latestVersion} is available!\n\n${result.message}`,
+          `Version ${result.latestVersion} is available!\n\n${result.message || 'New features and improvements'}`,
           [
             {text: 'Later', style: 'cancel'},
             {
               text: 'Download',
-              onPress: () => updateService.openUpdateLink(result.url),
+              onPress: () => {
+                if (result.url) {
+                  updateService.openUpdateLink(result.url);
+                } else {
+                  ToastAndroid.show('Update link not available', ToastAndroid.SHORT);
+                }
+              },
             },
           ],
         );
@@ -241,7 +142,10 @@ export const SettingsPage = ({navigation}) => {
       }
     } catch (error) {
       console.error('Update check failed:', error);
-      ToastAndroid.show('Failed to check for updates', ToastAndroid.SHORT);
+      ToastAndroid.show(
+        'Could not check for updates. Please check your internet connection.',
+        ToastAndroid.LONG,
+      );
     } finally {
       setIsCheckingUpdate(false);
     }
@@ -257,32 +161,24 @@ export const SettingsPage = ({navigation}) => {
         <Heading text={'Settings'} />
         <ScrollView
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{paddingBottom: activeTrack ? 160 : 120}}>
+          contentContainerStyle={{paddingBottom: 120}}>
           <View style={styles.section}>
             <SmallText text="Playback & Storage" style={styles.sectionHeader} />
-            <EachDropDownSetting
+            <EachSettingsButton
               delay={100}
               iconName="high-definition"
               text="Streaming Quality"
-              placeholder={Playback}
-              data={PlaybackQuality}
+              subtitle={`Current: ${Playback}`}
               currentThemeColors={currentThemeColors}
-              OnChange={({value}) => {
-                SetPlaybackQuality(value);
-                setPlayback(value);
-              }}
+              OnPress={() => navigation.navigate('QualitySettings')}
             />
-            <EachDropDownSetting
+            <EachSettingsButton
               delay={200}
               iconName="folder-music-outline"
-              text="Storage Path"
-              placeholder={Download}
-              data={DownloadPath}
+              text="Storage & Display"
+              subtitle={`Downloads: ${Download} · Text: ${Font}`}
               currentThemeColors={currentThemeColors}
-              OnChange={({value}) => {
-                SetDownloadPath(value);
-                setDownload(value);
-              }}
+              OnPress={() => navigation.navigate('StorageSettings')}
             />
             <EachSettingsButton
               delay={300}
@@ -296,34 +192,16 @@ export const SettingsPage = ({navigation}) => {
 
           <View style={styles.section}>
             <SmallText text="Personalization" style={styles.sectionHeader} />
-            <EachDropDownSetting
+            <EachSettingsButton
               delay={400}
               iconName="palette-outline"
               text="App Theme"
-              placeholder={Theme}
-              data={Themes}
+              subtitle={`Current: ${Theme}`}
               currentThemeColors={currentThemeColors}
-              OnChange={({value}) => {
-                SetTheme(value);
-                setTheme(value);
-                setThemeState(value);
-              }}
-            />
-            <EachDropDownSetting
-              delay={500}
-              iconName="format-size"
-              text="Text Size"
-              placeholder={Font}
-              data={FontSize}
-              currentThemeColors={currentThemeColors}
-              OnChange={({value}) => {
-                SetFontSizeValue(value);
-                setFontSize(value);
-                setFont(value);
-              }}
+              OnPress={() => navigation.navigate('ThemeSettings')}
             />
             <EachSettingsButton
-              delay={600}
+              delay={500}
               iconName="account-edit-outline"
               text="User Profile"
               subtitle="Change your app name"
@@ -331,7 +209,7 @@ export const SettingsPage = ({navigation}) => {
               OnPress={() => navigation.navigate('ChangeName')}
             />
             <EachSettingsButton
-              delay={700}
+              delay={600}
               iconName="translate"
               text="Languages"
               subtitle="Interface translations"
@@ -343,10 +221,10 @@ export const SettingsPage = ({navigation}) => {
           <View style={styles.section}>
             <SmallText text="Support" style={styles.sectionHeader} />
             <EachSettingsButton
-              delay={800}
+              delay={700}
               iconName="information-outline"
               text="About Project"
-              subtitle={`Music Aura v${appVersion}`}
+              subtitle="App information and credits"
               currentThemeColors={currentThemeColors}
               OnPress={() => navigation.navigate('AboutProject')}
             />
@@ -354,7 +232,7 @@ export const SettingsPage = ({navigation}) => {
 
           <View style={styles.section}>
             <SmallText text="App Updates" style={styles.sectionHeader} />
-            <Animated.View entering={FadeInRight.delay(900).duration(400)}>
+            <Animated.View entering={FadeInRight.delay(800).duration(400)}>
               <TouchableOpacity
                 onPress={isCheckingUpdate ? undefined : checkForUpdates}
                 disabled={isCheckingUpdate}
@@ -414,7 +292,7 @@ export const SettingsPage = ({navigation}) => {
           </View>
 
           <Animated.View
-            entering={FadeInDown.delay(1000)}
+            entering={FadeInDown.delay(900)}
             style={styles.footer}>
             <PlainText
               text="Built with ❤️ for Music Lovers"
@@ -441,7 +319,8 @@ const styles = StyleSheet.create({
   },
   footer: {
     marginTop: 30,
+    marginBottom: 20,
     alignItems: 'center',
-    paddingBottom: 20,
+    paddingBottom: 30,
   },
 });

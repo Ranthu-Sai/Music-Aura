@@ -4,6 +4,7 @@ import BottomSheetMusic from '../MusicPlayer/BottomSheetMusic';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import Animated, {FadeInDown, FadeInUp} from 'react-native-reanimated';
 import {ActionsContext} from '../../Context/Context';
+import {getFocusedRouteNameFromRoute} from '@react-navigation/native';
 const bottomColor = '#151515';
 function GetIcon(label, isDiabled = false) {
   if (label === 'Home') {
@@ -43,13 +44,35 @@ function GetIcon(label, isDiabled = false) {
 
 export default function CustomTabBar({state, descriptors, navigation}) {
   const {setIndex} = useContext(ActionsContext);
+
+  // Get the current focused route name from nested navigators
+  const getCurrentRouteName = () => {
+    const currentRoute = state.routes[state.index];
+    const routeName = getFocusedRouteNameFromRoute(currentRoute) ?? currentRoute.name;
+    return routeName;
+  };
+
+  const currentRouteName = getCurrentRouteName();
+
+  // Hide mini player on Settings-related pages
+  const hidePlayer = [
+    'Settings',
+    'QualitySettings',
+    'ThemeSettings',
+    'StorageSettings',
+    'ClearCache',
+    'ChangeName',
+    'SelectLanguages',
+    'AboutProject',
+  ].includes(currentRouteName);
+
   useEffect(() => {
     setIndex(0);
   }, [setIndex]);
 
   return (
     <>
-      <BottomSheetMusic color={bottomColor} />
+      {!hidePlayer && <BottomSheetMusic color={bottomColor} />}
       <View style={styles.mainContainer}>
         {state.routes.map((route, index) => {
           const {options} = descriptors[route.key];

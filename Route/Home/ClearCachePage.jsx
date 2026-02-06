@@ -14,7 +14,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import {useEffect, useState, useContext, useCallback} from 'react';
-import Context, {ThemeContext} from '../../Context/Context';
+import {ThemeContext} from '../../Context/Context';
 import {GetCacheSizes, ClearSelectedCache} from '../../LocalStorage/ClearCache';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import LinearGradient from 'react-native-linear-gradient';
@@ -122,7 +122,6 @@ function CacheCard({
 
 export const ClearCachePage = ({navigation}) => {
   const {currentThemeColors} = useContext(ThemeContext);
-  const {activeTrack} = useContext(Context);
   const [cacheSizes, setCacheSizes] = useState({});
   const [storage, setStorage] = useState({total: 0, d: 0, c: 0});
   const [selectedCache, setSelectedCache] = useState([]);
@@ -229,7 +228,7 @@ export const ClearCachePage = ({navigation}) => {
         <Heading text={'Clear Cache'} />
         <ScrollView
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{paddingBottom: activeTrack ? 140 : 100}}>
+          contentContainerStyle={{paddingBottom: 100}}>
           {/* Dynamic Storage Dashboard */}
           <Animated.View
             entering={FadeInDown.duration(600)}

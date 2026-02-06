@@ -494,6 +494,29 @@ export const ShimmerSearchPlaylists = ({itemCount = 6}) => (
 );
 
 /**
+ * Shimmer for Search Suggestions (used in SearchSuggestions)
+ */
+export const ShimmerSearchSuggestions = ({itemCount = 5}) => (
+  <View style={{paddingHorizontal: 15, paddingTop: 10}}>
+    {Array.from({length: itemCount}).map((_, index) => (
+      <Reanimated.View
+        key={`shimmer-suggestion-${index}`}
+        entering={FadeIn.delay(index * 60).duration(300)}
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          paddingVertical: 12,
+          gap: 12,
+        }}>
+        <ShimmerEffect width={40} height={40} borderRadius={12} />
+        <ShimmerEffect width={SCREEN_WIDTH - 120} height={16} borderRadius={6} style={{flex: 1}} />
+        <ShimmerEffect width={24} height={24} borderRadius={6} />
+      </Reanimated.View>
+    ))}
+  </View>
+);
+
+/**
  * Shimmer for Horizontal Song Lists (used in HorizontalScrollSongs)
  */
 export const ShimmerHorizontalSongList = () => {

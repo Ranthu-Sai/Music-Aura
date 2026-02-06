@@ -99,7 +99,10 @@ export const ChangeName = ({navigation}) => {
           behavior={Platform.OS === 'ios' ? 'padding' : null}
           style={{flex: 1}}>
           <ScrollView
-            contentContainerStyle={styles.scrollContent}
+            contentContainerStyle={[
+              styles.scrollContent,
+              {paddingBottom: 100},
+            ]}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}>
             <View style={styles.mainContent}>

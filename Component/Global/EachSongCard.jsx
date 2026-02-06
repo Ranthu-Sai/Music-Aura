@@ -82,6 +82,7 @@ export const EachSongCard = memo(function EachSongCard({
   const {updateTrack, setVisible, lyricsCacheRef} = useContext(ActionsContext);
   const navigation = useNavigation();
   const [isLoading, setIsLoading] = useState(false);
+  const isProcessingRef = React.useRef(false);
 
   // Normalize artwork formats (string, array, object) to a single URI
   const normalizeArtwork = useCallback(img => {
@@ -183,9 +184,11 @@ export const EachSongCard = memo(function EachSongCard({
 
 
   const AddSongToPlayer = useCallback(async () => {
-    if (isLoading) {
+    if (isLoading || isProcessingRef.current) {
       return;
     }
+    // set a synchronous guard to avoid race where multiple taps fire before state updates
+    isProcessingRef.current = true;
     setIsLoading(true);
     try {
       if (lyricsCacheRef?.current) {
@@ -206,15 +209,27 @@ export const EachSongCard = memo(function EachSongCard({
         } = require('../../MusicPlayerFunctions');
         const FormatArtist = require('../../Utils/FormatArtists').default;
 
-        // Ensure missing streaming URLs are fetched for songs in this list
+        // Fetch streaming URLs only for a nearby window around the clicked song to avoid heavy redundant fetching
         try {
-          const missing = Data.data.songs.filter(s => !s.downloadUrl || !s.hasStreaming);
+          const total = Data.data.songs.length;
+          const windowStart = Math.max(0, index - 1);
+          const windowEnd = Math.min(total, windowStart + 20); // fetch up to 20 songs starting from clicked index
+          const windowSlice = Data.data.songs.slice(windowStart, windowEnd);
+          const missing = windowSlice.filter(s => (!s.downloadUrl || !s.hasStreaming) && !s.resolvingStreaming);
           if (missing.length > 0) {
+            // mark resolvingStreaming to avoid duplicate fetches
+            missing.forEach(s => (s.resolvingStreaming = true));
             await Promise.all(
               missing.map(async s => {
-                const urls = await getSongStreamingUrl(s.id);
-                s.downloadUrl = urls || s.encrypted_media_url;
-                s.hasStreaming = !!urls;
+                try {
+                  const urls = await getSongStreamingUrl(s.id);
+                  s.downloadUrl = urls || s.encrypted_media_url || s.url;
+                  s.hasStreaming = !!urls;
+                } catch (err) {
+                  // ignore per-song errors
+                } finally {
+                  s.resolvingStreaming = false;
+                }
               }),
             );
           }
@@ -311,6 +326,7 @@ export const EachSongCard = memo(function EachSongCard({
     } catch (error) {
       console.error('Error in AddSongToPlayer:', error);
     } finally {
+      isProcessingRef.current = false;
       setIsLoading(false);
     }
   }, [
@@ -325,6 +341,7 @@ export const EachSongCard = memo(function EachSongCard({
     Data,
     artworkUri,
     displayTitle,
+    index,
   ]);
 
   return (

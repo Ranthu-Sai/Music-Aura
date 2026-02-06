@@ -34,6 +34,13 @@ async function removeFromQueue(index) {
     if (typeof index !== 'number' || index < 0) {
       return;
     }
+
+    // Ensure player is initialized before attempting to remove
+    if (!isPlayerInitialized) {
+      console.warn('Player not initialized, cannot remove from queue');
+      return;
+    }
+
     await TrackPlayer.remove(index);
 
   } catch (error) {
@@ -881,12 +888,31 @@ async function PlaySongWithRelated(videoId, artwork, songData = {}) {
   }
 }
 
+// Guard against concurrent AddPlaylist calls
+let _addPlaylistInProgress = false;
+let _lastAddPlaylistAt = 0;
+
 async function AddPlaylist(songs, startSongId = null) {
+  // Prevent re-entrant calls within a short window
+  const now = Date.now();
+  if (_addPlaylistInProgress || now - _lastAddPlaylistAt < 800) {
+    console.warn('AddPlaylist ignored due to ongoing add or debounce');
+    return;
+  }
+
+  _addPlaylistInProgress = true;
+  _lastAddPlaylistAt = now;
+
   try {
     // Validate songs array
     if (!Array.isArray(songs) || songs.length === 0) {
       console.error('Invalid songs array provided to AddPlaylist');
       return;
+    }
+
+    // Ensure player is initialized before proceeding
+    if (!isPlayerInitialized) {
+      await setupPlayer();
     }
 
     // Keep all songs in the queue but remember which index to start from
@@ -933,14 +959,14 @@ async function AddPlaylist(songs, startSongId = null) {
           !song.isLocalMusic;
 
         if (isYouTubeSong) {
-          // Only fetch stream for the FIRST song immediately
-          // All others get a placeholder and will be fetched on demand
-          const isFirstSong = index === 0;
+          // Fetch stream for the song user clicked (startIndex) and optionally first song
+          // This prevents playback errors when jumping to specific songs in albums
+          const shouldFetchImmediately = index === startIndex || (index === 0 && startIndex === 0);
 
-          if (isFirstSong) {
+          if (shouldFetchImmediately) {
             try {
               debugLog(
-                'Fetching YouTube stream for first playlist song:',
+                `Fetching YouTube stream for song at index ${index}:`,
                 song.id,
               );
               const streamData = await youtubeStreamingService.getStreamUrl(
@@ -958,11 +984,12 @@ async function AddPlaylist(songs, startSongId = null) {
                   duration: streamData.duration || updatedSong.duration,
                   title: streamData.title || updatedSong.title,
                   currentPlayingQuality: currentQuality,
+                  _prefetched: true,
                 };
               }
             } catch (error) {
               console.error(
-                'Error fetching YouTube stream for first playlist song:',
+                `Error fetching YouTube stream for song at index ${index}:`,
                 error,
               );
             }
@@ -1011,15 +1038,38 @@ async function AddPlaylist(songs, startSongId = null) {
     const INITIAL_BATCH_SIZE = 20;
     const initialBatch = processedSongs.slice(0, INITIAL_BATCH_SIZE);
 
-    await TrackPlayer.reset();
-    await TrackPlayer.add(initialBatch);
+    // If player already has the same track playing, avoid unnecessary reset which can cause queue churn
+    try {
+      const currentIndex = await TrackPlayer.getCurrentTrack();
+      const queue = await TrackPlayer.getQueue();
+      const currentTrack = queue[currentIndex];
+      if (currentTrack && startSongId && (currentTrack.id === startSongId || currentTrack.id === (songs[startIndex] && songs[startIndex].id))) {
+        // Already playing the requested track — ensure playing state and return
+        await TrackPlayer.play();
+      } else {
+        await TrackPlayer.reset();
+        await TrackPlayer.add(initialBatch);
 
-    // Skip to the song user clicked on if startIndex is within initial batch
-    if (startIndex < INITIAL_BATCH_SIZE) {
-      await TrackPlayer.skip(startIndex);
+        // Skip to the song user clicked on if startIndex is within initial batch
+        if (startIndex < INITIAL_BATCH_SIZE) {
+          await TrackPlayer.skip(startIndex);
+          // Small delay to ensure track is loaded before playing (prevents multiple loads)
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+
+        await TrackPlayer.play();
+      }
+    } catch (err) {
+      // If any error, fallback to reset + add + play
+      console.warn('AddPlaylist: error checking existing queue, falling back to reset', err);
+      await TrackPlayer.reset();
+      await TrackPlayer.add(initialBatch);
+      if (startIndex < INITIAL_BATCH_SIZE) {
+        await TrackPlayer.skip(startIndex);
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+      await TrackPlayer.play();
     }
-
-    await TrackPlayer.play();
 
     // Signal that this is a playlist/album playback (disable auto-recommendations)
     DeviceEventEmitter.emit('playback-mode-changed', {isPlaylist: true});
@@ -1031,6 +1081,7 @@ async function AddPlaylist(songs, startSongId = null) {
       InteractionManager.runAfterInteractions(async () => {
         try {
           const BATCH_SIZE = 50;
+          let hasSkipped = false; // FLAG: Prevent multiple skip operations
           for (let i = 0; i < remainingSongs.length; i += BATCH_SIZE) {
             const batch = remainingSongs.slice(i, i + BATCH_SIZE);
 
@@ -1042,9 +1093,11 @@ async function AddPlaylist(songs, startSongId = null) {
             await TrackPlayer.add(batch);
 
             // If user clicked on a song in the remaining batch, skip to it once it's added
-            if (startIndex >= INITIAL_BATCH_SIZE && startIndex < INITIAL_BATCH_SIZE + i + BATCH_SIZE) {
+            // Only skip ONCE when the batch containing startIndex is added
+            if (!hasSkipped && startIndex >= INITIAL_BATCH_SIZE + i && startIndex < INITIAL_BATCH_SIZE + i + BATCH_SIZE) {
               try {
                 await TrackPlayer.skip(startIndex);
+                hasSkipped = true; // Mark as skipped to prevent duplicate skips
               } catch (skipErr) {
                 console.warn('Could not skip to song in later batch:', skipErr);
               }
@@ -1164,10 +1217,17 @@ async function AddPlaylist(songs, startSongId = null) {
     });
   } catch (error) {
     console.error('Error in AddPlaylist:', error);
+  } finally {
+    _addPlaylistInProgress = false;
   }
 }
 
 async function AddSongsToQueue(songs) {
+  // Ensure player is initialized before proceeding
+  if (!isPlayerInitialized) {
+    await setupPlayer();
+  }
+
   const qualityIndex = await getIndexQuality();
   const qualityNames = ['12kbps', '48kbps', '96kbps', '160kbps', '320kbps'];
   const currentQuality = qualityNames[qualityIndex] || 'Unknown';
@@ -1344,14 +1404,23 @@ async function AddSongsToQueue(songs) {
   }
 }
 async function PlaySong() {
+  if (!isPlayerInitialized) {
+    await setupPlayer();
+  }
   await TrackPlayer.play();
 }
 async function PauseSong() {
+  if (!isPlayerInitialized) {
+    return;
+  }
   await TrackPlayer.pause();
 }
 
 async function SetProgressSong(value) {
   try {
+    if (!isPlayerInitialized) {
+      return;
+    }
     // Ensure value is a valid number and within bounds
     const seekValue = Math.max(0, parseFloat(value) || 0);
     await TrackPlayer.seekTo(seekValue);
@@ -1520,6 +1589,11 @@ async function PlayPreviousSong() {
 }
 async function SkipToTrack(trackIndex) {
   try {
+    // Ensure player is initialized
+    if (!isPlayerInitialized) {
+      await setupPlayer();
+    }
+
     // Prevent queue cleanup on manual jump to preserve subsequent songs
     try {
       smartPrefetchManager.suppressCleanupNextChange();
@@ -1578,15 +1652,17 @@ async function SkipToTrack(trackIndex) {
           targetTrack,
           streamData,
         );
-
       } else {
-        console.error('❌ Failed to get stream for random track');
+        console.error('❌ Failed to get stream for track');
         ToastAndroid.show('Failed to load stream', ToastAndroid.SHORT);
         return;
       }
     }
 
     await TrackPlayer.skip(validIndex);
+
+    // Small delay to ensure track is loaded before playing (prevents jump-back issues)
+    await new Promise(resolve => setTimeout(resolve, 100));
 
     // Get the new track and start tracking it
     const newTrack = await TrackPlayer.getActiveTrack();

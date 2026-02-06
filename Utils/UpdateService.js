@@ -14,7 +14,7 @@ const GITHUB_RELEASES_URL = `https://api.github.com/repos/${GITHUB_OWNER}/${GITH
 const GITHUB_RELEASES_PAGE = `https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}/releases`;
 
 // Toggle GitHub release checks (set false to disable checks and suppress warnings)
-const ENABLE_GITHUB_CHECKS = false;
+const ENABLE_GITHUB_CHECKS = true;
 
 // Storage keys
 const STORAGE_KEYS = {
@@ -109,7 +109,6 @@ class UpdateService {
       if (!response.ok) {
         if (response.status === 404) {
           // Lower-severity log when repo/releases are missing
-
           return null;
         }
         throw new Error(`GitHub API error: ${response.status}`);

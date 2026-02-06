@@ -139,19 +139,37 @@ export const ArtistSongsPage = ({route}) => {
         return;
       }
 
-      // Nothing to do if all items in batch already have streaming
-      if (batch.every(s => s.downloadUrl && s.hasStreaming)) {
+      // Skip if all items already have streaming or are currently being resolved
+      if (batch.every(s => (s.downloadUrl && s.hasStreaming) || s.resolvingStreaming)) {
         return;
       }
 
+      // Mark items in this batch as resolving to avoid duplicate simultaneous requests
+      setArtistData(prev => {
+        if (!prev || !prev.songs) {return prev;}
+        const newSongs = [...prev.songs];
+        for (let i = 0; i < batch.length; i++) {
+          const idx = startIndex + i;
+          newSongs[idx] = {...newSongs[idx], resolvingStreaming: true};
+        }
+        return {...prev, songs: newSongs};
+      });
+
       const updated = await Promise.all(batch.map(async (s) => {
-        if (s.downloadUrl && s.hasStreaming) {return s;}
-        const urls = await getSongStreamingUrl(s.id);
-        return {
-          ...s,
-          downloadUrl: urls || s.encrypted_media_url,
-          hasStreaming: !!urls,
-        };
+        // If another process already fetched it, keep it
+        if (s.downloadUrl && s.hasStreaming) {return {...s, resolvingStreaming: false};}
+        try {
+          const urls = await getSongStreamingUrl(s.id);
+          return {
+            ...s,
+            downloadUrl: urls || s.encrypted_media_url,
+            hasStreaming: !!urls,
+            resolvingStreaming: false,
+          };
+        } catch (e) {
+          // ensure we clear resolving flag even on error
+          return {...s, resolvingStreaming: false};
+        }
       }));
 
       // Merge back into artistData.songs
@@ -224,10 +242,15 @@ export const ArtistSongsPage = ({route}) => {
   // Ensure we always render at least `pageSize` rows by padding with skeletons if needed
   const displayData = useMemo(() => {
     const real = normalizedSongs;
-    if (real.length >= pageSize) {return real;}
-    const pads = Array.from({length: Math.max(0, pageSize - real.length)}).map((_, i) => ({__placeholder: true, key: `pad-${i}`}));
-    return [...real, ...pads];
-  }, [normalizedSongs, pageSize]);
+    // Only show placeholder skeleton rows while the initial loading/resolving is in progress.
+    // When loading is finished and there are no real songs, return an empty array so the
+    // ListEmptyComponent is rendered instead of persistent skeletons.
+    if (loading && real.length < pageSize) {
+      const pads = Array.from({length: Math.max(0, pageSize - real.length)}).map((_, i) => ({__placeholder: true, key: `pad-${i}`}));
+      return [...real, ...pads];
+    }
+    return real;
+  }, [normalizedSongs, pageSize, loading]);
 
 
 

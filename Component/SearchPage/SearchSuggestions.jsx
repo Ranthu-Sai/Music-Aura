@@ -5,12 +5,12 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  ActivityIndicator,
 } from 'react-native';
 import {useTheme} from '@react-navigation/native';
 import {ThemeContext} from '../../Context/Context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import Feather from 'react-native-vector-icons/Feather';
+import {ShimmerSearchSuggestions} from '../Global/ShimmerEffect';
 
 
 
@@ -96,9 +96,7 @@ const SearchSuggestions = ({
       </View>
 
       {isLoading && textSuggestions.length === 0 && (
-        <View style={styles.loader}>
-          <ActivityIndicator size="small" color={colors.primary} />
-        </View>
+        <ShimmerSearchSuggestions itemCount={5} />
       )}
     </ScrollView>
   );

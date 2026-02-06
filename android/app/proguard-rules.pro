@@ -28,7 +28,6 @@
 -dontskipnonpubliclibraryclasses
 -dontpreverify
 -verbose
--printusage unused.txt
 
 # Remove logging
 -assumenosideeffects class android.util.Log {

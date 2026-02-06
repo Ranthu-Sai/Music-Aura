@@ -24,7 +24,7 @@ if (__DEV__) {
 
 // Suppress noisy dev logs from specific modules while keeping other logs
 if (__DEV__) {
-  suppressLogPrefixes(['useDeviceLibrary:', 'LocalTracksMetadataManager:']);
+  suppressLogPrefixes(['useDeviceLibrary:', 'LocalTracksMetadataManager:', 'VirtualizedList:']);
 }
 
 // Request notification permission for Android 13+

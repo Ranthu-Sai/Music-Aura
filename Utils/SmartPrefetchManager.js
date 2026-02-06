@@ -207,8 +207,8 @@ class SmartPrefetchManager {
     this.lastErrorTimestamp = now;
     this.consecutiveErrors++;
 
-    // STOP if looping too fast (Max 3 retries in 5 seconds)
-    if (this.consecutiveErrors > 3) {
+    // STOP if looping too fast (Max 2 retries in 5 seconds - reduced from 3 for faster failure)
+    if (this.consecutiveErrors > 2) {
       console.error(
         '⚡ CIRCUIT BREAKER TRIPPED: Stopping playback to prevent freeze.',
       );
@@ -223,6 +223,11 @@ class SmartPrefetchManager {
       // ... (rest of logic)
 
       if (!currentTrack) {
+        return;
+      }
+
+      // Skip if track is already being prefetched (prevent duplicate fetch)
+      if (this.prefetchInProgress.has(currentTrack.id)) {
         return;
       }
 
