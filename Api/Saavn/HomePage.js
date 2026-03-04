@@ -29,7 +29,8 @@ async function getHomePageData(languages) {
   };
 
   const urls = [
-    'https://jio-savan-api-sigma.vercel.app/modules?language=' + languages,
+    'https://jiosaavn-api-privatecvc2.vercel.app/modules?language=' + languages,
+    'https://jio-saavan-api.vercel.app/modules?language=' + languages,
     `${baseUrl}?${Object.keys(defaultParams)
       .map(k => `${k}=${defaultParams[k]}`)
       .join('&')}&${sources.launch_data}`,

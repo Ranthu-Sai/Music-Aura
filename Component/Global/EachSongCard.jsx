@@ -241,23 +241,23 @@ export const EachSongCard = memo(function EachSongCard({
         const ForMusicPlayer = Data.data.songs.map((e, i) => {
           // Handle the case where downloadUrl might be a single URL or an array
           const download = Array.isArray(e?.downloadUrl)
-            ? e?.downloadUrl[quality]?.url || e?.downloadUrl[0]?.url
+            ? e?.downloadUrl[quality]?.url || e?.downloadUrl[quality]?.link || e?.downloadUrl[0]?.url || e?.downloadUrl[0]?.link
             : e?.downloadUrl;
 
           return {
             url: download,
             title: FormatTitleAndArtist(e?.name || e?.title),
-            artist: FormatTitleAndArtist(FormatArtist(e?.artists?.primary)),
+            artist: FormatTitleAndArtist(FormatArtist(e?.artists?.primary || e?.primaryArtists)),
             artwork: Array.isArray(e?.image)
-              ? e?.image[2]?.url || e?.image[0]?.url
+              ? e?.image[2]?.url || e?.image[2]?.link || e?.image[0]?.url || e?.image[0]?.link
               : e?.image,
             image: Array.isArray(e?.image)
-              ? e?.image[2]?.url || e?.image[0]?.url
+              ? e?.image[2]?.url || e?.image[2]?.link || e?.image[0]?.url || e?.image[0]?.link
               : e?.image,
             duration: e?.duration,
             id: e?.id,
             language: e?.language,
-            artistID: e?.primary_artists_id,
+            artistID: e?.primary_artists_id || e?.primaryArtistsId,
             source: e?.source || Data.data.source,
           };
         });
@@ -292,7 +292,7 @@ export const EachSongCard = memo(function EachSongCard({
         const ForMusicPlayer = Data.map((e, i) => {
           // Handle the case where downloadUrl might be a single URL or an array
           const download = Array.isArray(e?.downloadUrl)
-            ? e?.downloadUrl[quality]?.url || e?.downloadUrl[0]?.url
+            ? e?.downloadUrl[quality]?.url || e?.downloadUrl[quality]?.link || e?.downloadUrl[0]?.url || e?.downloadUrl[0]?.link
             : e?.downloadUrl || e?.url;
 
           return {

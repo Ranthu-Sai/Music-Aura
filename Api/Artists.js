@@ -28,7 +28,7 @@ async function getStreamingUrl(songId) {
     const response = await retryWithBackoff(
       () =>
         axios.get(
-          `https://jiosavan-api-with-playlist.vercel.app/api/songs/${songId}`,
+          `https://jiosaavn-api-privatecvc2.vercel.app/songs?id=${songId}`,
           {timeout: 15000}, // Increased timeout for slower networks
         ),
       2, // Reduced retries for streaming URLs to avoid delays
@@ -92,7 +92,8 @@ export async function getTrendingArtists(language = null) {
     try {
       // Try the single reliably supported /modules API
       const moduleApis = [
-        'https://jio-savan-api-sigma.vercel.app', // Working API - only reliably supported host
+        'https://jiosaavn-api-privatecvc2.vercel.app', // Working API - primary host
+        'https://jio-saavan-api.vercel.app', // Working API - secondary host
       ];
 
       for (const apiBase of moduleApis) {
@@ -244,7 +245,8 @@ export async function getLanguageTopArtists(language) {
   try {
     // First try the modules API for this language - it provides real artist objects with images
     const moduleApis = [
-      'https://jio-savan-api-sigma.vercel.app', // Working API - only reliably supported host
+      'https://jiosaavn-api-privatecvc2.vercel.app', // Working API - primary host
+      'https://jio-saavan-api.vercel.app', // Working API - secondary host
     ];
 
     for (const apiBase of moduleApis) {
@@ -316,7 +318,7 @@ export async function getLanguageTopArtists(language) {
         const vercelRes = await retryWithBackoff(
           () =>
             axios.get(
-              `https://jio-savan-api-sigma.vercel.app/search/songs?query=${encodeURIComponent(
+              `https://jiosaavn-api-privatecvc2.vercel.app/search/songs?query=${encodeURIComponent(
                 searchQuery,
               )}`,
               {timeout: 10000},

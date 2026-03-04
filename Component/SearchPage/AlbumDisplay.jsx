@@ -18,6 +18,14 @@ export default function AlbumsDisplay({
   const activeTrack = useActiveTrack();
 
   function FormatArtist(artists) {
+    // Handle if artists is already a string (new API format)
+    if (typeof artists === 'string') {
+      return artists;
+    }
+    // Handle array format (old API format)
+    if (!Array.isArray(artists)) {
+      return '';
+    }
     let artist = '';
     artists?.map((e, i) => {
       if (i === artists.length - 1) {
@@ -42,15 +50,18 @@ export default function AlbumsDisplay({
           keyExtractor={(item, index) => `${item?.id}_${index}`}
           data={songsData?.data?.results ?? []}
           renderItem={({item: album, index}) => {
-            const isSaavn = album?.artists?.primary;
+            const isSaavn = album?.artists?.primary || album?.primaryArtists;
             const name = isSaavn ? album?.name : album?.title;
             const artists = isSaavn
-              ? FormatArtist(album?.artists?.primary)
+              ? FormatArtist(album?.artists?.primary || album?.primaryArtists)
               : album?.artist;
             const image = Array.isArray(album?.image)
               ? album?.image[2]?.url ||
+                album?.image[2]?.link ||
                 album?.image[1]?.url ||
+                album?.image[1]?.link ||
                 album?.image[0]?.url ||
+                album?.image[0]?.link ||
                 ''
               : typeof album?.image === 'string'
               ? album?.image

@@ -183,16 +183,19 @@ export const Album = ({route}) => {
                         Data={Data}
                         index={i}
                         title={e?.name}
-                        artist={FormatArtist(e?.artists?.primary)}
+                        artist={FormatArtist(e?.artists?.primary || e?.primaryArtists)}
                         language={e?.language}
-                        artistID={e?.primary_artists_id}
+                        artistID={e?.primary_artists_id || e?.primaryArtistsId}
                         key={e?.id}
                         duration={e?.duration}
                         image={
                           Array.isArray(e?.image)
                             ? e?.image[2]?.url ||
+                              e?.image[2]?.link ||
                               e?.image[1]?.url ||
+                              e?.image[1]?.link ||
                               e?.image[0]?.url ||
+                              e?.image[0]?.link ||
                               ''
                             : typeof e?.image === 'string'
                             ? e?.image

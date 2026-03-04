@@ -61,16 +61,19 @@ export const HorizontalScrollSongs = React.memo(({id}) => {
                   index={i}
                   isFromPlaylist={true}
                   Data={Data}
-                  artist={FormatArtist(e?.artists?.primary)}
+                  artist={FormatArtist(e?.artists?.primary || e?.primaryArtists)}
                   language={e?.language}
                   playlist={true}
-                  artistID={e?.primary_artists_id}
+                  artistID={e?.primary_artists_id || e?.primaryArtistsId}
                   duration={e?.duration}
                   image={
                     Array.isArray(e?.image)
                       ? e?.image[2]?.url ||
+                        e?.image[2]?.link ||
                         e?.image[1]?.url ||
+                        e?.image[1]?.link ||
                         e?.image[0]?.url ||
+                        e?.image[0]?.link ||
                         ''
                       : typeof e?.image === 'string'
                       ? e?.image
@@ -92,16 +95,19 @@ export const HorizontalScrollSongs = React.memo(({id}) => {
                   index={i + 4}
                   Data={Data}
                   isFromPlaylist={true}
-                  artist={FormatArtist(e?.artists?.primary)}
+                  artist={FormatArtist(e?.artists?.primary || e?.primaryArtists)}
                   language={e?.language}
                   playlist={true}
-                  artistID={e?.primary_artists_id}
+                  artistID={e?.primary_artists_id || e?.primaryArtistsId}
                   duration={e?.duration}
                   image={
                     Array.isArray(e?.image)
                       ? e?.image[2]?.url ||
+                        e?.image[2]?.link ||
                         e?.image[1]?.url ||
+                        e?.image[1]?.link ||
                         e?.image[0]?.url ||
+                        e?.image[0]?.link ||
                         ''
                       : typeof e?.image === 'string'
                       ? e?.image

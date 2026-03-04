@@ -296,7 +296,9 @@ const ContextState = props => {
                 // Check URL duplicates
                 const songUrl =
                   song.downloadUrl?.[3]?.url ||
+                  song.downloadUrl?.[3]?.link ||
                   song.downloadUrl?.[0]?.url ||
+                  song.downloadUrl?.[0]?.link ||
                   song.id;
                 const normalizedSongUrl = songUrl.split('?')[0];
                 if (existingUrls.has(normalizedSongUrl)) {
@@ -304,9 +306,9 @@ const ContextState = props => {
                 }
 
                 // Check title+artist duplicates (fuzzy matching)
-                if (song.name && song.artists?.primary) {
+                if (song.name && (song.primaryArtists || song.artists?.primary)) {
                   const artistName =
-                    FormatArtist(song.artists.primary)?.toString() || '';
+                    FormatArtist(song.primaryArtists || song.artists?.primary)?.toString() || '';
                   const signature = `${song.name
                     .toLowerCase()
                     .trim()}-${artistName.toLowerCase().trim()}`;
@@ -330,13 +332,14 @@ const ContextState = props => {
                 return true;
               })
               .map(e => ({
-                url: e.downloadUrl?.[3]?.url || e.downloadUrl?.[0]?.url || e.id,
+                url: e.downloadUrl?.[3]?.url || e.downloadUrl?.[3]?.link || e.downloadUrl?.[0]?.url || e.downloadUrl?.[0]?.link || e.id,
                 title: e.name?.toString() ?? '',
-                artist: FormatArtist(e?.artists?.primary)?.toString() ?? '',
+                artist: FormatArtist(e?.primaryArtists || e?.artists?.primary)?.toString() ?? '',
                 artwork:
                   e.image?.[2]?.url ||
                   e.image?.[2]?.link ||
                   e.image?.[0]?.url ||
+                  e.image?.[0]?.link ||
                   '',
                 duration: e.duration,
                 id: e.id,

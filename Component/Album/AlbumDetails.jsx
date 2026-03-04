@@ -44,23 +44,23 @@ export const AlbumDetails = ({
       const quality = await getIndexQuality();
       const ForMusicPlayer = Data?.data?.songs?.map(e => {
         const download = Array.isArray(e?.downloadUrl)
-          ? e?.downloadUrl[quality]?.url || e?.downloadUrl[0]?.url
+          ? e?.downloadUrl[quality]?.url || e?.downloadUrl[quality]?.link || e?.downloadUrl[0]?.url || e?.downloadUrl[0]?.link
           : e?.downloadUrl;
 
         return {
           url: download,
           title: FormatTitleAndArtist(e?.name),
-          artist: FormatTitleAndArtist(FormatArtist(e?.artists?.primary)),
+          artist: FormatTitleAndArtist(FormatArtist(e?.artists?.primary || e?.primaryArtists)),
           artwork: Array.isArray(e?.image)
-            ? e?.image[2]?.url || e?.image[0]?.url
+            ? e?.image[2]?.url || e?.image[2]?.link || e?.image[0]?.url || e?.image[0]?.link
             : e?.image,
           image: Array.isArray(e?.image)
-            ? e?.image[2]?.url || e?.image[0]?.url
+            ? e?.image[2]?.url || e?.image[2]?.link || e?.image[0]?.url || e?.image[0]?.link
             : e?.image,
           duration: e?.duration,
           id: e?.id,
           language: e?.language,
-          artistID: e?.primary_artists_id,
+          artistID: e?.primary_artists_id || e?.primaryArtistsId,
           source: 'ytmusic',
         };
       });
@@ -93,23 +93,23 @@ export const AlbumDetails = ({
 
       const ForMusicPlayer = shuffled.map(e => {
         const download = Array.isArray(e?.downloadUrl)
-          ? e?.downloadUrl[quality]?.url || e?.downloadUrl[0]?.url
+          ? e?.downloadUrl[quality]?.url || e?.downloadUrl[quality]?.link || e?.downloadUrl[0]?.url || e?.downloadUrl[0]?.link
           : e?.downloadUrl;
 
         return {
           url: download,
           title: FormatTitleAndArtist(e?.name),
-          artist: FormatTitleAndArtist(FormatArtist(e?.artists?.primary)),
+          artist: FormatTitleAndArtist(FormatArtist(e?.artists?.primary || e?.primaryArtists)),
           artwork: Array.isArray(e?.image)
-            ? e?.image[2]?.url || e?.image[0]?.url
+            ? e?.image[2]?.url || e?.image[2]?.link || e?.image[0]?.url || e?.image[0]?.link
             : e?.image,
           image: Array.isArray(e?.image)
-            ? e?.image[2]?.url || e?.image[0]?.url
+            ? e?.image[2]?.url || e?.image[2]?.link || e?.image[0]?.url || e?.image[0]?.link
             : e?.image,
           duration: e?.duration,
           id: e?.id,
           language: e?.language,
-          artistID: e?.primary_artists_id,
+          artistID: e?.primary_artists_id || e?.primaryArtistsId,
           source: 'ytmusic',
         };
       });
@@ -125,7 +125,13 @@ export const AlbumDetails = ({
 
   // Get album image
   const albumImage =
-    Data?.data?.image?.[2]?.url || Data?.data?.image?.[0]?.url || '';
+    Data?.data?.image?.[2]?.url ||
+    Data?.data?.image?.[2]?.link ||
+    Data?.data?.image?.[1]?.url ||
+    Data?.data?.image?.[1]?.link ||
+    Data?.data?.image?.[0]?.url ||
+    Data?.data?.image?.[0]?.link ||
+    '';
 
   // Compute the best album display name: prefer API name, but if it's identical
   // to the song title (common for single-song albums), try extracting the

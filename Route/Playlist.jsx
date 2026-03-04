@@ -201,10 +201,10 @@ export const Playlist = ({route}) => {
         isFromPlaylist={true}
         playlistId={id.startsWith('playlist_') ? id : null}
         index={index}
-        artist={FormatArtist(item?.artists?.primary)}
+        artist={FormatArtist(item?.artists?.primary || item?.primaryArtists)}
         language={item?.language}
         playlist={true}
-        artistID={item?.primary_artists_id}
+        artistID={item?.primary_artists_id || item?.primaryArtistsId}
         key={index}
         duration={item?.duration}
         item={item}

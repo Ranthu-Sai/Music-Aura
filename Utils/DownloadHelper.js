@@ -61,13 +61,15 @@ async function resolveDownloadUrl(song) {
     }
     // Check downloadUrl as well
     if (Array.isArray(song.downloadUrl)) {
-      const mp3Item = song.downloadUrl.find(it => isMp3Link(it?.url));
-      if (mp3Item?.url) {
-        return {url: mp3Item.url, isMp3: true};
+      const mp3Item = song.downloadUrl.find(it => isMp3Link(it?.url || it?.link));
+      if (mp3Item?.url || mp3Item?.link) {
+        return {url: mp3Item.url || mp3Item.link, isMp3: true};
       }
+      const highQuality = song.downloadUrl[4];
+      const lastItem = song.downloadUrl[song.downloadUrl.length - 1];
       const candidate =
-        song.downloadUrl[4]?.url ||
-        song.downloadUrl[song.downloadUrl.length - 1]?.url;
+        highQuality?.url || highQuality?.link ||
+        lastItem?.url || lastItem?.link;
       return {url: candidate, isMp3: isMp3Link(candidate)};
     }
   } catch (e) {

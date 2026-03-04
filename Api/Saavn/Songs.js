@@ -62,7 +62,8 @@ async function getSearchSongData(searchText, page, limit) {
   };
 
   const urls = [
-    `https://jiosavan-api-with-playlist.vercel.app/api/search/songs?query=${searchText}&page=${page}&limit=${limit}`,
+    `https://jiosaavn-api-privatecvc2.vercel.app/search/songs?query=${searchText}&page=${page}&limit=${limit}`,
+    `https://jio-saavan-api.vercel.app/search/songs?query=${searchText}&page=${page}&limit=${limit}`,
     `${baseUrl}?${Object.keys(defaultParams)
       .map(k => `${k}=${defaultParams[k]}`)
       .join('&')}&${sources.song_search}&q=${encodeURIComponent(
@@ -533,8 +534,9 @@ async function getYTSearchPlaylistData(searchText, page, limit) {
 
 async function getLyricsSongData(id) {
   const urls = [
-    'https://jiosavan-api-with-playlist.vercel.app/api/songs/${id}/lyrics',
-    'https://www.jiosaavn.com/api.php?__call=lyrics.getLyrics&ctx=wap6dot0&api_version=4&_format=json&_marker=0&id=${id}',
+    `https://jiosaavn-api-privatecvc2.vercel.app/songs/${id}/lyrics`,
+    `https://jio-saavan-api.vercel.app/songs/${id}/lyrics`,
+    `https://www.jiosaavn.com/api.php?__call=lyrics.getLyrics&ctx=wap6dot0&api_version=4&_format=json&_marker=0&id=${id}`,
   ];
   for (let baseUrl of urls) {
     try {
@@ -731,7 +733,7 @@ async function getYTLyricsSongData(
           // Search for song
           const searchConfig = {
             method: 'get',
-            url: `https://jiosavan-api-with-playlist.vercel.app/api/search/songs?query=${encodeURIComponent(
+            url: `https://jiosaavn-api-privatecvc2.vercel.app/search/songs?query=${encodeURIComponent(
               artist + ' ' + title,
             )}&limit=5`,
             headers: {},
@@ -755,7 +757,8 @@ async function getYTLyricsSongData(
             // lyrics endpoint expects a lyrics_id and is not usable with song ids, so we
             // only query the wrapper here.
             const lyricsUrls = [
-              `https://jiosavan-api-with-playlist.vercel.app/api/songs/${songId}/lyrics`,
+              `https://jiosaavn-api-privatecvc2.vercel.app/songs/${songId}/lyrics`,
+              `https://jio-saavan-api.vercel.app/songs/${songId}/lyrics`,
             ];
 
             for (const lyricsUrl of lyricsUrls) {
@@ -977,7 +980,8 @@ async function getSongData(id) {
   };
 
   const urls = [
-    `https://jiosavan-api-with-playlist.vercel.app/api/songs/${id}`,
+    `https://jiosaavn-api-privatecvc2.vercel.app/songs?id=${id}`,
+    `https://jio-saavan-api.vercel.app/songs?id=${id}`,
     `${baseUrl}?${Object.keys(defaultParams)
       .map(k => `${k}=${defaultParams[k]}`)
       .join('&')}&${sources.song_detail}&id=${id}`,

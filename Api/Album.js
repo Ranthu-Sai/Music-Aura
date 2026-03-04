@@ -21,7 +21,8 @@ async function getAlbumData(id) {
   };
 
   const urls = [
-    'https://jiosavan-api-with-playlist.vercel.app/api/albums?id=' + id,
+    'https://jiosaavn-api-privatecvc2.vercel.app/albums?id=' + id,
+    'https://jio-saavan-api.vercel.app/albums?id=' + id,
     `${baseUrl}?${Object.keys(defaultParams)
       .map(k => `${k}=${defaultParams[k]}`)
       .join('&')}&${sources.album_detail}&id=${id}`,
@@ -57,7 +58,8 @@ async function getSearchAlbumData(searchText, page, limit) {
   };
 
   const urls = [
-    `https://jiosavan-api-with-playlist.vercel.app/api/search/albums?query=${searchText}&page=${page}&limit=${limit}`,
+    `https://jiosaavn-api-privatecvc2.vercel.app/search/albums?query=${searchText}&page=${page}&limit=${limit}`,
+    `https://jio-saavan-api.vercel.app/search/albums?query=${searchText}&page=${page}&limit=${limit}`,
     `${baseUrl}?${Object.keys(defaultParams)
       .map(k => `${k}=${defaultParams[k]}`)
       .join('&')}&${sources.album_search}&q=${encodeURIComponent(

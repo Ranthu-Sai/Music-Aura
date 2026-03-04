@@ -108,59 +108,68 @@ export async function getStreamingUrls(encryptedMediaUrl, songId = null) {
 
   // Third fallback: Try Vercel JioSaavn API
   if (urls.length === 0 && songId && axios) {
-    try {
-      const response = await axios.get(
-        `https://jiosavan-api-with-playlist.vercel.app/api/songs/${songId}`,
-        {
+    const apiUrls = [
+      `https://jiosaavn-api-privatecvc2.vercel.app/songs?id=${songId}`,
+      `https://jio-saavan-api.vercel.app/songs?id=${songId}`,
+    ];
+
+    for (const apiUrl of apiUrls) {
+      try {
+        const response = await axios.get(apiUrl, {
           timeout: 10000,
-        },
-      );
+        });
 
-      let data = response.data;
-      if (typeof data === 'string') {
-        data = JSON.parse(data);
-      }
+        let data = response.data;
+        if (typeof data === 'string') {
+          data = JSON.parse(data);
+        }
 
-      // Check if response has downloadUrl array
-      if (
-        data?.data?.[0]?.downloadUrl &&
-        Array.isArray(data.data[0].downloadUrl)
-      ) {
-        data.data[0].downloadUrl.forEach(item => {
-          if (item.url || item.link) {
-            urls.push({
-              quality: item.quality || '320kbps',
-              url: item.url || item.link,
-              link: item.url || item.link,
-            });
-          }
-        });
+        // Check if response has downloadUrl array
+        if (
+          data?.data?.[0]?.downloadUrl &&
+          Array.isArray(data.data[0].downloadUrl)
+        ) {
+          data.data[0].downloadUrl.forEach(item => {
+            if (item.url || item.link) {
+              urls.push({
+                quality: item.quality || '320kbps',
+                url: item.url || item.link,
+                link: item.url || item.link,
+              });
+            }
+          });
+        }
+        // Check direct downloadUrl
+        else if (data?.downloadUrl && Array.isArray(data.downloadUrl)) {
+          data.downloadUrl.forEach(item => {
+            if (item.url || item.link) {
+              urls.push({
+                quality: item.quality || '320kbps',
+                url: item.url || item.link,
+                link: item.url || item.link,
+              });
+            }
+          });
+        }
+        // Check if response has direct URL
+        else if (data?.data?.[0]?.url) {
+          urls.push({
+            quality: '320kbps',
+            url: data.data[0].url,
+            link: data.data[0].url,
+          });
+        }
+
+        // If we found URLs, break out of the loop
+        if (urls.length > 0) {
+          break;
+        }
+      } catch (error) {
+        console.warn(
+          `getStreamingUrls: API fallback failed for ${apiUrl}`,
+          error.message,
+        );
       }
-      // Check direct downloadUrl
-      else if (data?.downloadUrl && Array.isArray(data.downloadUrl)) {
-        data.downloadUrl.forEach(item => {
-          if (item.url || item.link) {
-            urls.push({
-              quality: item.quality || '320kbps',
-              url: item.url || item.link,
-              link: item.url || item.link,
-            });
-          }
-        });
-      }
-      // Check if response has direct URL
-      else if (data?.data?.[0]?.url) {
-        urls.push({
-          quality: '320kbps',
-          url: data.data[0].url,
-          link: data.data[0].url,
-        });
-      }
-    } catch (error) {
-      console.warn(
-        'getStreamingUrls: Third fallback API failed',
-        error.message,
-      );
     }
   }
 

@@ -15,7 +15,8 @@ async function getRecommendedSongs(id) {
   };
 
   const urls = [
-    `https://jiosavan-api-with-playlist.vercel.app/api/songs/${id}/suggestions`,
+    `https://jiosaavn-api-privatecvc2.vercel.app/songs/${id}/suggestions`,
+    `https://jio-saavan-api.vercel.app/songs/${id}/suggestions`,
     `${baseUrl}?${Object.keys(defaultParams)
       .map(k => `${k}=${defaultParams[k]}`)
       .join('&')}&${sources.song_reco}&id=${id}`,

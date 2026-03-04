@@ -39,26 +39,26 @@ export const PlaylistDetails = ({
         url: isLocal
           ? e.url
           : Array.isArray(e?.downloadUrl)
-          ? e?.downloadUrl[quality]?.url
+          ? e?.downloadUrl[quality]?.url || e?.downloadUrl[quality]?.link || e?.downloadUrl[0]?.url || e?.downloadUrl[0]?.link
           : e?.downloadUrl,
         title: FormatTitleAndArtist(e?.name || e?.title),
         artist: FormatTitleAndArtist(
-          FormatArtist(e?.artists?.primary) || e?.artist || 'Unknown Artist',
+          FormatArtist(e?.artists?.primary || e?.primaryArtists) || e?.artist || 'Unknown Artist',
         ),
         artwork: isLocal
           ? e.image
           : Array.isArray(e?.image)
-          ? e?.image[2]?.url
+          ? e?.image[2]?.url || e?.image[2]?.link || e?.image[1]?.url || e?.image[1]?.link || e?.image[0]?.url || e?.image[0]?.link
           : e?.image,
         image: isLocal
           ? e.image
           : Array.isArray(e?.image)
-          ? e?.image[2]?.url
+          ? e?.image[2]?.url || e?.image[2]?.link || e?.image[1]?.url || e?.image[1]?.link || e?.image[0]?.url || e?.image[0]?.link
           : e?.image,
         duration: e?.duration,
         id: e?.id,
         language: e?.language,
-        artistID: e?.primary_artists_id,
+        artistID: e?.primary_artists_id || e?.primaryArtistsId,
       };
     });
     await AddPlaylist(ForMusicPlayer);

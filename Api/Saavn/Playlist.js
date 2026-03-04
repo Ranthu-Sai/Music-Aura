@@ -148,7 +148,8 @@ async function getPlaylistData(id) {
     };
 
     const urls = [
-      `https://jiosavan-api-with-playlist.vercel.app/api/playlists?id=${id}&limit=100000`,
+      `https://jiosaavn-api-privatecvc2.vercel.app/playlists?id=${id}`,
+      `https://jio-saavan-api.vercel.app/playlists?id=${id}`,
       `${baseUrl}?${Object.keys(defaultParams)
         .map(k => `${k}=${defaultParams[k]}`)
         .join('&')}&${sources.playlist_detail}&id=${id}`,
@@ -232,7 +233,8 @@ async function getSearchPlaylistData(searchText, page, limit) {
   };
 
   const urls = [
-    `https://jio-savan-api-sigma.vercel.app/search/playlists?query=${searchText}&page=${page}&limit=${limit}`,
+    `https://jiosaavn-api-privatecvc2.vercel.app/search/playlists?query=${searchText}&page=${page}&limit=${limit}`,
+    `https://jio-saavan-api.vercel.app/search/playlists?query=${searchText}&page=${page}&limit=${limit}`,
     `${baseUrl}?${Object.keys(defaultParams)
       .map(k => `${k}=${defaultParams[k]}`)
       .join('&')}&${sources.playlist_search}&q=${encodeURIComponent(
@@ -260,9 +262,10 @@ async function getSearchPlaylistData(searchText, page, limit) {
 async function getAllPlaylists(language) {
   const urls = [
     'https://jiosaavn-c451wwyru-sumit-kolhes-projects-94a4846a.vercel.app',
+    'https://jiosaavn-api-privatecvc2.vercel.app',
+    'https://jio-saavan-api.vercel.app',
     'https://nepotuneapi.vercel.app',
     'https://saavn.sumit.co',
-    'https://jio-savan-api-sigma.vercel.app',
   ];
   for (let baseUrl of urls) {
     try {

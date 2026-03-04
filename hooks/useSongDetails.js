@@ -221,10 +221,10 @@ const useSongDetails = track => {
 
         // For online tracks from API
         const response = await axios.get(
-          `https://jiosavan-api-with-playlist.vercel.app/api/songs/${track.id}`,
+          `https://jiosaavn-api-privatecvc2.vercel.app/songs?id=${track.id}`,
         );
 
-        if (response.data && response.data.success) {
+        if (response.data && (response.data.success || response.data.status === 'SUCCESS')) {
           const data = response.data.data?.[0];
           if (!data) {
             throw new Error('No song data found');

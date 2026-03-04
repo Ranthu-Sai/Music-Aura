@@ -4,22 +4,11 @@ import InnerTubeClient from './InnertubeClient';
 
 // Get recommended songs for JioSaavn tracks
 async function getRecommendedSongs(id) {
-  const baseUrl = 'https://www.jiosaavn.com/api.php';
-  const defaultParams = {
-    ctx: 'wap6dot0',
-    api_version: 4,
-    _format: 'json',
-    _marker: 0,
-  };
-  const sources = {
-    song_reco: '__call=reco.getreco',
-  };
-
   const urls = [
-    `https://jiosavan-api-with-playlist.vercel.app/api/songs/${id}/suggestions`,
-    `${baseUrl}?${Object.keys(defaultParams)
-      .map(k => `${k}=${defaultParams[k]}`)
-      .join('&')}&${sources.song_reco}&id=${id}`,
+    `https://jiosaavn-api-privatecvc2.vercel.app/songs/${id}/suggestions`,
+    `https://jio-saavan-api.vercel.app/songs/${id}/suggestions`,
+    `https://jiosaavn-api-privatecvc2.vercel.app/playlists?id=${id}`,
+    `https://www.jiosaavn.com/api.php?ctx=wap6dot0&api_version=4&_format=json&_marker=0&__call=reco.getreco&id=${id}`,
   ];
 
   for (let url of urls) {
@@ -31,12 +20,32 @@ async function getRecommendedSongs(id) {
         headers: {},
       };
       const response = await axios.request(config);
+      if (response.data) {
+        // If it's playlist format, extract songs
+        if (response.data.data && response.data.data.songs) {
+          return {data: response.data.data.songs.slice(0, 20)};
+        }
+        // If it's direct data array
+        if (Array.isArray(response.data.data)) {
+          return {data: response.data.data.slice(0, 20)};
+        }
+        // If it's success format with data array
+        if (response.data.status === 'SUCCESS' && Array.isArray(response.data.data)) {
+          return {data: response.data.data.slice(0, 20)};
+        }
+        // Return as-is if format is unknown but has data
+        if (response.data.data) {
+          return response.data;
+        }
+      }
       return response.data;
     } catch (error) {
       continue;
     }
   }
-  throw new Error('All recommended songs API instances failed');
+
+  // If all APIs fail, return empty recommendations instead of throwing error
+  return {data: []};
 }
 
 // Get recommended songs for YouTube Music tracks

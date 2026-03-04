@@ -1,6 +1,8 @@
 {
     "java.compile.nullAnalysis.mode": "disabled",
-    "java.configuration.updateBuildConfiguration": "automatic",
+    "java.configuration.updateBuildConfiguration": "disabled",
+    "java.gradle.buildServer.enabled": "off",
+    "java.import.gradle.enabled": false,
     "chat.allowAnonymousAccess": false,
     "chat.checkpoints.showFileChanges": false,
     "chat.customAgentInSubagent.enabled": true,
@@ -8,7 +10,9 @@
     "java.import.exclusions": [
         "**/node_modules/**",
         "**/.metadata/**",
-        "**/archived/**"
+        "**/archived/**",
+        "**/android/**",
+        "**/ios/**"
     ],
     "files.exclude": {
         "**/.git": true,

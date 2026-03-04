@@ -60,6 +60,10 @@ export default function SongDisplay({
   const width = Dimensions.get('window').width;
 
   function FormatArtist(artists) {
+    // Handle if artists is already a string (new API format)
+    if (typeof artists === 'string') {
+      return artists;
+    }
     if (!artists || !Array.isArray(artists)) {
       return '';
     }
@@ -148,7 +152,7 @@ export default function SongDisplay({
               id={item?.id}
               width={width * 0.95}
               title={item?.name || item?.title}
-              artist={FormatArtist(item?.artists?.primary) || item?.artist}
+              artist={FormatArtist(item?.artists?.primary || item?.primaryArtists) || item?.artist}
               url={item?.downloadUrl} // This is used for Saavn downloads
               showNumber={false}
               source={item?.source || source || 'saavn'} // Preserve item's original source (dab, ytmusic, saavn)

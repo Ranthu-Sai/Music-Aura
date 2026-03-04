@@ -3,7 +3,8 @@ import axios from 'axios';
 
 // JioSaavn API Fallback URLs (only hosts that support /modules endpoint)
 const JIOSAAVN_API_FALLBACKS = [
-  'https://jio-savan-api-sigma.vercel.app', // Primary fallback
+  'https://jiosaavn-api-privatecvc2.vercel.app', // Primary fallback
+  'https://jio-saavan-api.vercel.app', // Secondary fallback
 ];
 
 // Cache for home page data
@@ -35,7 +36,8 @@ async function getHomePageData(languages) {
   };
 
   const urls = [
-    'https://jio-savan-api-sigma.vercel.app/modules?language=' + languages,
+    'https://jiosaavn-api-privatecvc2.vercel.app/modules?language=' + languages,
+    'https://jio-saavan-api.vercel.app/modules?language=' + languages,
     `${baseUrl}?${Object.keys(defaultParams)
       .map(k => `${k}=${defaultParams[k]}`)
       .join('&')}&${sources.launch_data}`,

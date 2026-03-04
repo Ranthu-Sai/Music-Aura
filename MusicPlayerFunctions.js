@@ -1,4 +1,4 @@
-import TrackPlayer, {Capability} from 'react-native-track-player';
+import TrackPlayer, {Capability, State} from 'react-native-track-player';
 import {GetPlaybackQuality} from './LocalStorage/AppSettings';
 import NetInfo from '@react-native-community/netinfo';
 import {
@@ -188,6 +188,7 @@ export const setupPlayer = async () => {
           },
           autoHandleInterruptions: true,
           autoUpdateMetadata: true,
+          waitForBuffer: true,
         });
 
         // NOTE: Remote control listeners (play, pause, next, previous) are registered in service.js
@@ -380,13 +381,15 @@ async function PlayOneSong(song) {
       // If song has multiple quality URLs, select based on setting
       if (song.downloadUrl && Array.isArray(song.downloadUrl)) {
         const qualityIndex = await getIndexQuality();
-        if (song.downloadUrl[qualityIndex]?.url) {
-          playbackUrl = song.downloadUrl[qualityIndex].url;
+        const preferredQuality = song.downloadUrl[qualityIndex];
+        if (preferredQuality?.url || preferredQuality?.link) {
+          playbackUrl = preferredQuality.url || preferredQuality.link;
         } else {
           // Fallback to any available URL
           for (let i = song.downloadUrl.length - 1; i >= 0; i--) {
-            if (song.downloadUrl[i]?.url) {
-              playbackUrl = song.downloadUrl[i].url;
+            const candidate = song.downloadUrl[i];
+            if (candidate?.url || candidate?.link) {
+              playbackUrl = candidate.url || candidate.link;
               break;
             }
           }
@@ -394,13 +397,15 @@ async function PlayOneSong(song) {
       } else if (song.download_url && Array.isArray(song.download_url)) {
         // Alternative format
         const qualityIndex = await getIndexQuality();
-        if (song.download_url[qualityIndex]?.url) {
-          playbackUrl = song.download_url[qualityIndex].url;
+        const preferredQuality = song.download_url[qualityIndex];
+        if (preferredQuality?.url || preferredQuality?.link) {
+          playbackUrl = preferredQuality.url || preferredQuality.link;
         } else {
           // Fallback to any available URL
           for (let i = song.download_url.length - 1; i >= 0; i--) {
-            if (song.download_url[i]?.url) {
-              playbackUrl = song.download_url[i].url;
+            const candidate = song.download_url[i];
+            if (candidate?.url || candidate?.link) {
+              playbackUrl = candidate.url || candidate.link;
               break;
             }
           }
@@ -469,7 +474,7 @@ async function PlayOneSong(song) {
               const query = encodeURIComponent(
                 (song.title || '') + ' ' + (song.artist || ''),
               );
-              const searchUrl = `https://jiosavan-api-with-playlist.vercel.app/api/search/songs?query=${query}&limit=1`;
+              const searchUrl = `https://jiosaavn-api-privatecvc2.vercel.app/search/songs?query=${query}&limit=1`;
               const searchResp = await safeHttpGet(searchUrl);
               const respData =
                 (searchResp && (searchResp.data || searchResp)) || {};
@@ -499,6 +504,7 @@ async function PlayOneSong(song) {
                   song.artist ||
                   first.artist ||
                   first.artists ||
+                  first.primaryArtists ||
                   first.primary_artists ||
                   first.subtitle ||
                   song.artist;
@@ -603,7 +609,23 @@ async function PlayOneSong(song) {
       // New song being played - reset queue and add it
       await TrackPlayer.reset();
       await TrackPlayer.add([songForPlayback]);
+
+      // Call play and wait a moment for the player to respond
       await TrackPlayer.play();
+
+      // Verify playback started successfully
+      try {
+        // Give the player a moment to start
+        await new Promise(resolve => setTimeout(resolve, 100));
+        const state = await TrackPlayer.getPlaybackState();
+        if (state.state !== State.Playing && state.state !== State.Buffering && state.state !== State.Loading) {
+          // Try playing again if not in a playback state
+          await TrackPlayer.play();
+        }
+      } catch (stateError) {
+        // Non-critical error checking state
+        console.warn('Could not verify playback state:', stateError);
+      }
     }
 
     // Signal that this is a single song playback (enable auto-recommendations)
@@ -710,6 +732,7 @@ async function PlaySongWithRelated(videoId, artwork, songData = {}) {
           song.title = song.title || songInfo.title || songInfo.name;
           song.artist =
             song.artist ||
+            songInfo.primaryArtists ||
             songInfo.primary_artists ||
             songInfo.artist ||
             songInfo.artists ||
@@ -738,7 +761,7 @@ async function PlaySongWithRelated(videoId, artwork, songData = {}) {
             const query = encodeURIComponent(
               (song.title || '') + ' ' + (song.artist || ''),
             );
-            const searchUrl = `https://jiosavan-api-with-playlist.vercel.app/api/search/songs?query=${query}&limit=1`;
+            const searchUrl = `https://jiosaavn-api-privatecvc2.vercel.app/search/songs?query=${query}&limit=1`;
             const searchResp = await safeHttpGet(searchUrl);
             const respData =
               (searchResp && (searchResp.data || searchResp)) || {};
@@ -766,6 +789,7 @@ async function PlaySongWithRelated(videoId, artwork, songData = {}) {
                 song.artist ||
                 first.artist ||
                 first.artists ||
+                first.primaryArtists ||
                 first.primary_artists ||
                 first.subtitle;
               song.artwork =
@@ -847,9 +871,13 @@ async function PlaySongWithRelated(videoId, artwork, songData = {}) {
                 // Get highest quality image (usually the last one)
                 artworkUrl =
                   s.image[s.image.length - 1]?.url ||
+                  s.image[s.image.length - 1]?.link ||
                   s.image[2]?.url ||
+                  s.image[2]?.link ||
                   s.image[1]?.url ||
+                  s.image[1]?.link ||
                   s.image[0]?.url ||
+                  s.image[0]?.link ||
                   '';
               } else if (typeof s.image === 'string') {
                 artworkUrl = s.image;
@@ -861,6 +889,7 @@ async function PlaySongWithRelated(videoId, artwork, songData = {}) {
                 title: s.name || s.title || 'Unknown',
                 artist:
                   s.artists?.primary?.map(a => a.name).join(', ') ||
+                  s.primaryArtists ||
                   s.primary_artists ||
                   s.artist ||
                   'Unknown Artist',
@@ -877,9 +906,64 @@ async function PlaySongWithRelated(videoId, artwork, songData = {}) {
 
           if (formattedSongs.length > 0) {
             await AddSongsToQueue(formattedSongs);
+          } else {
+            // If recommendations returned no songs, try fetching from trending as fallback
+            try {
+              const {getHomePageData} = require('./Api/HomePage');
+              const {getSongData} = require('./Api/Songs');
+              const homeData = await getHomePageData('hindi,english');
+              const trendingSongs = homeData?.data?.trending?.songs || [];
+
+              if (trendingSongs.length > 0) {
+                // Fetch full details for first 10 trending songs (to get downloadUrl)
+                const songsToFetch = trendingSongs
+                  .filter(s => s && s.id && s.id !== videoId)
+                  .slice(0, 10);
+
+                const fallbackSongs = [];
+                for (const trendingSong of songsToFetch) {
+                  try {
+                    const fullSongData = await getSongData(trendingSong.id);
+                    const apiSongData = fullSongData?.data?.[0] || fullSongData?.[0] || fullSongData;
+
+                    if (apiSongData && apiSongData.downloadUrl) {
+                      let artworkUrl = '';
+                      if (Array.isArray(apiSongData.image) && apiSongData.image.length > 0) {
+                        artworkUrl =
+                          apiSongData.image[2]?.url || apiSongData.image[2]?.link ||
+                          apiSongData.image[1]?.url || apiSongData.image[1]?.link ||
+                          apiSongData.image[0]?.url || apiSongData.image[0]?.link || '';
+                      }
+
+                      fallbackSongs.push({
+                        id: apiSongData.id,
+                        name: apiSongData.name || apiSongData.title || 'Unknown',
+                        title: apiSongData.name || apiSongData.title || 'Unknown',
+                        artist: apiSongData.primaryArtists || apiSongData.artist || 'Unknown Artist',
+                        artists: apiSongData.artists || {primary: [{name: apiSongData.primaryArtists || 'Unknown'}]},
+                        image: apiSongData.image || [],
+                        artwork: artworkUrl,
+                        downloadUrl: apiSongData.downloadUrl || [],
+                        duration: apiSongData.duration || 0,
+                        language: apiSongData.language || 'Unknown',
+                        // Don't set url - let AddSongsToQueue extract from downloadUrl
+                      });
+                    }
+                  } catch (err) {
+                    // Silently skip failed songs
+                  }
+                }
+
+                if (fallbackSongs.length > 0) {
+                  await AddSongsToQueue(fallbackSongs);
+                }
+              }
+            } catch (fallbackError) {
+              // Silently fail
+            }
           }
         } catch (error) {
-          console.warn('Failed to build Saavn queue:', error?.message || error);
+          // Silently fail
         }
       })();
     }
@@ -1004,14 +1088,18 @@ async function AddPlaylist(songs, startSongId = null) {
         } else {
           // Standard file/download URL logic
           if (song.downloadUrl && Array.isArray(song.downloadUrl)) {
+            const preferred = song.downloadUrl[qualityIndex];
+            const fallback = song.downloadUrl.find(d => d?.url || d?.link);
             updatedSong.url =
-              song.downloadUrl[qualityIndex]?.url ||
-              song.downloadUrl.find(d => d?.url)?.url ||
+              preferred?.url || preferred?.link ||
+              fallback?.url || fallback?.link ||
               song.url;
           } else if (song.download_url && Array.isArray(song.download_url)) {
+            const preferred = song.download_url[qualityIndex];
+            const fallback = song.download_url.find(d => d?.url || d?.link);
             updatedSong.url =
-              song.download_url[qualityIndex]?.url ||
-              song.download_url.find(d => d?.url)?.url ||
+              preferred?.url || preferred?.link ||
+              fallback?.url || fallback?.link ||
               song.url;
           }
         }
@@ -1178,9 +1266,13 @@ async function AddPlaylist(songs, startSongId = null) {
                 if (Array.isArray(s.image) && s.image.length > 0) {
                   artworkUrl =
                     s.image[s.image.length - 1]?.url ||
+                    s.image[s.image.length - 1]?.link ||
                     s.image[2]?.url ||
+                    s.image[2]?.link ||
                     s.image[1]?.url ||
+                    s.image[1]?.link ||
                     s.image[0]?.url ||
+                    s.image[0]?.link ||
                     '';
                 } else if (typeof s.image === 'string') {
                   artworkUrl = s.image;
@@ -1192,6 +1284,7 @@ async function AddPlaylist(songs, startSongId = null) {
                   title: s.name || s.title || 'Unknown',
                   artist:
                     s.artists?.primary?.map(a => a.name).join(', ') ||
+                    s.primaryArtists ||
                     s.primary_artists ||
                     s.artist ||
                     'Unknown Artist',
@@ -1265,15 +1358,21 @@ async function AddSongsToQueue(songs) {
     } else {
       // Standard logic for downloads/local
       if (song.downloadUrl && Array.isArray(song.downloadUrl)) {
-        processedSong.url =
-          song.downloadUrl[qualityIndex]?.url ||
-          song.downloadUrl.find(d => d?.url)?.url ||
+        const preferred = song.downloadUrl[qualityIndex];
+        const fallback = song.downloadUrl.find(d => d?.url || d?.link);
+        const extractedUrl =
+          preferred?.url || preferred?.link ||
+          fallback?.url || fallback?.link ||
           song.url;
+        processedSong.url = extractedUrl;
       } else if (song.download_url && Array.isArray(song.download_url)) {
-        processedSong.url =
-          song.download_url[qualityIndex]?.url ||
-          song.download_url.find(d => d?.url)?.url ||
+        const preferred = song.download_url[qualityIndex];
+        const fallback = song.download_url.find(d => d?.url || d?.link);
+        const extractedUrl =
+          preferred?.url || preferred?.link ||
+          fallback?.url || fallback?.link ||
           song.url;
+        processedSong.url = extractedUrl;
       }
       processedSong.currentPlayingQuality = currentQuality;
       // Format title and artist for consistency
@@ -1751,7 +1850,7 @@ async function AddOneSongToPlaylist(song) {
       url: song.url || '',
       duration: song.duration || 0,
       language: song.language || '',
-      artistID: song.artistID || song.primary_artists_id || '',
+      artistID: song.artistID || song.primaryArtistsId || song.primary_artists_id || '',
     };
 
     // Use the PlaylistSelectorBottomSheetManager to show the selection interface

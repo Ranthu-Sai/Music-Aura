@@ -108,16 +108,20 @@ class QueueManager {
 
         // Extract URL based on quality
         if (song.downloadUrl && Array.isArray(song.downloadUrl)) {
-          if (song.downloadUrl[qualityIndex]?.url) {
-            songUrl = song.downloadUrl[qualityIndex].url;
-          } else if (song.downloadUrl[0]?.url) {
-            songUrl = song.downloadUrl[0].url;
+          const preferred = song.downloadUrl[qualityIndex];
+          const fallback = song.downloadUrl[0];
+          if (preferred?.url || preferred?.link) {
+            songUrl = preferred.url || preferred.link;
+          } else if (fallback?.url || fallback?.link) {
+            songUrl = fallback.url || fallback.link;
           }
         } else if (song.download_url && Array.isArray(song.download_url)) {
-          if (song.download_url[qualityIndex]?.url) {
-            songUrl = song.download_url[qualityIndex].url;
-          } else if (song.download_url[0]?.url) {
-            songUrl = song.download_url[0].url;
+          const preferred = song.download_url[qualityIndex];
+          const fallback = song.download_url[0];
+          if (preferred?.url || preferred?.link) {
+            songUrl = preferred.url || preferred.link;
+          } else if (fallback?.url || fallback?.link) {
+            songUrl = fallback.url || fallback.link;
           }
         }
 
@@ -134,7 +138,7 @@ class QueueManager {
         return {
           url: songUrl,
           title: song.name || song.title || 'Unknown',
-          artist: this._formatArtist(song.artists?.primary || song.artist),
+          artist: this._formatArtist(song.primaryArtists || song.artists?.primary || song.artist),
           artwork: artworkUri,
           image: artworkUri,
           duration: song.duration || 0,

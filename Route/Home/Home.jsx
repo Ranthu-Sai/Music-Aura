@@ -35,7 +35,8 @@ import {Spacer} from '../../Component/Global/Spacer';
 
 // JioSaavn API Fallback URLs (only hosts that support /modules endpoint)
 const JIOSAAVN_API_FALLBACKS = [
-  'https://jio-savan-api-sigma.vercel.app', // Primary fallback
+  'https://jiosaavn-api-privatecvc2.vercel.app', // Primary fallback
+  'https://jio-saavan-api.vercel.app', // Secondary fallback
 ];
 
 export const Home = () => {
@@ -456,7 +457,7 @@ export const Home = () => {
                       url={item.downloadUrl}
                       duration={item.duration}
                       language={item.language}
-                      artistID={item.primary_artists_id}
+                      artistID={item.primary_artists_id || item.primaryArtistsId}
                     />
                   </View>
                 )}
