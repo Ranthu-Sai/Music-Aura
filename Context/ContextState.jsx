@@ -1,5 +1,6 @@
 import Context, {ThemeContext, ActionsContext} from './Context';
 import {useEffect, useState, useMemo, useCallback, useRef} from 'react';
+import {DeviceEventEmitter} from 'react-native';
 import TrackPlayer, {
   Event,
   useTrackPlayerEvents,
@@ -172,9 +173,30 @@ const ContextState = props => {
   const lyricsCacheRef = useRef({});
   const [queueVisible, setQueueVisible] = useState(false);
 
+  // Refs for managing updateTrack debouncing and race conditions
+  const updateTrackTimeoutRef = useRef(null);
+  const updateTrackInProgressRef = useRef(false);
+  const pendingUpdateRef = useRef(false);
+
   const updateTrack = useCallback(async () => {
-    // PERFORMANCE: Defer getQueue to next frame to prevent blocking UI
-    requestAnimationFrame(async () => {
+    // If an update is already in progress, mark that we need another update
+    if (updateTrackInProgressRef.current) {
+      pendingUpdateRef.current = true;
+      return;
+    }
+
+    // Clear any pending timeout
+    if (updateTrackTimeoutRef.current) {
+      clearTimeout(updateTrackTimeoutRef.current);
+      updateTrackTimeoutRef.current = null;
+    }
+
+    // Debounce: wait 100ms before executing to batch rapid calls
+    updateTrackTimeoutRef.current = setTimeout(async () => {
+      // Mark update as in progress
+      updateTrackInProgressRef.current = true;
+      pendingUpdateRef.current = false;
+
       try {
         const tracks = await TrackPlayer.getQueue();
 
@@ -194,9 +216,19 @@ const ContextState = props => {
           SetQueueSongs(tracks).catch(err => console.warn('Failed to save queue:', err));
         }
       } catch (error) {
-        // Error silently handled
+        console.error('Error in updateTrack:', error.message);
+      } finally {
+        // Mark update as complete
+        updateTrackInProgressRef.current = false;
+
+        // If another update was requested while we were running, execute it now
+        if (pendingUpdateRef.current) {
+          pendingUpdateRef.current = false;
+          // Use setTimeout to avoid stack overflow from recursive calls
+          setTimeout(() => updateTrack(), 0);
+        }
       }
-    });
+    }, 100); // 100ms debounce delay
   }, []);
   const recommendedProcessedRef = useRef(new Set());
   const MIN_QUEUE_SIZE = 100; // Larger queue for unlimited smooth playback
@@ -422,12 +454,12 @@ const ContextState = props => {
           track => track && track.id === event.track.id,
         );
 
-        if (!trackAlreadyInQueue) {
-          // Continuously add recommended songs - unlimited queue growth
-          AddRecommendedSongs(event.index, event.track.id).catch(err => {
+        // Add recommendations when track is new OR when queue is very small
+        // (e.g., after PlayOneSong resets queue to just 1 song)
+        if (!trackAlreadyInQueue || currentQueue.length <= 2) {
+          AddRecommendedSongs(event.index, event.track.id, currentQueue.length <= 2).catch(err => {
             console.warn('AddRecommendedSongs failed', err);
           });
-        } else {
         }
 
         // Prefetch lyrics for faster first open, prefer track language
@@ -490,7 +522,9 @@ const ContextState = props => {
           if ((song && song.id) || (queue && queue.length > 0)) {
             break;
           }
-        } catch (_) {}
+        } catch (err) {
+          // Retry silently
+        }
 
         // Wait 100ms before next retry
         await new Promise(resolve => setTimeout(resolve, 100));
@@ -500,8 +534,8 @@ const ContextState = props => {
       // If no active track AND queue is empty, try to restore from saved queue
       // Checking queue length prevents resetting the player if it's already loaded or playing
       if ((!song || !song.id) && (!queue || queue.length === 0)) {
-        // First try to restore the full queue
-        const savedQueue = await GetQueueSongs();
+        // Use enhanced queue restoration with validation
+        const savedQueue = await GetQueueSongs({useBackup: true});
 
         if (savedQueue && savedQueue.length > 0) {
           try {
@@ -512,7 +546,7 @@ const ContextState = props => {
               // If already initialized, this will throw; safe to ignore
             }
 
-            // Reset player and restore the entire saved queue
+            // Reset player and restore the entire saved queue (already validated by GetQueueSongs)
             await TrackPlayer.reset();
             await TrackPlayer.add(savedQueue);
 
@@ -528,19 +562,27 @@ const ContextState = props => {
             console.log(`✅ Restored queue with ${savedQueue.length} songs`);
           } catch (e) {
             console.error('❌ Error restoring saved queue:', e);
+
+            // Try fallback to last song
+            song = null;
           }
-        } else {
-          // Fallback: restore just the last song if queue save failed
+        }
+
+        // Fallback: restore just the last song if queue restore failed
+        if (!song || !song.id) {
           const lastSong = await GetLastSong();
 
           if (lastSong && lastSong.id) {
             try {
+              console.log('💿 Restoring last played song as fallback');
+
               // Ensure the player is initialized before attempting restore
               try {
                 await TrackPlayer.setupPlayer();
               } catch (_) {
                 // If already initialized, this will throw; safe to ignore
               }
+
               // Reset player and add the last song
               await TrackPlayer.reset();
               await TrackPlayer.add([lastSong]);
@@ -555,14 +597,18 @@ const ContextState = props => {
               setIndex(0);
 
               // Auto-fill queue with recommended songs
+              console.log('🔄 Auto-filling queue with recommendations...');
               await AddRecommendedSongs(0, song.id, true);
             } catch (e) {
               console.error('❌ Error restoring last song:', e);
             }
           } else {
+            console.log('📭 No saved queue or last song found');
           }
         }
       } else {
+        console.log(`✅ Player already has ${queue.length} tracks`);
+
         // Update current playing if there's already an active track
         setCurrentPlaying(song);
 
@@ -720,6 +766,14 @@ const ContextState = props => {
     // Deliberately empty dependency array so setup is not re-run on queue updates
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Sync Queue state whenever songs are added to TrackPlayer queue
+  useEffect(() => {
+    const sub = DeviceEventEmitter.addListener('queue-updated', () => {
+      updateTrack();
+    });
+    return () => sub.remove();
+  }, [updateTrack]);
   const themeValue = useMemo(
     () => ({
       fontSize,

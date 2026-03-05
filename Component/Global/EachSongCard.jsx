@@ -265,6 +265,57 @@ export const EachSongCard = memo(function EachSongCard({
         // Play from the clicked song using startSongId
         await AddPlaylist(ForMusicPlayer, id);
         await updateTrack();
+      } else if (
+        Data &&
+        Data.data &&
+        Data.data.results &&
+        Array.isArray(Data.data.results)
+      ) {
+        // Search results mode: Play from this song and queue all search results
+        const {
+          AddPlaylist,
+          getIndexQuality,
+        } = require('../../MusicPlayerFunctions');
+        const FormatArtist = require('../../Utils/FormatArtists').default;
+
+        const quality = await getIndexQuality();
+        const ForMusicPlayer = Data.data.results.map((e) => {
+          const download = Array.isArray(e?.downloadUrl)
+            ? e?.downloadUrl[quality]?.url ||
+              e?.downloadUrl[quality]?.link ||
+              e?.downloadUrl[0]?.url ||
+              e?.downloadUrl[0]?.link
+            : e?.downloadUrl;
+
+          return {
+            url: download,
+            title: FormatTitleAndArtist(e?.name || e?.title),
+            artist: FormatTitleAndArtist(
+              FormatArtist(e?.artists?.primary || e?.primaryArtists) ||
+                e?.artist,
+            ),
+            artwork: Array.isArray(e?.image)
+              ? e?.image[2]?.url ||
+                e?.image[2]?.link ||
+                e?.image[0]?.url ||
+                e?.image[0]?.link
+              : e?.image,
+            image: Array.isArray(e?.image)
+              ? e?.image[2]?.url ||
+                e?.image[2]?.link ||
+                e?.image[0]?.url ||
+                e?.image[0]?.link
+              : e?.image,
+            duration: e?.duration,
+            id: e?.id,
+            language: e?.language,
+            artistID: e?.primary_artists_id || e?.primaryArtistsId,
+            source: e?.source || source,
+          };
+        });
+
+        await AddPlaylist(ForMusicPlayer, id);
+        await updateTrack();
       } else if (Data && Array.isArray(Data)) {
         // Liked songs or other array-based lists: Play from this song and queue remaining songs
         const {
@@ -342,6 +393,7 @@ export const EachSongCard = memo(function EachSongCard({
     artworkUri,
     displayTitle,
     index,
+    source,
   ]);
 
   return (

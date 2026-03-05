@@ -8,7 +8,7 @@ async function getRecommendedSongs(id) {
     `https://jiosaavn-api-privatecvc2.vercel.app/songs/${id}/suggestions`,
     `https://jio-saavan-api.vercel.app/songs/${id}/suggestions`,
     `https://jiosaavn-api-privatecvc2.vercel.app/playlists?id=${id}`,
-    `https://www.jiosaavn.com/api.php?ctx=wap6dot0&api_version=4&_format=json&_marker=0&__call=reco.getreco&id=${id}`,
+    `https://www.jiosaavn.com/api.php?ctx=wap6dot0&api_version=4&_format=json&_marker=0&__call=reco.getreco&pid=${id}`,
   ];
 
   for (let url of urls) {

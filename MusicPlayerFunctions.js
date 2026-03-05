@@ -1,5 +1,6 @@
 import TrackPlayer, {Capability, State} from 'react-native-track-player';
 import {GetPlaybackQuality} from './LocalStorage/AppSettings';
+import {GetLanguageValue} from './LocalStorage/Languages';
 import NetInfo from '@react-native-community/netinfo';
 import {
   ToastAndroid,
@@ -846,9 +847,10 @@ async function PlaySongWithRelated(videoId, artwork, songData = {}) {
       }
     } else {
       // Build queue for JioSaavn songs using recommendations API
-      (async () => {
+      await (async () => {
         try {
           const {getRecommendedSongs} = require('./Api/Recommended');
+          const preferredLanguage = await GetLanguageValue();
           const recommendations = await getRecommendedSongs(videoId);
 
           // Parse recommendations response
@@ -863,7 +865,16 @@ async function PlaySongWithRelated(videoId, artwork, songData = {}) {
 
           // Format and filter songs to ensure they have all required fields
           const formattedSongs = recSongs
-            .filter(s => s && s.id && s.id !== videoId)
+            .filter(s => {
+              if (!s || !s.id || s.id === videoId) { return false; }
+              // Filter by user's preferred language if set
+              if (preferredLanguage) {
+                const songLang = (s.language || '').toLowerCase();
+                const userLang = preferredLanguage.toLowerCase();
+                if (songLang && songLang !== userLang) { return false; }
+              }
+              return true;
+            })
             .map(s => {
               // Extract artwork URL from image array
               let artworkUrl = '';
@@ -907,11 +918,80 @@ async function PlaySongWithRelated(videoId, artwork, songData = {}) {
           if (formattedSongs.length > 0) {
             await AddSongsToQueue(formattedSongs);
           } else {
-            // If recommendations returned no songs, try fetching from trending as fallback
+            // Recommendations API returned no songs — try search-based fallback
+            // Search for songs by the same artist or with similar title
             try {
-              const {getHomePageData} = require('./Api/HomePage');
-              const {getSongData} = require('./Api/Songs');
-              const homeData = await getHomePageData('hindi,english');
+              const preferredLang = preferredLanguage || '';
+              const searchArtist = songData?.artist && songData.artist !== 'Unknown Artist'
+                ? songData.artist
+                : '';
+              const searchTitle = songData?.title && songData.title !== 'Unknown Title'
+                ? songData.title
+                : '';
+              const searchQuery = encodeURIComponent(
+                (searchArtist || searchTitle || '') + ' ' + preferredLang,
+              ).trim();
+
+              if (searchQuery) {
+                const searchUrl = `https://jiosaavn-api-privatecvc2.vercel.app/search/songs?query=${searchQuery}&limit=20`;
+                const searchResp = await safeHttpGet(searchUrl);
+                const respData = (searchResp && (searchResp.data || searchResp)) || {};
+                const results = (respData && (respData.data?.results || respData.results)) || [];
+
+                if (Array.isArray(results) && results.length > 0) {
+                  const searchSongs = results
+                    .filter(s => s && s.id && s.id !== videoId)
+                    .filter(s => {
+                      if (preferredLanguage) {
+                        const sLang = (s.language || '').toLowerCase();
+                        const uLang = preferredLanguage.toLowerCase();
+                        if (sLang && sLang !== uLang) { return false; }
+                      }
+                      return true;
+                    })
+                    .map(s => {
+                      let artworkUrl = '';
+                      if (Array.isArray(s.image) && s.image.length > 0) {
+                        artworkUrl =
+                          s.image[s.image.length - 1]?.url ||
+                          s.image[s.image.length - 1]?.link ||
+                          s.image[0]?.url || s.image[0]?.link || '';
+                      } else if (typeof s.image === 'string') {
+                        artworkUrl = s.image;
+                      }
+                      return {
+                        id: s.id,
+                        name: s.name || s.title || 'Unknown',
+                        title: s.name || s.title || 'Unknown',
+                        artist: s.artists?.primary?.map(a => a.name).join(', ') ||
+                          s.primaryArtists || s.artist || 'Unknown Artist',
+                        artists: s.artists || {primary: [{name: 'Unknown Artist'}]},
+                        image: s.image || [],
+                        artwork: artworkUrl,
+                        downloadUrl: s.downloadUrl || [],
+                        duration: s.duration || 0,
+                        language: s.language || 'Unknown',
+                        url: s.url || '',
+                      };
+                    })
+                    .slice(0, 20);
+
+                  if (searchSongs.length > 0) {
+                    await AddSongsToQueue(searchSongs);
+                  }
+                }
+              }
+            } catch (searchError) {
+              // Search fallback failed — continue to trending fallback
+            }
+
+            // If search fallback didn't add songs, try trending as final fallback
+            const currentQueue = await TrackPlayer.getQueue();
+            if (currentQueue.length <= 1) {
+              try {
+                const {getHomePageData} = require('./Api/HomePage');
+                const {getSongData} = require('./Api/Songs');
+              const homeData = await getHomePageData(preferredLanguage);
               const trendingSongs = homeData?.data?.trending?.songs || [];
 
               if (trendingSongs.length > 0) {
@@ -925,6 +1005,13 @@ async function PlaySongWithRelated(videoId, artwork, songData = {}) {
                   try {
                     const fullSongData = await getSongData(trendingSong.id);
                     const apiSongData = fullSongData?.data?.[0] || fullSongData?.[0] || fullSongData;
+
+                    // Skip songs that don't match user's preferred language
+                    if (preferredLanguage && apiSongData?.language) {
+                      const songLang = apiSongData.language.toLowerCase();
+                      const userLang = preferredLanguage.toLowerCase();
+                      if (songLang !== userLang) { continue; }
+                    }
 
                     if (apiSongData && apiSongData.downloadUrl) {
                       let artworkUrl = '';
@@ -960,6 +1047,7 @@ async function PlaySongWithRelated(videoId, artwork, songData = {}) {
               }
             } catch (fallbackError) {
               // Silently fail
+            }
             }
           }
         } catch (error) {
@@ -1551,9 +1639,23 @@ async function PlayNextSong() {
 
       let nextIndex = typeof currentIndex === 'number' && currentIndex >= 0 ? currentIndex + 1 : 0;
 
-      // If nextIndex is beyond queue, nothing to play
+      // If nextIndex is beyond queue, wait briefly for recommendations to load
       if (nextIndex >= queue.length) {
-        return;
+        let retries = 6;
+        while (retries > 0) {
+          await new Promise(resolve => setTimeout(resolve, 500));
+          const freshQueue = await TrackPlayer.getQueue();
+          if (freshQueue.length > nextIndex) {
+            // Queue grew — update and continue
+            queue.length = 0;
+            queue.push(...freshQueue);
+            break;
+          }
+          retries--;
+        }
+        if (nextIndex >= queue.length) {
+          return;
+        }
       }
 
       // Skip forward until we find a different track (guard against duplicates)
