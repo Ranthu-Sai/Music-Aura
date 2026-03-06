@@ -1387,6 +1387,237 @@ class InnerTubeClient {
       return null;
     }
   }
+
+  // --- InnerTube Player API (Stream URL Resolution) ---
+
+  /**
+   * Cached visitorData (required by YouTube to avoid LOGIN_REQUIRED).
+   * Fetched from sw.js_data endpoint like vivi-music.
+   */
+  static _visitorData = null;
+  static _visitorDataTimestamp = 0;
+  static _VISITOR_DATA_TTL = 6 * 60 * 60 * 1000; // 6 hours
+
+  /**
+   * Fetch visitorData from YouTube's sw.js_data endpoint.
+   * vivi-music pattern: parse the JSON array and find a string matching /^Cg[ts]/
+   */
+  static async _fetchVisitorData() {
+    // Return cached if still fresh
+    if (
+      this._visitorData &&
+      Date.now() - this._visitorDataTimestamp < this._VISITOR_DATA_TTL
+    ) {
+      return this._visitorData;
+    }
+
+    try {
+      const resp = await fetch('https://music.youtube.com/sw.js_data', {
+        headers: {
+          'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        },
+      });
+      const text = await resp.text();
+      // Response starts with ")]}'" then JSON array
+      const jsonStr = text.replace(/^\)\]\}'?\s*/, '');
+      const parsed = JSON.parse(jsonStr);
+      // Walk the nested array to find visitorData matching /^Cg[ts]/
+      const findVisitorData = arr => {
+        if (typeof arr === 'string' && /^Cg[ts]/.test(arr)) {return arr;}
+        if (Array.isArray(arr)) {
+          for (const item of arr) {
+            const found = findVisitorData(item);
+            if (found) {return found;}
+          }
+        }
+        return null;
+      };
+      const vd = findVisitorData(parsed);
+      if (vd) {
+        this._visitorData = vd;
+        this._visitorDataTimestamp = Date.now();
+        return vd;
+      }
+    } catch (e) {
+      console.warn('Failed to fetch visitorData:', e.message);
+    }
+    return this._visitorData; // return stale if fetch failed
+  }
+
+  /**
+   * Client definitions for player requests (vivi-music pattern).
+   */
+  static ANDROID_VR_CONTEXT = {
+    client: {
+      clientName: 'ANDROID_VR',
+      clientVersion: '1.43.32',
+      androidSdkVersion: '32',
+      osName: 'Android',
+      osVersion: '12',
+      deviceMake: 'Oculus',
+      deviceModel: 'Quest 3',
+      hl: 'en',
+      gl: 'US',
+    },
+  };
+
+  static ANDROID_VR_USER_AGENT =
+    'com.google.android.apps.youtube.vr.oculus/1.43.32 (Linux; U; Android 12; en_US; Quest 3; Build/SQ3A.220605.009.A1; Cronet/107.0.5284.2)';
+
+  static IOS_CONTEXT = {
+    client: {
+      clientName: 'IOS',
+      clientVersion: '21.03.1',
+      deviceMake: 'Apple',
+      deviceModel: 'iPhone16,2',
+      osName: 'iPhone',
+      osVersion: '18.2.22C152',
+      hl: 'en',
+      gl: 'US',
+    },
+  };
+
+  static IOS_USER_AGENT =
+    'com.google.ios.youtube/21.03.1 (iPhone16,2; U; CPU iOS 18_2 like Mac OS X;)';
+
+  /**
+   * List of clients to try in order (vivi-music fallback strategy).
+   */
+  static _PLAYER_CLIENTS = [
+    {
+      context: 'ANDROID_VR_CONTEXT',
+      userAgent: 'ANDROID_VR_USER_AGENT',
+      clientId: '28',
+      clientVersion: '1.43.32',
+    },
+    {
+      context: 'IOS_CONTEXT',
+      userAgent: 'IOS_USER_AGENT',
+      clientId: '5',
+      clientVersion: '21.03.1',
+    },
+  ];
+
+  /**
+   * Fetch player response from InnerTube player API.
+   * Tries ANDROID_VR first, then IOS fallback (vivi-music pattern).
+   * Fetches visitorData to satisfy bot detection.
+   *
+   * @param {string} videoId - YouTube video ID
+   * @returns {Promise<{url: string, mimeType: string, bitrate: number, duration: number, title: string, author: string, thumbnail: string}|null>}
+   */
+  static async getPlayerResponse(videoId) {
+    // Fetch visitorData (required to avoid LOGIN_REQUIRED)
+    const visitorData = await this._fetchVisitorData();
+
+    for (const clientDef of this._PLAYER_CLIENTS) {
+      try {
+        const clientContext = this[clientDef.context];
+        const ua = this[clientDef.userAgent];
+
+        const contextWithVisitor = {
+          ...clientContext,
+          client: {
+            ...clientContext.client,
+            ...(visitorData ? {visitorData} : {}),
+          },
+        };
+
+        const body = {
+          context: contextWithVisitor,
+          videoId,
+          contentCheckOk: true,
+          racyCheckOk: true,
+        };
+
+        const response = await fetch(
+          `${INNERTUBE_API_URL}/player?key=${INNERTUBE_API_KEY}&prettyPrint=false`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'User-Agent': ua,
+              'X-Goog-Api-Format-Version': '1',
+              'X-YouTube-Client-Name': clientDef.clientId,
+              'X-YouTube-Client-Version': clientDef.clientVersion,
+              'X-Origin': 'https://music.youtube.com',
+              Referer: 'https://music.youtube.com/',
+              ...(visitorData
+                ? {'X-Goog-Visitor-Id': visitorData}
+                : {}),
+            },
+            body: JSON.stringify(body),
+          },
+        );
+
+        const data = await response.json();
+
+        if (data?.playabilityStatus?.status !== 'OK') {
+          console.warn(
+            `⚠️ InnerTube player [${clientContext.client.clientName}]: ${data?.playabilityStatus?.status} - ${data?.playabilityStatus?.reason || ''}`,
+          );
+          continue; // Try next client
+        }
+
+        const result = this._extractBestAudio(data, videoId);
+        if (result) {return result;}
+      } catch (error) {
+        console.warn(
+          `⚠️ InnerTube player [${clientDef.context}] failed for ${videoId}:`,
+          error.message,
+        );
+      }
+    }
+
+    return null; // All clients failed
+  }
+
+  /**
+   * Extract the best audio stream URL from a player response.
+   * @private
+   */
+  static _extractBestAudio(data, videoId) {
+    const adaptiveFormats = data?.streamingData?.adaptiveFormats || [];
+
+    const audioFormats = adaptiveFormats.filter(
+      f => f.mimeType && f.mimeType.startsWith('audio/'),
+    );
+
+    if (audioFormats.length === 0) {
+      console.warn(`⚠️ No audio formats in InnerTube response for ${videoId}`);
+      return null;
+    }
+
+    // Prefer opus/webm, then sort by bitrate descending
+    const bestFormat = audioFormats.sort((a, b) => {
+      const aIsOpus = a.mimeType.includes('opus') ? 1 : 0;
+      const bIsOpus = b.mimeType.includes('opus') ? 1 : 0;
+      if (aIsOpus !== bIsOpus) {return bIsOpus - aIsOpus;}
+      return (b.bitrate || 0) - (a.bitrate || 0);
+    })[0];
+
+    if (!bestFormat.url) {
+      console.warn(`⚠️ Best audio format has no direct URL for ${videoId}`);
+      return null;
+    }
+
+    const videoDetails = data?.videoDetails || {};
+    const thumbnails = videoDetails?.thumbnail?.thumbnails || [];
+
+    return {
+      url: bestFormat.url,
+      mimeType: bestFormat.mimeType,
+      bitrate: bestFormat.bitrate,
+      duration: parseInt(videoDetails.lengthSeconds || '0', 10),
+      title: videoDetails.title,
+      author: videoDetails.author || videoDetails.channelId,
+      thumbnail:
+        thumbnails.length > 0
+          ? thumbnails[thumbnails.length - 1].url
+          : null,
+    };
+  }
 }
 
 export default InnerTubeClient;

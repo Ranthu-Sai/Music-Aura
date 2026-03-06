@@ -1,6 +1,7 @@
 const mockFn = () => {};
 
 export const AddSongsToQueue = jest.fn(mockFn);
+export const PlayNextInQueue = jest.fn(mockFn);
 export const getIndexQuality = jest.fn(() => 0);
 export const PlaySongWithRelated = jest.fn(mockFn);
 export const SkipToTrack = jest.fn(mockFn);
@@ -15,6 +16,7 @@ export const AddPlaylist = jest.fn(mockFn);
 
 export default {
   AddSongsToQueue,
+  PlayNextInQueue,
   getIndexQuality,
   PlaySongWithRelated,
   SkipToTrack,

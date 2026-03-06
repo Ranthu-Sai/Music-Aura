@@ -11,6 +11,7 @@ import {
   getSearchSuggestions,
 } from '../Api/Songs';
 import {View, Keyboard} from 'react-native';
+import {useFocusEffect} from '@react-navigation/native';
 import SongDisplay from '../Component/SearchPage/SongDisplay';
 import {getSearchPlaylistData} from '../Api/Playlist';
 import PlaylistDisplay from '../Component/SearchPage/PlaylistDisplay';
@@ -274,11 +275,14 @@ export const SearchPage = ({navigation}) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [SearchText, ActiveTab, engine]);
 
-  useEffect(() => {
-    GetSearchHistory().then(history => {
-      setSearchHistory(history || []);
-    });
-  }, []);
+  // Refresh search history whenever the search page gains focus
+  useFocusEffect(
+    useCallback(() => {
+      GetSearchHistory().then(history => {
+        setSearchHistory(history || []);
+      });
+    }, []),
+  );
 
   const handleSearchSubmit = useCallback(searchQuery => {
     if (!searchQuery.trim()) {

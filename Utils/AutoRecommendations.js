@@ -156,8 +156,27 @@ class AutoRecommendations {
         const existingIds = new Set(
           (existingQueue || []).map(t => t?.id).filter(Boolean),
         );
-        toAdd = validatedSongs.filter(
-          s => s?.id && !existingIds.has(s.id) && s.id !== this.currentVideoId,
+        // Also match by title+artist to catch duplicates with different IDs
+        const existingTitles = new Set(
+          (existingQueue || []).map(t =>
+            t?.title && t?.artist
+              ? `${t.title.toLowerCase().trim()}|${t.artist.toLowerCase().trim()}`
+              : '',
+          ).filter(Boolean),
+        );
+        toAdd = validatedSongs.filter(s => {
+          if (!s?.id || existingIds.has(s.id) || s.id === this.currentVideoId) {
+            return false;
+          }
+          // Title+artist dedup
+          if (s.title && s.artist) {
+            const sig = `${s.title.toLowerCase().trim()}|${s.artist.toLowerCase().trim()}`;
+            if (existingTitles.has(sig)) {
+              return false;
+            }
+          }
+          return true;
+        },
         );
       } catch (e) {
         // If queue read fails, fall back to adding validatedSongs
@@ -170,18 +189,10 @@ class AutoRecommendations {
         return;
       }
 
-      // Append to queue with error handling
+      // Append to queue via AddSongsToQueue for proper dedup (vivi-music pattern)
       try {
-        await TrackPlayer.add(toAdd);
-        const LOG_VERBOSE = false;
-        const debugLog = (...args) => {
-          if (LOG_VERBOSE) {
-
-          }
-        };
-        debugLog(
-          `✅ AutoRecommendations: Added ${toAdd.length} songs to queue`,
-        );
+        const {AddSongsToQueue} = require('../MusicPlayerFunctions');
+        await AddSongsToQueue(toAdd);
       } catch (addError) {
         console.error('❌ AutoRecommendations: Failed to add songs:', {
           error: addError.message,

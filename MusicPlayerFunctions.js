@@ -606,25 +606,37 @@ async function PlayOneSong(song) {
       // Song is already in queue - just skip to it instead of resetting
       await TrackPlayer.skip(existingIndex);
       await TrackPlayer.play();
+    } else if (queue.length > 0) {
+      // Queue exists - insert after current track and skip to it (vivi-music pattern)
+      // This preserves the existing queue instead of destroying it
+      try {
+        const currentIndex = await TrackPlayer.getActiveTrackIndex();
+        const insertIndex = (typeof currentIndex === 'number' && currentIndex >= 0)
+          ? currentIndex + 1
+          : 0;
+        await TrackPlayer.add([songForPlayback], insertIndex);
+        await TrackPlayer.skip(insertIndex);
+        await TrackPlayer.play();
+      } catch (insertErr) {
+        // Fallback: reset and add if insertion fails
+        console.warn('Insert-after-current failed, falling back to reset:', insertErr);
+        await TrackPlayer.reset();
+        await TrackPlayer.add([songForPlayback]);
+        await TrackPlayer.play();
+      }
     } else {
-      // New song being played - reset queue and add it
-      await TrackPlayer.reset();
+      // Empty queue - add and play
       await TrackPlayer.add([songForPlayback]);
-
-      // Call play and wait a moment for the player to respond
       await TrackPlayer.play();
 
       // Verify playback started successfully
       try {
-        // Give the player a moment to start
         await new Promise(resolve => setTimeout(resolve, 100));
         const state = await TrackPlayer.getPlaybackState();
         if (state.state !== State.Playing && state.state !== State.Buffering && state.state !== State.Loading) {
-          // Try playing again if not in a playback state
           await TrackPlayer.play();
         }
       } catch (stateError) {
-        // Non-critical error checking state
         console.warn('Could not verify playback state:', stateError);
       }
     }
@@ -818,16 +830,21 @@ async function PlaySongWithRelated(videoId, artwork, songData = {}) {
       }
     }
 
-    // Play the song
+    // vivi-music playQueue pattern: Stop all recommendation systems FIRST
+    if (autoRecommendations && typeof autoRecommendations.stop === 'function') {
+      autoRecommendations.stop();
+    }
+    if (queueManager && typeof queueManager.stopContinuousQueueMonitor === 'function') {
+      queueManager.stopContinuousQueueMonitor();
+    }
+
+    // vivi-music pattern: RESET queue and start fresh when user taps a new song
+    // This prevents old recommendations from accumulating and causing duplicates
+    await TrackPlayer.reset();
     await PlayOneSong(song);
 
     // Emit event to open queue when song is played from anywhere
     DeviceEventEmitter.emit('songPlayed', {songId: videoId});
-
-    // Stop and Reset auto-recommendations before starting fresh
-    if (autoRecommendations && typeof autoRecommendations.stop === 'function') {
-      autoRecommendations.stop();
-    }
 
     // Build queue based on song type
     if (song.isYouTubeSong) {
@@ -1720,6 +1737,82 @@ async function PlayNextSong() {
   // If not executed, silently ignore
 }
 
+async function PlayNextInQueue(songs) {
+  if (!isPlayerInitialized) {
+    await setupPlayer();
+  }
+  if (!Array.isArray(songs) || songs.length === 0) {
+    return;
+  }
+
+  const qualityIndex = await getIndexQuality();
+  const qualityNames = ['12kbps', '48kbps', '96kbps', '160kbps', '320kbps'];
+  const currentQuality = qualityNames[qualityIndex] || 'Unknown';
+
+  const processedSongs = songs.map(song => {
+    let processedSong = {...song};
+    const hasValidYouTubeId =
+      song.id && typeof song.id === 'string' && song.id.length === 11;
+    const isYTMusicSource =
+      song.source === 'ytmusic' || song.isYTMusic === true;
+
+    if ((hasValidYouTubeId && !song.isLocalMusic) || isYTMusicSource) {
+      const videoId = song.id || song.videoId;
+      processedSong = {
+        ...processedSong,
+        url: `ytmusic://${videoId}`,
+        _needsStream: true,
+        isYTMusic: true,
+        source: 'ytmusic',
+        currentPlayingQuality: currentQuality,
+        title: FormatTitleAndArtist(song.title, song.artist),
+        artist: FormatTitleAndArtist(song.artist),
+        artwork: getPrimaryArtworkUrl(
+          enhanceYTMusicArtwork(extractArtwork(song), 'playing'),
+        ),
+        image: extractArtwork(song),
+        duration: song.duration,
+      };
+    } else {
+      if (song.downloadUrl && Array.isArray(song.downloadUrl)) {
+        const preferred = song.downloadUrl[qualityIndex];
+        const fallback = song.downloadUrl.find(d => d?.url || d?.link);
+        processedSong.url =
+          preferred?.url || preferred?.link ||
+          fallback?.url || fallback?.link ||
+          song.url;
+      }
+      processedSong.currentPlayingQuality = currentQuality;
+      processedSong.title = FormatTitleAndArtist(song.title, song.artist);
+      processedSong.artist = FormatTitleAndArtist(song.artist);
+      processedSong.artwork = getPrimaryArtworkUrl(
+        enhanceYTMusicArtwork(extractArtwork(song), 'playing'),
+      );
+      processedSong.image = extractArtwork(song);
+    }
+    return processedSong;
+  });
+
+  try {
+    const currentIndex = await TrackPlayer.getActiveTrackIndex();
+    const insertIndex = (typeof currentIndex === 'number' && currentIndex >= 0)
+      ? currentIndex + 1
+      : 0;
+
+    // Deduplicate against existing queue
+    const existingQueue = await TrackPlayer.getQueue();
+    const existingIds = new Set(existingQueue.map(s => s.id).filter(Boolean));
+    const uniqueSongs = processedSongs.filter(s => s.id && !existingIds.has(s.id));
+
+    if (uniqueSongs.length > 0) {
+      await TrackPlayer.add(uniqueSongs, insertIndex);
+      DeviceEventEmitter.emit('queue-updated', {count: uniqueSongs.length});
+    }
+  } catch (error) {
+    console.error('Error in PlayNextInQueue:', error);
+  }
+}
+
 async function PlayPreviousSong() {
   // Use SkipOperationManager to debounce and lock skip operations
   await skipOperationManager.executeSkip(async signal => {
@@ -1737,12 +1830,23 @@ async function PlayPreviousSong() {
         throw new Error('AbortError');
       }
 
-      // Determine previous index and prefetch if needed
+      // vivi-music pattern: If more than 3 seconds into the song, restart it
+      // Otherwise go to the previous track
+      const position = await TrackPlayer.getPosition();
       const currentIndex = await TrackPlayer.getActiveTrackIndex();
-      const prevIndex =
-        typeof currentIndex === 'number' && currentIndex > 0
-          ? currentIndex - 1
-          : 0;
+
+      if (position > 3 || (typeof currentIndex !== 'number' || currentIndex <= 0)) {
+        // Restart current song
+        await TrackPlayer.seekTo(0);
+        await TrackPlayer.play();
+        const currentTrack = await TrackPlayer.getActiveTrack();
+        if (currentTrack) {
+          await historyManager.startTracking(currentTrack);
+        }
+        return;
+      }
+
+      const prevIndex = currentIndex - 1;
       const queue = await TrackPlayer.getQueue();
       const prevTrack = queue[prevIndex];
 
@@ -1975,6 +2079,7 @@ export {
   AddPlaylist,
   PlayPreviousSong,
   AddSongsToQueue,
+  PlayNextInQueue,
   SkipToTrack,
   SetRepeatMode,
   getIndexQuality,

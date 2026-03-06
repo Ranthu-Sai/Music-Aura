@@ -1,5 +1,5 @@
 // service.js
-import TrackPlayer, {Capability, Event, State} from 'react-native-track-player';
+import TrackPlayer, {Capability, Event, State, RepeatMode} from 'react-native-track-player';
 import historyManager from './Utils/HistoryManager';
 import autoRecommendations from './Utils/AutoRecommendations';
 // SmartPrefetchManager is initialized from UI; disabled in headless to preserve queue order
@@ -240,6 +240,41 @@ export default async function PlaybackService() {
 
       // Auto-recommendations listeners
       autoRecommendations.initializeListeners();
+
+      // vivi-music pattern: Handle repeat mode edge cases
+      // Repeat-All: Loop back to start when queue finishes
+      // Repeat-One: Re-seek to same track on auto-advance
+      TrackPlayer.addEventListener(Event.PlaybackState, async event => {
+        try {
+          if (event.state === State.Ended) {
+            const repeatMode = await TrackPlayer.getRepeatMode();
+            if (repeatMode === RepeatMode.Queue) {
+              // Repeat-All: queue ended, loop back to first track
+              const queue = await TrackPlayer.getQueue();
+              if (queue.length > 0) {
+                await TrackPlayer.skip(0);
+                await TrackPlayer.play();
+              }
+            }
+          }
+        } catch (err) {
+          // Non-critical
+        }
+      });
+
+      TrackPlayer.addEventListener(Event.PlaybackActiveTrackChanged, async event => {
+        try {
+          const repeatMode = await TrackPlayer.getRepeatMode();
+          if (repeatMode === RepeatMode.Track && event.lastIndex != null && event.index != null && event.index !== event.lastIndex) {
+            // Repeat-One: player auto-advanced to next track, seek back
+            await TrackPlayer.skip(event.lastIndex);
+            await TrackPlayer.seekTo(0);
+            await TrackPlayer.play();
+          }
+        } catch (err) {
+          // Non-critical
+        }
+      });
 
       // Disable headless SmartPrefetchManager to avoid background queue mutations
       // Prefetching will be managed when the app is in foreground via UI flows

@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import NativeStreaming from './NativeStreaming';
 import {CacheManager} from './NavigationCacheManager';
+import InnerTubeClient from '../Api/InnertubeClient';
 
 /**
  * YouTube Streaming Service
@@ -25,6 +26,8 @@ class YouTubeStreamingService {
   constructor() {
     this.cookies = null;
     this.cookiesLoaded = false;
+    // vivi-music pattern: serialize stream resolution to prevent flooding
+    this._resolveQueue = Promise.resolve();
   }
 
   /**
@@ -36,47 +39,105 @@ class YouTubeStreamingService {
    * @returns {Promise<{url: string, headers: object, thumbnail: string, duration: number, title: string}|null>}
    */
   async getStreamUrl(videoId, forceFresh = false) {
+    // Quick cache check (no serialization needed)
+    if (!forceFresh) {
+      const cachedUrl = CacheManager.getStreamUrl(videoId, 'ytmusic');
+      if (
+        cachedUrl &&
+        typeof cachedUrl === 'string' &&
+        (cachedUrl.startsWith('http://') || cachedUrl.startsWith('https://'))
+      ) {
+        return {
+          url: cachedUrl,
+          headers: {
+            'User-Agent': ANDROID_CLIENT.headers['User-Agent'],
+            Range: 'bytes=0-',
+          },
+          fromCache: true,
+        };
+      }
+    }
+
+    // vivi-music pattern: serialize non-cached fetches to prevent concurrent flooding
+    const result = await new Promise((resolve, reject) => {
+      this._resolveQueue = this._resolveQueue
+        .then(() => this._fetchStreamUrl(videoId, forceFresh))
+        .then(resolve)
+        .catch(reject);
+    });
+    return result;
+  }
+
+  /**
+   * Internal: actually fetch the stream URL (called one at a time via queue)
+   * @private
+   */
+  async _fetchStreamUrl(videoId, forceFresh = false) {
     try {
-      // Step 1: CHECK CACHE FIRST (unless forceFresh)
+      // Re-check cache (another queued call may have cached it while waiting)
       if (!forceFresh) {
         const cachedUrl = CacheManager.getStreamUrl(videoId, 'ytmusic');
-        if (cachedUrl) {
-          // Validate cached URL before returning it
-          if (
-            typeof cachedUrl === 'string' &&
-            (cachedUrl.startsWith('http://') ||
-              cachedUrl.startsWith('https://'))
-          ) {
-            return {
-              url: cachedUrl,
-              headers: {
-                'User-Agent': ANDROID_CLIENT.headers['User-Agent'],
-                Range: 'bytes=0-',
-              },
-              fromCache: true,
-            };
-          } else {
-            // Invalid cached URL - clear only that entry and fetch fresh
-            console.warn(
-              `⚠️ Invalid cached URL for ${videoId}: ${cachedUrl}, fetching fresh`,
-            );
-            CacheManager.clearStreamUrl(videoId, 'ytmusic');
-          }
+        if (
+          cachedUrl &&
+          typeof cachedUrl === 'string' &&
+          (cachedUrl.startsWith('http://') || cachedUrl.startsWith('https://'))
+        ) {
+          return {
+            url: cachedUrl,
+            headers: {
+              'User-Agent': ANDROID_CLIENT.headers['User-Agent'],
+              Range: 'bytes=0-',
+            },
+            fromCache: true,
+          };
         }
       } else {
         CacheManager.clearStreamUrl(videoId, 'ytmusic');
       }
 
-      // Step 2: Cache miss - fetch from Native NewPipe
-      // Orbit VIP Mode: Inject Cookies if available
-      const cookies = await AsyncStorage.getItem('yt_cookies');
+      // Step 2: Cache miss — vivi-music pattern: try InnerTube JS API FIRST (fast),
+      // then fall back to native NewPipe (slower, prone to timeouts)
+      let result = null;
 
-      // Use a retry wrapper with timeout to avoid long native hangs
-      const result = await this._nativeFetchWithRetries(
-        videoId,
-        cookies || '',
-        3,
-      );
+      // Step 2a: InnerTube Player API (vivi-music ANDROID_VR — fast, no native bridge)
+      try {
+        const innertubeResult =
+          await InnerTubeClient.getPlayerResponse(videoId);
+        if (innertubeResult && innertubeResult.url) {
+          result = {
+            url: innertubeResult.url,
+            thumbnail: innertubeResult.thumbnail,
+            duration: innertubeResult.duration,
+            title: innertubeResult.title,
+            author: innertubeResult.author,
+          };
+        }
+      } catch (innertubeErr) {
+        console.warn(
+          `⚠️ InnerTube failed for ${videoId}:`,
+          innertubeErr.message,
+        );
+      }
+
+      // Step 2b: Native NewPipe fallback (only 1 attempt to avoid long timeouts)
+      if (!result || !result.url) {
+        try {
+          const cookies = await AsyncStorage.getItem('yt_cookies');
+          const nativeResult = await this._nativeFetchWithRetries(
+            videoId,
+            cookies || '',
+            1,
+          );
+          if (nativeResult && nativeResult.url) {
+            result = nativeResult;
+          }
+        } catch (nativeErr) {
+          console.warn(
+            `⚠️ Native NewPipe also failed for ${videoId}:`,
+            nativeErr.message,
+          );
+        }
+      }
 
       if (result && result.url) {
         // Validate URL before caching

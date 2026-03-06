@@ -16,6 +16,7 @@ export default function SearchHistoryDisplay({
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
   const activeTrack = useActiveTrack();
+  const flatListRef = useRef(null);
 
   useEffect(() => {
     Animated.parallel([
@@ -31,6 +32,15 @@ export default function SearchHistoryDisplay({
       }),
     ]).start();
   }, [fadeAnim, slideAnim, history]);
+
+  // Auto-scroll to top when history changes (newest item is at index 0)
+  useEffect(() => {
+    if (history && history.length > 0 && flatListRef.current) {
+      try {
+        flatListRef.current.scrollToOffset({offset: 0, animated: true});
+      } catch (_) {}
+    }
+  }, [history]);
 
   if (!history || history.length === 0) {
     return (
@@ -130,7 +140,9 @@ export default function SearchHistoryDisplay({
         </Pressable>
       </Animated.View>
       <FlatList
+        ref={flatListRef}
         data={history}
+        extraData={history}
         renderItem={({item}) => (
           <SwipeableHistoryItem
             item={item}

@@ -133,15 +133,12 @@ class SmartPrefetchManager {
       // Store current index for validation
       this.currentTrackIndex = currentIndex;
 
-      // Wait a short time, then prefetch multiple next songs (N+1, N+2, N+3)
+      // vivi-music pattern: prefetch only the NEXT track (not 3 in parallel)
+      // This prevents flooding the native module with concurrent requests
       this.prefetchTimer = setTimeout(async () => {
-        // Validate we're still on the same track
         const nowPlaying = await TrackPlayer.getActiveTrackIndex();
         if (nowPlaying === this.currentTrackIndex) {
-          // Prefetch next 3 tracks
-          for (let i = 1; i <= 3; i++) {
-            await this._prefetchTrackAtIndex(nowPlaying + i);
-          }
+          await this._prefetchTrackAtIndex(nowPlaying + 1);
         }
       }, PREFETCH_DELAY_MS);
     }
@@ -177,16 +174,10 @@ class SmartPrefetchManager {
         this.suppressNextCleanup = false;
       }
 
-      // 🚀 IMMEDIATE ACTION: Prefetch next 3 songs aggressively
-      // This ensures auto-recommendation songs are ready before playback
-
-      // Prefetch in parallel for speed
-      Promise.all([
-        this._prefetchTrackAtIndex(event.index + 1),
-        this._prefetchTrackAtIndex(event.index + 2),
-        this._prefetchTrackAtIndex(event.index + 3),
-      ]).catch(err => {
-        console.warn('Prefetch Promise.all failed', err);
+      // vivi-music pattern: prefetch only the immediate next track sequentially
+      // Avoids flooding native module with concurrent requests that cause timeouts
+      this._prefetchTrackAtIndex(event.index + 1).catch(err => {
+        console.warn('Next track prefetch failed', err);
       });
     }
   }

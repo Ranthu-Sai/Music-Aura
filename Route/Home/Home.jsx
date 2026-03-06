@@ -29,6 +29,7 @@ import {
   ShimmerTrendingSongsList,
   ShimmerArtistChips,
   ShimmerFullPage,
+  ShimmerHorizontalSongList,
 } from '../../Component/Global/ShimmerEffect';
 import {ErrorBoundary} from '../../Component/Global/ErrorBoundary';
 import {Spacer} from '../../Component/Global/Spacer';
@@ -587,23 +588,27 @@ export const Home = () => {
             <PaddingConatiner>
               <Heading text={'Top Charts'} />
             </PaddingConatiner>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{
-                paddingLeft: 10,
-              }}>
-              <RenderTopCharts playlist={enhancedCharts} />
-            </ScrollView>
+            {enhancedCharts && enhancedCharts.length > 0 ? (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{
+                  paddingLeft: 10,
+                }}>
+                <RenderTopCharts playlist={enhancedCharts} />
+              </ScrollView>
+            ) : (
+              <ShimmerHorizontalList itemCount={6} />
+            )}
             {LoadingSecondary ? (
               <>
                 <PaddingConatiner>
                   <Spacer />
                   <Spacer />
-                  <Heading text="Please Wait..." nospace={true} />
+                  <Heading text="Viral Hits" nospace={true} />
                   <Spacer />
                 </PaddingConatiner>
-                <ShimmerHorizontalList itemCount={4} />
+                <ShimmerHorizontalSongList />
               </>
             ) : (
               viralHitsId && (
@@ -658,10 +663,10 @@ export const Home = () => {
                 <PaddingConatiner>
                   <Spacer />
                   <Spacer />
-                  <Heading text="Please Wait..." nospace={true} />
+                  <Heading text={`Trending ${currentLanguage !== 'All' ? currentLanguage + ' ' : ''}Songs`} nospace={true} />
                   <Spacer />
                 </PaddingConatiner>
-                <ShimmerHorizontalList itemCount={4} />
+                <ShimmerHorizontalSongList />
               </>
             ) : (
               trendingLangId && (

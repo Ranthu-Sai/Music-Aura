@@ -57,9 +57,9 @@ async function getYTMusicRecommendedSongs(videoId) {
       return {data: {results: []}};
     }
 
-    // Filter to get only songs from the next list and format for the UI
+    // Filter to get songs from the next list and format for the UI
     const recommendedSongs = result.items
-      .filter(item => item.type === 'song' && item.videoId !== videoId)
+      .filter(item => item.videoId && item.videoId !== videoId)
       .map(item => ({
         id: item.videoId,
         name: item.title,
@@ -69,14 +69,14 @@ async function getYTMusicRecommendedSongs(videoId) {
         artists: {
           primary: item.artists || [{name: item.artist}],
         },
+        primaryArtists: item.artist || (item.artists ? item.artists.map(a => a.name || a).join(', ') : 'Unknown Artist'),
         downloadUrl: item.videoId,
         duration: item.duration,
         language: 'en',
         source: 'ytmusic',
       }));
 
-    return {data: {results: recommendedSongs.slice(0, 10)}};
-  } catch (error) {
+    return {data: {results: recommendedSongs.slice(0, 20)}};  } catch (error) {
     console.error('getYTMusicRecommendedSongs error:', error);
     return {data: {results: []}};
   }

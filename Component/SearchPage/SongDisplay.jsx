@@ -21,6 +21,9 @@ const ListFooter = ({footerSource, footerLoadingMore, footerHasMore}) => {
   return null;
 };
 
+// Module-scoped separator for FlatList items
+const ItemSeparator = () => <View style={{height: 6}} />;
+
 
 export default function SongDisplay({
   data,
@@ -127,18 +130,22 @@ export default function SongDisplay({
 
 
 
+
+
+
   return (
     <View>
       <FlatList
         showsVerticalScrollIndicator={false}
         keyExtractor={(item, index) => `${item?.id}_${index}`}
-        contentContainerStyle={{paddingBottom: 220}}
+        contentContainerStyle={{paddingBottom: 220, paddingHorizontal: 4}}
         data={displayData.data.results}
         onEndReached={hasMore ? loadMore : null}
         // Use slightly earlier threshold for youtube/ytmusic for smoother prefetch
         onEndReachedThreshold={
           source === 'youtube' || source === 'ytmusic' ? 0.75 : 0.5
         }
+        ItemSeparatorComponent={ItemSeparator}
         renderItem={({item}) => {
           if (!item || !item.id) {
             return null;

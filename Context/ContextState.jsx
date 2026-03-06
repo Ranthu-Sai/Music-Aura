@@ -200,16 +200,19 @@ const ContextState = props => {
       try {
         const tracks = await TrackPlayer.getQueue();
 
-        // PERFORMANCE: Fast O(1) comparison - compare length and boundary IDs
+        // Robust comparison: check length, boundary IDs, and a sampled mid-queue ID
+        // This catches insertions/removals in the middle of the queue (vivi-music pattern)
+        const prevQ = QueueRef.current;
+        const midIdx = Math.floor(tracks.length / 2);
         const hasChanged =
-          tracks.length !== QueueRef.current.length ||
+          tracks.length !== prevQ.length ||
           (tracks.length > 0 &&
-            QueueRef.current.length > 0 &&
-            (tracks[0]?.id !== QueueRef.current[0]?.id ||
-              tracks[tracks.length - 1]?.id !==
-                QueueRef.current[QueueRef.current.length - 1]?.id));
+            prevQ.length > 0 &&
+            (tracks[0]?.id !== prevQ[0]?.id ||
+              tracks[tracks.length - 1]?.id !== prevQ[prevQ.length - 1]?.id ||
+              (midIdx > 0 && midIdx < tracks.length && tracks[midIdx]?.id !== prevQ[midIdx]?.id)));
 
-        if (hasChanged || tracks.length > QueueRef.current.length) {
+        if (hasChanged || tracks.length > prevQ.length) {
           setQueue(tracks);
 
           // Persist queue to storage when it changes (non-blocking)
@@ -231,7 +234,7 @@ const ContextState = props => {
     }, 100); // 100ms debounce delay
   }, []);
   const recommendedProcessedRef = useRef(new Set());
-  const MIN_QUEUE_SIZE = 100; // Larger queue for unlimited smooth playback
+  const MIN_QUEUE_SIZE = 50; // vivi-music loads ~50 initially, then adds more at threshold
 
 
   // Helper to detect if a song ID is from YouTube Music (11 chars alphanumeric)
@@ -325,16 +328,19 @@ const ContextState = props => {
                   return false;
                 }
 
-                // Check URL duplicates
-                const songUrl =
-                  song.downloadUrl?.[3]?.url ||
-                  song.downloadUrl?.[3]?.link ||
-                  song.downloadUrl?.[0]?.url ||
-                  song.downloadUrl?.[0]?.link ||
-                  song.id;
-                const normalizedSongUrl = songUrl.split('?')[0];
-                if (existingUrls.has(normalizedSongUrl)) {
-                  return false;
+                // Check URL duplicates (skip for YT since they use placeholder URLs)
+                if (!isYT) {
+                  const songUrl =
+                    (Array.isArray(song.downloadUrl) &&
+                      (song.downloadUrl?.[3]?.url ||
+                       song.downloadUrl?.[3]?.link ||
+                       song.downloadUrl?.[0]?.url ||
+                       song.downloadUrl?.[0]?.link)) ||
+                    song.id;
+                  const normalizedSongUrl = songUrl.split('?')[0];
+                  if (existingUrls.has(normalizedSongUrl)) {
+                    return false;
+                  }
                 }
 
                 // Check title+artist duplicates (fuzzy matching)
@@ -363,20 +369,50 @@ const ContextState = props => {
 
                 return true;
               })
-              .map(e => ({
-                url: e.downloadUrl?.[3]?.url || e.downloadUrl?.[3]?.link || e.downloadUrl?.[0]?.url || e.downloadUrl?.[0]?.link || e.id,
-                title: e.name?.toString() ?? '',
-                artist: FormatArtist(e?.primaryArtists || e?.artists?.primary)?.toString() ?? '',
-                artwork:
-                  e.image?.[2]?.url ||
-                  e.image?.[2]?.link ||
-                  e.image?.[0]?.url ||
-                  e.image?.[0]?.link ||
-                  '',
-                duration: e.duration,
-                id: e.id,
-                language: e.language || 'en',
-              }))
+              .map(e => {
+                // Determine if this is a YouTube Music song
+                const songIsYT = isYT || e.source === 'ytmusic' ||
+                  (e.id && typeof e.id === 'string' && e.id.length === 11 &&
+                   typeof e.downloadUrl === 'string');
+
+                // For YT Music: use ytmusic:// placeholder and mark for stream prefetch
+                // For Saavn: extract download URL from quality array
+                if (songIsYT) {
+                  const videoId = e.id || e.videoId;
+                  return {
+                    url: `ytmusic://${videoId}`,
+                    title: e.name?.toString() ?? '',
+                    artist: FormatArtist(e?.primaryArtists || e?.artists?.primary)?.toString() ?? '',
+                    artwork:
+                      e.image?.[2]?.url ||
+                      e.image?.[2]?.link ||
+                      e.image?.[0]?.url ||
+                      e.image?.[0]?.link ||
+                      (videoId ? `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg` : ''),
+                    duration: e.duration,
+                    id: videoId,
+                    language: e.language || 'en',
+                    _needsStream: true,
+                    isYTMusic: true,
+                    source: 'ytmusic',
+                  };
+                } else {
+                  return {
+                    url: e.downloadUrl?.[3]?.url || e.downloadUrl?.[3]?.link || e.downloadUrl?.[0]?.url || e.downloadUrl?.[0]?.link || e.id,
+                    title: e.name?.toString() ?? '',
+                    artist: FormatArtist(e?.primaryArtists || e?.artists?.primary)?.toString() ?? '',
+                    artwork:
+                      e.image?.[2]?.url ||
+                      e.image?.[2]?.link ||
+                      e.image?.[0]?.url ||
+                      e.image?.[0]?.link ||
+                      '',
+                    duration: e.duration,
+                    id: e.id,
+                    language: e.language || 'en',
+                  };
+                }
+              })
               .filter(song => {
                 // Final validation: ensure all required fields exist
                 if (!song.id || !song.url || !song.title) {
@@ -392,9 +428,6 @@ const ContextState = props => {
               });
 
             if (ForMusicPlayer.length > 0) {
-              // Add 1 second delay before adding songs to queue
-              await new Promise(resolve => setTimeout(resolve, 1000));
-
               await AddSongsToQueue(ForMusicPlayer);
               if (!forceAdd) {
                 recommendedProcessedRef.current.add(id);
@@ -447,17 +480,19 @@ const ContextState = props => {
           console.warn('SetLastSong failed', err);
         });
 
-        // Only add recommended songs if this track wasn't already in the queue
-        // (i.e., it was played from outside the queue, not clicked within the queue)
+        // vivi-music pattern: Add recommendations only when approaching end of queue.
+        // AutoRecommendations handles the initial batch when a new song is tapped,
+        // so this handler only needs to refill when running low (5-song threshold).
         const currentQueue = await TrackPlayer.getQueue();
-        const trackAlreadyInQueue = currentQueue.some(
-          track => track && track.id === event.track.id,
-        );
+        const currentIndex = typeof event.index === 'number' ? event.index : 0;
+        const remainingSongs = currentQueue.length - currentIndex - 1;
 
-        // Add recommendations when track is new OR when queue is very small
-        // (e.g., after PlayOneSong resets queue to just 1 song)
-        if (!trackAlreadyInQueue || currentQueue.length <= 2) {
-          AddRecommendedSongs(event.index, event.track.id, currentQueue.length <= 2).catch(err => {
+        // Only trigger when near end of queue (vivi-music 5-song threshold)
+        // Skip if queue was just reset (length <= 1) — AutoRecommendations handles initial fill
+        const needsMore = currentQueue.length > 1 && remainingSongs <= 5;
+
+        if (needsMore) {
+          AddRecommendedSongs(currentIndex, event.track.id, false).catch(err => {
             console.warn('AddRecommendedSongs failed', err);
           });
         }

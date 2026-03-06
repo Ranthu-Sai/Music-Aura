@@ -171,8 +171,6 @@ export const ShimmerAlbumCard = () => (
  */
 export const ShimmerHorizontalList = ({
   itemCount = 5,
-  itemWidth = 180,
-  itemHeight = 250,
   CardComponent = ShimmerAlbumCard,
 }) => (
   <Reanimated.View
@@ -180,9 +178,12 @@ export const ShimmerHorizontalList = ({
     style={styles.horizontalListContainer}>
     {Array.from({length: itemCount}).map((_, index) => (
       <Reanimated.View
-        key={`shimmer-${index}`}
+        key={`shimmer-col-${index}`}
         entering={FadeIn.delay(index * 100).duration(400)}
         style={{marginRight: 12}}>
+        <View style={{marginBottom: 12}}>
+          <CardComponent />
+        </View>
         <CardComponent />
       </Reanimated.View>
     ))}
@@ -379,21 +380,7 @@ export const ShimmerFullPage = () => (
     <View style={{paddingHorizontal: 15, marginTop: 20, marginBottom: 8}}>
       <ShimmerEffect width={140} height={28} borderRadius={6} />
     </View>
-    <View style={{paddingHorizontal: 10, marginVertical: 10}}>
-      <View style={{flexDirection: 'row'}}>
-        {Array.from({length: 4}).map((_, index) => (
-          <View key={`chart-${index}`} style={{marginRight: 12}}>
-            <ShimmerEffect width={180} height={200} borderRadius={16} />
-            <View style={{marginTop: 12}}>
-              <ShimmerEffect width={160} height={18} borderRadius={6} />
-            </View>
-            <View style={{marginTop: 6}}>
-              <ShimmerEffect width={140} height={14} borderRadius={5} />
-            </View>
-          </View>
-        ))}
-      </View>
-    </View>
+    <ShimmerHorizontalList itemCount={4} />
 
     {/* Viral Hits Heading + Content */}
     <View style={{paddingHorizontal: 15, marginTop: 20, marginBottom: 8}}>
@@ -437,13 +424,14 @@ export const ShimmerSearchResults = ({itemCount = 8}) => (
         key={`shimmer-search-${index}`}
         entering={FadeIn.delay(index * 50).duration(400)}
         style={styles.searchResultItem}>
-        <ShimmerEffect width={64} height={64} borderRadius={10} />
+        <AnimatedShimmerEffect width={60} height={60} borderRadius={8} />
         <View style={styles.searchResultTextContainer}>
-          <ShimmerEffect width={SCREEN_WIDTH - 130} height={19} borderRadius={6} />
+          <AnimatedShimmerEffect width={SCREEN_WIDTH - 190} height={17} borderRadius={5} />
           <View style={{marginTop: 8}}>
-            <ShimmerEffect width={SCREEN_WIDTH - 170} height={15} borderRadius={5} />
+            <AnimatedShimmerEffect width={SCREEN_WIDTH - 230} height={14} borderRadius={4} />
           </View>
         </View>
+        <AnimatedShimmerEffect width={37} height={37} borderRadius={19} style={{marginRight: 10}} />
       </Reanimated.View>
     ))}
   </View>
@@ -459,12 +447,12 @@ export const ShimmerSearchAlbums = ({itemCount = 6}) => (
         key={`shimmer-album-${index}`}
         entering={FadeIn.delay(index * 80).duration(400)}
         style={styles.searchAlbumItem}>
-        <ShimmerEffect width={(SCREEN_WIDTH - 50) / 2} height={(SCREEN_WIDTH - 50) / 2} borderRadius={12} />
+        <AnimatedShimmerEffect width={(SCREEN_WIDTH - 50) / 2} height={(SCREEN_WIDTH - 50) / 2} borderRadius={12} />
         <View style={{marginTop: 8, width: (SCREEN_WIDTH - 50) / 2}}>
-          <ShimmerEffect width={(SCREEN_WIDTH - 70) / 2} height={16} borderRadius={5} />
+          <AnimatedShimmerEffect width={(SCREEN_WIDTH - 70) / 2} height={16} borderRadius={5} />
         </View>
         <View style={{marginTop: 6, width: (SCREEN_WIDTH - 50) / 2}}>
-          <ShimmerEffect width={(SCREEN_WIDTH - 90) / 2} height={13} borderRadius={4} />
+          <AnimatedShimmerEffect width={(SCREEN_WIDTH - 90) / 2} height={13} borderRadius={4} />
         </View>
       </Reanimated.View>
     ))}
@@ -481,12 +469,12 @@ export const ShimmerSearchPlaylists = ({itemCount = 6}) => (
         key={`shimmer-playlist-${index}`}
         entering={FadeIn.delay(index * 80).duration(400)}
         style={styles.searchAlbumItem}>
-        <ShimmerEffect width={(SCREEN_WIDTH - 50) / 2} height={(SCREEN_WIDTH - 50) / 2} borderRadius={12} />
+        <AnimatedShimmerEffect width={(SCREEN_WIDTH - 50) / 2} height={(SCREEN_WIDTH - 50) / 2} borderRadius={12} />
         <View style={{marginTop: 8, width: (SCREEN_WIDTH - 50) / 2}}>
-          <ShimmerEffect width={(SCREEN_WIDTH - 70) / 2} height={16} borderRadius={5} />
+          <AnimatedShimmerEffect width={(SCREEN_WIDTH - 70) / 2} height={16} borderRadius={5} />
         </View>
         <View style={{marginTop: 6, width: (SCREEN_WIDTH - 50) / 2}}>
-          <ShimmerEffect width={(SCREEN_WIDTH - 90) / 2} height={13} borderRadius={4} />
+          <AnimatedShimmerEffect width={(SCREEN_WIDTH - 90) / 2} height={13} borderRadius={4} />
         </View>
       </Reanimated.View>
     ))}
@@ -635,11 +623,9 @@ const styles = StyleSheet.create({
   searchResultItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 10,
-    marginBottom: 8,
-    borderRadius: 12,
-    backgroundColor: '#1c1c1e',
+    paddingVertical: 6,
+    paddingHorizontal: 4,
+    marginBottom: 4,
   },
   searchResultTextContainer: {
     marginLeft: 12,
