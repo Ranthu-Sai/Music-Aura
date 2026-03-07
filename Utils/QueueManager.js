@@ -90,7 +90,19 @@ class QueueManager {
       }
 
       // For Saavn songs, use Saavn recommendations API
-      const recommendationsData = await getRecommendedSongs(songId);
+      // Get song metadata from the active track for search-based fallback
+      let songMeta = {};
+      try {
+        const activeTrack = await TrackPlayer.getActiveTrack();
+        if (activeTrack && activeTrack.id === songId) {
+          songMeta = {
+            artist: activeTrack.artist || '',
+            title: activeTrack.title || activeTrack.name || '',
+            language: activeTrack.language || '',
+          };
+        }
+      } catch (_) {}
+      const recommendationsData = await getRecommendedSongs(songId, songMeta);
 
       if (!recommendationsData?.data || recommendationsData.data.length === 0) {
 

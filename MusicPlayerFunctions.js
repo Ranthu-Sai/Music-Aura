@@ -20,6 +20,7 @@ import skipOperationManager from './Utils/SkipOperationManager';
 import streamFetchManager from './Utils/StreamFetchManager';
 import smartPrefetchManager from './Utils/SmartPrefetchManager';
 import FormatTitleAndArtist from './Utils/FormatTitleAndArtist';
+import ManualSkipFlag from './Utils/ManualSkipFlag';
 
 let isPlayerInitialized = false;
 const DEBUG_LOGS = false;
@@ -661,11 +662,14 @@ async function PlaySongWithRelated(videoId, artwork, songData = {}) {
       duration: songData.duration || 0,
       language: songData.language || 'Unknown',
       // Mark as YouTube song
-      // Only mark as YouTube if it looks like a YouTube video id (11 chars)
-      // or if the caller explicitly sets source='ytmusic'
+      // Check explicit source flag first; fall back to ID-length heuristic only
+      // when the song has no Saavn-style downloadUrl (Saavn IDs can also be 11 chars)
       isYouTubeSong:
-        (typeof videoId === 'string' && videoId.length === 11) ||
-        songData.source === 'ytmusic',
+        songData.source === 'ytmusic' ||
+        (typeof videoId === 'string' &&
+          videoId.length === 11 &&
+          !songData.downloadUrl &&
+          !songData.download_url),
     };
 
     // If this is not a YouTube song and URL/download metadata is missing,
@@ -868,7 +872,11 @@ async function PlaySongWithRelated(videoId, artwork, songData = {}) {
         try {
           const {getRecommendedSongs} = require('./Api/Recommended');
           const preferredLanguage = await GetLanguageValue();
-          const recommendations = await getRecommendedSongs(videoId);
+          const recommendations = await getRecommendedSongs(videoId, {
+            artist: songData?.artist || song.artist || '',
+            title: songData?.title || song.title || '',
+            language: songData?.language || song.language || preferredLanguage || '',
+          });
 
           // Parse recommendations response
           let recSongs = [];
@@ -1233,9 +1241,9 @@ async function AddPlaylist(songs, startSongId = null) {
 
     // If player already has the same track playing, avoid unnecessary reset which can cause queue churn
     try {
-      const currentIndex = await TrackPlayer.getCurrentTrack();
+      const currentIndex = await TrackPlayer.getActiveTrackIndex();
       const queue = await TrackPlayer.getQueue();
-      const currentTrack = queue[currentIndex];
+      const currentTrack = (typeof currentIndex === 'number' && currentIndex >= 0) ? queue[currentIndex] : null;
       if (currentTrack && startSongId && (currentTrack.id === startSongId || currentTrack.id === (songs[startIndex] && songs[startIndex].id))) {
         // Already playing the requested track — ensure playing state and return
         await TrackPlayer.play();
@@ -1351,7 +1359,11 @@ async function AddPlaylist(songs, startSongId = null) {
           } else {
             // Fetch JioSaavn recommendations
             const {getRecommendedSongs} = require('./Api/Recommended');
-            const recommendations = await getRecommendedSongs(lastSong.id);
+            const recommendations = await getRecommendedSongs(lastSong.id, {
+              artist: lastSong.artist || '',
+              title: lastSong.title || lastSong.name || '',
+              language: lastSong.language || '',
+            });
 
             // Parse recommendations response
             let recSongs = [];
@@ -1691,10 +1703,16 @@ async function PlayNextSong() {
 
       // Prefetch stream if needed
       if (smartPrefetchManager.needsStream(nextTrack)) {
+        if (signal.aborted) {
+          throw new Error('AbortError');
+        }
         const cached = smartPrefetchManager.getPrefetchedStream(nextTrack.id);
         let streamData = cached;
         if (!streamData) {
           streamData = await smartPrefetchManager.fetchOnDemand(nextTrack.id);
+        }
+        if (signal.aborted) {
+          throw new Error('AbortError');
         }
         if (streamData && streamData.url) {
           await smartPrefetchManager.replaceTrackAndWait(
@@ -1705,7 +1723,13 @@ async function PlayNextSong() {
         }
       }
 
+      if (signal.aborted) {
+        throw new Error('AbortError');
+      }
+
       // Try skipping by index first, fallback to skipToNext if needed
+      // Suppress repeat-one revert so the handler in service.js doesn't undo this skip
+      ManualSkipFlag.suppress();
       await TrackPlayer.skip(nextIndex);
       await TrackPlayer.play();
 
@@ -1830,13 +1854,10 @@ async function PlayPreviousSong() {
         throw new Error('AbortError');
       }
 
-      // vivi-music pattern: If more than 3 seconds into the song, restart it
-      // Otherwise go to the previous track
-      const position = await TrackPlayer.getPosition();
       const currentIndex = await TrackPlayer.getActiveTrackIndex();
 
-      if (position > 3 || (typeof currentIndex !== 'number' || currentIndex <= 0)) {
-        // Restart current song
+      if (typeof currentIndex !== 'number' || currentIndex <= 0) {
+        // At beginning of queue or invalid index — restart current song
         await TrackPlayer.seekTo(0);
         await TrackPlayer.play();
         const currentTrack = await TrackPlayer.getActiveTrack();
@@ -1846,23 +1867,34 @@ async function PlayPreviousSong() {
         return;
       }
 
-      const prevIndex = currentIndex - 1;
+      if (signal.aborted) {
+        throw new Error('AbortError');
+      }
+
       const queue = await TrackPlayer.getQueue();
+      const prevIndex = currentIndex - 1;
       const prevTrack = queue[prevIndex];
 
       if (!prevTrack) {
         return;
       }
 
+      const prevTrackId = prevTrack.id;
+
       // Ensure previous track is playable if it needs a stream
       if (smartPrefetchManager.needsStream(prevTrack)) {
-        const cached = smartPrefetchManager.getPrefetchedStream(prevTrack.id);
+        const cached = smartPrefetchManager.getPrefetchedStream(prevTrackId);
         let streamData = cached;
         if (!streamData) {
-          streamData = await smartPrefetchManager.fetchOnDemand(prevTrack.id);
+          streamData = await smartPrefetchManager.fetchOnDemand(prevTrackId);
+        }
+        if (signal.aborted) {
+          throw new Error('AbortError');
         }
         if (streamData && streamData.url) {
-          await smartPrefetchManager.replaceTrackAndWait(
+          // Use replaceTrackImmediately (no InteractionManager deferral)
+          // to avoid race conditions with event handlers between remove+add and skip
+          await smartPrefetchManager.replaceTrackImmediately(
             prevIndex,
             prevTrack,
             streamData,
@@ -1870,15 +1902,50 @@ async function PlayPreviousSong() {
         }
       }
 
-      // Deterministic skip to the computed previous index
-      await TrackPlayer.skip(prevIndex);
+      if (signal.aborted) {
+        throw new Error('AbortError');
+      }
 
-      // Get the new track and start tracking it
+      // Re-find the track by ID after potential replace (indices may have shifted)
+      const freshQueue = await TrackPlayer.getQueue();
+      let targetIndex = -1;
+
+      // First: try to find the track by ID (most reliable after remove+add)
+      const foundIndex = freshQueue.findIndex(t => t && t.id === prevTrackId);
+      if (foundIndex >= 0) {
+        targetIndex = foundIndex;
+      } else {
+        // Track not found in queue (replace may have failed) — use raw prevIndex
+        // clamped to valid range
+        targetIndex = Math.min(prevIndex, freshQueue.length - 1);
+        if (targetIndex < 0) {
+          return;
+        }
+      }
+
+      // Skip to the verified previous index
+      // Suppress repeat-one revert so the handler in service.js doesn't undo this skip
+      ManualSkipFlag.suppress();
+      await TrackPlayer.skip(targetIndex);
+
+      // Verify the skip actually changed the track
       const newTrack = await TrackPlayer.getActiveTrack();
-      if (newTrack) {
+      const newIndex = await TrackPlayer.getActiveTrackIndex();
+
+      if (newTrack && newIndex === targetIndex) {
         await historyManager.startTracking(newTrack);
-        // Reset error counter on successful track change
         skipOperationManager.resetErrorCounter();
+      } else if (newIndex !== targetIndex) {
+        // Skip didn't land where expected — retry once with skipToPrevious
+        try {
+          await TrackPlayer.skipToPrevious();
+        } catch (e) {
+          // Ignore if no previous track
+        }
+        const retryTrack = await TrackPlayer.getActiveTrack();
+        if (retryTrack) {
+          await historyManager.startTracking(retryTrack);
+        }
       }
 
       await PlaySong();

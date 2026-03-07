@@ -2,6 +2,7 @@
 import TrackPlayer, {Capability, Event, State, RepeatMode} from 'react-native-track-player';
 import historyManager from './Utils/HistoryManager';
 import autoRecommendations from './Utils/AutoRecommendations';
+import ManualSkipFlag from './Utils/ManualSkipFlag';
 // SmartPrefetchManager is initialized from UI; disabled in headless to preserve queue order
 
 let isPlayerInitialized = false;
@@ -68,7 +69,7 @@ export default async function PlaybackService() {
     })();
   });
 
-  // Next: perform an immediate native skip (fast) and queue background repairs
+  // Next: perform an explicit index-based skip to preserve queue order
   TrackPlayer.addEventListener(Event.RemoteNext, () => {
     (async () => {
       try {
@@ -79,8 +80,31 @@ export default async function PlaybackService() {
         }
         lastSkipTime = now;
 
-        // Keep behavior minimal to preserve queue order
-        await TrackPlayer.skipToNext();
+        // Suppress repeat-one revert for this user-initiated skip
+        ManualSkipFlag.suppress();
+        const queue = await TrackPlayer.getQueue();
+        const currentIndex = await TrackPlayer.getActiveTrackIndex();
+
+        if (typeof currentIndex !== 'number' || currentIndex < 0 || queue.length === 0) {
+          // Fallback to native skipToNext if we can't determine position
+          await TrackPlayer.skipToNext();
+          await TrackPlayer.play();
+          return;
+        }
+
+        const nextIndex = currentIndex + 1;
+        if (nextIndex >= queue.length) {
+          // At end of queue — try native skip which may wrap or trigger end-of-queue
+          try {
+            await TrackPlayer.skipToNext();
+            await TrackPlayer.play();
+          } catch (endErr) {
+            // End of queue reached, nothing to skip to
+          }
+          return;
+        }
+
+        await TrackPlayer.skip(nextIndex);
         await TrackPlayer.play();
       } catch (e) {
         console.warn('RemoteNext failed', e);
@@ -88,7 +112,7 @@ export default async function PlaybackService() {
     })();
   });
 
-  // Previous: perform an immediate native previous (fast) and queue background repairs
+  // Previous: perform an explicit index-based skip to preserve queue order
   TrackPlayer.addEventListener(Event.RemotePrevious, () => {
     (async () => {
       try {
@@ -99,8 +123,24 @@ export default async function PlaybackService() {
         }
         lastSkipTime = now;
 
-        // Keep behavior minimal to preserve queue order
-        await TrackPlayer.skipToPrevious();
+        // Suppress repeat-one revert for this user-initiated skip
+        ManualSkipFlag.suppress();
+        const currentIndex = await TrackPlayer.getActiveTrackIndex();
+
+        if (typeof currentIndex !== 'number' || currentIndex < 0) {
+          await TrackPlayer.skipToPrevious();
+          await TrackPlayer.play();
+          return;
+        }
+
+        if (currentIndex === 0) {
+          // At beginning — restart current track
+          await TrackPlayer.seekTo(0);
+          await TrackPlayer.play();
+          return;
+        }
+
+        await TrackPlayer.skip(currentIndex - 1);
         await TrackPlayer.play();
       } catch (e) {
         console.warn('RemotePrevious failed', e);
@@ -264,6 +304,11 @@ export default async function PlaybackService() {
 
       TrackPlayer.addEventListener(Event.PlaybackActiveTrackChanged, async event => {
         try {
+          // If this track change was triggered by a user-initiated skip (prev/next button),
+          // do NOT revert it even in repeat-one mode.
+          if (ManualSkipFlag.consumeIfSuppressed()) {
+            return;
+          }
           const repeatMode = await TrackPlayer.getRepeatMode();
           if (repeatMode === RepeatMode.Track && event.lastIndex != null && event.index != null && event.index !== event.lastIndex) {
             // Repeat-One: player auto-advanced to next track, seek back

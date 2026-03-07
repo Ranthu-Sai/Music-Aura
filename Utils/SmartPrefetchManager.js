@@ -267,6 +267,12 @@ class SmartPrefetchManager {
         return; // Invalid index
       }
 
+      // Don't prefetch-replace the currently active track — it causes skipping
+      const activeIndex = await TrackPlayer.getActiveTrackIndex();
+      if (typeof activeIndex === 'number' && index <= activeIndex) {
+        return;
+      }
+
       const track = queue[index];
 
       // Skip if not a YouTube track or already has valid URL
@@ -277,7 +283,11 @@ class SmartPrefetchManager {
       // Skip if already prefetched and not expired
       const cached = this.getPrefetchedStream(track.id);
       if (cached) {
-        // Still replace in queue if needed
+        // Still replace in queue if needed (re-check active index before replacing)
+        const currentActive = await TrackPlayer.getActiveTrackIndex();
+        if (typeof currentActive === 'number' && index <= currentActive) {
+          return;
+        }
         await this._replaceTrackInQueue(index, track, cached);
         return;
       }
@@ -295,6 +305,19 @@ class SmartPrefetchManager {
         // Store prefetched data
         this._cacheStream(track.id, streamData);
 
+        // Re-check active index after async fetch — user may have skipped forward
+        const nowActiveIndex = await TrackPlayer.getActiveTrackIndex();
+        if (typeof nowActiveIndex === 'number' && index <= nowActiveIndex) {
+          // User advanced past this track during fetch — don't replace
+          return;
+        }
+
+        // Verify the track at this index is still the same one
+        const freshQueue = await TrackPlayer.getQueue();
+        if (!freshQueue[index] || freshQueue[index].id !== track.id) {
+          return;
+        }
+
         // Replace track in queue with valid URL
         await this._replaceTrackInQueue(index, track, streamData);
       }
@@ -302,9 +325,13 @@ class SmartPrefetchManager {
       console.error(`❌ Prefetch failed for index ${index}:`, error.message);
     } finally {
       // Clean up in-progress set
-      const queue = await TrackPlayer.getQueue();
-      if (index < queue.length) {
-        this.prefetchInProgress.delete(queue[index]?.id);
+      try {
+        const queue = await TrackPlayer.getQueue();
+        if (index < queue.length) {
+          this.prefetchInProgress.delete(queue[index]?.id);
+        }
+      } catch (e) {
+        // Ignore cleanup errors
       }
     }
   }
@@ -411,6 +438,13 @@ class SmartPrefetchManager {
    * Replace a track in queue with updated URL (non-blocking, fire-and-forget)
    */
   async _replaceTrackInQueue(index, originalTrack, streamData) {
+    // CRITICAL: Never replace the currently active track via prefetch — it causes song skipping
+    // When remove+add runs on the active track, TrackPlayer auto-advances, skipping songs
+    const activeIndex = await TrackPlayer.getActiveTrackIndex();
+    if (typeof activeIndex === 'number' && index <= activeIndex) {
+      return; // Don't touch the active or already-played tracks
+    }
+
     // In preserve-order mode: only replace if original track exists at expected index
     if (this.preserveOrder) {
       const queue = await TrackPlayer.getQueue();

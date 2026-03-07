@@ -1,14 +1,13 @@
-export * from './Saavn/Recommended';
 import axios from 'axios';
 import InnerTubeClient from './InnertubeClient';
 
 // Get recommended songs for JioSaavn tracks
-async function getRecommendedSongs(id) {
+// songMeta is optional: {artist, title, language} — used for search-based fallback
+async function getRecommendedSongs(id, songMeta = {}) {
   const urls = [
+    `https://jiosaavn-c451wwyru-sumit-kolhes-projects-94a4846a.vercel.app/api/songs/${id}/suggestions`,
+    `https://nepotuneapi.vercel.app/api/songs/${id}/suggestions`,
     `https://jiosaavn-api-privatecvc2.vercel.app/songs/${id}/suggestions`,
-    `https://jio-saavan-api.vercel.app/songs/${id}/suggestions`,
-    `https://jiosaavn-api-privatecvc2.vercel.app/playlists?id=${id}`,
-    `https://www.jiosaavn.com/api.php?ctx=wap6dot0&api_version=4&_format=json&_marker=0&__call=reco.getreco&pid=${id}`,
   ];
 
   for (let url of urls) {
@@ -18,33 +17,83 @@ async function getRecommendedSongs(id) {
         maxBodyLength: Infinity,
         url: url,
         headers: {},
+        timeout: 5000,
       };
       const response = await axios.request(config);
       if (response.data) {
+        let songs = null;
+
         // If it's playlist format, extract songs
         if (response.data.data && response.data.data.songs) {
-          return {data: response.data.data.songs.slice(0, 20)};
+          songs = response.data.data.songs;
         }
-        // If it's direct data array
-        if (Array.isArray(response.data.data)) {
-          return {data: response.data.data.slice(0, 20)};
+        // If it's direct data array (wrapper API format: {data: [...]})
+        else if (Array.isArray(response.data.data)) {
+          songs = response.data.data;
         }
-        // If it's success format with data array
-        if (response.data.status === 'SUCCESS' && Array.isArray(response.data.data)) {
-          return {data: response.data.data.slice(0, 20)};
+        // If it's direct JioSaavn API format (object with numbered keys)
+        else if (
+          response.data &&
+          typeof response.data === 'object' &&
+          !Array.isArray(response.data) &&
+          !response.data.data
+        ) {
+          const values = Object.values(response.data).filter(
+            v => v && typeof v === 'object' && (v.id || v.song),
+          );
+          if (values.length > 0) {
+            songs = values;
+          }
         }
-        // Return as-is if format is unknown but has data
-        if (response.data.data) {
-          return response.data;
+        // If it's a direct array response
+        else if (Array.isArray(response.data)) {
+          songs = response.data;
         }
+
+        // Only return if we got non-empty recommendations
+        if (songs && songs.length > 0) {
+          return {data: songs.slice(0, 20)};
+        }
+        // Otherwise continue to next URL
       }
-      return response.data;
     } catch (error) {
       continue;
     }
   }
 
-  // If all APIs fail, return empty recommendations instead of throwing error
+  // All suggestion APIs failed — try search-based recommendations using song metadata
+  try {
+    const artist = songMeta.artist && songMeta.artist !== 'Unknown Artist' ? songMeta.artist : '';
+    const title = songMeta.title && songMeta.title !== 'Unknown Title' ? songMeta.title : '';
+    const language = songMeta.language || '';
+    const queryParts = (artist || title || '').trim();
+    if (queryParts) {
+      const searchQuery = encodeURIComponent(
+        queryParts + (language ? ' ' + language : ''),
+      );
+      const searchUrl = `https://jiosaavn-api-privatecvc2.vercel.app/search/songs?query=${searchQuery}&limit=20`;
+      const response = await axios.get(searchUrl, {timeout: 8000});
+      const results = response.data?.data?.results || response.data?.results || [];
+      if (Array.isArray(results) && results.length > 0) {
+        const filtered = results.filter(s => {
+          if (!s || !s.id || s.id === id) { return false; }
+          if (language) {
+            const sLang = (s.language || '').toLowerCase();
+            const uLang = language.toLowerCase();
+            if (sLang && sLang !== uLang) { return false; }
+          }
+          return true;
+        });
+        if (filtered.length > 0) {
+          return {data: filtered.slice(0, 20)};
+        }
+      }
+    }
+  } catch (searchErr) {
+    // Search fallback also failed
+  }
+
+  // If everything fails, return empty recommendations
   return {data: []};
 }
 

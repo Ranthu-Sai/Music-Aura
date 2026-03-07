@@ -59,9 +59,9 @@ class AutoRecommendations {
 
     try {
       const queue = await TrackPlayer.getQueue();
-      const currentIndex = await TrackPlayer.getCurrentTrack();
+      const currentIndex = await TrackPlayer.getActiveTrackIndex();
 
-      if (currentIndex === null || !queue || queue.length === 0) {
+      if (currentIndex === null || currentIndex === undefined || !queue || queue.length === 0) {
         return;
       }
 

@@ -7,6 +7,7 @@ import {
   StyleSheet,
   TextInput,
   BackHandler,
+  Share,
 } from 'react-native';
 import FastImage from 'react-native-fast-image';
 import React, {
@@ -1030,10 +1031,7 @@ export const FullScreenMusic = memo(({color, Index, setIndex}) => {
                     <PlainText text="Add to Playlist" />
                   </TouchableOpacity>
                   <TouchableOpacity
-                    onPress={() => {
-                      setShowMenu(false);
-                      setShowSleepModal(true);
-                    }}
+                    onPress={handleDownload}
                     style={[
                       styles.menuItem,
                       {
@@ -1043,24 +1041,33 @@ export const FullScreenMusic = memo(({color, Index, setIndex}) => {
                       },
                     ]}>
                     <MaterialCommunityIcons
-                      name="timer-outline"
-                      size={24}
-                      color={theme.colors.text}
-                    />
-                    <PlainText text="Sleep Timer" />
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    onPress={handleDownload}
-                    style={[
-                      styles.menuItem,
-                      {borderBottomColor: 'transparent'},
-                    ]}>
-                    <MaterialCommunityIcons
                       name="download"
                       size={24}
                       color={theme.colors.text}
                     />
                     <PlainText text="Download Song" />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={async () => {
+                      setShowMenu(false);
+                      try {
+                        await Share.share({
+                          message: `Check out this song: ${currentPlaying?.title || 'Unknown'} by ${currentPlaying?.artist || 'Unknown Artist'}\nShared from Music Aura`,
+                        });
+                      } catch (e) {
+                        // ignore
+                      }
+                    }}
+                    style={[
+                      styles.menuItem,
+                      {borderBottomColor: 'transparent'},
+                    ]}>
+                    <MaterialCommunityIcons
+                      name="share-variant"
+                      size={24}
+                      color={theme.colors.text}
+                    />
+                    <PlainText text="Share Song" />
                   </TouchableOpacity>
                 </View>
               </Pressable>

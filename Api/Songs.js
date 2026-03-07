@@ -85,7 +85,7 @@ async function getSaavnSuggestions(query) {
 async function getYTMusicSuggestions(query) {
   try {
     const response = await axios.post(
-      'https://music.youtube.com/youtubei/v1/search/get_search_suggestions?key=AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30',
+      'https://music.youtube.com/youtubei/v1/music/get_search_suggestions?key=AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30',
       {
         context: {
           client: {
@@ -113,8 +113,13 @@ async function getYTMusicSuggestions(query) {
         response.data?.contents?.[0]?.searchSuggestionsSectionRenderer
           ?.contents || [];
       items.forEach(item => {
+        // Use the full query from navigationEndpoint (most accurate),
+        // or concatenate all runs to get the complete suggestion text
+        const renderer = item?.searchSuggestionRenderer;
         const text =
-          item?.searchSuggestionRenderer?.suggestion?.runs?.[0]?.text;
+          renderer?.navigationEndpoint?.searchEndpoint?.query ||
+          renderer?.suggestion?.runs?.map(r => r.text).join('') ||
+          '';
         if (text) {
           suggestions.push(text);
         }
@@ -202,13 +207,14 @@ async function getSearchSuggestions(query) {
 
     }
 
-    // Combine suggestions with a prioritized approach
+    // Combine suggestions with a prioritized round-robin approach
     const combinedSuggestions = [];
+    const seenLower = new Set();
     const maxSuggestions = 40;
     const suggestionSources = [
+      saavn.suggestions,
       ytMusic.suggestions,
       youtube.suggestions,
-      saavn.suggestions,
     ];
 
     let j = 0;
@@ -216,8 +222,10 @@ async function getSearchSuggestions(query) {
       let addedInThisRound = false;
       for (const source of suggestionSources) {
         if (source[j]) {
-          if (!combinedSuggestions.includes(source[j])) {
-            combinedSuggestions.push(source[j]);
+          const lower = source[j].trim().toLowerCase();
+          if (lower && !seenLower.has(lower)) {
+            seenLower.add(lower);
+            combinedSuggestions.push(source[j].trim());
           }
           addedInThisRound = true;
         }

@@ -35,6 +35,7 @@ jest.mock('react-native-track-player', () => {
     reset: jest.fn(async () => {}),
     getState: jest.fn(async () => 'idle'),
     getCurrentTrack: jest.fn(async () => null),
+    getActiveTrackIndex: jest.fn(async () => 0),
     updateOptions: jest.fn(() => {}),
     getQueue: jest.fn(async () => []),
   };
