@@ -864,8 +864,8 @@ async function getYTSearchPlaylistData(searchText, page, limit) {
 
 async function getLyricsSongData(id) {
   const urls = [
-    `https://jiosaavn-api-privatecvc2.vercel.app/songs/${id}/lyrics`,
-    `https://jio-saavan-api.vercel.app/songs/${id}/lyrics`,
+    `https://jiosaavn-api-privatecvc2.vercel.app/lyrics?id=${id}`,
+    `https://jio-saavan-api.vercel.app/lyrics?id=${id}`,
   ];
   // Note: removed the direct jiosaavn.com lyrics.php endpoint — it requires a lyrics_id and
   // does not work with the song id. Use the wrapper endpoint above which is reliable when
@@ -908,8 +908,16 @@ async function getYTLyricsSongData(
       .toLowerCase()
       .replace(/[^a-z0-9]/g, '_');
 
+  // Check if there's an existing request, but don't return it if it's too old (hung)
   if (lyricsFetchLock.has(persistentKey)) {
-    return lyricsFetchLock.get(persistentKey);
+    const existing = lyricsFetchLock.get(persistentKey);
+    if (existing && existing.timestamp && Date.now() - existing.timestamp < 30000) {
+      // Return existing promise if it's not too old
+      return existing.promise;
+    } else {
+      // Remove old/stuck promise
+      lyricsFetchLock.delete(persistentKey);
+    }
   }
 
   const fetchPromise = (async () => {
@@ -934,19 +942,59 @@ async function getYTLyricsSongData(
                 artist,
               )}&song=${encodeURIComponent(
                 title,
-              )}&tamps=true&pass=false`,
-              // No explicit timeout here: allow RenderAPI to take longer on slow networks
+              )}&timestamps=true&pass=false`,
+              timeout: 20000, // Add 20 second timeout for RenderAPI
               transform: async data => {
                 if (data.data?.lyrics) {
-                  return {
-                    success: true,
-                    data: {
-                      lyrics: data.data.lyrics,
-                      timed_lyrics: data.data.timed_lyrics,
-                    },
-                  };
+                  const lyricsText = data.data.lyrics;
+
+                  // Check if lyrics contain timestamps
+                  const hasTimestamps = /\[\d+:\d+\.\d+\]/.test(lyricsText);
+
+                  if (hasTimestamps) {
+                    // Parse timed lyrics from the lyrics string
+                    const lines = lyricsText.split(/\r?\n/).filter(l => l.trim());
+                    const timed_lyrics = [];
+                    let plainLyrics = '';
+
+                    for (const line of lines) {
+                      const m = line.match(/\[(\d+):(\d+\.\d+)\]\s*(.*)/);
+                      if (m) {
+                        const minutes = parseInt(m[1], 10);
+                        const seconds = parseFloat(m[2]);
+                        const start_time = Math.round((minutes * 60 + seconds) * 1000);
+                        const text = m[3].trim();
+                        if (text) {
+                          timed_lyrics.push({start_time, text});
+                          plainLyrics += text + '\n';
+                        }
+                      } else if (line.trim()) {
+                        // Line without timestamp
+                        timed_lyrics.push({start_time: null, text: line.trim()});
+                        plainLyrics += line.trim() + '\n';
+                      }
+                    }
+
+                    return {
+                      success: true,
+                      data: {
+                        lyrics: plainLyrics.trim() || null,
+                        timed_lyrics,
+                      },
+                    };
+                  } else {
+                    // Plain lyrics without timestamps
+                    return {
+                      success: true,
+                      data: {
+                        lyrics: lyricsText,
+                        timed_lyrics: data.data.timed_lyrics || [],
+                      },
+                    };
+                  }
                 }
                 if (data.data?.timestamped) {
+                  // Legacy format with separate timestamped field
                   const lines = data.data.timestamped.split(/\r?\n/).filter(l => l.trim());
                   const timed_lyrics = [];
                   for (const line of lines) {
@@ -1067,19 +1115,6 @@ async function getYTLyricsSongData(
             },
 
             {
-              name: 'OVH',
-              url: `https://api.lyrics.ovh/v1/${encodeURIComponent(
-                artist,
-              )}/${encodeURIComponent(title)}`,
-
-              transform: async data =>
-                data.lyrics
-                  ? {success: true, data: {lyrics: data.lyrics}}
-                  : null,
-            },
-
-
-            {
               name: 'JioSaavn',
               url: null,
               transform: async () => {
@@ -1105,7 +1140,7 @@ async function getYTLyricsSongData(
                     if (songId) {
                       try {
                         const lyricsResponse = await axios.get(
-                          `https://jiosaavn-api-privatecvc2.vercel.app/songs/${songId}/lyrics`,
+                          `https://jiosaavn-api-privatecvc2.vercel.app/lyrics?id=${songId}`,
                         );
                         const lyricsData = lyricsResponse.data;
                         if (lyricsData?.data?.lyrics || lyricsData?.lyrics) {
@@ -1148,7 +1183,14 @@ async function getYTLyricsSongData(
                   }
                   // In 'All' mode we intentionally do not set a timeout so provider
                   // endpoints can take their time and succeed on slow networks.
-                  const response = await axios.get(api.url);
+                  const response = await axios.get(api.url, {
+                    timeout: 15000,
+                    headers: {
+                      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+                      'Accept': 'application/json, text/plain, */*',
+                      'Accept-Language': 'en-US,en;q=0.9',
+                    },
+                  });
                   const result = await api.transform(response.data);
                   if (result) {
                     return {api: api.name, res: result};
@@ -1247,6 +1289,11 @@ async function getYTLyricsSongData(
 
                   const response = await axios.get(api.url, {
                     timeout: api.timeout || 10000,
+                    headers: {
+                      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+                      'Accept': 'application/json, text/plain, */*',
+                      'Accept-Language': 'en-US,en;q=0.9',
+                    },
                   });
                   const result = await api.transform(response.data);
                   if (result) {
@@ -1323,7 +1370,7 @@ async function getYTLyricsSongData(
     }
   })();
 
-  lyricsFetchLock.set(persistentKey, fetchPromise);
+  lyricsFetchLock.set(persistentKey, {promise: fetchPromise, timestamp: Date.now()});
   return fetchPromise;
 }
 

@@ -9,6 +9,7 @@ import SwipeableHistoryItem from './SwipeableHistoryItem';
 export default function SearchHistoryDisplay({
   history,
   onSelectQuery,
+  onEditQuery,
   onRemoveQuery,
   onClearHistory,
 }) {
@@ -147,6 +148,7 @@ export default function SearchHistoryDisplay({
           <SwipeableHistoryItem
             item={item}
             onPress={() => onSelectQuery(item)}
+            onEdit={() => onEditQuery(item)}
             onDelete={() => onRemoveQuery(item)}
           />
         )}

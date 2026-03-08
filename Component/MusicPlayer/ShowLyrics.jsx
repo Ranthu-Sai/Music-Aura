@@ -158,13 +158,18 @@ export const ShowLyrics = ({
     if (key === 'source') {
       try {
         setLoading(true);
-        const results = await refreshLyrics(
+        // Add timeout to prevent hanging
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Lyrics fetch timeout')), 30000)
+        );
+        const refreshPromise = refreshLyrics(
           currentSong.id,
           currentSong.artist,
           currentSong.title,
           currentSong.language,
           value,
         );
+        const results = await Promise.race([refreshPromise, timeoutPromise]);
 
 
         // Always update UI state so the selected source shows feedback even if no lyrics found
@@ -202,43 +207,10 @@ export const ShowLyrics = ({
   // When opening the lyrics modal, if the currently selected source is RenderAPI
   // and the cached result looks incomplete (very short plain text or very few lines),
   // force a refresh from RenderAPI to fetch the complete result.
+  // DISABLED: RenderAPI now returns complete results with proper parsing
   useEffect(() => {
-    let cancelled = false;
-    const tryRefreshRenderAPI = async () => {
-      if (!ShowDailog) {return;}
-      if (!Lyric || !Lyric.source) {return;}
-      if (Lyric.source !== 'RenderAPI') {return;}
-
-      const plainLen = (Lyric?.lyrics || '').replaceAll('<br>', '').trim().length;
-      const timedCount = (Lyric?.timed_lyrics || Lyric?.timedLyrics || []).length || 0;
-
-      // Thresholds: very short plain text or very few timed lines => consider incomplete
-      if (plainLen < 100 || timedCount < 3) {
-        try {
-          setLoading(true);
-          const refreshed = await refreshLyrics(
-            currentSong.id,
-            currentSong.artist,
-            currentSong.title,
-            currentSong.language,
-            'RenderAPI',
-          );
-          if (!cancelled && refreshed) {
-            setLyric(refreshed);
-          }
-        } catch (e) {
-          // RenderAPI refresh failed; keep warning for diagnostics
-          console.warn('RenderAPI refresh failed:', e);
-        } finally {
-          if (!cancelled) {setLoading(false);}
-        }
-      }
-    };
-
-    tryRefreshRenderAPI();
-    return () => {
-      cancelled = true;
-    };
+    // Automatic refresh disabled to prevent loading flicker
+    return () => {};
   }, [ShowDailog, Lyric?.source, Lyric, currentSong?.id, currentSong?.artist, currentSong?.title, currentSong?.language, refreshLyrics, setLoading, setLyric]);
 
   // When the shown song changes while the lyrics modal is open, refresh lyrics automatically
@@ -280,12 +252,16 @@ export const ShowLyrics = ({
           if (shouldShowLoadingOverlay) { setLoading(true); }
 
           // Keep existing Lyric until new data arrives to avoid flicker
-          const results = await refreshLyrics(
+          const timeoutPromise = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('Lyrics fetch timeout')), 30000)
+          );
+          const refreshPromise = refreshLyrics(
             currentSong.id,
             currentSong.artist,
             currentSong.title,
             currentSong.language,
           );
+          const results = await Promise.race([refreshPromise, timeoutPromise]);
           if (cancelled) {return;}
           if (results) {
             setLyric(results);
@@ -955,7 +931,6 @@ export const ShowLyrics = ({
                 {[
                   'All',
                   'LRCLib',
-                  'OVH',
                   'JioSaavn',
                   'RenderAPI',
                 ].map((src, idx) => (

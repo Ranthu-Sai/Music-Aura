@@ -534,8 +534,8 @@ async function getYTSearchPlaylistData(searchText, page, limit) {
 
 async function getLyricsSongData(id) {
   const urls = [
-    `https://jiosaavn-api-privatecvc2.vercel.app/songs/${id}/lyrics`,
-    `https://jio-saavan-api.vercel.app/songs/${id}/lyrics`,
+    `https://jiosaavn-api-privatecvc2.vercel.app/lyrics?id=${id}`,
+    `https://jio-saavan-api.vercel.app/lyrics?id=${id}`,
     `https://www.jiosaavn.com/api.php?__call=lyrics.getLyrics&ctx=wap6dot0&api_version=4&_format=json&_marker=0&id=${id}`,
   ];
   for (let baseUrl of urls) {
@@ -757,8 +757,8 @@ async function getYTLyricsSongData(
             // lyrics endpoint expects a lyrics_id and is not usable with song ids, so we
             // only query the wrapper here.
             const lyricsUrls = [
-              `https://jiosaavn-api-privatecvc2.vercel.app/songs/${songId}/lyrics`,
-              `https://jio-saavan-api.vercel.app/songs/${songId}/lyrics`,
+              `https://jiosaavn-api-privatecvc2.vercel.app/lyrics?id=${songId}`,
+              `https://jio-saavan-api.vercel.app/lyrics?id=${songId}`,
             ];
 
             for (const lyricsUrl of lyricsUrls) {

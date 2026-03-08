@@ -291,6 +291,7 @@ export const SearchPage = ({navigation}) => {
     setSearchText(searchQuery);
     setQuery(searchQuery);
     setShowSuggestions(false);
+    setLoading(true); // Set loading immediately
     Keyboard.dismiss();
     AddSearchHistory(searchQuery.trim()).then(history => {
       if (history) {
@@ -314,6 +315,13 @@ export const SearchPage = ({navigation}) => {
     setQuery(historyQuery);
     searchBarRef.current?.setText(historyQuery);
     handleSearchSubmit(historyQuery);
+  };
+
+  const handleEditHistory = historyQuery => {
+    setQuery(historyQuery);
+    searchBarRef.current?.setText(historyQuery);
+    // Focus the search bar for editing
+    searchBarRef.current?.focus();
   };
 
   const handleRemoveHistory = async historyQuery => {
@@ -477,6 +485,7 @@ export const SearchPage = ({navigation}) => {
                 <SearchHistoryDisplay
                   history={searchHistory}
                   onSelectQuery={handleSelectHistory}
+                  onEditQuery={handleEditHistory}
                   onRemoveQuery={handleRemoveHistory}
                   onClearHistory={handleClearHistory}
                 />

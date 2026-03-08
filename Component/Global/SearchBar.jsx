@@ -26,8 +26,11 @@ export const SearchBar = forwardRef(({onChange, onSubmit, navigation}, ref) => {
         setSearchText(text);
         inputRef.current?.setNativeProps({text});
       },
+      focus: () => {
+        inputRef.current?.focus();
+      },
     }),
-    [],
+    [inputRef],
   );
 
   // Notify parent immediately

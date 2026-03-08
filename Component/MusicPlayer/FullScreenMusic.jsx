@@ -405,13 +405,17 @@ export const FullScreenMusic = memo(({color, Index, setIndex}) => {
             try {
               setLoading(true);
               setLyricsFetchInProgress(true);
-              const results = await refreshLyrics(
+              const timeoutPromise = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('Lyrics fetch timeout')), 30000)
+              );
+              const refreshPromise = refreshLyrics(
                 currentPlaying.id,
                 currentPlaying.artist,
                 currentPlaying.title,
                 currentPlaying.language,
                 sourceSuffix,
               );
+              const results = await Promise.race([refreshPromise, timeoutPromise]);
               if (results) {
                 setLyric(results);
               } else {

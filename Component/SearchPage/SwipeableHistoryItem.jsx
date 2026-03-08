@@ -13,7 +13,7 @@ import Feather from 'react-native-vector-icons/Feather';
 import {useTheme} from '@react-navigation/native';
 import {ThemeContext} from '../../Context/Context';
 
-const SwipeableHistoryItem = ({item, onPress, onDelete, onSwipeableOpen}) => {
+const SwipeableHistoryItem = ({item, onPress, onEdit, onDelete, onSwipeableOpen}) => {
   const {dark} = useTheme();
   const {currentThemeColors} = useContext(ThemeContext);
   const swipeableRef = useRef(null);
@@ -110,6 +110,29 @@ const SwipeableHistoryItem = ({item, onPress, onDelete, onSwipeableOpen}) => {
             numberOfLines={1}>
             {item}
           </Text>
+          <Pressable
+            onPress={e => {
+              e.stopPropagation();
+              onEdit();
+            }}
+            style={{
+              padding: 8,
+              borderRadius: 20,
+              backgroundColor: dark
+                ? 'rgba(255,255,255,0.05)'
+                : 'rgba(0,0,0,0.04)',
+              marginRight: 8,
+            }}
+            android_ripple={{
+              color: dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)',
+              borderless: true,
+            }}>
+            <MaterialIcons
+              name="edit"
+              size={18}
+              color={dark ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)'}
+            />
+          </Pressable>
           <Pressable
             onPress={e => {
               e.stopPropagation();
