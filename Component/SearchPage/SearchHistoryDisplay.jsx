@@ -1,5 +1,4 @@
-import {View, Text, Pressable, FlatList, Animated} from 'react-native';
-import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import {Text, Pressable, FlatList, Animated} from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import {useEffect, useRef, useContext} from 'react';
 import {ThemeContext} from '../../Context/Context';
@@ -88,28 +87,19 @@ export default function SearchHistoryDisplay({
           flexDirection: 'row',
           justifyContent: 'space-between',
           alignItems: 'center',
-          paddingHorizontal: 16,
-          paddingVertical: 16,
-          marginBottom: 8,
+          paddingHorizontal: 14,
+          paddingVertical: 12,
           transform: [{translateY: slideAnim}],
         }}>
-        <View style={{flexDirection: 'row', alignItems: 'center'}}>
-          <MaterialIcons
-            name="history"
-            size={24}
-            color={currentThemeColors.text}
-          />
-          <Text
-            style={{
-              color: currentThemeColors.text,
-              fontSize: 20,
-              fontFamily: 'roboto',
-              fontWeight: 'bold',
-              marginLeft: 10,
-            }}>
-            Recent Searches
-          </Text>
-        </View>
+        <Text
+          style={{
+            color: currentThemeColors.text,
+            fontSize: 20,
+            fontFamily: 'roboto',
+            fontWeight: 'bold',
+          }}>
+          Recent Searches
+        </Text>
         <Pressable
           onPress={onClearHistory}
           style={{

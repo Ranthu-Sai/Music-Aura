@@ -12,7 +12,6 @@ import {
   Text,
   TouchableOpacity,
   ToastAndroid,
-  Linking,
   TextInput,
 } from 'react-native';
 import {useNavigation} from '@react-navigation/native';
@@ -41,11 +40,8 @@ export const AllSongsPage = () => {
     localSongs,
     isLoading,
     isScanningLocal,
-    isRequestingPermission,
-    hasPermission,
     loadDownloadedSongs,
     loadLocalSongs,
-    requestPermissions,
   } = useAllSongsManager({
     onSongsChanged,
     onDownloadStatusChanged: (songId, isDownloaded) => {},
@@ -53,23 +49,13 @@ export const AllSongsPage = () => {
   });
 
   const handleRefresh = useCallback(async () => {
-    if (hasPermission) {
-      if (activeTab === 'downloads') {
+    if (activeTab === 'downloads') {
         await loadDownloadedSongs();
       } else {
         await loadLocalSongs(true);
       }
       ToastAndroid.show(`Refreshed ${activeTab} songs`, ToastAndroid.SHORT);
-    } else {
-      await requestPermissions();
-    }
-  }, [
-    hasPermission,
-    requestPermissions,
-    activeTab,
-    loadDownloadedSongs,
-    loadLocalSongs,
-  ]);
+  }, [activeTab, loadDownloadedSongs, loadLocalSongs]);
 
   const filteredSongs = useMemo(() => {
     const source = activeTab === 'downloads' ? downloadedSongs : localSongs;
@@ -103,10 +89,6 @@ export const AllSongsPage = () => {
     await AddPlaylist(forPlayer);
     ToastAndroid.show('Shuffling ' + activeTab + ' songs', ToastAndroid.SHORT);
   }, [filteredSongs, activeTab]);
-
-  const openAppSettings = useCallback(() => {
-    Linking.openSettings();
-  }, []);
 
 
 
@@ -286,16 +268,14 @@ export const AllSongsPage = () => {
         </View>
 
         <View style={{paddingHorizontal: 10, marginTop: 20}}>
-          {isLoading || isRequestingPermission || isScanningLocal ? (
+          {isLoading || isScanningLocal ? (
             <View style={{marginTop: 50}}>
-              {isRequestingPermission || isScanningLocal ? (
+              {isScanningLocal ? (
                 <>
                   <ActivityIndicator size="large" color="#1DB954" />
                   <Text
                     style={{color: 'white', textAlign: 'center', marginTop: 10}}>
-                    {isRequestingPermission
-                      ? 'Requesting permissions...'
-                      : 'Scanning local storage...'}
+                    Scanning local storage...
                   </Text>
                   <Text
                     style={{
@@ -304,55 +284,12 @@ export const AllSongsPage = () => {
                       textAlign: 'center',
                       fontSize: 10,
                     }}>
-                    {isRequestingPermission
-                      ? 'Please grant storage permissions to access your music.'
-                      : 'Scanning your device for music files...'}
+                    Scanning your device for music files...
                   </Text>
                 </>
               ) : (
                 <ShimmerSearchResults itemCount={8} />
               )}
-            </View>
-          ) : !hasPermission ? (
-            <View style={{marginTop: 50, alignItems: 'center'}}>
-              <Text style={{color: 'white', opacity: 0.6, textAlign: 'center'}}>
-                Storage permission required
-              </Text>
-              <Text
-                style={{
-                  color: 'white',
-                  opacity: 0.4,
-                  textAlign: 'center',
-                  fontSize: 12,
-                  marginTop: 5,
-                }}>
-                Please grant permission to access your downloaded and local
-                songs.
-              </Text>
-              <TouchableOpacity
-                onPress={requestPermissions}
-                style={{
-                  marginTop: 20,
-                  padding: 10,
-                  backgroundColor: '#1DB954',
-                  borderRadius: 5,
-                }}>
-                <Text style={{color: 'white', fontSize: 14}}>
-                  Grant Permission
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={openAppSettings}
-                style={{
-                  marginTop: 10,
-                  padding: 10,
-                  backgroundColor: 'rgba(255,255,255,0.1)',
-                  borderRadius: 5,
-                }}>
-                <Text style={{color: 'white', fontSize: 14}}>
-                  Open Settings
-                </Text>
-              </TouchableOpacity>
             </View>
           ) : (
             <View style={{paddingHorizontal: 5}}>

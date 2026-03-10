@@ -68,43 +68,17 @@ const SwipeableHistoryItem = ({item, onPress, onEdit, onDelete, onSwipeableOpen}
           style={({pressed}) => [
             styles.historyItem,
             {
-              backgroundColor:
-                currentThemeColors.secondaryBackground ||
-                (dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.04)'),
-              borderColor: currentThemeColors.secondaryText
-                ? currentThemeColors.secondaryText + '22'
-                : dark
-                ? 'rgba(255,255,255,0.1)'
-                : 'rgba(0,0,0,0.08)',
               opacity: pressed ? 0.7 : 1,
             },
           ]}
           android_ripple={{
             color: dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)',
           }}>
-          <View
-            style={{
-              width: 38,
-              height: 38,
-              borderRadius: 19,
-              backgroundColor: dark
-                ? 'rgba(255,255,255,0.1)'
-                : 'rgba(0,0,0,0.06)',
-              justifyContent: 'center',
-              alignItems: 'center',
-              marginRight: 12,
-            }}>
-            <MaterialIcons
-              name="history"
-              size={20}
-              color={dark ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.6)'}
-            />
-          </View>
           <Text
             style={{
               flex: 1,
               color: currentThemeColors.text,
-              fontSize: 17,
+              fontSize: 18,
               fontFamily: 'roboto',
             }}
             numberOfLines={1}>
@@ -116,21 +90,17 @@ const SwipeableHistoryItem = ({item, onPress, onEdit, onDelete, onSwipeableOpen}
               onEdit();
             }}
             style={{
-              padding: 8,
-              borderRadius: 20,
-              backgroundColor: dark
-                ? 'rgba(255,255,255,0.05)'
-                : 'rgba(0,0,0,0.04)',
-              marginRight: 8,
+              padding: 6,
+              marginRight: 4,
             }}
             android_ripple={{
               color: dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)',
               borderless: true,
             }}>
             <MaterialIcons
-              name="edit"
-              size={18}
-              color={dark ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)'}
+              name="north-west"
+              size={20}
+              color={dark ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.4)'}
             />
           </Pressable>
           <Pressable
@@ -139,11 +109,7 @@ const SwipeableHistoryItem = ({item, onPress, onEdit, onDelete, onSwipeableOpen}
               handleDelete();
             }}
             style={{
-              padding: 8,
-              borderRadius: 20,
-              backgroundColor: dark
-                ? 'rgba(255,255,255,0.05)'
-                : 'rgba(0,0,0,0.04)',
+              padding: 6,
             }}
             android_ripple={{
               color: dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)',
@@ -151,8 +117,8 @@ const SwipeableHistoryItem = ({item, onPress, onEdit, onDelete, onSwipeableOpen}
             }}>
             <Entypo
               name="cross"
-              size={18}
-              color={dark ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)'}
+              size={22}
+              color={dark ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.4)'}
             />
           </Pressable>
         </Pressable>
@@ -164,20 +130,17 @@ const SwipeableHistoryItem = ({item, onPress, onEdit, onDelete, onSwipeableOpen}
 const styles = StyleSheet.create({
   container: {
     width: '100%',
-    marginVertical: 2,
     paddingHorizontal: 10,
   },
   swipeableContainer: {
-    borderRadius: 12,
     overflow: 'hidden',
   },
   historyItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    borderWidth: 1,
+    paddingVertical: 10,
+    paddingLeft: 14,
+    paddingRight: 4,
   },
   rightAction: {
     width: 80,

@@ -3,10 +3,12 @@ import axios from 'axios';
 import {getYTMusicPlaylistData as getYTMusicPlaylistDataFromService} from './YTMusic';
 import YTArtworkUtils from '../Utils/YTMusicArtworkUtils';
 
-// JioSaavn API Fallback URLs (only hosts that support /modules endpoint)
+// JioSaavn API Fallback URLs
 const JIOSAAVN_API_FALLBACKS = [
   'https://jiosaavn-api-privatecvc2.vercel.app', // Primary fallback
   'https://jio-saavan-api.vercel.app', // Secondary fallback
+  'https://lowkey-backend.vercel.app/api', // Backup
+  'https://jiosaavn-apix.arcadopredator.workers.dev/api', // Backup
 ];
 
 async function getPlaylistData(id) {

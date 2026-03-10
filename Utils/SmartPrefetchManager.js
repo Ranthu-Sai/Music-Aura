@@ -191,21 +191,26 @@ class SmartPrefetchManager {
     const now = Date.now();
 
     // Circuit Breaker Reset (if error was long ago)
-    if (now - this.lastErrorTimestamp > 5000) {
+    if (now - this.lastErrorTimestamp > 8000) {
       this.consecutiveErrors = 0;
     }
 
     this.lastErrorTimestamp = now;
     this.consecutiveErrors++;
 
-    // STOP if looping too fast (Max 2 retries in 5 seconds - reduced from 3 for faster failure)
-    if (this.consecutiveErrors > 2) {
-      console.error(
-        '⚡ CIRCUIT BREAKER TRIPPED: Stopping playback to prevent freeze.',
+    // STOP if looping too fast (Max 4 retries in 8 seconds)
+    if (this.consecutiveErrors > 4) {
+      console.warn(
+        'Circuit breaker: pausing after repeated errors.',
       );
       await TrackPlayer.pause();
       this.consecutiveErrors = 0;
       return;
+    }
+
+    // Small delay between retries to avoid rapid-fire loops
+    if (this.consecutiveErrors > 1) {
+      await new Promise(r => setTimeout(r, 500));
     }
 
     try {

@@ -31,6 +31,41 @@ function isMp3Link(link, mime) {
 
 async function resolveDownloadUrl(song) {
   try {
+    // Helper: extract best audio URL from an array of quality objects
+    // Saavn uses {quality, link}, some paths use {quality, url} — handle both
+    const extractFromArray = (arr) => {
+      if (!Array.isArray(arr) || arr.length === 0) {
+        return null;
+      }
+      // Prefer highest quality (index 4 = 320kbps for Saavn, or last item)
+      const highQuality = arr[4] || arr[arr.length - 1];
+      const candidate = highQuality?.url || highQuality?.link;
+      if (candidate) {
+        return {url: candidate, isMp3: isMp3Link(candidate)};
+      }
+      // Fallback: find any item with a URL
+      for (const item of arr) {
+        const u = item?.url || item?.link;
+        if (u) {
+          return {url: u, isMp3: isMp3Link(u)};
+        }
+      }
+      return null;
+    };
+
+    // 1. Check song.downloadUrl array (JioSaavn songs have actual audio URLs here)
+    const fromDownloadUrl = extractFromArray(song.downloadUrl);
+    if (fromDownloadUrl) {
+      return fromDownloadUrl;
+    }
+
+    // 2. Check song.url if it's an array (EachSongCard passes downloadUrl as url prop)
+    const fromUrlArray = extractFromArray(song.url);
+    if (fromUrlArray) {
+      return fromUrlArray;
+    }
+
+    // 3. Handle string URL / video ID
     let urlToResolve = song.url;
 
     // Use ID as fallback if URL is missing (common for YT songs in player)
@@ -39,6 +74,10 @@ async function resolveDownloadUrl(song) {
     }
 
     if (typeof urlToResolve === 'string' && urlToResolve) {
+      // Skip webpage URLs (e.g., jiosaavn.com song pages) — they are not audio
+      if (urlToResolve.includes('jiosaavn.com') || urlToResolve.includes('saavn.com')) {
+        return {url: null, isMp3: false};
+      }
       if (!urlToResolve.startsWith('http')) {
         const streamData = await youtubeStreamingService.getStreamUrl(
           urlToResolve,
@@ -49,28 +88,6 @@ async function resolveDownloadUrl(song) {
         return {url: null, isMp3: false};
       }
       return {url: urlToResolve, isMp3: isMp3Link(urlToResolve)};
-    }
-
-    if (Array.isArray(song.url)) {
-      const mp3Item = song.url.find(it => isMp3Link(it?.url));
-      if (mp3Item?.url) {
-        return {url: mp3Item.url, isMp3: true};
-      }
-      const candidate = song.url[4]?.url || song.url[song.url.length - 1]?.url;
-      return {url: candidate, isMp3: isMp3Link(candidate)};
-    }
-    // Check downloadUrl as well
-    if (Array.isArray(song.downloadUrl)) {
-      const mp3Item = song.downloadUrl.find(it => isMp3Link(it?.url || it?.link));
-      if (mp3Item?.url || mp3Item?.link) {
-        return {url: mp3Item.url || mp3Item.link, isMp3: true};
-      }
-      const highQuality = song.downloadUrl[4];
-      const lastItem = song.downloadUrl[song.downloadUrl.length - 1];
-      const candidate =
-        highQuality?.url || highQuality?.link ||
-        lastItem?.url || lastItem?.link;
-      return {url: candidate, isMp3: isMp3Link(candidate)};
     }
   } catch (e) {
     console.error('Download URL resolution error:', e);

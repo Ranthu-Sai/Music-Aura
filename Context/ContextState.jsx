@@ -185,6 +185,11 @@ const ContextState = props => {
       return;
     }
 
+    // Guard: skip if the player hasn't been set up yet
+    if (!hasSetupRef.current) {
+      return;
+    }
+
     // Clear any pending timeout
     if (updateTrackTimeoutRef.current) {
       clearTimeout(updateTrackTimeoutRef.current);
@@ -533,10 +538,25 @@ const ContextState = props => {
     try {
       // Only perform player setup once; subsequent calls just sync queue/state
       if (!hasSetupRef.current) {
-        try {
-          await TrackPlayer.setupPlayer();
-        } catch (_) {
-          // Already initialized — silently ignore to avoid noisy warnings
+        let setupSucceeded = false;
+        for (let attempt = 0; attempt < 5; attempt++) {
+          try {
+            await TrackPlayer.setupPlayer();
+            setupSucceeded = true;
+            break;
+          } catch (setupErr) {
+            const msg = setupErr?.message || '';
+            if (msg.includes('already been initialized')) {
+              setupSucceeded = true;
+              break;
+            }
+            // Real failure — wait and retry
+            await new Promise(r => setTimeout(r, 200));
+          }
+        }
+        if (!setupSucceeded) {
+          console.error('Failed to initialize TrackPlayer after retries');
+          return;
         }
         try {
           await SetRepeatMode(RepeatMode.Queue);
@@ -638,7 +658,7 @@ const ContextState = props => {
               console.error('❌ Error restoring last song:', e);
             }
           } else {
-            console.log('📭 No saved queue or last song found');
+            // No saved queue or last song found — nothing to restore
           }
         }
       } else {

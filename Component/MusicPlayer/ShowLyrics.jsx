@@ -144,7 +144,12 @@ export const ShowLyrics = ({
   );
 
   const getBackgroundColor = React.useMemo(() => {
-    return lyricsSettings.background || 'rgba(0,0,0,1)';
+    const bg = lyricsSettings.background;
+    // Migrate stale values from previous settings
+    if (!bg || bg === 'app_default' || bg === 'rgba(0,0,0,1)') {
+      return '#000000';
+    }
+    return bg;
   }, [lyricsSettings.background]);
 
 
@@ -958,8 +963,8 @@ export const ShowLyrics = ({
             <Text style={styles.settingLabel}>Background Theme</Text>
             <View style={styles.optionsRow}>
               {[
-                {name: 'Dark', val: 'rgba(0,0,0,1)'},
-                {name: 'Amoled', val: '#000000'},
+                {name: 'Black', val: '#000000'},
+                {name: 'Dark', val: '#1a1a2e'},
                 {name: 'Blue', val: '#001A33'},
                 {name: 'Purple', val: '#1A0033'},
               ].map(bg => (

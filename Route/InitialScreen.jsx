@@ -7,7 +7,7 @@ import Animated, {
   withTiming,
   Easing,
 } from 'react-native-reanimated';
-import {View, StatusBar, StyleSheet} from 'react-native';
+import {View, StatusBar, StyleSheet, Platform, PermissionsAndroid} from 'react-native';
 import {useTheme} from '@react-navigation/native';
 import {useEffect, useCallback} from 'react';
 import {GetLanguageValue} from '../LocalStorage/Languages';
@@ -16,14 +16,32 @@ export const InitialScreen = ({navigation}) => {
   const theme = useTheme();
   const glowOpacity = useSharedValue(0.6);
 
+  const requestStoragePermission = useCallback(async () => {
+    if (Platform.OS !== 'android') {
+      return;
+    }
+    try {
+      if (Platform.Version >= 33) {
+        await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.READ_MEDIA_AUDIO,
+        );
+      } else {
+        await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE,
+        );
+      }
+    } catch (_) {}
+  }, []);
+
   const InitialCall = useCallback(async () => {
+    await requestStoragePermission();
     const lang = await GetLanguageValue();
     if (lang !== '') {
       navigation.replace('MainRoute');
     } else {
       navigation.replace('Onboarding');
     }
-  }, [navigation]);
+  }, [navigation, requestStoragePermission]);
 
   useEffect(() => {
     // Pulsing glow animation
