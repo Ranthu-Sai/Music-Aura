@@ -149,7 +149,16 @@ export default function SongDisplay({
         renderItem={({item}) => {
           if (!item || !item.id) {
             return null;
-          } // Render nothing if item is invalid
+          }
+          // Fix: For Saavn, ensure url is set from downloadUrl
+          let urlValue = item?.downloadUrl;
+          if ((item?.source || source) === 'saavn') {
+            if (Array.isArray(item.downloadUrl)) {
+              urlValue = item.downloadUrl[0]?.url || item.downloadUrl[0]?.link || item.downloadUrl;
+            } else if (typeof item.downloadUrl === 'string') {
+              urlValue = item.downloadUrl;
+            }
+          }
           return (
             <EachSongCard
               artistID={item?.primaryArtistsId || item?.primary_artists_id}
@@ -160,10 +169,10 @@ export default function SongDisplay({
               width={width * 0.95}
               title={item?.name || item?.title}
               artist={FormatArtist(item?.artists?.primary || item?.primaryArtists) || item?.artist}
-              url={item?.downloadUrl} // This is used for Saavn downloads
+              url={urlValue}
               showNumber={false}
-              source={item?.source || source || 'saavn'} // Preserve item's original source (dab, ytmusic, saavn)
-              item={item} // Pass full item for isDabTrack and other metadata
+              source={item?.source || source || 'saavn'}
+              item={item}
               Data={displayData}
               index={displayData.data.results.findIndex(x => x.id === item.id)}
               activeTrackId={activeTrack?.id}

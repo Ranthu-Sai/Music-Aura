@@ -1453,7 +1453,7 @@ async function AddSongsToQueue(songs) {
     let processedSong = {...song};
 
     if ((hasValidYouTubeId && !song.isLocalMusic) || isYTMusicSource) {
-      // LAZY LOAD: Do NOT fetch stream here. Just set placeholder.
+      // ...existing code...
       const videoId = song.id || song.videoId;
       processedSong = {
         ...processedSong,
@@ -1462,10 +1462,8 @@ async function AddSongsToQueue(songs) {
         isYTMusic: true,
         source: 'ytmusic',
         currentPlayingQuality: currentQuality,
-        // Use cleaned title and artist
         title: FormatTitleAndArtist(song.title, song.artist),
         artist: FormatTitleAndArtist(song.artist),
-        // Ensure artwork is enhanced for notification
         artwork: getPrimaryArtworkUrl(
           enhanceYTMusicArtwork(extractArtwork(song), 'playing'),
         ),
@@ -1473,29 +1471,31 @@ async function AddSongsToQueue(songs) {
         duration: song.duration,
       };
     } else {
-      // Standard logic for downloads/local
-      if (song.downloadUrl && Array.isArray(song.downloadUrl)) {
-        const preferred = song.downloadUrl[qualityIndex];
-        const fallback = song.downloadUrl.find(d => d?.url || d?.link);
-        const extractedUrl =
-          preferred?.url || preferred?.link ||
-          fallback?.url || fallback?.link ||
-          song.url;
-        processedSong.url = extractedUrl;
+      // Standard logic for downloads/local and Saavn
+      let extractedUrl = song.url;
+      if (song.downloadUrl) {
+        if (Array.isArray(song.downloadUrl)) {
+          const preferred = song.downloadUrl[qualityIndex];
+          const fallback = song.downloadUrl.find(d => d?.url || d?.link);
+          extractedUrl =
+            preferred?.url || preferred?.link ||
+            fallback?.url || fallback?.link ||
+            song.url;
+        } else if (typeof song.downloadUrl === 'string') {
+          extractedUrl = song.downloadUrl;
+        }
       } else if (song.download_url && Array.isArray(song.download_url)) {
         const preferred = song.download_url[qualityIndex];
         const fallback = song.download_url.find(d => d?.url || d?.link);
-        const extractedUrl =
+        extractedUrl =
           preferred?.url || preferred?.link ||
           fallback?.url || fallback?.link ||
           song.url;
-        processedSong.url = extractedUrl;
       }
+      processedSong.url = extractedUrl;
       processedSong.currentPlayingQuality = currentQuality;
-      // Format title and artist for consistency
       processedSong.title = FormatTitleAndArtist(song.title, song.artist);
       processedSong.artist = FormatTitleAndArtist(song.artist);
-      // Ensure artwork is set
       processedSong.artwork = getPrimaryArtworkUrl(
         enhanceYTMusicArtwork(extractArtwork(song), 'playing'),
       );
@@ -1749,6 +1749,20 @@ async function PlayNextSong() {
       if (newTrack) {
         await historyManager.startTracking(newTrack);
         skipOperationManager.resetErrorCounter();
+        // Ensure queue is filled and UI updates
+        try {
+          // Dynamically import Context actions
+          const {ensureMinimumQueue, updateTrack} = require('./Context/ContextState');
+          if (typeof ensureMinimumQueue === 'function') {
+            await ensureMinimumQueue();
+          }
+          if (typeof updateTrack === 'function') {
+            await updateTrack();
+          }
+        } catch (e) {
+          console.warn('Queue update after next song failed:', e);
+        }
+        DeviceEventEmitter.emit('queue-updated', {});
       }
     } catch (error) {
       if (error.message !== 'AbortError') {

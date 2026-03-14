@@ -104,12 +104,21 @@ class QueueManager {
       } catch (_) {}
       const recommendationsData = await getRecommendedSongs(songId, songMeta);
 
-      if (!recommendationsData?.data || recommendationsData.data.length === 0) {
-
-        return [];
+      let recommendations = [];
+      if (recommendationsData?.data && recommendationsData.data.length > 0) {
+        recommendations = recommendationsData.data.slice(0, limit);
+      } else {
+        // Fallback: Try YT Music recommendations if Saavn is empty
+        const {getYTMusicRecommendedSongs} = require('../Api/Recommended');
+        const ytRec = await getYTMusicRecommendedSongs(songId);
+        if (ytRec?.data?.results && ytRec.data.results.length > 0) {
+          recommendations = ytRec.data.results.slice(0, limit);
+        }
       }
 
-      const recommendations = recommendationsData.data.slice(0, limit);
+      if (recommendations.length === 0) {
+        return [];
+      }
 
       // Get quality index for URL selection
       const qualityIndex = await getIndexQuality();
@@ -157,8 +166,8 @@ class QueueManager {
           id: song.id,
           language: song.language || '',
           downloadUrl: song.downloadUrl || song.download_url || [],
-          source: 'saavn',
-          _needsStream: false,
+          source: song.source || 'saavn',
+          _needsStream: song.source === 'ytmusic',
         };
       });
 

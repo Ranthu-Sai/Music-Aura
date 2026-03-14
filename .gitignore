@@ -81,6 +81,9 @@ temp_*
 instances.json
 release.md
 
+# Changelog file
+changelog.md
+
 # Android generated files
 *.apk
 *.aab

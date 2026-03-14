@@ -271,16 +271,29 @@ export const EachSongCard = memo(function EachSongCard({
         Data.data.results &&
         Array.isArray(Data.data.results)
       ) {
-        // Search results mode: Play only the tapped song and let recommendations fill the queue
-        // (Users expect related songs, not all search results in the queue)
-        await PlaySongWithRelated(id, artworkUri, {
+        // Search results mode: Add the tapped song to the queue and play it
+        const {AddSongsToQueue} = require('../../MusicPlayerFunctions');
+        // Fix: Ensure Saavn songs have correct downloadUrl
+        let downloadUrlValue = url;
+        if (source === 'saavn' && item && item.downloadUrl) {
+          downloadUrlValue = Array.isArray(item.downloadUrl)
+            ? item.downloadUrl
+            : [item.downloadUrl];
+        }
+        const songToAdd = {
+          id,
           title: displayTitle,
           artist,
           url,
           duration,
           language,
           source,
-        });
+          artwork: artworkUri,
+          image: artworkUri,
+          downloadUrl: downloadUrlValue,
+        };
+        await AddSongsToQueue([songToAdd]);
+        await PlaySongWithRelated(id, artworkUri, songToAdd);
         await updateTrack();
       } else if (Data && Array.isArray(Data)) {
         // Liked songs or other array-based lists: Play from this song and queue remaining songs
@@ -360,6 +373,7 @@ export const EachSongCard = memo(function EachSongCard({
     displayTitle,
     index,
     source,
+    item,
   ]);
 
   return (
