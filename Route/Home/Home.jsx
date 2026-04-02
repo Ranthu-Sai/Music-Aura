@@ -25,6 +25,7 @@ import {useActiveTrack} from 'react-native-track-player';
 import {EachArtistChip} from '../../Component/Global/EachArtistChip';
 import {getLanguageTopArtists} from '../../Api/Artists';
 import {
+  ShimmerAlbumCard,
   ShimmerHorizontalList,
   ShimmerTrendingSongsList,
   ShimmerArtistChips,
@@ -49,6 +50,7 @@ export const Home = () => {
 
   const [viralHitsId, setViralHitsId] = useState(null);
   const [trendingLangId, setTrendingLangId] = useState(null);
+  const [cricketFeverPlaylists, setCricketFeverPlaylists] = useState([]);
   const [languageTopArtists, setLanguageTopArtists] = useState([]);
   const [currentLanguage, setCurrentLanguage] = useState('All');
   const [secondaryDataLoaded, setSecondaryDataLoaded] = useState(false);
@@ -108,6 +110,14 @@ export const Home = () => {
     }
     return cols;
   }, [trendingAlbums]);
+
+  const cricketFeverColumns = useMemo(() => {
+    const cols = [];
+    for (let i = 0; i < cricketFeverPlaylists.length; i = i + 2) {
+      cols.push(cricketFeverPlaylists.slice(i, i + 2));
+    }
+    return cols;
+  }, [cricketFeverPlaylists]);
 
   // Top artists removed from the Home page
 
@@ -328,6 +338,52 @@ export const Home = () => {
             trendingSearch.value?.data?.results?.[0]?.id
           ) {
             setTrendingLangId(trendingSearch.value.data.results[0].id);
+          }
+
+          try {
+            const [iplSearch, cricketSearch] = await Promise.all([
+              getSearchPlaylistData('Indian Party League', 1, 50),
+              getSearchPlaylistData('cricket', 1, 16),
+            ]);
+
+            const iplResults =
+              (iplSearch?.data?.results || iplSearch?.results || []).filter(item =>
+                String(item?.name || item?.title || '')
+                  .toLowerCase()
+                  .includes('indian party league'),
+              );
+            const cricketResults =
+              cricketSearch?.data?.results || cricketSearch?.results || [];
+
+            // Keep all IPL state playlists first, then append remaining cricket playlists.
+            const mergedResults = [...iplResults, ...cricketResults].filter(
+              (item, index, arr) =>
+                item?.id && arr.findIndex(x => x?.id === item.id) === index,
+            );
+
+            const mappedCricketPlaylists = mergedResults
+              .filter(item => item?.id)
+              .map(item => ({
+                id: item.id,
+                title: item.name || item.title || 'Cricket Fever',
+                subtitle: `Total ${item.songCount || item.songs?.length || 0} Songs`,
+                image: item.image
+                  ? [
+                      {url: item.image[0]?.link || item.image[0]},
+                      {url: item.image[1]?.link || item.image[1]},
+                      {url: item.image[2]?.link || item.image[2]},
+                    ]
+                  : [
+                      {url: 'https://via.placeholder.com/300x300?text=No+Image'},
+                      {url: 'https://via.placeholder.com/300x300?text=No+Image'},
+                      {url: 'https://via.placeholder.com/300x300?text=No+Image'},
+                    ],
+                type: 'playlist',
+              }));
+
+            setCricketFeverPlaylists(mappedCricketPlaylists);
+          } catch (e) {
+            setCricketFeverPlaylists([]);
           }
 
           setSecondaryDataLoaded(true);
@@ -673,6 +729,69 @@ export const Home = () => {
                 <PaddingConatiner>
                   <HorizontalScrollSongs id={trendingLangId} />
                 </PaddingConatiner>
+              )
+            )}
+            {LoadingSecondary ? (
+              <>
+                <PaddingConatiner>
+                  <Heading text={'Cricket Fever'} />
+                </PaddingConatiner>
+                <FlatList
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  data={[0, 1, 2, 3]}
+                  keyExtractor={item => `cricket-fever-shimmer-${item}`}
+                  contentContainerStyle={{paddingHorizontal: 10}}
+                  renderItem={() => (
+                    <View
+                      style={{
+                        gap: 15,
+                        marginRight: 12,
+                      }}>
+                      <ShimmerAlbumCard />
+                      <ShimmerAlbumCard />
+                    </View>
+                  )}
+                />
+              </>
+            ) : (
+              cricketFeverColumns.length > 0 && (
+                <>
+                  <PaddingConatiner>
+                    <Heading text={'Cricket Fever'} />
+                  </PaddingConatiner>
+                  <FlatList
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    data={cricketFeverColumns}
+                    keyExtractor={(item, index) => `cricket-fever-row-${index}`}
+                    contentContainerStyle={{paddingHorizontal: 10}}
+                    renderItem={({item, index}) => (
+                      <View
+                        style={{
+                          gap: 15,
+                          marginRight: 12,
+                        }}>
+                        {item.map((playlist, playlistIndex) => (
+                          <View
+                            key={playlist?.id ?? `cricket-fever-${index}-${playlistIndex}`}>
+                            <EachPlaylistCard
+                              name={playlist.title}
+                              follower={playlist.subtitle}
+                              image={
+                                playlist.image?.[2]?.url ||
+                                playlist.image?.[2]?.link ||
+                                playlist.image?.[0]?.url ||
+                                ''
+                              }
+                              id={playlist.id}
+                            />
+                          </View>
+                        ))}
+                      </View>
+                    )}
+                  />
+                </>
               )
             )}
           </ScrollView>

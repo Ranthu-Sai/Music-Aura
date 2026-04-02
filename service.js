@@ -1,8 +1,15 @@
 // service.js
-import TrackPlayer, {Capability, Event, State, RepeatMode} from 'react-native-track-player';
+import TrackPlayer, {
+  AppKilledPlaybackBehavior,
+  Capability,
+  Event,
+  State,
+  RepeatMode,
+} from 'react-native-track-player';
 import historyManager from './Utils/HistoryManager';
 import autoRecommendations from './Utils/AutoRecommendations';
 import ManualSkipFlag from './Utils/ManualSkipFlag';
+import youtubeStreamingService from './Utils/YouTubeStreamingService';
 // SmartPrefetchManager is initialized from UI; disabled in headless to preserve queue order
 
 let isPlayerInitialized = false;
@@ -22,6 +29,70 @@ const SKIP_DEBOUNCE_MS = 300; // 300ms minimum between skips
 
 export default async function PlaybackService() {
 
+  const ensureActiveTrackStreamReady = async () => {
+    try {
+      const activeTrack = await TrackPlayer.getActiveTrack();
+      const activeIndex = await TrackPlayer.getActiveTrackIndex();
+
+      if (!activeTrack || typeof activeIndex !== 'number' || activeIndex < 0) {
+        return false;
+      }
+
+      const hasPlaceholderUrl =
+        typeof activeTrack.url === 'string' &&
+        activeTrack.url.startsWith('ytmusic://');
+      const needsStream =
+        activeTrack._needsStream === true ||
+        activeTrack.isYTMusic === true ||
+        hasPlaceholderUrl;
+
+      if (!needsStream) {
+        return false;
+      }
+
+      const videoId =
+        activeTrack.id ||
+        (hasPlaceholderUrl ? activeTrack.url.replace('ytmusic://', '') : null);
+
+      if (!videoId) {
+        return false;
+      }
+
+      const streamData = await youtubeStreamingService.getStreamUrl(videoId);
+      if (!streamData || !streamData.url) {
+        return false;
+      }
+
+      const wasPlaying = (await TrackPlayer.getState()) === State.Playing;
+
+      const updatedTrack = {
+        ...activeTrack,
+        id: videoId,
+        url: streamData.url,
+        headers: streamData.headers,
+        userAgent: streamData.headers?.['User-Agent'],
+        artwork: streamData.thumbnail || activeTrack.artwork,
+        duration: streamData.duration || activeTrack.duration,
+        title: activeTrack.title || streamData.title,
+        _needsStream: false,
+        isYTMusic: true,
+      };
+
+      await TrackPlayer.remove(activeIndex);
+      await TrackPlayer.add(updatedTrack, activeIndex);
+      await TrackPlayer.skip(activeIndex);
+
+      if (wasPlaying) {
+        await TrackPlayer.play();
+      }
+
+      return true;
+    } catch (err) {
+      console.warn('ensureActiveTrackStreamReady failed', err);
+      return false;
+    }
+  };
+
   // Register remote handlers synchronously at module level so notification actions work
   // even when the app is backgrounded or killed
   TrackPlayer.addEventListener(Event.RemotePlay, () => {
@@ -30,6 +101,7 @@ export default async function PlaybackService() {
         if (!isPlayerInitialized && initializePromise) {
           try { await initializePromise; } catch {}
         }
+        await ensureActiveTrackStreamReady();
         await TrackPlayer.play();
       } catch (e) {
         console.warn('RemotePlay handler failed', e);
@@ -205,6 +277,31 @@ export default async function PlaybackService() {
     })();
   });
 
+  // Proactively resolve placeholder URLs as soon as active track changes.
+  TrackPlayer.addEventListener(Event.PlaybackActiveTrackChanged, () => {
+    (async () => {
+      try {
+        await ensureActiveTrackStreamReady();
+      } catch (e) {
+        console.warn('ActiveTrack stream resolve failed', e);
+      }
+    })();
+  });
+
+  // If active track is a placeholder URL, resolve it and retry playback.
+  TrackPlayer.addEventListener(Event.PlaybackError, () => {
+    (async () => {
+      try {
+        const resolved = await ensureActiveTrackStreamReady();
+        if (resolved) {
+          await TrackPlayer.play();
+        }
+      } catch (e) {
+        console.warn('PlaybackError recovery failed', e);
+      }
+    })();
+  });
+
   // Handle audio ducking — lower volume or pause when ducked, resume when it ends
   TrackPlayer.addEventListener(Event.RemoteDuck, e => {
     (async () => {
@@ -257,15 +354,46 @@ export default async function PlaybackService() {
 
         await TrackPlayer.setupPlayer({
           android: {
-            appKilledPlaybackBehavior: 'ContinuePlayback',
+            appKilledPlaybackBehavior:
+              AppKilledPlaybackBehavior.ContinuePlayback,
             alwaysPauseOnInterruption: false,
           },
           autoHandleInterruptions: true,
           autoUpdateMetadata: true,
           waitForBuffer: true,
         });
+        console.log('[Service] Player setup completed');
         isPlayerInitialized = true;
       }
+
+      await TrackPlayer.updateOptions({
+        android: {
+          appKilledPlaybackBehavior:
+            AppKilledPlaybackBehavior.ContinuePlayback,
+          alwaysPauseOnInterruption: false,
+        },
+        capabilities: [
+          Capability.Play,
+          Capability.Pause,
+          Capability.SkipToNext,
+          Capability.SkipToPrevious,
+          Capability.SeekTo,
+        ],
+        notificationCapabilities: [
+          Capability.Play,
+          Capability.Pause,
+          Capability.SkipToNext,
+          Capability.SkipToPrevious,
+          Capability.SeekTo,
+        ],
+        compactCapabilities: [
+          Capability.Play,
+          Capability.Pause,
+          Capability.SkipToNext,
+          Capability.SkipToPrevious,
+        ],
+      });
+      console.log('[Service] Player options updated');
 
       // Simple Event-Driven History Tracking
       TrackPlayer.addEventListener(
@@ -324,35 +452,6 @@ export default async function PlaybackService() {
       // Disable headless SmartPrefetchManager to avoid background queue mutations
       // Prefetching will be managed when the app is in foreground via UI flows
       // to preserve strict queue order during notification interactions
-
-      await TrackPlayer.updateOptions({
-        android: {
-          appKilledPlaybackBehavior: 'ContinuePlayback',
-          alwaysPauseOnInterruption: false,
-          // Keep notification persistent when app killed
-          appKilledNotification: true,
-        },
-        capabilities: [
-          Capability.Play,
-          Capability.Pause,
-          Capability.SkipToNext,
-          Capability.SkipToPrevious,
-          Capability.SeekTo,
-        ],
-        notificationCapabilities: [
-          Capability.Play,
-          Capability.Pause,
-          Capability.SkipToNext,
-          Capability.SkipToPrevious,
-          Capability.SeekTo,
-        ],
-        compactCapabilities: [
-          Capability.Play,
-          Capability.Pause,
-          Capability.SkipToNext,
-          Capability.SkipToPrevious,
-        ],
-      });
 
       // Initialize history manager (now lightweight)
       await historyManager.initialize();

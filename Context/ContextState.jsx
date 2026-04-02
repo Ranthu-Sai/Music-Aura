@@ -104,13 +104,6 @@ const themes = {
     secondaryText: 'rgba(255,255,255,0.7)',
     primary: '#008080',
   },
-  Amoled: {
-    background: '#000000',
-    text: '#ffffff',
-    secondaryBackground: '#121212',
-    secondaryText: 'rgba(255,255,255,0.6)',
-    primary: '#1DB954',
-  },
   Sky: {
     background: '#0a192f',
     text: '#e6f1ff',
@@ -162,7 +155,7 @@ const ContextState = props => {
   }, []);
 
   const currentThemeColors = useMemo(
-    () => themes[theme] || themes.Dark,
+    () => themes[theme] || themes.Default,
     [theme],
   );
 
@@ -479,6 +472,9 @@ const ContextState = props => {
 
     if (event.type === Event.PlaybackActiveTrackChanged) {
       setCurrentPlaying(event.track);
+      updateTrack().catch(err => {
+        console.warn('updateTrack failed on active track change', err);
+      });
       if (event?.track?.id) {
         // Save the current track so it can be restored on app restart
         SetLastSong(event.track).catch(err => {

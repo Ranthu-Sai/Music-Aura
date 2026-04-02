@@ -68,8 +68,8 @@ export const ThemeSettings = ({navigation}) => {
   const [selectedTheme, setSelectedTheme] = useState('Default');
 
   const themes = [
-    {value: 'Dark', label: 'Dark', description: 'Pure dark theme', color: '#1a1a1a'},
-    {value: 'Amoled', label: 'Amoled', description: 'True black for OLED', color: '#000000'},
+    {value: 'Default', label: 'Default', description: 'Pure black theme', color: '#000000'},
+    {value: 'Dark', label: 'Dark', description: 'Deep dark theme', color: '#1a1a1a'},
     {value: 'White', label: 'White', description: 'Light mode', color: '#ffffff'},
     {value: 'Blue', label: 'Blue', description: 'Ocean vibes', color: '#1E88E5'},
     {value: 'Purple', label: 'Purple', description: 'Royal elegance', color: '#8E24AA'},

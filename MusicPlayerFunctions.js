@@ -1,4 +1,8 @@
-import TrackPlayer, {Capability, State} from 'react-native-track-player';
+import TrackPlayer, {
+  AppKilledPlaybackBehavior,
+  Capability,
+  State,
+} from 'react-native-track-player';
 import {GetPlaybackQuality} from './LocalStorage/AppSettings';
 import {GetLanguageValue} from './LocalStorage/Languages';
 import NetInfo from '@react-native-community/netinfo';
@@ -23,6 +27,8 @@ import FormatTitleAndArtist from './Utils/FormatTitleAndArtist';
 import ManualSkipFlag from './Utils/ManualSkipFlag';
 
 let isPlayerInitialized = false;
+let playerSetupPromise = null;
+let setupInitiated = false;
 const DEBUG_LOGS = false;
 const debugLog = (...args) => {
   if (DEBUG_LOGS) {
@@ -179,93 +185,150 @@ const safeHttpGet = async (url, opts = {}) => {
   }
 };
 
-export const setupPlayer = async () => {
+// Quick synchronous setup: just initialize the player core.
+// Returns immediately so play() can be called quickly.
+// Full options setup happens in ensurePlayerSetup() in background.
+const quickSetup = async () => {
+  if (isPlayerInitialized) {
+    return true;
+  }
+
   try {
-    if (!isPlayerInitialized) {
-      try {
-        await TrackPlayer.setupPlayer({
-          android: {
-            appKilledPlaybackBehavior: 'ContinuePlayback',
-            alwaysPauseOnInterruption: false,
-          },
-          autoHandleInterruptions: true,
-          autoUpdateMetadata: true,
-          waitForBuffer: true,
-        });
-
-        // NOTE: Remote control listeners (play, pause, next, previous) are registered in service.js
-        // to avoid duplicate event listeners. DO NOT add them here.
-
-        await TrackPlayer.updateOptions({
-          android: {
-            appKilledPlaybackBehavior: 'ContinuePlayback',
-            alwaysPauseOnInterruption: false,
-          },
-          capabilities: [
-            Capability.Play,
-            Capability.Pause,
-            Capability.Stop,
-            Capability.SeekTo,
-            Capability.SkipToNext,
-            Capability.SkipToPrevious,
-          ],
-          compactCapabilities: [
-            Capability.Play,
-            Capability.Pause,
-            Capability.Stop,
-            Capability.SeekTo,
-            Capability.SkipToNext,
-            Capability.SkipToPrevious,
-          ],
-          notificationCapabilities: [
-            Capability.Play,
-            Capability.Pause,
-            Capability.Stop,
-            Capability.SeekTo,
-            Capability.SkipToNext,
-            Capability.SkipToPrevious,
-          ],
-        });
-
-        isPlayerInitialized = true;
-
-        // Initialize SmartPrefetchManager for background prefetching
-        smartPrefetchManager.initialize();
-      } catch (setupError) {
-        // Check if the error is about player already being initialized
-        if (
-          setupError.message &&
-          setupError.message.includes('player has already been initialized')
-        ) {
-          isPlayerInitialized = true;
-          smartPrefetchManager.initialize();
-        } else {
-          console.error(
-            'Error setting up player in MusicPlayerFunctions:',
-            setupError,
-          );
-          throw setupError;
-        }
-      }
-    } else {
-    }
+    await TrackPlayer.setupPlayer({
+      android: {
+        appKilledPlaybackBehavior:
+          AppKilledPlaybackBehavior.ContinuePlayback,
+        alwaysPauseOnInterruption: false,
+      },
+      autoHandleInterruptions: true,
+      autoUpdateMetadata: true,
+      waitForBuffer: true,
+    });
+    isPlayerInitialized = true;
+    return true;
   } catch (error) {
-    console.error('Error in setupPlayer function:', error);
+    if (error?.message?.includes('already been initialized')) {
+      isPlayerInitialized = true;
+      return true;
+    }
+    console.warn('quickSetup failed:', error);
+    return false;
   }
 };
 
-async function PlayOneSong(song) {
+// Start player initialization in the background without blocking.
+// This allows play() to be called immediately even if setup isn't fully complete.
+export const ensurePlayerSetup = () => {
+  if (setupInitiated || isPlayerInitialized) {
+    return; // Already started or complete
+  }
+
+  setupInitiated = true;
+
+  playerSetupPromise = (async () => {
+    try {
+      // Ensure quick setup is done first
+      if (!isPlayerInitialized) {
+        await quickSetup();
+      }
+
+      // Now do full options configuration
+      await TrackPlayer.updateOptions({
+        android: {
+          appKilledPlaybackBehavior:
+            AppKilledPlaybackBehavior.ContinuePlayback,
+          alwaysPauseOnInterruption: false,
+        },
+        capabilities: [
+          Capability.Play,
+          Capability.Pause,
+          Capability.Stop,
+          Capability.SeekTo,
+          Capability.SkipToNext,
+          Capability.SkipToPrevious,
+        ],
+        compactCapabilities: [
+          Capability.Play,
+          Capability.Pause,
+          Capability.Stop,
+          Capability.SeekTo,
+          Capability.SkipToNext,
+          Capability.SkipToPrevious,
+        ],
+        notificationCapabilities: [
+          Capability.Play,
+          Capability.Pause,
+          Capability.Stop,
+          Capability.SeekTo,
+          Capability.SkipToNext,
+          Capability.SkipToPrevious,
+        ],
+      });
+
+      smartPrefetchManager.initialize();
+    } catch (setupError) {
+      const message = setupError?.message || '';
+      if (message.includes('player has already been initialized')) {
+        // Already initialized, just continue
+      } else if (!isPlayerInitialized) {
+        console.error('Error setting up player in MusicPlayerFunctions:', setupError);
+      }
+    } finally {
+      playerSetupPromise = null;
+    }
+  })();
+};
+
+// Await player initialization if needed (for background operations that require it).
+export const awaitPlayerSetup = async () => {
   try {
+    if (!isPlayerInitialized && playerSetupPromise) {
+      await playerSetupPromise;
+    }
+  } catch (error) {
+    console.error('Error in awaitPlayerSetup:', error);
+  }
+};
+
+// Deprecated: use ensurePlayerSetup + awaitPlayerSetup instead.
+// Kept for backward compatibility.
+export const setupPlayer = async () => {
+  ensurePlayerSetup();
+  // For callers that need to wait, allow them to await the setup
+  if (playerSetupPromise) {
+    try {
+      await playerSetupPromise;
+    } catch (_) {
+      // Already logged
+    }
+  }
+  return isPlayerInitialized;
+};
+
+async function PlayOneSong(song, options = {}) {
+  try {
+    const {clearQueue = false} = options;
     // Validate song object
     if (!song) {
       console.error('PlayOneSong: No song provided');
       return;
     }
 
-    // Ensure player is initialized
+    // CRITICAL: Ensure player core is initialized before any queue operations.
+    // This must complete before calling add() / play() / getQueue().
     if (!isPlayerInitialized) {
-      await setupPlayer();
+      const success = await quickSetup();
+      if (!success) {
+        console.error('PlayOneSong: Failed to initialize player');
+        return;
+      }
+      // Small stabilization delay to ensure native player is fully ready
+      await new Promise(resolve => setTimeout(resolve, 100));
     }
+
+    // Kick off full background setup (options, capabilities) for later use.
+    // This doesn't block playback start.
+    ensurePlayerSetup();
 
     // Get the appropriate URL based on playback quality setting
     // Prioritize downloadUrl for Saavn songs, fallback to url
@@ -331,54 +394,28 @@ async function PlayOneSong(song) {
         !song.isLocalMusic);
 
     if (isYouTubeSong) {
-      try {
-        debugLog('Fetching YouTube stream for video ID:', song.id);
+      // Always queue a placeholder immediately so tap->play works even if app closes instantly.
+      playbackUrl = `ytmusic://${song.id}`;
+      updatedSong = {
+        ...updatedSong,
+        url: playbackUrl,
+        _needsStream: true,
+        isYTMusic: true,
+      };
 
-        // Use StreamFetchManager for deduplication and abort support
-        const streamData = await streamFetchManager.fetchStream(
-          song.id,
-          async (videoId, signal) => {
-            return await youtubeStreamingService.getStreamUrl(videoId, signal);
-          },
-        );
-
-        if (streamData && streamData.url) {
-          playbackUrl = streamData.url;
-          // Update song with stream data and headers
-          // IMPORTANT: Preserve artist from original song data
-          updatedSong = {
-            ...updatedSong,
-            url: streamData.url,
-            headers: streamData.headers, // CRITICAL: Pass headers to TrackPlayer
-            userAgent: streamData.headers?.['User-Agent'], // Explicit for ExoPlayer
-            artwork: streamData.thumbnail || updatedSong.artwork,
-            duration: streamData.duration || updatedSong.duration,
-            // Only use stream title if we don't have a good title already
-            title: updatedSong.title || streamData.title,
-            // Preserve artist from original song data (don't use stream artist)
-            artist: updatedSong.artist || 'Unknown Artist',
-          };
-          debugLog('YouTube stream URL fetched successfully');
-
-          // Reset error counter on successful fetch
-          skipOperationManager.resetErrorCounter();
-        } else {
-          console.error('Failed to get YouTube stream URL');
-          ToastAndroid.show(
-            'Failed to load YouTube stream',
-            ToastAndroid.SHORT,
-          );
-          return;
-        }
-      } catch (error) {
-        console.error('Error fetching YouTube stream:', error);
-
-        // Don't show toast if operation was cancelled
-        if (error.name !== 'AbortError') {
-          ToastAndroid.show('Error loading YouTube stream', ToastAndroid.SHORT);
-        }
-        return;
-      }
+      // Warm stream cache in background; service/PlaybackError path will replace placeholder.
+      streamFetchManager
+        .fetchStream(song.id, async (videoId, signal) => {
+          return await youtubeStreamingService.getStreamUrl(videoId, signal);
+        })
+        .then(streamData => {
+          if (streamData?.url) {
+            skipOperationManager.resetErrorCounter();
+          }
+        })
+        .catch(error => {
+          console.warn('YouTube stream prefetch failed:', error?.message || error);
+        });
     } else {
       // If song has multiple quality URLs, select based on setting
       if (song.downloadUrl && Array.isArray(song.downloadUrl)) {
@@ -558,6 +595,69 @@ async function PlayOneSong(song) {
       playbackUrl = `file://${song.path}`;
     }
 
+    // Fast-start path: for YouTube placeholder URLs, trigger playback immediately.
+    // Keep this BEFORE network checks so app-close race does not clear notification.
+    const isYouTubePlaceholder =
+      isYouTubeSong &&
+      typeof playbackUrl === 'string' &&
+      playbackUrl.startsWith('ytmusic://');
+
+    if (isYouTubePlaceholder) {
+      const songForFastPlayback = {
+        ...updatedSong,
+        url: playbackUrl,
+        title: FormatTitleAndArtist(updatedSong.title, updatedSong.artist),
+        artist: FormatTitleAndArtist(updatedSong.artist),
+        artwork:
+          getPrimaryArtworkUrl(
+            enhanceYTMusicArtwork(updatedSong.artwork || updatedSong.image, 'playing'),
+          ) ||
+          updatedSong.artwork ||
+          updatedSong.image ||
+          undefined,
+      };
+
+      if (clearQueue) {
+        await TrackPlayer.reset();
+        await TrackPlayer.add([songForFastPlayback]);
+        await TrackPlayer.play();
+      } else {
+        const queue = await TrackPlayer.getQueue();
+        const existingIndex = queue.findIndex(track => track.id === songForFastPlayback.id);
+
+        if (existingIndex >= 0) {
+          await TrackPlayer.skip(existingIndex);
+          await TrackPlayer.play();
+        } else if (queue.length > 0) {
+          try {
+            const currentIndex = await TrackPlayer.getActiveTrackIndex();
+            const insertIndex =
+              typeof currentIndex === 'number' && currentIndex >= 0
+                ? currentIndex + 1
+                : 0;
+            await TrackPlayer.add([songForFastPlayback], insertIndex);
+            await TrackPlayer.skip(insertIndex);
+            await TrackPlayer.play();
+          } catch (insertErr) {
+            console.warn('Fast insert failed, appending to queue:', insertErr);
+            await TrackPlayer.add([songForFastPlayback]);
+            const appendedQueue = await TrackPlayer.getQueue();
+            const lastIndex = Math.max(0, appendedQueue.length - 1);
+            await TrackPlayer.skip(lastIndex);
+            await TrackPlayer.play();
+          }
+        } else {
+          await TrackPlayer.add([songForFastPlayback]);
+          await TrackPlayer.play();
+        }
+      }
+
+      DeviceEventEmitter.emit('queue-updated', {});
+      DeviceEventEmitter.emit('playback-mode-changed', {isPlaylist: false});
+      historyManager.startTracking(song).catch(() => {});
+      return;
+    }
+
     // Check network availability for non-local files
     if (!isLocalFile) {
       const netInfo = await NetInfo.fetch();
@@ -567,9 +667,6 @@ async function PlayOneSong(song) {
         return;
       }
     }
-
-    // Start tracking this song in history
-    await historyManager.startTracking(song);
 
     // Create a copy of the song with the selected playback URL and quality info
     const qualityIndex = await getIndexQuality();
@@ -599,42 +696,47 @@ async function PlayOneSong(song) {
           : undefined, // Ensure never empty string
     };
 
-    // Check if this song is already in the queue (navigating via next/prev buttons)
-    const queue = await TrackPlayer.getQueue();
-    const existingIndex = queue.findIndex(track => track.id === songForPlayback.id);
-
-    if (existingIndex >= 0) {
-      // Song is already in queue - just skip to it instead of resetting
-      await TrackPlayer.skip(existingIndex);
+    if (clearQueue) {
+      await TrackPlayer.reset();
+      await TrackPlayer.add([songForPlayback]);
       await TrackPlayer.play();
-    } else if (queue.length > 0) {
-      // Queue exists - insert after current track and skip to it (vivi-music pattern)
-      // This preserves the existing queue instead of destroying it
-      try {
-        const currentIndex = await TrackPlayer.getActiveTrackIndex();
-        const insertIndex = (typeof currentIndex === 'number' && currentIndex >= 0)
-          ? currentIndex + 1
-          : 0;
-        await TrackPlayer.add([songForPlayback], insertIndex);
-        await TrackPlayer.skip(insertIndex);
+    } else {
+      const queue = await TrackPlayer.getQueue();
+      const existingIndex = queue.findIndex(track => track.id === songForPlayback.id);
+
+      if (existingIndex >= 0) {
+        await TrackPlayer.skip(existingIndex);
         await TrackPlayer.play();
-      } catch (insertErr) {
-        // Fallback: reset and add if insertion fails
-        console.warn('Insert-after-current failed, falling back to reset:', insertErr);
-        await TrackPlayer.reset();
+      } else if (queue.length > 0) {
+        try {
+          const currentIndex = await TrackPlayer.getActiveTrackIndex();
+          const insertIndex =
+            typeof currentIndex === 'number' && currentIndex >= 0
+              ? currentIndex + 1
+              : 0;
+          await TrackPlayer.add([songForPlayback], insertIndex);
+          await TrackPlayer.skip(insertIndex);
+          await TrackPlayer.play();
+        } catch (insertErr) {
+          console.warn('Insert-after-current failed, appending to queue:', insertErr);
+          await TrackPlayer.add([songForPlayback]);
+          const appendedQueue = await TrackPlayer.getQueue();
+          const lastIndex = Math.max(0, appendedQueue.length - 1);
+          await TrackPlayer.skip(lastIndex);
+          await TrackPlayer.play();
+        }
+      } else {
         await TrackPlayer.add([songForPlayback]);
         await TrackPlayer.play();
       }
-    } else {
-      // Empty queue - add and play
-      await TrackPlayer.add([songForPlayback]);
-      await TrackPlayer.play();
 
-      // Verify playback started successfully
       try {
-        await new Promise(resolve => setTimeout(resolve, 100));
         const state = await TrackPlayer.getPlaybackState();
-        if (state.state !== State.Playing && state.state !== State.Buffering && state.state !== State.Loading) {
+        if (
+          state.state !== State.Playing &&
+          state.state !== State.Buffering &&
+          state.state !== State.Loading
+        ) {
           await TrackPlayer.play();
         }
       } catch (stateError) {
@@ -642,8 +744,14 @@ async function PlayOneSong(song) {
       }
     }
 
+    // Keep Context queue state in sync immediately after direct play actions.
+    DeviceEventEmitter.emit('queue-updated', {});
+
     // Signal that this is a single song playback (enable auto-recommendations)
     DeviceEventEmitter.emit('playback-mode-changed', {isPlaylist: false});
+
+    // History tracking should never block immediate playback startup.
+    historyManager.startTracking(song).catch(() => {});
   } catch (error) {
     console.error('Error playing song:', error);
   }
@@ -842,10 +950,9 @@ async function PlaySongWithRelated(videoId, artwork, songData = {}) {
       queueManager.stopContinuousQueueMonitor();
     }
 
-    // vivi-music pattern: RESET queue and start fresh when user taps a new song
-    // This prevents old recommendations from accumulating and causing duplicates
-    await TrackPlayer.reset();
-    await PlayOneSong(song);
+    // Do not reset before playback start.
+    // Immediate app close after tap can kill notification between reset and new track add.
+    await PlayOneSong(song, {clearQueue: true});
 
     // Emit event to open queue when song is played from anywhere
     DeviceEventEmitter.emit('songPlayed', {songId: videoId});
@@ -1086,19 +1193,19 @@ async function PlaySongWithRelated(videoId, artwork, songData = {}) {
 }
 
 // Guard against concurrent AddPlaylist calls
+// Queue pending calls instead of ignoring them
 let _addPlaylistInProgress = false;
-let _lastAddPlaylistAt = 0;
+let _pendingPlaylistCall = null;
 
 async function AddPlaylist(songs, startSongId = null) {
-  // Prevent re-entrant calls within a short window
-  const now = Date.now();
-  if (_addPlaylistInProgress || now - _lastAddPlaylistAt < 800) {
-    console.warn('AddPlaylist ignored due to ongoing add or debounce');
+  // If a playlist add is already in progress, queue this call instead of ignoring it
+  if (_addPlaylistInProgress) {
+    console.log('AddPlaylist: Queueing call (one already in progress)');
+    _pendingPlaylistCall = {songs, startSongId};
     return;
   }
 
   _addPlaylistInProgress = true;
-  _lastAddPlaylistAt = now;
 
   try {
     // Validate songs array
@@ -1429,8 +1536,21 @@ async function AddPlaylist(songs, startSongId = null) {
     console.error('Error in AddPlaylist:', error);
   } finally {
     _addPlaylistInProgress = false;
+
+    // If a call was queued while this one was processing, process it now
+    if (_pendingPlaylistCall) {
+      const pending = _pendingPlaylistCall;
+      _pendingPlaylistCall = null;
+      console.log('AddPlaylist: Processing queued call');
+      try {
+        await AddPlaylist(pending.songs, pending.startSongId);
+      } catch (recurseErr) {
+        console.error('AddPlaylist: Error processing queued call:', recurseErr);
+      }
+    }
   }
 }
+
 
 async function AddSongsToQueue(songs) {
   // Ensure player is initialized before proceeding

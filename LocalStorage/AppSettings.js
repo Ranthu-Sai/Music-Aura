@@ -76,6 +76,9 @@ async function GetTheme() {
   try {
     const value = await AsyncStorage.getItem('Theme');
     if (value !== null) {
+      if (value === 'Amoled') {
+        return 'Default';
+      }
       return value;
     } else {
       return 'Default';
