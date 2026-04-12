@@ -16,6 +16,8 @@ export const EachPlaylistCard = memo(function EachPlaylistCard({
   id,
   MainContainerStyle,
   ImageStyle,
+  isArtist = false,
+  source,
 }) {
   const navigation = useNavigation();
 
@@ -45,7 +47,22 @@ export const EachPlaylistCard = memo(function EachPlaylistCard({
   return (
     <Pressable
       onPress={() => {
-        navigation.navigate('Playlist', {id, image, name, follower});
+        if (isArtist) {
+          const artistRoute =
+            String(source || '').toLowerCase() === 'ytmusic'
+              ? 'ArtistPage'
+              : 'ArtistSongsPage';
+
+          navigation.navigate(artistRoute, {
+            artistId: id,
+            artistName: name,
+            artistImage: image,
+            source,
+          });
+        } else {
+          // Navigate to playlist page
+          navigation.navigate('Playlist', {id, image, name, follower});
+        }
       }}
       style={{
         width: 180,

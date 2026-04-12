@@ -66,6 +66,8 @@ export const LikeSongButton = memo(function LikeSongButton({size, color}) {
   }, [currentPlaying, getIsLiked]);
   return (
     <Pressable
+      hitSlop={4}
+      android_ripple={{color: 'rgba(255, 255, 255, 0.2)', radius: 20, foreground: true}}
       onPress={() => {
         LikeASong();
       }}>

@@ -39,6 +39,7 @@ export const QueueRenderSongs = memo(function QueueRenderSongs({Index}) {
   // Debounce reference to prevent excessive updates
   const lastQueueUpdateRef = useRef(0);
   const QUEUE_UPDATE_DEBOUNCE = 300; // 300ms debounce
+  const fallbackHydrationInProgressRef = useRef(false);
 
   // Auto-fill queue when component mounts
   useEffect(() => {
@@ -48,6 +49,55 @@ export const QueueRenderSongs = memo(function QueueRenderSongs({Index}) {
       });
     }
   }, [ensureMinimumQueue]);
+
+  // Fallback hydration: if context queue is temporarily empty on cold start,
+  // read directly from TrackPlayer so Queue UI is never blank.
+  useEffect(() => {
+    let cancelled = false;
+
+    const hydrateFromTrackPlayer = async () => {
+      if (fallbackHydrationInProgressRef.current) {
+        return;
+      }
+
+      if (Array.isArray(Queue) && Queue.length > 0) {
+        return;
+      }
+
+      fallbackHydrationInProgressRef.current = true;
+      try {
+        let resolvedQueue = [];
+
+        for (let attempt = 0; attempt < 4; attempt++) {
+          const tracks = await TrackPlayer.getQueue();
+          if (Array.isArray(tracks) && tracks.length > 0) {
+            resolvedQueue = tracks;
+            break;
+          }
+          await new Promise(resolve => setTimeout(resolve, 120));
+        }
+
+        if (!cancelled && resolvedQueue.length > 0) {
+          const initialCount = Math.min(
+            resolvedQueue.length,
+            Math.max(15, SONGS_PER_PAGE),
+          );
+          setDisplayedSongs(resolvedQueue.slice(0, initialCount));
+          updateTrack?.();
+        }
+      } catch (error) {
+        console.warn('Queue fallback hydration failed:', error?.message || error);
+      } finally {
+        fallbackHydrationInProgressRef.current = false;
+      }
+    };
+
+    hydrateFromTrackPlayer();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [Queue, SONGS_PER_PAGE, updateTrack]);
 
   // Handle song removal with optimized caching
   const handleRemove = useCallback(

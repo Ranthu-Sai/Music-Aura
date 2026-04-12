@@ -195,6 +195,69 @@ async function SetLyricsSettings(settings) {
   }
 }
 
+async function GetHomeFeedSource() {
+  try {
+    const value = await AsyncStorage.getItem('HomeFeedSource');
+    if (value !== null) {
+      return value;
+    }
+    return 'YTMusic';
+  } catch (e) {
+    return 'YTMusic';
+  }
+}
+
+async function SetHomeFeedSource(homeFeedSource) {
+  try {
+    await AsyncStorage.setItem('HomeFeedSource', homeFeedSource);
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+async function GetYtMusicLanguage() {
+  try {
+    const value = await AsyncStorage.getItem('ytmusic_language');
+    if (value !== null) {
+      return value;
+    }
+    return 'en';
+  } catch (e) {
+    return 'en';
+  }
+}
+
+async function SetYtMusicLanguage(language) {
+  try {
+    await AsyncStorage.setItem('ytmusic_language', language);
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+async function GetYtMusicCountry() {
+  try {
+    const value = await AsyncStorage.getItem('ytmusic_country');
+    if (value !== null) {
+      return value;
+    }
+    return 'IN';
+  } catch (e) {
+    return 'IN';
+  }
+}
+
+async function SetYtMusicCountry(country) {
+  try {
+    await AsyncStorage.setItem('ytmusic_country', country);
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
 export {
   GetFontSizeValue,
   SetFontSizeValue,
@@ -208,4 +271,10 @@ export {
   SetLastSong,
   GetLyricsSettings,
   SetLyricsSettings,
+  GetHomeFeedSource,
+  SetHomeFeedSource,
+  GetYtMusicLanguage,
+  SetYtMusicLanguage,
+  GetYtMusicCountry,
+  SetYtMusicCountry,
 };

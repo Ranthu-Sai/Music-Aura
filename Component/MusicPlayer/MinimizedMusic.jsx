@@ -101,16 +101,18 @@ const CircularProgress = memo(({size = 56, strokeWidth = 2, colors = ['#1DB954',
 
 export const MinimizedMusic = memo(({setIndex, color}) => {
 
-  const pan = Gesture.Pan();
-  pan.onFinalize(e => {
-    if (e.translationX > 80) {
-      PlayPreviousSong();
-    } else if (e.translationX < -80) {
-      PlayNextSong();
-    } else {
-      setIndex(1);
-    }
-  });
+  const pan = Gesture.Pan()
+    .minDistance(20)
+    .onFinalize(e => {
+      if (e.translationX > 80) {
+        PlayPreviousSong();
+      } else if (e.translationX < -80) {
+        PlayNextSong();
+      } else if (Math.abs(e.translationX) < 20) {
+        // Only open full player if tap (minimal movement)
+        setIndex(1);
+      }
+    });
 
   // Use provided color prop to build a colorful gradient for the border
   const gradientColors = useMemo(() => {
@@ -158,7 +160,7 @@ export const MinimizedMusic = memo(({setIndex, color}) => {
         rotateAnimRef.current = null;
       }
     };
-  }, [isPlaying]);
+  }, [isPlaying, currentPlaying?.id]);
 
   if (!currentPlaying) {
     return null;

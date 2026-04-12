@@ -24,6 +24,8 @@ export const PlayPauseButton = ({isFullScreen, size, color}) => {
         <>
           {!isPlaying && !isBuffering && (
             <Pressable
+              hitSlop={4}
+              android_ripple={{color: 'rgba(255, 255, 255, 0.2)', radius: 20, foreground: true}}
               style={{
                 padding: 8,
               }}
@@ -35,6 +37,8 @@ export const PlayPauseButton = ({isFullScreen, size, color}) => {
           )}
           {isPlaying && (
             <Pressable
+              hitSlop={4}
+              android_ripple={{color: 'rgba(255, 255, 255, 0.2)', radius: 20, foreground: true}}
               style={{
                 padding: 8,
               }}

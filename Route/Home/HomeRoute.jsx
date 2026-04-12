@@ -14,6 +14,7 @@ import {StorageSettings} from './StorageSettings';
 import ShowPlaylistofType from '../../Component/Discover/ShowPlaylistofType';
 import {AboutProject} from '../Library/AboutProject';
 import {ArtistSongsPage} from '../Artist/ArtistSongsPage';
+import {ArtistPage} from '../Artist/ArtistPage';
 const Stack = createNativeStackNavigator();
 export const HomeRoute = () => {
   return (
@@ -33,6 +34,11 @@ export const HomeRoute = () => {
       <Stack.Screen
         name={'ArtistSongsPage'}
         component={ArtistSongsPage}
+        options={{gestureEnabled: true}}
+      />
+      <Stack.Screen
+        name={'ArtistPage'}
+        component={ArtistPage}
         options={{gestureEnabled: true}}
       />
       <Stack.Screen name={'LikedSongs'} component={LikedSongPage} />

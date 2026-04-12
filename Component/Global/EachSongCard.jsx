@@ -75,6 +75,7 @@ export const EachSongCard = memo(function EachSongCard({
   playlistId,
   isHistory,
   onRemove,
+  onPress,
   source,
   item,
 }) {
@@ -191,6 +192,17 @@ export const EachSongCard = memo(function EachSongCard({
     isProcessingRef.current = true;
     setIsLoading(true);
     try {
+      if (typeof onPress === 'function') {
+        onPress({
+          id,
+          title: displayTitle,
+          artist,
+          language,
+          source,
+          item,
+        });
+      }
+
       if (lyricsCacheRef?.current) {
         lyricsCacheRef.current = {};
       }
@@ -366,6 +378,7 @@ export const EachSongCard = memo(function EachSongCard({
     url,
     duration,
     language,
+    onPress,
     updateTrack,
     lyricsCacheRef,
     Data,

@@ -14,6 +14,7 @@ import youtubeStreamingService from './Utils/YouTubeStreamingService';
 
 let isPlayerInitialized = false;
 let initializePromise = null;
+let streamResolutionPromise = null;
 
 // Queue remote actions to avoid race conditions without relying on timers
 // Legacy actionChain no longer required after making handlers immediate
@@ -30,11 +31,22 @@ const SKIP_DEBOUNCE_MS = 300; // 300ms minimum between skips
 export default async function PlaybackService() {
 
   const ensureActiveTrackStreamReady = async () => {
+    if (streamResolutionPromise) {
+      return streamResolutionPromise;
+    }
+
+    streamResolutionPromise = (async () => {
     try {
       const activeTrack = await TrackPlayer.getActiveTrack();
       const activeIndex = await TrackPlayer.getActiveTrackIndex();
+      const queue = await TrackPlayer.getQueue();
 
-      if (!activeTrack || typeof activeIndex !== 'number' || activeIndex < 0) {
+      if (
+        !activeTrack ||
+        typeof activeIndex !== 'number' ||
+        activeIndex < 0 ||
+        activeIndex >= queue.length
+      ) {
         return false;
       }
 
@@ -63,6 +75,17 @@ export default async function PlaybackService() {
         return false;
       }
 
+      const latestTrack = await TrackPlayer.getActiveTrack();
+      const latestIndex = await TrackPlayer.getActiveTrackIndex();
+
+      if (
+        !latestTrack ||
+        latestTrack.id !== activeTrack.id ||
+        latestIndex !== activeIndex
+      ) {
+        return false;
+      }
+
       const wasPlaying = (await TrackPlayer.getState()) === State.Playing;
 
       const updatedTrack = {
@@ -78,9 +101,18 @@ export default async function PlaybackService() {
         isYTMusic: true,
       };
 
+      if (wasPlaying) {
+        try {
+          await TrackPlayer.pause();
+        } catch (_) {}
+      }
+
+      ManualSkipFlag.suppress();
       await TrackPlayer.remove(activeIndex);
-      await TrackPlayer.add(updatedTrack, activeIndex);
-      await TrackPlayer.skip(activeIndex);
+      const remainingQueue = await TrackPlayer.getQueue();
+      const insertionIndex = Math.min(activeIndex, remainingQueue.length);
+      await TrackPlayer.add(updatedTrack, insertionIndex);
+      await TrackPlayer.skip(insertionIndex);
 
       if (wasPlaying) {
         await TrackPlayer.play();
@@ -90,7 +122,12 @@ export default async function PlaybackService() {
     } catch (err) {
       console.warn('ensureActiveTrackStreamReady failed', err);
       return false;
+    } finally {
+      streamResolutionPromise = null;
     }
+    })();
+
+    return streamResolutionPromise;
   };
 
   // Register remote handlers synchronously at module level so notification actions work
@@ -223,33 +260,47 @@ export default async function PlaybackService() {
   TrackPlayer.addEventListener(Event.RemoteSeek, e => {
     (async () => {
       try {
-        // Normalize position units. Different Android notification skins sometimes send
-        // position as milliseconds, as a fraction (0..1), or as a percentage (0..100).
-        // Heuristics below try to make sense of the value so seeking works reliably.
-        let pos = typeof e.position === 'number' ? e.position : Number(e.position) || 0;
+        // Android remote seek should normally send position in seconds.
+        // Some devices/skins may send milliseconds or a 0..1 fraction.
+        // Do NOT treat 0..100 as percentage because that corrupts normal seeks
+        // in the first 100 seconds of most songs.
+        let pos =
+          typeof e.position === 'number' ? e.position : Number(e.position) || 0;
+        let duration = 0;
+
         try {
-          const duration = await TrackPlayer.getDuration();
-          if (duration) {
-            // ms -> s
-            if (pos > Math.max(duration * 3, 100000)) {
-              pos = pos / 1000;
+          duration = Number(await TrackPlayer.getDuration()) || 0;
+        } catch (_) {
+          duration = 0;
+        }
 
-            } else if (pos > 0 && pos <= 1) {
-              // fraction of duration
-              pos = pos * duration;
+        // 0..1 fraction of duration
+        if (duration > 0 && pos > 0 && pos <= 1) {
+          pos = pos * duration;
+        }
 
-            } else if (pos > 1 && pos <= 100 && pos < duration * 0.9) {
-              // percentage (0-100)
-              pos = (pos / 100) * duration;
+        // Milliseconds -> seconds (very large values only)
+        if (pos > 100000) {
+          pos = pos / 1000;
+        }
 
-            }
-          } else if (pos > 100000) {
-            // No duration available but value looks like milliseconds
-            pos = pos / 1000;
-
+        // If value is clearly beyond duration, assume milliseconds
+        if (duration > 0 && pos > duration + 5) {
+          const maybeSeconds = pos / 1000;
+          if (maybeSeconds <= duration + 5) {
+            pos = maybeSeconds;
           }
-        } catch (dErr) {
-          // Ignore duration lookup errors and proceed with given value
+        }
+
+        // Clamp to valid playback range
+        if (!Number.isFinite(pos)) {
+          pos = 0;
+        }
+        if (pos < 0) {
+          pos = 0;
+        }
+        if (duration > 0 && pos > duration) {
+          pos = duration;
         }
 
         await TrackPlayer.seekTo(pos);

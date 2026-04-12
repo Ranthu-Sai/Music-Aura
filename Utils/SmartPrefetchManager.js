@@ -488,6 +488,10 @@ class SmartPrefetchManager {
 
       const updatedTrack = this._createUpdatedTrack(originalTrack, streamData);
 
+      try {
+        await TrackPlayer.pause();
+      } catch (_) {}
+
       // Remove current track (safe)
       await this._safeRemove(safeIndex);
 

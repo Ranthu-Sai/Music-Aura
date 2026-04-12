@@ -29,6 +29,7 @@ import ManualSkipFlag from './Utils/ManualSkipFlag';
 let isPlayerInitialized = false;
 let playerSetupPromise = null;
 let setupInitiated = false;
+let isSkipInProgress = false; // Prevent multiple simultaneous skip operations
 const DEBUG_LOGS = false;
 const debugLog = (...args) => {
   if (DEBUG_LOGS) {
@@ -964,7 +965,7 @@ async function PlaySongWithRelated(videoId, artwork, songData = {}) {
         autoRecommendations &&
         typeof autoRecommendations.start === 'function'
       ) {
-        autoRecommendations.start(videoId);
+        await autoRecommendations.start(videoId);
       }
       // Start continuous monitor to refill queue when low
       if (
@@ -1766,6 +1767,12 @@ async function SetProgressSong(value) {
 }
 
 async function PlayNextSong() {
+  // Prevent next/prev from running while manual skip is in progress
+  if (isSkipInProgress) {
+    console.warn('Skip already in progress, ignoring PlayNextSong');
+    return;
+  }
+
   await skipOperationManager.executeSkip(async signal => {
     try {
       if (!isPlayerInitialized) {
@@ -1972,6 +1979,12 @@ async function PlayNextInQueue(songs) {
 }
 
 async function PlayPreviousSong() {
+  // Prevent next/prev from running while manual skip is in progress
+  if (isSkipInProgress) {
+    console.warn('Skip already in progress, ignoring PlayPreviousSong');
+    return;
+  }
+
   // Use SkipOperationManager to debounce and lock skip operations
   await skipOperationManager.executeSkip(async signal => {
     try {
@@ -2094,6 +2107,13 @@ async function PlayPreviousSong() {
   // If not executed, silently ignore to prevent log spam
 }
 async function SkipToTrack(trackIndex) {
+  // Prevent multiple simultaneous skip operations (prevents next/prev conflicts)
+  if (isSkipInProgress) {
+    console.warn('Skip already in progress, ignoring duplicate request');
+    return;
+  }
+
+  isSkipInProgress = true;
   try {
     // Ensure player is initialized
     if (!isPlayerInitialized) {
@@ -2179,8 +2199,11 @@ async function SkipToTrack(trackIndex) {
     await PlaySong();
   } catch (error) {
     console.error('Error in SkipToTrack:', error);
+  } finally {
+    isSkipInProgress = false;
   }
 }
+
 async function SetRepeatMode(mode) {
   await TrackPlayer.setRepeatMode(mode);
 }

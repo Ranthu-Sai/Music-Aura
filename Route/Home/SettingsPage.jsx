@@ -11,12 +11,19 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
+import {List, Modal, Portal, Text, TouchableRipple} from 'react-native-paper';
 import {PlainText} from '../../Component/Global/PlainText';
 import {
   GetDownloadPath,
   GetFontSizeValue,
+  GetHomeFeedSource,
   GetPlaybackQuality,
+  SetHomeFeedSource,
   GetTheme,
+  GetYtMusicLanguage,
+  GetYtMusicCountry,
+  SetYtMusicLanguage,
+  SetYtMusicCountry,
 } from '../../LocalStorage/AppSettings';
 import {useEffect, useState, useContext, useCallback} from 'react';
 import {SmallText} from '../../Component/Global/SmallText';
@@ -27,10 +34,9 @@ import Animated, {FadeInDown, FadeInRight} from 'react-native-reanimated';
 
 
 import updateService from '../../Utils/UpdateService';
-
-
-
-
+import ytAuthService from '../../Utils/YouTubeAuthService';
+import YouTubeAccountModal from '../../Component/Modals/YouTubeAccountModal';
+import {useTheme} from '@react-navigation/native';
 
 const EachSettingsButton = ({
   text,
@@ -97,6 +103,106 @@ const EachSettingsButton = ({
   );
 };
 
+const DropDownMenu = ({title, icon, data, selectedValue, onSelect}) => {
+  const [showDropdown, setShowDropdown] = useState(false);
+  const theme = useTheme();
+  const {colors} = useTheme();
+
+  const selectedOption = data.find(item => item.value === selectedValue) || {};
+  const displayValue = selectedOption.label || selectedValue;
+
+  const handleSelect = value => {
+    onSelect(value);
+    setShowDropdown(false);
+  };
+
+  return (
+    <View>
+      <TouchableRipple
+        onPress={() => setShowDropdown(!showDropdown)}
+        rippleColor={
+          theme.dark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.05)'
+        }
+        style={{paddingHorizontal: 16, paddingVertical: 12}}>
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}>
+          <View style={{flexDirection: 'row', alignItems: 'center'}}>
+            <List.Icon
+              icon={icon}
+              color={colors.primary}
+              style={{margin: 0, marginRight: 16}}
+            />
+            <Text style={{color: colors.text, fontSize: 16, fontWeight: 'bold'}}>
+              {title}
+            </Text>
+          </View>
+          <View style={{flexDirection: 'row', alignItems: 'center'}}>
+            <Text style={{color: colors.text, marginRight: 8, opacity: 0.7}}>
+              {displayValue}
+            </Text>
+            <List.Icon
+              icon={showDropdown ? 'menu-up' : 'menu-down'}
+              color={colors.text}
+              style={{opacity: 0.7}}
+            />
+          </View>
+        </View>
+      </TouchableRipple>
+
+      <Portal>
+        <Modal
+          visible={showDropdown}
+          onDismiss={() => setShowDropdown(false)}
+          contentContainerStyle={{
+            backgroundColor: colors.card,
+            margin: 20,
+            padding: 20,
+            borderRadius: 8,
+            elevation: 4,
+            maxHeight: '80%',
+          }}>
+          <ScrollView showsVerticalScrollIndicator={true}>
+            {data.map(item => (
+              <View
+                key={item.value}
+                style={{
+                  padding: 12,
+                  backgroundColor:
+                    item.value === selectedValue
+                      ? colors.primary + '20'
+                      : 'transparent',
+                  borderRadius: 4,
+                  marginVertical: 2,
+                }}>
+                <TouchableRipple
+                  onPress={() => handleSelect(item.value)}
+                  rippleColor="rgba(0, 0, 0, 0.1)"
+                  style={{padding: 8, borderRadius: 4}}>
+                  <Text
+                    style={{
+                      color:
+                        item.value === selectedValue
+                          ? colors.primary
+                          : colors.text,
+                      fontSize: 16,
+                      fontWeight: item.value === selectedValue ? '600' : '400',
+                    }}>
+                    {item.label || item.value}
+                  </Text>
+                </TouchableRipple>
+              </View>
+            ))}
+          </ScrollView>
+        </Modal>
+      </Portal>
+    </View>
+  );
+};
+
 import {ThemeContext} from '../../Context/Context';
 
 export const SettingsPage = ({navigation}) => {
@@ -105,15 +211,65 @@ export const SettingsPage = ({navigation}) => {
   const [Playback, setPlayback] = useState('320kbps');
   const [Download, setDownload] = useState('Music');
   const [Theme, setThemeState] = useState('Default');
+  const [homeFeedSource, setHomeFeedSource] = useState('YTMusic');
+  const [ytMusicLanguage, setYtMusicLanguage] = useState('en');
+  const [ytMusicCountry, setYtMusicCountry] = useState('IN');
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
   const appVersion = DeviceInfo.getVersion();
+
+  // YouTube auth state
+  const [ytUser, setYtUser] = useState(null);
+  const [isYtAuth, setIsYtAuth] = useState(false);
+  const [showYtAccountModal, setShowYtAccountModal] = useState(false);
 
   const loadData = useCallback(async () => {
     setFont(await GetFontSizeValue());
     setPlayback(await GetPlaybackQuality());
     setDownload(await GetDownloadPath());
     setThemeState(await GetTheme());
+    setHomeFeedSource(await GetHomeFeedSource());
+    setYtMusicLanguage(await GetYtMusicLanguage());
+    setYtMusicCountry(await GetYtMusicCountry());
   }, []);
+
+  const handleHomeFeedSourceChange = async nextSource => {
+    const saved = await SetHomeFeedSource(nextSource);
+    if (saved) {
+      setHomeFeedSource(nextSource);
+      ToastAndroid.show(
+        `Home feed source set to ${nextSource}`,
+        ToastAndroid.SHORT,
+      );
+    } else {
+      ToastAndroid.show('Failed to update home feed source', ToastAndroid.SHORT);
+    }
+  };
+
+  const handleYtMusicLanguageChange = async nextLanguage => {
+    const saved = await SetYtMusicLanguage(nextLanguage);
+    if (saved) {
+      setYtMusicLanguage(nextLanguage);
+      ToastAndroid.show(
+        `YTMusic language set to ${nextLanguage}`,
+        ToastAndroid.SHORT,
+      );
+    } else {
+      ToastAndroid.show('Failed to update YTMusic language', ToastAndroid.SHORT);
+    }
+  };
+
+  const handleYtMusicCountryChange = async nextCountry => {
+    const saved = await SetYtMusicCountry(nextCountry);
+    if (saved) {
+      setYtMusicCountry(nextCountry);
+      ToastAndroid.show(
+        `YTMusic region set to ${nextCountry}`,
+        ToastAndroid.SHORT,
+      );
+    } else {
+      ToastAndroid.show('Failed to update YTMusic region', ToastAndroid.SHORT);
+    }
+  };
 
   const checkForUpdates = async () => {
     setIsCheckingUpdate(true);
@@ -151,8 +307,36 @@ export const SettingsPage = ({navigation}) => {
     }
   };
 
+  const handleYtLogout = async () => {
+    try {
+      const result = await ytAuthService.logout();
+      if (result.success) {
+        ToastAndroid.show('Logged out from YouTube Music', ToastAndroid.SHORT);
+      }
+    } catch (error) {
+      console.error('YouTube Logout error:', error);
+    }
+  };
+
   useEffect(() => {
     loadData();
+    // Initialize YouTube auth service
+    ytAuthService.init().then(() => {
+      setYtUser(ytAuthService.getUser());
+      setIsYtAuth(ytAuthService.isAuth());
+    });
+
+    // Listen for YouTube Auth changes
+    const ytAuthListener = (state) => {
+      setYtUser(state.user);
+      setIsYtAuth(state.isAuthenticated);
+    };
+
+    ytAuthService.addListener(ytAuthListener);
+
+    return () => {
+      ytAuthService.removeListener(ytAuthListener);
+    };
   }, [loadData]);
 
   return (
@@ -188,6 +372,16 @@ export const SettingsPage = ({navigation}) => {
               currentThemeColors={currentThemeColors}
               OnPress={() => navigation.navigate('ClearCache')}
             />
+            <DropDownMenu
+              title="Home Feed Source"
+              icon="home-variant"
+              data={[
+                {label: 'YTMusic', value: 'YTMusic'},
+                {label: 'Saavn', value: 'Saavn'},
+              ]}
+              selectedValue={homeFeedSource}
+              onSelect={handleHomeFeedSourceChange}
+            />
           </View>
 
           <View style={styles.section}>
@@ -216,6 +410,117 @@ export const SettingsPage = ({navigation}) => {
               currentThemeColors={currentThemeColors}
               OnPress={() => navigation.navigate('SelectLanguages')}
             />
+          </View>
+
+          <View style={styles.section}>
+            <SmallText text="YouTube Music" style={styles.sectionHeader} />
+            <DropDownMenu
+              title="YTMusic Language"
+              icon="translate"
+              data={[
+                {label: 'English', value: 'en'},
+                {label: 'Hindi', value: 'hi'},
+                {label: 'English (India)', value: 'en-IN'},
+                {label: 'Tamil', value: 'ta'},
+                {label: 'Telugu', value: 'te'},
+                {label: 'Kannada', value: 'kn'},
+                {label: 'Malayalam', value: 'ml'},
+                {label: 'Bengali', value: 'bn'},
+              ]}
+              selectedValue={ytMusicLanguage}
+              onSelect={handleYtMusicLanguageChange}
+            />
+            <DropDownMenu
+              title="YTMusic Region"
+              icon="earth"
+              data={[
+                {label: 'India', value: 'IN'},
+                {label: 'United States', value: 'US'},
+                {label: 'United Kingdom', value: 'GB'},
+                {label: 'Canada', value: 'CA'},
+                {label: 'Australia', value: 'AU'},
+                {label: 'Germany', value: 'DE'},
+                {label: 'France', value: 'FR'},
+                {label: 'Japan', value: 'JP'},
+                {label: 'South Korea', value: 'KR'},
+                {label: 'Brazil', value: 'BR'},
+                {label: 'Mexico', value: 'MX'},
+                {label: 'Italy', value: 'IT'},
+                {label: 'Spain', value: 'ES'},
+                {label: 'Russia', value: 'RU'},
+                {label: 'Netherlands', value: 'NL'},
+                {label: 'Poland', value: 'PL'},
+              ]}
+              selectedValue={ytMusicCountry}
+              onSelect={handleYtMusicCountryChange}
+            />
+            <Animated.View entering={FadeInRight.delay(700).duration(400)}>
+              <Pressable
+                onPress={() => setShowYtAccountModal(true)}
+                style={({pressed}) => [
+                  {
+                    backgroundColor:
+                      currentThemeColors.secondaryBackground ||
+                      'rgba(255,255,255,0.05)',
+                    padding: 16,
+                    borderRadius: 16,
+                    flexDirection: 'row',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginBottom: 10,
+                    opacity: pressed ? 0.8 : 1,
+                    transform: [{scale: pressed ? 0.98 : 1}],
+                    elevation: pressed ? 0 : 2,
+                  },
+                ]}>
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 16,
+                    flex: 1,
+                  }}>
+                  <View
+                    style={{
+                      backgroundColor: 'rgba(255,0,0,0.15)',
+                      padding: 12,
+                      borderRadius: 12,
+                    }}>
+                    <Icon
+                      name={isYtAuth ? 'account-circle' : 'youtube'}
+                      size={22}
+                      color="#FF0000"
+                    />
+                  </View>
+                  <View style={{flex: 1}}>
+                    <PlainText
+                      text={
+                        isYtAuth
+                          ? ytUser?.name || 'YouTube User'
+                          : 'Login to YouTube Music'
+                      }
+                      style={{fontWeight: '600', fontSize: 16}}
+                    />
+                    <SmallText
+                      text={
+                        isYtAuth
+                          ? ytUser?.handle
+                            ? ytUser.handle + ' • Signed in'
+                            : 'Signed in • Tap to manage account'
+                          : 'Login to access personalized content and bypass restrictions'
+                      }
+                      style={{opacity: 0.5, marginTop: 2}}
+                    />
+                  </View>
+                </View>
+                <Icon
+                  name="chevron-right"
+                  size={24}
+                  color={currentThemeColors?.secondaryText || 'rgba(0,0,0,0.3)'}
+                  opacity={0.6}
+                />
+              </Pressable>
+            </Animated.View>
           </View>
 
           <View style={styles.section}>
@@ -301,6 +606,16 @@ export const SettingsPage = ({navigation}) => {
           </Animated.View>
         </ScrollView>
       </PaddingConatiner>
+
+      {/* YouTube Account Modal */}
+      <YouTubeAccountModal
+        visible={showYtAccountModal}
+        onDismiss={() => setShowYtAccountModal(false)}
+        user={ytUser}
+        onLogout={handleYtLogout}
+        onLogin={() => navigation.navigate('LoginScreen')}
+        onRefresh={() => navigation.navigate('LoginScreen')}
+      />
     </MainWrapper>
   );
 };

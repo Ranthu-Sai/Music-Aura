@@ -4,6 +4,7 @@ import {
   View,
   RefreshControl,
   FlatList,
+  Dimensions,
 } from 'react-native';
 import Animated, {FadeIn} from 'react-native-reanimated';
 import {Heading} from '../../Component/Global/Heading';
@@ -19,6 +20,7 @@ import {getSearchPlaylistData} from '../../Api/Playlist';
 import {EachPlaylistCard} from '../../Component/Global/EachPlaylistCard';
 import {EachTrendingSongCard} from '../../Component/Global/EachTrendingSongCard';
 import {GetLanguageValue} from '../../LocalStorage/Languages';
+import {GetHomeFeedSource} from '../../LocalStorage/AppSettings';
 import {TopHeader} from '../../Component/Home/TopHeader';
 import {DisplayTopGenres} from '../../Component/Home/DisplayTopGenres';
 import {useActiveTrack} from 'react-native-track-player';
@@ -29,11 +31,12 @@ import {
   ShimmerHorizontalList,
   ShimmerTrendingSongsList,
   ShimmerArtistChips,
-  ShimmerFullPage,
   ShimmerHorizontalSongList,
 } from '../../Component/Global/ShimmerEffect';
 import {ErrorBoundary} from '../../Component/Global/ErrorBoundary';
 import {Spacer} from '../../Component/Global/Spacer';
+import {YTMusicHomeFeed} from '../../Component/Home/YTMusicHomeFeed';
+import {HomeSkeletonLoader} from '../../Component/Home/HomeSkeletonLoader';
 
 // JioSaavn API Fallback URLs (only hosts that support /modules endpoint)
 const JIOSAAVN_API_FALLBACKS = [
@@ -53,10 +56,14 @@ export const Home = () => {
   const [cricketFeverPlaylists, setCricketFeverPlaylists] = useState([]);
   const [languageTopArtists, setLanguageTopArtists] = useState([]);
   const [currentLanguage, setCurrentLanguage] = useState('All');
+  const [homeFeedSource, setHomeFeedSource] = useState('YTMusic');
   const [secondaryDataLoaded, setSecondaryDataLoaded] = useState(false);
   const isFocused = useIsFocused();
   const refreshTimerRef = useRef(null);
+  const ytMusicFeedRef = useRef(null);
   const activeTrack = useActiveTrack();
+  const {height} = Dimensions.get('window');
+  const scrollThreshold = height * 0.05;
 
   // Filter out podcast / non-music entries heuristically before grouping
   const rawAlbums = useMemo(() => {
@@ -241,6 +248,22 @@ export const Home = () => {
         if (!silent) {
           setLoading(true);
         }
+
+        const savedHomeFeedSource = await GetHomeFeedSource();
+        const activeHomeFeedSource = savedHomeFeedSource || 'YTMusic';
+        setHomeFeedSource(activeHomeFeedSource);
+
+        if (activeHomeFeedSource === 'YTMusic') {
+          setLoading(false);
+          setLoadingSecondary(false);
+          setSecondaryDataLoaded(true);
+          setViralHitsId(null);
+          setTrendingLangId(null);
+          setCricketFeverPlaylists([]);
+          setLanguageTopArtists([]);
+          return;
+        }
+
         const Languages = await GetLanguageValue();
         setCurrentLanguage(Languages || 'All');
 
@@ -407,6 +430,11 @@ export const Home = () => {
 
   const onRefresh = async () => {
     setRefreshing(true);
+    if (homeFeedSource === 'YTMusic' && ytMusicFeedRef.current?.refresh) {
+      await ytMusicFeedRef.current.refresh();
+      setRefreshing(false);
+      return;
+    }
     await fetchHomePageData();
     setRefreshing(false);
   };
@@ -428,13 +456,42 @@ export const Home = () => {
 
   useEffect(() => {
     fetchHomePageData();
-    fetchIndiaSuperhitsPlaylists(); // Fetch India Superhits playlists
 
     // Load current language on mount
     GetLanguageValue().then(language => {
       setCurrentLanguage(language || 'All');
     });
+
+    GetHomeFeedSource().then(source => {
+      const activeSource = source || 'YTMusic';
+      setHomeFeedSource(activeSource);
+      if (activeSource !== 'YTMusic') {
+        fetchIndiaSuperhitsPlaylists();
+      }
+    });
   }, [fetchHomePageData, fetchIndiaSuperhitsPlaylists]);
+
+  useEffect(() => {
+    if (!isFocused) {
+      return;
+    }
+
+    GetHomeFeedSource().then(source => {
+      const activeSource = source || 'YTMusic';
+      if (activeSource !== homeFeedSource) {
+        setHomeFeedSource(activeSource);
+        if (activeSource !== 'YTMusic') {
+          fetchIndiaSuperhitsPlaylists();
+        }
+        fetchHomePageData(true);
+      }
+    });
+  }, [
+    isFocused,
+    homeFeedSource,
+    fetchHomePageData,
+    fetchIndiaSuperhitsPlaylists,
+  ]);
 
   // Refresh on focus and every 10 minutes while focused (reduced frequency)
   useEffect(() => {
@@ -453,10 +510,63 @@ export const Home = () => {
 
   // Removed duplicate artist fetching - now handled in main fetchHomePageData
 
-  if (Loading) {
+  if (Loading && homeFeedSource !== 'YTMusic') {
     return (
       <MainWrapper>
-        <ShimmerFullPage />
+        <HomeSkeletonLoader source={homeFeedSource || 'YTMusic'} />
+      </MainWrapper>
+    );
+  }
+
+  if (homeFeedSource === 'YTMusic') {
+    return (
+      <MainWrapper>
+        <Animated.View entering={FadeIn.duration(400)}>
+          <ErrorBoundary name="HomeContent">
+            <View>
+              <ScrollView
+                onScroll={e => {
+                  const {contentOffset, layoutMeasurement, contentSize} = e.nativeEvent;
+
+                  if (contentOffset.y > scrollThreshold && !showHeader) {
+                    setShowHeader(true);
+                  } else if (contentOffset.y < scrollThreshold && showHeader) {
+                    setShowHeader(false);
+                  }
+
+                  const scrollProgress =
+                    (contentOffset.y + layoutMeasurement.height) /
+                    Math.max(contentSize.height, 1);
+
+                  if (scrollProgress > 0.8 && ytMusicFeedRef.current?.loadMore) {
+                    ytMusicFeedRef.current.loadMore();
+                  }
+                }}
+                scrollEventThrottle={16}
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={{
+                  paddingBottom: activeTrack ? 105 : 70,
+                }}
+                refreshControl={
+                  <RefreshControl
+                    refreshing={refreshing}
+                    onRefresh={onRefresh}
+                    colors={['#1DB954']}
+                    tintColor={'#1DB954'}
+                  />
+                }>
+                <RouteHeading showSearch={true} showSettings={true} />
+                <DisplayTopGenres />
+                <YTMusicHomeFeed
+                  ref={ytMusicFeedRef}
+                  refreshing={refreshing}
+                  onRefreshComplete={() => setRefreshing(false)}
+                />
+              </ScrollView>
+              <TopHeader showHeader={showHeader} />
+            </View>
+          </ErrorBoundary>
+        </Animated.View>
       </MainWrapper>
     );
   }

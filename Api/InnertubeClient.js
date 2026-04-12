@@ -7,21 +7,29 @@
 
 import {enhanceYTMusicArtwork} from '../Utils/ArtworkEnhancer';
 
-const INNERTUBE_API_KEY = 'AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30';
+const INNERTUBE_API_KEY = 'AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8';
 const INNERTUBE_API_URL = 'https://music.youtube.com/youtubei/v1';
+
+const WEB_REMIX_CLIENT_ID = '67';
+const WEB_REMIX_CLIENT_VERSION = '1.20260405.01.00';
+const WEB_REMIX_CLIENT_NAME = 'WEB_REMIX';
 
 const HEADERS = {
   'User-Agent':
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36',
   'Content-Type': 'application/json',
   Origin: 'https://music.youtube.com',
+  Referer: 'https://music.youtube.com/',
+  'X-Goog-Api-Format-Version': '1',
+  'X-YouTube-Client-Name': WEB_REMIX_CLIENT_ID,
+  'X-YouTube-Client-Version': WEB_REMIX_CLIENT_VERSION,
 };
 
 const WEB_REMIX_CONTEXT = {
   context: {
     client: {
-      clientName: 'WEB_REMIX',
-      clientVersion: '1.20241204.01.00',
+      clientName: WEB_REMIX_CLIENT_NAME,
+      clientVersion: WEB_REMIX_CLIENT_VERSION,
       originalUrl: 'https://music.youtube.com',
       hl: 'en',
       gl: 'US',
@@ -33,20 +41,79 @@ class InnerTubeClient {
   /**
    * Helper to make API requests
    */
-  static async request(endpoint, body) {
+  static async request(
+    endpoint,
+    body,
+    gl = 'US',
+    authCookies = null,
+    hl = 'en',
+    visitorData = null,
+    dataSyncId = null,
+  ) {
     try {
       const url = `${INNERTUBE_API_URL}/${endpoint}?key=${INNERTUBE_API_KEY}`;
 
+      let effectiveVisitorData = visitorData;
+      if (!effectiveVisitorData) {
+        try {
+          const AsyncStorage =
+            require('@react-native-async-storage/async-storage').default;
+          effectiveVisitorData = await AsyncStorage.getItem(
+            'innertube_visitor_data',
+          );
+        } catch (e) {
+        }
+      }
+
+      const client = {
+        ...WEB_REMIX_CONTEXT.context.client,
+        visitorData: effectiveVisitorData,
+      };
+
+      if (gl && gl !== 'SYSTEM_DEFAULT') {
+        client.gl = gl;
+      }
+      if (hl && hl !== 'SYSTEM_DEFAULT') {
+        client.hl = hl;
+      }
+
+      const requestContext = {
+        context: {
+          client,
+          user: {
+            lockedSafetyMode: false,
+            ...(dataSyncId && authCookies ? {onBehalfOfUser: dataSyncId} : {}),
+          },
+        },
+      };
+
+      const requestHeaders = {...HEADERS};
+      if (authCookies) {
+        requestHeaders.Cookie = authCookies;
+      }
+
       const response = await fetch(url, {
         method: 'POST',
-        headers: HEADERS,
+        headers: requestHeaders,
         body: JSON.stringify({
-          ...WEB_REMIX_CONTEXT,
+          ...requestContext,
           ...body,
         }),
       });
 
       const data = await response.json();
+
+      if (data?.responseContext?.visitorData && !effectiveVisitorData) {
+        try {
+          const AsyncStorage =
+            require('@react-native-async-storage/async-storage').default;
+          await AsyncStorage.setItem(
+            'innertube_visitor_data',
+            data.responseContext.visitorData,
+          );
+        } catch (e) {}
+      }
+
       return data;
     } catch (error) {
       console.error(`InnerTube request failed for ${endpoint}:`, error);
@@ -82,9 +149,274 @@ class InnerTubeClient {
   /**
    * Get Home Feed
    */
-  static async getHome() {
-    const data = await this.request('browse', {browseId: 'FEmusic_home'});
-    return this.parseHome(data);
+  static async getHome(sectionLimit = 20) {
+    let authCookies = null;
+    let userLanguage = 'SYSTEM_DEFAULT';
+    let userCountry = 'SYSTEM_DEFAULT';
+
+    const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+
+    try {
+      const ytAuthService = require('../Utils/YouTubeAuthService').default;
+      if (ytAuthService.isAuth()) {
+        authCookies = await ytAuthService.getCookies();
+      }
+      const storedLang = await AsyncStorage.getItem('ytmusic_language');
+      const storedCountry = await AsyncStorage.getItem('ytmusic_country');
+
+      if (storedLang) {
+        userLanguage = storedLang;
+      }
+      if (storedCountry) {
+        userCountry = storedCountry;
+      }
+    } catch (e) {}
+
+    const data = await this.request(
+      'browse',
+      {browseId: 'FEmusic_home'},
+      userCountry,
+      authCookies,
+      userLanguage
+    );
+
+
+
+    let {sections, chips, continuation} = this.parseHomeWithContinuation(data);
+    let allSections = [...sections];
+    const seenTitles = new Set(sections.map(s => s.title));
+
+
+
+    let continuationCount = 0;
+    const MAX_CONTINUATIONS = 5;
+
+    while (
+      continuation &&
+      allSections.length < sectionLimit &&
+      continuationCount < MAX_CONTINUATIONS
+    ) {
+      const contData = await this.request(
+        'browse',
+        {continuation},
+        userCountry,
+        authCookies,
+        userLanguage
+      );
+      const contResult = this.parseHomeContinuation(contData);
+
+      contResult.sections.forEach(section => {
+        if (section.title && !seenTitles.has(section.title)) {
+          seenTitles.add(section.title);
+          allSections.push(section);
+        }
+      });
+
+      continuation = contResult.continuation;
+      continuationCount += 1;
+
+
+    }
+
+    if (chips && chips.length > 0 && allSections.length < sectionLimit) {
+      const chipsToFetch = [];
+      const MAX_CHIPS_TO_FETCH = 20;
+
+      const musicChip = chips.find(c => c.title.toLowerCase().includes('music'));
+      if (musicChip) {
+        chipsToFetch.push(musicChip);
+      }
+
+      chips.forEach(c => {
+        if (c !== musicChip && chipsToFetch.length < MAX_CHIPS_TO_FETCH) {
+          chipsToFetch.push(c);
+        }
+      });
+
+      const chipPromises = chipsToFetch.map(async chip => {
+        if (!chip.params) {
+          return [];
+        }
+
+        try {
+          const chipData = await this.request(
+            'browse',
+            {browseId: 'FEmusic_home', params: chip.params},
+            userCountry,
+            authCookies,
+            userLanguage
+          );
+          const chipResult = this.parseHomeWithContinuation(chipData);
+          const chipSections = [...chipResult.sections];
+
+          let chipContinuation = chipResult.continuation;
+          let chipContinuationCount = 0;
+          const MAX_CHIP_CONTINUATIONS = 4;
+
+          while (
+            chipContinuation &&
+            chipSections.length < sectionLimit &&
+            chipContinuationCount < MAX_CHIP_CONTINUATIONS
+          ) {
+            const chipContData = await this.request(
+              'browse',
+              {continuation: chipContinuation},
+              userCountry,
+              authCookies,
+              userLanguage
+            );
+
+            const chipContResult = this.parseHomeContinuation(chipContData);
+            chipSections.push(...chipContResult.sections);
+            chipContinuation = chipContResult.continuation;
+            chipContinuationCount += 1;
+          }
+
+          return chipSections;
+        } catch (e) {
+          return [];
+        }
+      });
+
+      const chipResultsArr = await Promise.all(chipPromises);
+
+      chipResultsArr.forEach(chipSections => {
+        chipSections.forEach(section => {
+          if (section.title && !seenTitles.has(section.title)) {
+            seenTitles.add(section.title);
+            allSections.push(section);
+          }
+        });
+      });
+
+    }
+
+    return allSections;
+  }
+
+  static parseHomeWithContinuation(data) {
+    const sections = [];
+    let continuation = null;
+    let chips = [];
+
+    try {
+      const tabs = data?.contents?.singleColumnBrowseResultsRenderer?.tabs;
+      if (!tabs) {
+        return {sections: [], continuation: null, chips: []};
+      }
+
+      const sectionListRenderer =
+        tabs[0]?.tabRenderer?.content?.sectionListRenderer;
+      const content = sectionListRenderer?.contents;
+
+      const chipCloud = sectionListRenderer?.header?.chipCloudRenderer?.chips;
+      if (chipCloud && Array.isArray(chipCloud)) {
+        chips = chipCloud
+          .map(chip => {
+            const chipRenderer = chip.chipCloudChipRenderer;
+            if (!chipRenderer) {
+              return null;
+            }
+            return {
+              title: chipRenderer.text?.runs?.[0]?.text || '',
+              params:
+                chipRenderer.navigationEndpoint?.browseEndpoint?.params || null,
+              isSelected: chipRenderer.isSelected || false,
+            };
+          })
+          .filter(c => c && c.params && !c.isSelected);
+      }
+
+      continuation =
+        sectionListRenderer?.continuations?.[0]?.nextContinuationData?.continuation ||
+        sectionListRenderer?.continuations?.[0]?.reloadContinuationData?.continuation;
+
+      content?.forEach(section => {
+        if (section.musicCarouselShelfRenderer) {
+          const shelf = section.musicCarouselShelfRenderer;
+          const headerRenderer =
+            shelf.header?.musicCarouselShelfBasicHeaderRenderer;
+          const title = headerRenderer?.title?.runs?.[0]?.text || '';
+          const strapline = headerRenderer?.strapline?.runs?.[0]?.text;
+          const items =
+            shelf.contents?.map(item => this.parseItem(item)).filter(i => i) ||
+            [];
+          if (items.length > 0) {
+            sections.push({
+              title,
+              strapline,
+              contents: items,
+            });
+          }
+        } else if (section.musicImmersiveCarouselShelfRenderer) {
+          const shelf = section.musicImmersiveCarouselShelfRenderer;
+          const headerRenderer =
+            shelf.header?.musicCarouselShelfBasicHeaderRenderer;
+          const title = headerRenderer?.title?.runs?.[0]?.text || 'Featured';
+          const strapline = headerRenderer?.strapline?.runs?.[0]?.text;
+          const items =
+            shelf.contents?.map(item => this.parseItem(item)).filter(i => i) ||
+            [];
+          if (items.length > 0) {
+            sections.push({
+              title,
+              strapline,
+              contents: items,
+            });
+          }
+        }
+      });
+
+
+    } catch (e) {
+      console.error('Parse Home With Continuation Error', e);
+    }
+
+    return {sections, continuation, chips};
+  }
+
+  static parseHomeContinuation(data) {
+    const sections = [];
+    let continuation = null;
+
+    try {
+      const sectionListContinuation = data?.continuationContents?.sectionListContinuation;
+
+      if (sectionListContinuation) {
+        continuation =
+          sectionListContinuation.continuations?.[0]?.nextContinuationData?.continuation ||
+          sectionListContinuation.continuations?.[0]?.reloadContinuationData?.continuation;
+
+        sectionListContinuation.contents?.forEach(section => {
+          if (section.musicCarouselShelfRenderer) {
+            const shelf = section.musicCarouselShelfRenderer;
+            const headerRenderer =
+              shelf.header?.musicCarouselShelfBasicHeaderRenderer;
+            const title = headerRenderer?.title?.runs?.[0]?.text || '';
+            const strapline = headerRenderer?.strapline?.runs?.[0]?.text;
+            const items =
+              shelf.contents
+                ?.map(item => this.parseItem(item))
+                .filter(i => i) || [];
+            if (items.length > 0) {
+              sections.push({
+                title,
+                strapline,
+                contents: items,
+              });
+            }
+          }
+        });
+      } else if (data?.contents?.singleColumnBrowseResultsRenderer) {
+        const result = this.parseHomeWithContinuation(data);
+        sections.push(...result.sections);
+        continuation = result.continuation;
+      }
+    } catch (e) {
+      console.error('Parse Home Continuation Error', e);
+    }
+
+    return {sections, continuation};
   }
 
   /**
@@ -212,29 +544,78 @@ class InnerTubeClient {
   static parseHome(data) {
     const sections = [];
     try {
-      // Home Feed logic
-      const tabs = data?.contents?.singleColumnBrowseResultsRenderer?.tabs;
-      if (!tabs) {
-        return [];
-      }
-      const content =
-        tabs[0]?.tabRenderer?.content?.sectionListRenderer?.contents;
+      const tabs = data?.contents?.singleColumnBrowseResultsRenderer?.tabs || [];
 
-      content?.forEach(section => {
-        if (section.musicCarouselShelfRenderer) {
-          const shelf = section.musicCarouselShelfRenderer;
-          const items =
-            shelf.contents?.map(item => this.parseItem(item)).filter(i => i) ||
-            [];
-          if (items.length > 0) {
-            sections.push({
-              title:
-                shelf.header?.musicCarouselShelfBasicHeaderRenderer?.title
-                  ?.runs?.[0]?.text || '',
-              contents: items, // 'contents' matches YTMusic.js expectations
-            });
-          }
+      const selectedTab =
+        tabs.find(t => t?.tabRenderer?.selected || t?.musicTabRenderer?.selected) ||
+        tabs[0] ||
+        {};
+
+      const tabContent =
+        selectedTab?.tabRenderer?.content ||
+        selectedTab?.musicTabRenderer?.content ||
+        null;
+
+      const sectionContents = tabContent?.sectionListRenderer?.contents || [];
+
+      const pushShelf = shelf => {
+        if (!shelf) {
+          return;
         }
+        const items = shelf.contents?.map(item => this.parseItem(item)).filter(i => i) || [];
+        if (items.length === 0) {
+          return;
+        }
+        const title =
+          shelf.header?.musicCarouselShelfBasicHeaderRenderer?.title?.runs?.[0]?.text ||
+          shelf.header?.musicCarouselShelfBasicHeaderRenderer?.strapline?.runs?.[0]?.text ||
+          'For You';
+        sections.push({title, contents: items});
+      };
+
+      sectionContents.forEach(section => {
+        if (section?.musicCarouselShelfRenderer) {
+          pushShelf(section.musicCarouselShelfRenderer);
+        }
+
+        const nested = section?.itemSectionRenderer?.contents || [];
+        nested.forEach(item => {
+          if (item?.musicCarouselShelfRenderer) {
+            pushShelf(item.musicCarouselShelfRenderer);
+          }
+        });
+      });
+
+      // Fallback: crawl for any carousel shelves if normal tab path yielded nothing.
+      if (sections.length === 0) {
+        const carousels = [];
+        const walk = node => {
+          if (!node || typeof node !== 'object') {
+            return;
+          }
+          if (node.musicCarouselShelfRenderer) {
+            carousels.push(node.musicCarouselShelfRenderer);
+          }
+          if (Array.isArray(node)) {
+            node.forEach(walk);
+            return;
+          }
+          Object.values(node).forEach(walk);
+        };
+        walk(data);
+        carousels.forEach(pushShelf);
+      }
+
+      // Deduplicate by title + first item id so repeated shelves don't flood UI.
+      const seen = new Set();
+      return sections.filter(section => {
+        const firstId = section?.contents?.[0]?.id || section?.contents?.[0]?.videoId || '';
+        const key = `${section.title}::${firstId}`;
+        if (seen.has(key)) {
+          return false;
+        }
+        seen.add(key);
+        return true;
       });
     } catch (e) {
       console.error('Parse Home Error', e);
@@ -1617,6 +1998,281 @@ class InnerTubeClient {
           ? thumbnails[thumbnails.length - 1].url
           : null,
     };
+  }
+
+  /**
+   * Fetch New Releases and Albums from FEmusic_explore endpoint
+   * @param {number} limit - Maximum number of albums to fetch
+   */
+  static async getNewReleases(limit = 20) {
+    let authCookies = null;
+    let userLanguage = 'SYSTEM_DEFAULT';
+    let userCountry = 'SYSTEM_DEFAULT';
+
+    try {
+      // Try to get auth cookies
+      const ytAuthService = require('../Utils/YouTubeAuthService').default;
+      if (ytAuthService && ytAuthService.isAuth()) {
+        authCookies = await ytAuthService.getCookies();
+      }
+    } catch (e) {
+      // Auth service not available, continue without auth
+    }
+
+    try {
+      // Get language/country preferences
+      const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+      const storedLang = await AsyncStorage.getItem('ytmusic_language');
+      const storedCountry = await AsyncStorage.getItem('ytmusic_country');
+      if (storedLang) {userLanguage = storedLang;}
+      if (storedCountry) {userCountry = storedCountry;}
+    } catch (e) {
+      // AsyncStorage not available or error reading
+    }
+
+    try {
+      const data = await this.request(
+        'browse',
+        { browseId: 'FEmusic_explore' },
+        userCountry,
+        authCookies,
+        userLanguage,
+      );
+
+      if (data && data.contents) {
+        const allAlbums = [];
+
+        // Parse all carousel sections from explore
+        const sections =
+          data.contents?.singleColumnBrowseResultsRenderer?.tabs?.[0]
+            ?.tabRenderer?.content?.sectionListRenderer?.contents || [];
+
+        sections.forEach((section) => {
+          const carousel = section.musicCarouselShelfRenderer;
+          if (carousel) {
+            carousel.contents?.forEach((item) => {
+              const renderer = item.musicTwoRowItemRenderer;
+              if (renderer) {
+                const title = renderer.title?.runs?.[0]?.text;
+                const browseId =
+                  renderer.navigationEndpoint?.browseEndpoint?.browseId;
+                const thumbnails =
+                  renderer.thumbnailRenderer?.musicThumbnailRenderer
+                    ?.thumbnail?.thumbnails;
+
+                // Extract artist and year from subtitle
+                const subtitleRuns = renderer.subtitle?.runs || [];
+                let subtitle = '';
+                let year = '';
+
+                // Extract year if present (should be last run matching \d{4})
+                if (subtitleRuns.length > 0) {
+                  const lastRun = subtitleRuns[subtitleRuns.length - 1];
+                  if (lastRun.text && /^\d{4}$/.test(lastRun.text)) {
+                    year = lastRun.text;
+                    // Join all runs except the last (year)
+                    subtitle = subtitleRuns.slice(0, -1).map((r) => r.text).join('').trim();
+                  } else {
+                    // No year found, join all runs
+                    subtitle = subtitleRuns.map((r) => r.text).join('').trim();
+                  }
+                }
+
+                // Format subtitle as "Artist • Year"
+                const formattedSubtitle = subtitle && year ? `${subtitle} • ${year}` : (subtitle || year || 'Album');
+
+                // Only include albums with proper data
+                if (browseId && title && thumbnails) {
+                  allAlbums.push({
+                    id: browseId,
+                    browseId: browseId,
+                    title: title,
+                    subtitle: formattedSubtitle,
+                    year: year,
+                    thumbnails: thumbnails || [],
+                    author: formattedSubtitle || 'Unknown Artist',
+                    // Add artists array for ContentSection rendering
+                    artists: formattedSubtitle ? [{name: formattedSubtitle}] : [],
+                  });
+                }
+              }
+            });
+          }
+        });
+
+        return allAlbums.slice(0, limit);
+      }
+      return [];
+    } catch (error) {
+      console.warn('Failed to fetch new releases:', error.message);
+      return [];
+    }
+  }
+
+  /**
+   * Fetch Charts from FEmusic_charts endpoint
+   * Includes Top Songs, Top Artists, Trending tracks, etc.
+   */
+  static async getCharts() {
+    let authCookies = null;
+    let userLanguage = 'SYSTEM_DEFAULT';
+    let userCountry = 'SYSTEM_DEFAULT';
+
+    try {
+      // Try to get auth cookies
+      const ytAuthService = require('../Utils/YouTubeAuthService').default;
+      if (ytAuthService && ytAuthService.isAuth()) {
+        authCookies = await ytAuthService.getCookies();
+      }
+    } catch (e) {
+      // Auth service not available, continue without auth
+    }
+
+    try {
+      // Get language/country preferences
+      const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+      const storedLang = await AsyncStorage.getItem('ytmusic_language');
+      const storedCountry = await AsyncStorage.getItem('ytmusic_country');
+      if (storedLang) {userLanguage = storedLang;}
+      if (storedCountry) {userCountry = storedCountry;}
+    } catch (e) {
+      // AsyncStorage not available or error reading
+    }
+
+    try {
+      const data = await this.request(
+        'browse',
+        {
+          browseId: 'FEmusic_charts',
+          params: 'ggMGCgQIgAQ%3D',
+        },
+        userCountry,
+        authCookies,
+        userLanguage,
+      );
+
+      if (data && data.contents) {
+        const charts = [];
+        const artists = [];
+        const seenIds = new Set();
+
+        // Parse sections for charts and artists
+        const sections =
+          data.contents?.singleColumnBrowseResultsRenderer?.tabs?.[0]
+            ?.tabRenderer?.content?.sectionListRenderer?.contents || [];
+
+        sections.forEach((section) => {
+          let sectionTitle = '';
+          let itemsList = [];
+
+          // 1. CAROUSEL
+          if (section.musicCarouselShelfRenderer) {
+            const r = section.musicCarouselShelfRenderer;
+            sectionTitle =
+              r.header?.musicCarouselShelfBasicHeaderRenderer?.title?.runs?.[0]
+                ?.text;
+            itemsList = r.contents || [];
+          }
+          // 2. SHELF (Vertical List)
+          else if (section.musicShelfRenderer) {
+            const r = section.musicShelfRenderer;
+            sectionTitle =
+              r.header?.musicShelfRendererHeader?.title?.runs?.[0]?.text ||
+              r.title?.runs?.[0]?.text;
+            itemsList = r.contents || [];
+          }
+          // 3. GRID
+          else if (section.gridRenderer) {
+            const r = section.gridRenderer;
+            sectionTitle = r.header?.gridHeaderRenderer?.title?.runs?.[0]?.text;
+            itemsList = r.items || [];
+          }
+
+          // Process items found in this section
+          itemsList.forEach((item) => {
+            // Handle different renderer types
+            const twoRowRenderer = item.musicTwoRowItemRenderer;
+            const responsiveRenderer = item.musicResponsiveListItemRenderer;
+            const renderer = twoRowRenderer || responsiveRenderer;
+
+            if (renderer) {
+              let title = renderer.title?.runs?.[0]?.text;
+              let browseId =
+                renderer.navigationEndpoint?.browseEndpoint?.browseId;
+              let playlistId =
+                renderer.navigationEndpoint?.watchPlaylistEndpoint?.playlistId;
+              let thumbnails =
+                renderer.thumbnailRenderer?.musicThumbnailRenderer?.thumbnail
+                  ?.thumbnails;
+
+              // For responsive list items
+              if (responsiveRenderer && !twoRowRenderer) {
+                const flex0 =
+                  renderer.flexColumns?.[0]
+                    ?.musicResponsiveListItemFlexColumnRenderer;
+                title = flex0?.text?.runs?.[0]?.text;
+                browseId =
+                  renderer.navigationEndpoint?.browseEndpoint?.browseId;
+                playlistId =
+                  renderer.navigationEndpoint?.watchPlaylistEndpoint
+                    ?.playlistId;
+                thumbnails =
+                  renderer.thumbnail?.musicThumbnailRenderer?.thumbnail
+                    ?.thumbnails;
+              }
+
+              const uniqueId = browseId || playlistId;
+
+              // If valid item and unique
+              if (uniqueId && title && !seenIds.has(uniqueId)) {
+                seenIds.add(uniqueId);
+
+                // DETERMINE IF IT'S AN ARTIST OR CHART
+                // Artists have browseId starting with 'UC' or section title contains 'artist'
+                const isArtist =
+                  (browseId && browseId.startsWith('UC')) ||
+                  (sectionTitle && sectionTitle.toLowerCase().includes('artist'));
+
+                if (isArtist) {
+                  // Add as artist
+                  artists.push({
+                    id: browseId,
+                    browseId: browseId,
+                    title: title,
+                    name: title,
+                    subtitle: sectionTitle || 'Artist',
+                    author: sectionTitle || 'Artist',
+                    thumbnails: thumbnails || [],
+                    image: thumbnails?.[thumbnails.length - 1]?.url,
+                    type: 'artist',
+                  });
+                } else {
+                  // Add as chart
+                  charts.push({
+                    id: uniqueId,
+                    browseId: uniqueId,
+                    playlistId: playlistId,
+                    title: title,
+                    subtitle: sectionTitle || 'Chart',
+                    thumbnails: thumbnails || [],
+                    author: 'YouTube Music',
+                    artists: [{name: sectionTitle || 'Chart'}],
+                    isChart: true,
+                  });
+                }
+              }
+            }
+          });
+        });
+
+        // Return both charts and artists
+        return {charts, artists};
+      }
+      return {charts: [], artists: []};
+    } catch (error) {
+      console.warn('Failed to fetch charts and artists:', error.message);
+      return {charts: [], artists: []};
+    }
   }
 }
 

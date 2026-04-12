@@ -570,6 +570,12 @@ const ContextState = props => {
         try {
           song = await TrackPlayer.getActiveTrack();
           queue = await TrackPlayer.getQueue();
+          if (Array.isArray(queue) && queue.length > 0) {
+            setQueue(queue);
+            SetQueueSongs(queue).catch(err =>
+              console.warn('Failed to save queue during setup:', err),
+            );
+          }
           if ((song && song.id) || (queue && queue.length > 0)) {
             break;
           }
@@ -607,8 +613,14 @@ const ContextState = props => {
 
             // Update state immediately to show in mini player
             song = savedQueue[0];
+            queue = savedQueue;
             setCurrentPlaying(savedQueue[0]);
             setIndex(0);
+            setQueue(savedQueue);
+
+            SetQueueSongs(savedQueue).catch(err =>
+              console.warn('Failed to persist restored queue:', err),
+            );
 
             console.log(`✅ Restored queue with ${savedQueue.length} songs`);
           } catch (e) {
@@ -644,8 +656,14 @@ const ContextState = props => {
 
               // Update state immediately to show in mini player
               song = lastSong;
+              queue = [lastSong];
               setCurrentPlaying(lastSong);
               setIndex(0);
+              setQueue([lastSong]);
+
+              SetQueueSongs([lastSong]).catch(err =>
+                console.warn('Failed to persist fallback queue:', err),
+              );
 
               // Auto-fill queue with recommended songs
               console.log('🔄 Auto-filling queue with recommendations...');
@@ -662,6 +680,12 @@ const ContextState = props => {
 
         // Update current playing if there's already an active track
         setCurrentPlaying(song);
+        if (Array.isArray(queue) && queue.length > 0) {
+          setQueue(queue);
+          SetQueueSongs(queue).catch(err =>
+            console.warn('Failed to persist existing queue:', err),
+          );
+        }
 
         // Get the actual current track index from TrackPlayer
         try {

@@ -126,18 +126,33 @@ const EachSongQueueComponent = ({
   const isPlaying = playerState === 'playing' && isCurrentTrack;
   const resolved = useMemo(() => resolveArtworkUri(imageSource), [imageSource]);
   const swipeableRef = useRef(null);
+  const skipInProgressRef = useRef(false);
 
   const handlePress = useCallback(async () => {
+    // Prevent multiple simultaneous skip attempts
+    if (skipInProgressRef.current) {
+      return;
+    }
+
+    skipInProgressRef.current = true;
     try {
       const currentQueue = await TrackPlayer.getQueue();
-      const actualIndex = currentQueue.findIndex(s => s.id === id);
-      if (actualIndex !== -1) {
+      // Search more carefully - compare both id and track position
+      const actualIndex = currentQueue.findIndex(
+        (track, idx) => track?.id === id || (idx === index && track?.id),
+      );
+
+      if (actualIndex !== -1 && actualIndex !== null) {
         SkipToTrack(actualIndex);
+      } else {
+        console.warn('Could not find track in queue:', id);
       }
     } catch (error) {
       console.error('Error skipping to track:', error);
+    } finally {
+      skipInProgressRef.current = false;
     }
-  }, [id]);
+  }, [id, index]);
 
   const handleRemovePress = useCallback(() => {
     swipeableRef.current?.close();
