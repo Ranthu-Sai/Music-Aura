@@ -16,6 +16,7 @@
 
 import TrackPlayer, {Event, State} from 'react-native-track-player';
 import youtubeStreamingService from './YouTubeStreamingService';
+import ManualSkipFlag from './ManualSkipFlag';
 import {InteractionManager} from 'react-native';
 
 // Constants for configuration
@@ -358,38 +359,37 @@ class SmartPrefetchManager {
             streamData,
           );
 
-          // Resolve current queue and index safety: ensure original track still exists
           const queue = await TrackPlayer.getQueue();
           let safeIndex = index;
 
           if (!Array.isArray(queue) || queue.length === 0) {
-            // Preserve order: do not append when queue unknown
-            if (!this.preserveOrder) {
-              await TrackPlayer.add(updatedTrack);
-            }
             return;
           }
 
-          // If the provided index is out of range, try to find by id
           if (safeIndex < 0 || safeIndex >= queue.length || queue[safeIndex]?.id !== originalTrack?.id) {
             const found = queue.findIndex(t => t && t.id === originalTrack?.id);
             if (found >= 0) {
               safeIndex = found;
             } else {
-              // Preserve order: if not found, skip modification
-              if (!this.preserveOrder) {
-                await TrackPlayer.add(updatedTrack);
-              }
               return;
             }
           }
 
-          // Remove old track and insert new one at same position (safe)
-          await this._safeRemove(safeIndex);
-          // Recompute queue length to avoid out-of-bounds insert
-          const newQueue = await TrackPlayer.getQueue();
-          const insertPos = Math.min(safeIndex, newQueue.length);
-          await TrackPlayer.add(updatedTrack, insertPos);
+          const activeIndex = await TrackPlayer.getActiveTrackIndex();
+          const wasPlaying = (await TrackPlayer.getState()) === State.Playing;
+
+          if (safeIndex === activeIndex) {
+            // SWAP ACTIVE TRACK: Non-disruptive pattern
+            ManualSkipFlag.suppress();
+            await TrackPlayer.add(updatedTrack, safeIndex);
+            await TrackPlayer.skip(safeIndex);
+            await TrackPlayer.remove(safeIndex + 1);
+            if (wasPlaying) { await TrackPlayer.play(); }
+          } else {
+            // SWAP INACTIVE TRACK: Simple insert then remove
+            await TrackPlayer.add(updatedTrack, safeIndex);
+            await TrackPlayer.remove(safeIndex + 1);
+          }
         } catch (error) {
           console.error('Error replacing track:', error.message);
         } finally {
@@ -406,13 +406,8 @@ class SmartPrefetchManager {
     try {
       const updatedTrack = this._createUpdatedTrack(originalTrack, streamData);
 
-      // Resolve current queue and ensure safe index. This avoids "index out of bounds"
       const queue = await TrackPlayer.getQueue();
       if (!Array.isArray(queue) || queue.length === 0) {
-        // Preserve order: do not append when queue unknown
-        if (!this.preserveOrder) {
-          await TrackPlayer.add(updatedTrack);
-        }
         return;
       }
 
@@ -422,18 +417,23 @@ class SmartPrefetchManager {
         if (found >= 0) {
           safeIndex = found;
         } else {
-          // Preserve order: if not found, skip modification
-          if (!this.preserveOrder) {
-            await TrackPlayer.add(updatedTrack);
-          }
           return;
         }
       }
 
-      await this._safeRemove(safeIndex);
-      const newQueue = await TrackPlayer.getQueue();
-      const insertPos = Math.min(safeIndex, newQueue.length);
-      await TrackPlayer.add(updatedTrack, insertPos);
+      const activeIndex = await TrackPlayer.getActiveTrackIndex();
+      const wasPlaying = (await TrackPlayer.getState()) === State.Playing;
+
+      if (safeIndex === activeIndex) {
+        ManualSkipFlag.suppress();
+        await TrackPlayer.add(updatedTrack, safeIndex);
+        await TrackPlayer.skip(safeIndex);
+        await TrackPlayer.remove(safeIndex + 1);
+        if (wasPlaying) { await TrackPlayer.play(); }
+      } else {
+        await TrackPlayer.add(updatedTrack, safeIndex);
+        await TrackPlayer.remove(safeIndex + 1);
+      }
     } catch (error) {
       console.error('Error in replaceTrackImmediately:', error.message);
     }
@@ -487,22 +487,17 @@ class SmartPrefetchManager {
       }
 
       const updatedTrack = this._createUpdatedTrack(originalTrack, streamData);
+      const wasPlaying = (await TrackPlayer.getState()) === State.Playing;
 
-      try {
-        await TrackPlayer.pause();
-      } catch (_) {}
-
-      // Remove current track (safe)
-      await this._safeRemove(safeIndex);
-
-      // Add updated track at same (or clamped) position
-      const newQueue = await TrackPlayer.getQueue();
-      const insertPos = Math.min(safeIndex, newQueue.length);
-      await TrackPlayer.add(updatedTrack, insertPos);
-
-      // Skip to it and play
-      await TrackPlayer.skip(insertPos);
-      await TrackPlayer.play();
+      ManualSkipFlag.suppress();
+      // Safe substitution:
+      await TrackPlayer.add(updatedTrack, safeIndex);
+      await TrackPlayer.skip(safeIndex);
+      await TrackPlayer.remove(safeIndex + 1);
+      
+      if (wasPlaying) {
+          await TrackPlayer.play();
+      }
 
       // Success - Reset breaker
       this.consecutiveErrors = 0;

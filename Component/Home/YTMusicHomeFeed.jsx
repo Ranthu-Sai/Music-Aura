@@ -638,6 +638,19 @@ export const YTMusicHomeFeed = forwardRef(({refreshing, onRefreshComplete}, ref)
   const [visibleCount, setVisibleCount] = useState(INITIAL_SECTIONS);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
 
+  useEffect(() => {
+    const initLanguage = async () => {
+      try {
+        const lang = await GetLanguageValue();
+        if (lang && isMounted.current) {
+          const primary = lang.split(',')[0].trim();
+          setQuickPicksLanguageFilter(primary);
+        }
+      } catch (e) {}
+    };
+    initLanguage();
+  }, []);
+
   const fetchHomeData = useCallback(
     async (forceRefresh = false) => {
       if (fetchInFlightRef.current) {
@@ -675,7 +688,7 @@ export const YTMusicHomeFeed = forwardRef(({refreshing, onRefreshComplete}, ref)
           CacheManager.invalidate(YTMUSIC_HOME_CACHE_KEY);
           await localRecommendationService.clearCache();
           if (isMounted.current) {
-            setQuickPicksLanguageFilter('');
+            // Keep current language filter instead of resetting to empty
           }
         }
 
@@ -1083,10 +1096,29 @@ export const YTMusicHomeFeed = forwardRef(({refreshing, onRefreshComplete}, ref)
               title={section.title}
               songs={section.songs}
               activeLanguage={quickPicksLanguageFilter}
-              onSongPress={song => {
+              onSongPress={async (song) => {
                 const songLanguage = normalizeLanguage(song?.language);
-                if (songLanguage) {
+                if (songLanguage && songLanguage !== quickPicksLanguageFilter) {
                   setQuickPicksLanguageFilter(songLanguage);
+                  
+                  // Adaptive recommendation: re-fetch specialized content for this language/vibe
+                  // We use the clicked song as a temporary override seed
+                  try {
+                    const nextResult = await YouTubeMusicService.getNext(song?.videoId || song?.id);
+                    if (nextResult && Array.isArray(nextResult.items)) {
+                      setSections(prev => {
+                        return prev.map(s => {
+                          if (s.title === 'Quick Picks') {
+                            const newSongs = dedupeItems([...nextResult.items, ...s.songs]);
+                            return { ...s, songs: newSongs, items: newSongs };
+                          }
+                          return s;
+                        });
+                      });
+                    }
+                  } catch (e) {
+                    console.warn('Failed to adaptive-update Quick Picks', e);
+                  }
                 }
               }}
             />
@@ -1144,12 +1176,12 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   quickPicksContainer: {
-    paddingLeft: 0,
-    paddingRight: 10,
+    paddingLeft: 13,
+    paddingRight: 15,
   },
   quickPicksColumn: {
-    width: SCREEN_WIDTH * 0.85,
-    marginRight: 8,
+    width: SCREEN_WIDTH * 0.82,
+    marginRight: 12,
   },
   emptyState: {
     padding: 40,

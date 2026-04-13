@@ -14,7 +14,7 @@ import {PaddingConatiner} from '../../Layout/PaddingConatiner';
 import {EachAlbumCard} from '../../Component/Global/EachAlbumCard';
 import {RenderTopCharts} from '../../Component/Home/RenderTopCharts';
 import React, {useEffect, useState, useRef, useMemo, useCallback} from 'react';
-import {useIsFocused} from '@react-navigation/native';
+import {useIsFocused, useTheme} from '@react-navigation/native';
 import {getHomePageData} from '../../Api/HomePage';
 import {getSearchPlaylistData} from '../../Api/Playlist';
 import {EachPlaylistCard} from '../../Component/Global/EachPlaylistCard';
@@ -26,6 +26,15 @@ import {DisplayTopGenres} from '../../Component/Home/DisplayTopGenres';
 import {useActiveTrack} from 'react-native-track-player';
 import {EachArtistChip} from '../../Component/Global/EachArtistChip';
 import {getLanguageTopArtists} from '../../Api/Artists';
+import LinearGradient from 'react-native-linear-gradient';
+import {
+  useSharedValue,
+  useAnimatedStyle,
+  withRepeat,
+  withTiming,
+  Easing,
+  interpolate,
+} from 'react-native-reanimated';
 import {
   ShimmerAlbumCard,
   ShimmerHorizontalList,
@@ -56,14 +65,43 @@ export const Home = () => {
   const [cricketFeverPlaylists, setCricketFeverPlaylists] = useState([]);
   const [languageTopArtists, setLanguageTopArtists] = useState([]);
   const [currentLanguage, setCurrentLanguage] = useState('All');
-  const [homeFeedSource, setHomeFeedSource] = useState('YTMusic');
+  const [homeFeedSource, setHomeFeedSource] = useState('Saavn');
   const [secondaryDataLoaded, setSecondaryDataLoaded] = useState(false);
   const isFocused = useIsFocused();
   const refreshTimerRef = useRef(null);
   const ytMusicFeedRef = useRef(null);
   const activeTrack = useActiveTrack();
-  const {height} = Dimensions.get('window');
+  const {height, width} = Dimensions.get('window');
   const scrollThreshold = height * 0.05;
+
+  const {colors, dark} = useTheme();
+  const auraValue = useSharedValue(0);
+
+  useEffect(() => {
+    auraValue.value = withRepeat(
+      withTiming(1, {duration: 6000, easing: Easing.inOut(Easing.ease)}),
+      -1,
+      true,
+    );
+  }, []);
+
+  const auraStyle1 = useAnimatedStyle(() => ({
+    opacity: interpolate(auraValue.value, [0, 1], [0.15, 0.3]),
+    transform: [
+      {scale: interpolate(auraValue.value, [0, 1], [1, 1.3])},
+      {translateX: interpolate(auraValue.value, [0, 1], [0, 50])},
+      {translateY: interpolate(auraValue.value, [0, 1], [0, -30])},
+    ],
+  }));
+
+  const auraStyle2 = useAnimatedStyle(() => ({
+    opacity: interpolate(auraValue.value, [0, 1], [0.1, 0.25]),
+    transform: [
+      {scale: interpolate(auraValue.value, [0, 1], [1.2, 1])},
+      {translateX: interpolate(auraValue.value, [0, 1], [0, -40])},
+      {translateY: interpolate(auraValue.value, [0, 1], [0, 60])},
+    ],
+  }));
 
   // Filter out podcast / non-music entries heuristically before grouping
   const rawAlbums = useMemo(() => {
@@ -120,8 +158,10 @@ export const Home = () => {
 
   const cricketFeverColumns = useMemo(() => {
     const cols = [];
-    for (let i = 0; i < cricketFeverPlaylists.length; i = i + 2) {
-      cols.push(cricketFeverPlaylists.slice(i, i + 2));
+    if (Array.isArray(cricketFeverPlaylists)) {
+      for (let i = 0; i < cricketFeverPlaylists.length; i += 2) {
+        cols.push(cricketFeverPlaylists.slice(i, i + 2));
+      }
     }
     return cols;
   }, [cricketFeverPlaylists]);
@@ -141,11 +181,13 @@ export const Home = () => {
 
   const fetchIndiaSuperhitsPlaylists = useCallback(async () => {
     const playlistIds = [
-      '1134543272',
-      '1134548194',
-      '1134643225',
-      '1134768973',
-    ]; // Hindi, General, Telugu, Bhojpuri
+      '1134543272', // Hindi
+      '1134548194', // General
+      '1134643225', // Telugu
+      '1134768973', // Bhojpuri
+      '107482563',  // English Top 50
+      '153716',     // Global Hits
+    ]; 
     const fetchedPlaylists = [];
 
     for (const id of playlistIds) {
@@ -224,93 +266,35 @@ export const Home = () => {
 
   // Enhanced charts with India Superhits playlists
   const enhancedCharts = useMemo(() => {
-    // Filter playlists based on current language
+    // Current user languages as array
+    const userLangs = (currentLanguage || 'All').toLowerCase().split(',').map(l => l.trim());
+    const isAll = userLangs.includes('all') || userLangs.length === 0;
+
+    // 1. Filter our hardcoded Superhits playlists
     const filteredIndiaSuperhitsPlaylists = indiaSuperhitsPlaylists.filter(
       playlist => {
-        if (currentLanguage === 'All' || !currentLanguage) {
-          return playlist.language === 'all'; // Only show general playlist when all languages selected
+        if (isAll) {
+          return playlist.language === 'all';
         }
-        // Show both language-specific playlist and general playlist
         return (
-          playlist.language === currentLanguage.toLowerCase() ||
+          userLangs.includes(playlist.language.toLowerCase()) ||
           playlist.language === 'all'
         );
       },
     );
 
-    const apiCharts = Data?.data?.charts ?? [];
-    return [...filteredIndiaSuperhitsPlaylists, ...apiCharts];
+    // 2. Filter raw API charts by language title
+    const rawApiCharts = Data?.data?.charts ?? [];
+    const filteredApiCharts = rawApiCharts.filter(chart => {
+      if (isAll) {return true;}
+      const title = (chart.title || chart.name || '').toLowerCase();
+      // Ensure the chart title contains one of the user languages
+      return userLangs.some(lang => title.includes(lang));
+    });
+
+    // Combine them, prioritizing our curated regional superhits
+    return [...filteredIndiaSuperhitsPlaylists, ...filteredApiCharts];
   }, [Data?.data?.charts, currentLanguage, indiaSuperhitsPlaylists]);
-
-  const fetchHomePageData = useCallback(
-    async (silent = false) => {
-      try {
-        if (!silent) {
-          setLoading(true);
-        }
-
-        const savedHomeFeedSource = await GetHomeFeedSource();
-        const activeHomeFeedSource = savedHomeFeedSource || 'YTMusic';
-        setHomeFeedSource(activeHomeFeedSource);
-
-        if (activeHomeFeedSource === 'YTMusic') {
-          setLoading(false);
-          setLoadingSecondary(false);
-          setSecondaryDataLoaded(true);
-          setViralHitsId(null);
-          setTrendingLangId(null);
-          setCricketFeverPlaylists([]);
-          setLanguageTopArtists([]);
-          return;
-        }
-
-        const Languages = await GetLanguageValue();
-        setCurrentLanguage(Languages || 'All');
-
-        // PRIORITY FETCH: Load critical top content first and show immediately
-        const priorityData = await getHomePageData(Languages);
-
-        // Show priority content immediately
-        if (priorityData) {
-          setData(priorityData);
-        } else {
-          setData({
-            data: {
-              albums: [],
-              playlists: [],
-              trending: {songs: [], albums: []},
-              charts: [],
-            },
-          });
-        }
-
-        // Stop main loading - show the feed now
-        if (!silent) {
-          setLoading(false);
-        }
-
-        // Load secondary content asynchronously with delay to prevent overwhelming the API
-        setTimeout(() => {
-          loadSecondaryContent(Languages);
-        }, 500); // Small delay to let UI settle
-      } catch (e) {
-        console.error('Home: Critical error in fetchHomePageData', e);
-        setData({
-          data: {
-            albums: [],
-            playlists: [],
-            trending: {songs: [], albums: []},
-            charts: [],
-          },
-        });
-      } finally {
-        if (!silent) {
-          setLoading(false);
-        }
-      }
-    },
-    [setLoading, setData, setCurrentLanguage, loadSecondaryContent],
-  );
 
   // Separate function for loading secondary content
   const loadSecondaryContent = useCallback(
@@ -338,12 +322,17 @@ export const Home = () => {
 
         // Small delay before loading playlist IDs
         setTimeout(async () => {
+          // For Viral/Trending search, we use the first (primary) selected language if multiple are chosen
+          const primaryLang = Languages && Languages !== 'All' 
+            ? Languages.split(',')[0].trim() 
+            : '';
+            
           const [viralSearch, trendingSearch] = await Promise.allSettled([
-            Languages && Languages !== 'All'
-              ? getSearchPlaylistData(`Viral hits ${Languages}`, 1, 1)
+            primaryLang
+              ? getSearchPlaylistData(`Viral hits ${primaryLang}`, 1, 1)
               : Promise.resolve(null),
-            Languages && Languages !== 'All'
-              ? getSearchPlaylistData(`Trending ${Languages}`, 1, 1)
+            primaryLang
+              ? getSearchPlaylistData(`Trending ${primaryLang}`, 1, 1)
               : Promise.resolve(null),
           ]);
 
@@ -424,6 +413,88 @@ export const Home = () => {
       setLanguageTopArtists,
       setViralHitsId,
       setTrendingLangId,
+      setCricketFeverPlaylists,
+      setSecondaryDataLoaded,
+    ],
+  );
+
+  const fetchHomePageData = useCallback(
+    async (silent = false) => {
+      try {
+        if (!silent) {
+          setLoading(true);
+        }
+
+        const savedHomeFeedSource = await GetHomeFeedSource();
+        const activeHomeFeedSource = savedHomeFeedSource || 'Saavn';
+        setHomeFeedSource(activeHomeFeedSource);
+
+        if (activeHomeFeedSource === 'YTMusic') {
+          setLoading(false);
+          setLoadingSecondary(false);
+          setSecondaryDataLoaded(true);
+          setViralHitsId(null);
+          setTrendingLangId(null);
+          setCricketFeverPlaylists([]);
+          setLanguageTopArtists([]);
+          return;
+        }
+
+        const Languages = await GetLanguageValue();
+        setCurrentLanguage(Languages || 'All');
+
+        // PRIORITY FETCH: Load critical top content first and show immediately
+        const priorityData = await getHomePageData(Languages);
+
+        // Show priority content immediately
+        if (priorityData) {
+          setData(priorityData);
+        } else {
+          setData({
+            data: {
+              albums: [],
+              playlists: [],
+              trending: {songs: [], albums: []},
+              charts: [],
+            },
+          });
+        }
+
+        // Stop main loading - show the feed now
+        if (!silent) {
+          setLoading(false);
+        }
+
+        // Load secondary content asynchronously with delay to prevent overwhelming the API
+        setTimeout(() => {
+          loadSecondaryContent(Languages);
+        }, 500); // Small delay to let UI settle
+      } catch (e) {
+        console.error('Home: Critical error in fetchHomePageData', e);
+        setData({
+          data: {
+            albums: [],
+            playlists: [],
+            trending: {songs: [], albums: []},
+            charts: [],
+          },
+        });
+      } finally {
+        if (!silent) {
+          setLoading(false);
+        }
+      }
+    },
+    [
+      setLoading,
+      setData,
+      setCurrentLanguage,
+      loadSecondaryContent,
+      setHomeFeedSource,
+      setViralHitsId,
+      setTrendingLangId,
+      setCricketFeverPlaylists,
+      setLanguageTopArtists,
       setSecondaryDataLoaded,
     ],
   );
@@ -439,20 +510,16 @@ export const Home = () => {
     setRefreshing(false);
   };
 
-  const getChartId = index => {
-    const chart = Data?.data?.charts?.[index];
-    if (!chart) {
+  const getChartId = useCallback(index => {
+    const charts = enhancedCharts; // Use already filtered enhancedCharts
+    if (!Array.isArray(charts) || charts.length === 0) {
       return null;
     }
 
-    const title = (chart.title || chart.name || '').toLowerCase();
-    // Skip decade/compilation charts like "2000s" to avoid duplicate Selected Language sections
-    if (title.includes('2000s')) {
-      return null;
-    }
-
-    return chart.id;
-  };
+    // Since enhancedCharts is already language-filtered, we can just grab items by index
+    // Using modulo ensures we always return something even if index > length
+    return charts[index % charts.length]?.id || null;
+  }, [enhancedCharts]);
 
   useEffect(() => {
     fetchHomePageData();
@@ -463,7 +530,7 @@ export const Home = () => {
     });
 
     GetHomeFeedSource().then(source => {
-      const activeSource = source || 'YTMusic';
+      const activeSource = source || 'Saavn';
       setHomeFeedSource(activeSource);
       if (activeSource !== 'YTMusic') {
         fetchIndiaSuperhitsPlaylists();
@@ -477,7 +544,7 @@ export const Home = () => {
     }
 
     GetHomeFeedSource().then(source => {
-      const activeSource = source || 'YTMusic';
+      const activeSource = source || 'Saavn';
       if (activeSource !== homeFeedSource) {
         setHomeFeedSource(activeSource);
         if (activeSource !== 'YTMusic') {
@@ -513,7 +580,7 @@ export const Home = () => {
   if (Loading && homeFeedSource !== 'YTMusic') {
     return (
       <MainWrapper>
-        <HomeSkeletonLoader source={homeFeedSource || 'YTMusic'} />
+        <HomeSkeletonLoader source={homeFeedSource || 'Saavn'} />
       </MainWrapper>
     );
   }
@@ -521,9 +588,47 @@ export const Home = () => {
   if (homeFeedSource === 'YTMusic') {
     return (
       <MainWrapper>
-        <Animated.View entering={FadeIn.duration(400)}>
+        {/* Beautiful Aura Background */}
+        <View style={{position: 'absolute', top: 0, left: 0, right: 0, height: height, zIndex: -1}}>
+          <LinearGradient
+            colors={[dark ? '#0a0a0a' : '#f8f8f8', dark ? '#000000' : '#ffffff']}
+            style={{flex: 1}}
+          />
+          <Animated.View
+            style={[
+              {
+                position: 'absolute',
+                top: -50,
+                right: -50,
+                width: width * 0.8,
+                height: width * 0.8,
+                borderRadius: width * 0.4,
+                backgroundColor: dark ? 'rgba(29, 185, 84, 0.4)' : 'rgba(29, 185, 84, 0.2)',
+                filter: 'blur(80px)',
+              },
+              auraStyle1,
+            ]}
+          />
+          <Animated.View
+            style={[
+              {
+                position: 'absolute',
+                bottom: 100,
+                left: -100,
+                width: width * 0.9,
+                height: width * 0.9,
+                borderRadius: width * 0.45,
+                backgroundColor: dark ? 'rgba(64, 224, 208, 0.3)' : 'rgba(64, 224, 208, 0.15)',
+                filter: 'blur(100px)',
+              },
+              auraStyle2,
+            ]}
+          />
+        </View>
+
+        <Animated.View entering={FadeIn.duration(400)} style={{flex: 1}}>
           <ErrorBoundary name="HomeContent">
-            <View>
+            <View style={{flex: 1}}>
               <ScrollView
                 onScroll={e => {
                   const {contentOffset, layoutMeasurement, contentSize} = e.nativeEvent;
@@ -545,7 +650,7 @@ export const Home = () => {
                 scrollEventThrottle={16}
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={{
-                  paddingBottom: activeTrack ? 105 : 70,
+                  paddingBottom: activeTrack ? 120 : 80,
                 }}
                 refreshControl={
                   <RefreshControl
@@ -829,7 +934,7 @@ export const Home = () => {
                 <PaddingConatiner>
                   <Spacer />
                   <Spacer />
-                  <Heading text={`Trending ${currentLanguage !== 'All' ? currentLanguage + ' ' : ''}Songs`} nospace={true} />
+                  <Heading text={`Trending ${currentLanguage !== 'All' ? (currentLanguage.includes(',') ? currentLanguage.split(',')[0] : currentLanguage) + ' ' : ''}Songs`} nospace={true} />
                   <Spacer />
                 </PaddingConatiner>
                 <ShimmerHorizontalSongList />

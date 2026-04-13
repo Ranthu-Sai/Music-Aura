@@ -2,7 +2,7 @@ import {View, Pressable} from 'react-native';
 import React, {memo, useMemo} from 'react';
 import {PlainText} from '../Global/PlainText';
 import {MarqueeText} from '../Global/MarqueeText';
-import Animated, {FadeIn} from 'react-native-reanimated';
+import Animated, {FadeIn, runOnJS} from 'react-native-reanimated';
 import {
   GestureDetector,
   Gesture,
@@ -58,8 +58,11 @@ const CircularProgress = memo(({size = 56, strokeWidth = 2, colors = ['#1DB954',
 
   const anim = React.useRef(new RNAnimated.Value(0));
   React.useEffect(() => {
+    // Guard against NaN or invalid percentages
+    const safePct = isNaN(pct) ? 0 : Math.max(0, Math.min(pct, 1));
+    
     RNAnimated.timing(anim.current, {
-      toValue: pct,
+      toValue: safePct,
       duration: 250,
       easing: require('react-native').Easing.linear,
       useNativeDriver: false,
@@ -101,18 +104,19 @@ const CircularProgress = memo(({size = 56, strokeWidth = 2, colors = ['#1DB954',
 
 export const MinimizedMusic = memo(({setIndex, color}) => {
 
-  const pan = Gesture.Pan()
+  const pan = React.useMemo(() => Gesture.Pan()
     .minDistance(20)
     .onFinalize(e => {
+      'worklet';
       if (e.translationX > 80) {
-        PlayPreviousSong();
+        runOnJS(PlayPreviousSong)();
       } else if (e.translationX < -80) {
-        PlayNextSong();
+        runOnJS(PlayNextSong)();
       } else if (Math.abs(e.translationX) < 20) {
         // Only open full player if tap (minimal movement)
-        setIndex(1);
+        runOnJS(setIndex)(1);
       }
-    });
+    }), [setIndex]);
 
   // Use provided color prop to build a colorful gradient for the border
   const gradientColors = useMemo(() => {

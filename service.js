@@ -10,7 +10,8 @@ import historyManager from './Utils/HistoryManager';
 import autoRecommendations from './Utils/AutoRecommendations';
 import ManualSkipFlag from './Utils/ManualSkipFlag';
 import youtubeStreamingService from './Utils/YouTubeStreamingService';
-// SmartPrefetchManager is initialized from UI; disabled in headless to preserve queue order
+import smartPrefetchManager from './Utils/SmartPrefetchManager';
+// SmartPrefetchManager is now initialized in both UI and headless for seamless background playback
 
 let isPlayerInitialized = false;
 let initializePromise = null;
@@ -36,95 +37,118 @@ export default async function PlaybackService() {
     }
 
     streamResolutionPromise = (async () => {
-    try {
-      const activeTrack = await TrackPlayer.getActiveTrack();
-      const activeIndex = await TrackPlayer.getActiveTrackIndex();
-      const queue = await TrackPlayer.getQueue();
+      try {
+        const activeTrack = await TrackPlayer.getActiveTrack();
+        const activeIndex = await TrackPlayer.getActiveTrackIndex();
+        const queue = await TrackPlayer.getQueue();
 
-      if (
-        !activeTrack ||
-        typeof activeIndex !== 'number' ||
-        activeIndex < 0 ||
-        activeIndex >= queue.length
-      ) {
+        if (
+          !activeTrack ||
+          typeof activeIndex !== 'number' ||
+          activeIndex < 0 ||
+          activeIndex >= queue.length
+        ) {
+          return false;
+        }
+
+        const hasPlaceholderUrl =
+          typeof activeTrack.url === 'string' &&
+          activeTrack.url.startsWith('ytmusic://');
+        const needsStream =
+          activeTrack._needsStream === true ||
+          activeTrack.isYTMusic === true ||
+          hasPlaceholderUrl;
+
+        if (!needsStream) {
+          return false;
+        }
+
+        const videoId =
+          activeTrack.id ||
+          (hasPlaceholderUrl ? activeTrack.url.replace('ytmusic://', '') : null);
+
+        if (!videoId) {
+          return false;
+        }
+
+        const streamData = await youtubeStreamingService.getStreamUrl(videoId);
+        if (!streamData || !streamData.url) {
+          return false;
+        }
+
+        // Re-verify position and track ID haven't changed during async call
+        const latestTrack = await TrackPlayer.getActiveTrack();
+        const latestIndex = await TrackPlayer.getActiveTrackIndex();
+        const latestQueue = await TrackPlayer.getQueue();
+
+        if (
+          !latestTrack ||
+          latestTrack.id !== activeTrack.id ||
+          latestIndex !== activeIndex ||
+          latestIndex < 0 ||
+          latestIndex >= latestQueue.length
+        ) {
+          return false;
+        }
+
+        const wasPlaying = (await TrackPlayer.getState()) === State.Playing;
+
+        const updatedTrack = {
+          ...activeTrack,
+          id: videoId,
+          url: streamData.url,
+          headers: streamData.headers,
+          userAgent: streamData.headers?.['User-Agent'],
+          artwork: streamData.thumbnail || activeTrack.artwork,
+          duration: streamData.duration || activeTrack.duration,
+          title: activeTrack.title || streamData.title,
+          _needsStream: false,
+          isYTMusic: true,
+        };
+
+        if (wasPlaying) {
+          try {
+            await TrackPlayer.pause();
+          } catch (_) {}
+        }
+
+        // Critical: Verify indices again before mutating queue
+        const finalQueue = await TrackPlayer.getQueue();
+        if (latestIndex < finalQueue.length && finalQueue[latestIndex]?.id === activeTrack.id) {
+          ManualSkipFlag.suppress();
+          
+          // NON-DISRUPTIVE SWAP: Add before remove to prevent player auto-advance
+          // 1. Add the updated track at the TARGET index (pushes old one to index + 1)
+          await TrackPlayer.add(updatedTrack, latestIndex);
+          
+          // 2. Skip to the new track immediately
+          await TrackPlayer.skip(latestIndex);
+          
+          // 3. Remove the old track (now at latestIndex + 1)
+          await TrackPlayer.remove(latestIndex + 1);
+
+          if (wasPlaying) {
+            await TrackPlayer.play();
+          }
+          
+          // Prefetch NEXT track stream to ensure seamless continuation
+          const nextIndex = latestIndex + 1;
+          if (nextIndex < finalQueue.length) {
+              const nextTrack = finalQueue[nextIndex];
+              if (nextTrack && (nextTrack._needsStream || nextTrack.isYTMusic || (typeof nextTrack.url === 'string' && nextTrack.url.startsWith('ytmusic://')))) {
+                  youtubeStreamingService.getStreamUrl(nextTrack.id).catch(() => {});
+              }
+          }
+          
+          return true;
+        }
         return false;
-      }
-
-      const hasPlaceholderUrl =
-        typeof activeTrack.url === 'string' &&
-        activeTrack.url.startsWith('ytmusic://');
-      const needsStream =
-        activeTrack._needsStream === true ||
-        activeTrack.isYTMusic === true ||
-        hasPlaceholderUrl;
-
-      if (!needsStream) {
+      } catch (err) {
+        console.warn('ensureActiveTrackStreamReady failed', err);
         return false;
+      } finally {
+        streamResolutionPromise = null;
       }
-
-      const videoId =
-        activeTrack.id ||
-        (hasPlaceholderUrl ? activeTrack.url.replace('ytmusic://', '') : null);
-
-      if (!videoId) {
-        return false;
-      }
-
-      const streamData = await youtubeStreamingService.getStreamUrl(videoId);
-      if (!streamData || !streamData.url) {
-        return false;
-      }
-
-      const latestTrack = await TrackPlayer.getActiveTrack();
-      const latestIndex = await TrackPlayer.getActiveTrackIndex();
-
-      if (
-        !latestTrack ||
-        latestTrack.id !== activeTrack.id ||
-        latestIndex !== activeIndex
-      ) {
-        return false;
-      }
-
-      const wasPlaying = (await TrackPlayer.getState()) === State.Playing;
-
-      const updatedTrack = {
-        ...activeTrack,
-        id: videoId,
-        url: streamData.url,
-        headers: streamData.headers,
-        userAgent: streamData.headers?.['User-Agent'],
-        artwork: streamData.thumbnail || activeTrack.artwork,
-        duration: streamData.duration || activeTrack.duration,
-        title: activeTrack.title || streamData.title,
-        _needsStream: false,
-        isYTMusic: true,
-      };
-
-      if (wasPlaying) {
-        try {
-          await TrackPlayer.pause();
-        } catch (_) {}
-      }
-
-      ManualSkipFlag.suppress();
-      await TrackPlayer.remove(activeIndex);
-      const remainingQueue = await TrackPlayer.getQueue();
-      const insertionIndex = Math.min(activeIndex, remainingQueue.length);
-      await TrackPlayer.add(updatedTrack, insertionIndex);
-      await TrackPlayer.skip(insertionIndex);
-
-      if (wasPlaying) {
-        await TrackPlayer.play();
-      }
-
-      return true;
-    } catch (err) {
-      console.warn('ensureActiveTrackStreamReady failed', err);
-      return false;
-    } finally {
-      streamResolutionPromise = null;
-    }
     })();
 
     return streamResolutionPromise;
@@ -339,13 +363,45 @@ export default async function PlaybackService() {
     })();
   });
 
-  // If active track is a placeholder URL, resolve it and retry playback.
-  TrackPlayer.addEventListener(Event.PlaybackError, () => {
+  // Robust PlaybackError recovery: handle placeholder failure and expired URLs
+  let errorCount = 0;
+  let lastErrorTime = 0;
+  
+  TrackPlayer.addEventListener(Event.PlaybackError, (error) => {
     (async () => {
       try {
-        const resolved = await ensureActiveTrackStreamReady();
-        if (resolved) {
-          await TrackPlayer.play();
+        const now = Date.now();
+        // Prevent recursive error loops
+        if (now - lastErrorTime < 2000) {
+            errorCount++;
+        } else {
+            errorCount = 1;
+        }
+        lastErrorTime = now;
+        
+        if (errorCount > 5) {
+            console.warn('PlaybackError loop detected, pausing');
+            await TrackPlayer.pause();
+            return;
+        }
+
+        const activeTrack = await TrackPlayer.getActiveTrack();
+        if (!activeTrack) return;
+
+        const isPlaceholder = typeof activeTrack.url === 'string' && activeTrack.url.startsWith('ytmusic://');
+        
+        // If it failed and is a placeholder, OR it failed and is YTMusic (might be expired URL)
+        if (isPlaceholder || activeTrack.isYTMusic) {
+          // Force fresh fetch for the failed track
+          const resolved = await ensureActiveTrackStreamReady();
+          if (resolved) {
+            await TrackPlayer.play();
+          } else {
+            // If resolution still fails, try skipping to next to avoid being stuck
+            console.warn('PlaybackError: resolution failed, skipping to next');
+            await TrackPlayer.skipToNext();
+            await TrackPlayer.play();
+          }
         }
       } catch (e) {
         console.warn('PlaybackError recovery failed', e);
@@ -506,6 +562,10 @@ export default async function PlaybackService() {
 
       // Initialize history manager (now lightweight)
       await historyManager.initialize();
+
+      // Enable SmartPrefetchManager in headless mode for background pre-resolution
+      smartPrefetchManager.setHeadlessMode(true);
+      smartPrefetchManager.initialize();
     } catch (error) {
       if (
         error.message &&

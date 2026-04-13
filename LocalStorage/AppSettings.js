@@ -201,9 +201,9 @@ async function GetHomeFeedSource() {
     if (value !== null) {
       return value;
     }
-    return 'YTMusic';
+    return 'Saavn';
   } catch (e) {
-    return 'YTMusic';
+    return 'Saavn';
   }
 }
 
@@ -222,9 +222,9 @@ async function GetYtMusicLanguage() {
     if (value !== null) {
       return value;
     }
-    return 'en';
+    return 'en-IN';
   } catch (e) {
-    return 'en';
+    return 'en-IN';
   }
 }
 

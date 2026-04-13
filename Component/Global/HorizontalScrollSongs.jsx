@@ -53,10 +53,13 @@ export const HorizontalScrollSongs = React.memo(({id}) => {
       />
       <Spacer />
       {!Loading && songs.length > 0 && (
-        <ScrollView horizontal={true} showsHorizontalScrollIndicator={false}>
+        <ScrollView
+          horizontal={true}
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{paddingLeft: 13, paddingRight: 15}}>
           <View>
             {songs.slice(0, 4).map((e, i) => (
-              <View key={e?.id ?? `song-${i}`} style={{marginBottom: 7}}>
+              <View key={e?.id ?? `song-${i}`} style={{marginBottom: 3}}>
                 <EachSongCard
                   index={i}
                   isFromPlaylist={true}
@@ -90,7 +93,7 @@ export const HorizontalScrollSongs = React.memo(({id}) => {
           </View>
           <View>
             {songs.slice(4, 8).map((e, i) => (
-              <View key={e?.id ?? `song-${i + 4}`} style={{marginBottom: 7}}>
+              <View key={e?.id ?? `song-${i + 4}`} style={{marginBottom: 3}}>
                 <EachSongCard
                   index={i + 4}
                   Data={Data}

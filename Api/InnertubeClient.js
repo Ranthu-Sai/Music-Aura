@@ -101,6 +101,10 @@ class InnerTubeClient {
         }),
       });
 
+      if (!response.ok) {
+        throw new Error(`InnerTube API error: ${response.status}`);
+      }
+
       const data = await response.json();
 
       if (data?.responseContext?.visitorData && !effectiveVisitorData) {
@@ -161,12 +165,42 @@ class InnerTubeClient {
       if (ytAuthService.isAuth()) {
         authCookies = await ytAuthService.getCookies();
       }
+      
+      // Check both YTMusic specific and general app language keys
       const storedLang = await AsyncStorage.getItem('ytmusic_language');
+      const appLang = await AsyncStorage.getItem('Language');
       const storedCountry = await AsyncStorage.getItem('ytmusic_country');
 
-      if (storedLang) {
-        userLanguage = storedLang;
+      const selectedLang = storedLang || appLang || 'SYSTEM_DEFAULT';
+      
+      if (selectedLang && selectedLang !== 'SYSTEM_DEFAULT') {
+        const regionalIndianLangs = [
+          'telugu', 'hindi', 'tamil', 'kannada', 'malayalam', 
+          'punjabi', 'bengali', 'bhojpuri', 'gujarati', 'marathi', 'odia', 'assamese'
+        ];
+        
+        const langMap = {
+          'telugu': 'te',
+          'hindi': 'hi',
+          'tamil': 'ta',
+          'kannada': 'kn',
+          'malayalam': 'ml',
+          'punjabi': 'pa',
+          'bengali': 'bn',
+          'english': 'en-GB',
+          'marathi': 'mr',
+          'gujarati': 'gu',
+        };
+        
+        const primaryLang = selectedLang.toLowerCase().split(',')[0].trim();
+        userLanguage = langMap[primaryLang] || 'en-GB';
+        
+        // If it's an Indian regional language, force region to IN if not explicitly set
+        if (!storedCountry && regionalIndianLangs.includes(primaryLang)) {
+          userCountry = 'IN';
+        }
       }
+
       if (storedCountry) {
         userCountry = storedCountry;
       }
@@ -2111,6 +2145,8 @@ class InnerTubeClient {
 
   /**
    * Fetch Charts from FEmusic_charts endpoint
+   * Includes Top Songs, Top Artists,  /**
+   * Fetch Charts from FEmusic_charts endpoint
    * Includes Top Songs, Top Artists, Trending tracks, etc.
    */
   static async getCharts() {
@@ -2129,12 +2165,45 @@ class InnerTubeClient {
     }
 
     try {
-      // Get language/country preferences
       const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+      
+      // Synchronize with app-wide language preference
       const storedLang = await AsyncStorage.getItem('ytmusic_language');
+      const appLang = await AsyncStorage.getItem('Language');
       const storedCountry = await AsyncStorage.getItem('ytmusic_country');
-      if (storedLang) {userLanguage = storedLang;}
-      if (storedCountry) {userCountry = storedCountry;}
+
+      const selectedLang = storedLang || appLang || 'SYSTEM_DEFAULT';
+      
+      if (selectedLang && selectedLang !== 'SYSTEM_DEFAULT') {
+        const regionalIndianLangs = [
+          'telugu', 'hindi', 'tamil', 'kannada', 'malayalam', 
+          'punjabi', 'bengali', 'bhojpuri', 'gujarati', 'marathi', 'odia', 'assamese'
+        ];
+        
+        const langMap = {
+          'telugu': 'te',
+          'hindi': 'hi',
+          'tamil': 'ta',
+          'kannada': 'kn',
+          'malayalam': 'ml',
+          'punjabi': 'pa',
+          'bengali': 'bn',
+          'english': 'en-GB',
+          'marathi': 'mr',
+          'gujarati': 'gu',
+        };
+        const primaryLang = selectedLang.toLowerCase().split(',')[0].trim();
+        userLanguage = langMap[primaryLang] || 'en-GB';
+
+        // If it's an Indian regional language, force region to IN if not explicitly set
+        if (!storedCountry && regionalIndianLangs.includes(primaryLang)) {
+          userCountry = 'IN';
+        }
+      }
+
+      if (storedCountry) {
+        userCountry = storedCountry;
+      }
     } catch (e) {
       // AsyncStorage not available or error reading
     }
@@ -2165,32 +2234,17 @@ class InnerTubeClient {
           let sectionTitle = '';
           let itemsList = [];
 
-          // 1. CAROUSEL
-          if (section.musicCarouselShelfRenderer) {
-            const r = section.musicCarouselShelfRenderer;
-            sectionTitle =
-              r.header?.musicCarouselShelfBasicHeaderRenderer?.title?.runs?.[0]
-                ?.text;
-            itemsList = r.contents || [];
-          }
-          // 2. SHELF (Vertical List)
-          else if (section.musicShelfRenderer) {
-            const r = section.musicShelfRenderer;
-            sectionTitle =
-              r.header?.musicShelfRendererHeader?.title?.runs?.[0]?.text ||
-              r.title?.runs?.[0]?.text;
-            itemsList = r.contents || [];
-          }
-          // 3. GRID
-          else if (section.gridRenderer) {
-            const r = section.gridRenderer;
-            sectionTitle = r.header?.gridHeaderRenderer?.title?.runs?.[0]?.text;
-            itemsList = r.items || [];
+          const r = section.musicCarouselShelfRenderer || section.musicShelfRenderer || section.gridRenderer;
+          if (r) {
+            sectionTitle = r.header?.musicCarouselShelfBasicHeaderRenderer?.title?.runs?.[0]?.text ||
+                          r.header?.musicShelfRendererHeader?.title?.runs?.[0]?.text ||
+                          r.title?.runs?.[0]?.text ||
+                          r.header?.gridHeaderRenderer?.title?.runs?.[0]?.text || '';
+            itemsList = r.contents || r.items || [];
           }
 
           // Process items found in this section
           itemsList.forEach((item) => {
-            // Handle different renderer types
             const twoRowRenderer = item.musicTwoRowItemRenderer;
             const responsiveRenderer = item.musicResponsiveListItemRenderer;
             const renderer = twoRowRenderer || responsiveRenderer;

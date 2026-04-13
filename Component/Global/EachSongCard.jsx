@@ -409,80 +409,91 @@ export const EachSongCard = memo(function EachSongCard({
             ? 'rgba(52, 152, 219, 0.3)'
             : 'transparent',
         }}>
-        <Pressable
-          onPress={AddSongToPlayer}
-          disabled={isLoading}
+        <View
           style={{
             flexDirection: 'row',
-            gap: 8,
             alignItems: 'center',
-            elevation: 10,
-            marginBottom: 4,
             flex: 1,
-            opacity: isLoading ? 0.5 : 1,
           }}>
-          <SongStatusImage id={id} artworkUri={artworkUri} />
-          <View
+          <Pressable
+            onPress={AddSongToPlayer}
+            disabled={isLoading}
             style={{
+              flexDirection: 'row',
+              gap: 12,
+              alignItems: 'center',
               flex: 1,
+              opacity: isLoading ? 0.5 : 1,
             }}>
-            {displayTitle ? (
-              <PlainText
-                text={FormatTitleAndArtist(displayTitle, artist)}
-                style={{
-                  width: titleandartistwidth
-                    ? titleandartistwidth
-                    : width1 * 0.67,
-                }}
-              />
-            ) : (
-              <ShimmerEffect
-                width={titleandartistwidth ? titleandartistwidth : width1 * 0.5}
-                height={16}
-                borderRadius={5}
-              />
-            )}
-            {artist ? (
-              <SmallText
-                text={FormatTitleAndArtist(artist)}
-                style={{
-                  width: titleandartistwidth
-                    ? titleandartistwidth
-                    : width1 * 0.67,
-                }}
-              />
-            ) : (
-              <View style={{marginTop: 6}}>
-                <ShimmerEffect
-                  width={titleandartistwidth ? titleandartistwidth : width1 * 0.35}
-                  height={14}
-                  borderRadius={4}
+            <SongStatusImage id={id} artworkUri={artworkUri} />
+            <View
+              style={{
+                flex: 1,
+                paddingRight: 45, // Increased padding to avoid overlap with menu button
+              }}>
+              {displayTitle ? (
+                <PlainText
+                  text={FormatTitleAndArtist(displayTitle, artist)}
+                  numberOfLine={1}
+                  style={{
+                    fontSize: width1 * 0.038,
+                    width: '100%',
+                  }}
                 />
-              </View>
-            )}
+              ) : (
+                <ShimmerEffect
+                  width={width1 * 0.5}
+                  height={16}
+                  borderRadius={5}
+                />
+              )}
+              <View style={{height: 2}} />
+              {artist ? (
+                <SmallText
+                  text={FormatTitleAndArtist(artist)}
+                  maxLine={2} // Allow artist to fill the second line as requested
+                  style={{
+                    fontSize: width1 * 0.032,
+                    opacity: 0.7,
+                    width: '100%',
+                  }}
+                />
+              ) : (
+                <View style={{marginTop: 4}}>
+                  <ShimmerEffect
+                    width={width1 * 0.35}
+                    height={14}
+                    borderRadius={4}
+                  />
+                </View>
+              )}
+            </View>
+          </Pressable>
+          
+          <View style={{position: 'absolute', right: 5, top: '50%', marginTop: -20}}>
+            <EachSongMenuButton
+              Onpress={() => {
+                setVisible({
+                  visible: true,
+                  title: displayTitle,
+                  artist,
+                  image: artworkUri,
+                  id,
+                  url,
+                  duration,
+                  language,
+                  playlistId,
+                  albumId,
+                  albumName,
+                  navigation,
+                  isHistory,
+                  onRemove,
+                  source,
+                });
+              }}
+            />
           </View>
-        </Pressable>
-        <EachSongMenuButton
-          Onpress={() => {
-            setVisible({
-              visible: true,
-              title: displayTitle,
-              artist,
-              image: artworkUri,
-              id,
-              url,
-              duration,
-              language,
-              playlistId,
-              albumId,
-              albumName,
-              navigation,
-              isHistory,
-              onRemove,
-              source,
-            });
-          }}
-        />
+        </View>
       </View>
     </>
   );

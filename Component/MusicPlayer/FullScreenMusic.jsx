@@ -39,6 +39,7 @@ import Context, {ActionsContext} from '../../Context/Context';
 import {Repeats} from '../../Utils/Repeats';
 import TrackPlayer, {useActiveTrack} from 'react-native-track-player';
 import {Gesture, GestureDetector} from 'react-native-gesture-handler';
+import {runOnJS} from 'react-native-reanimated';
 import {
   PlayNextSong,
   PlayPreviousSong,
@@ -99,7 +100,11 @@ const SleepTimerBadge = memo(({sleepTime, sleepTimerRef, onTimerEnd}) => {
     }
 
     return () => {
-      // Keep timer running unless canceled/ended explicitly to avoid flicker when navigating
+      // Clean up interval on unmount
+      if (sleepTimerRef.current) {
+        clearInterval(sleepTimerRef.current);
+        sleepTimerRef.current = null;
+      }
     };
   }, [sleepTime, sleepTimerRef, onTimerEnd]);
 
@@ -228,12 +233,13 @@ export const FullScreenMusic = memo(({color, Index, setIndex}) => {
   const pan = React.useMemo(() => {
     const g = Gesture.Pan();
     g.onFinalize(e => {
+      'worklet';
       if (e.translationX > 50) {
-        PlayPreviousSong();
+        runOnJS(PlayPreviousSong)();
       } else if (e.translationX < -50) {
-        PlayNextSong();
+        runOnJS(PlayNextSong)();
       } else if (e.translationY > 80) {
-        setIndex(0);
+        runOnJS(setIndex)(0);
       }
     });
     return g;

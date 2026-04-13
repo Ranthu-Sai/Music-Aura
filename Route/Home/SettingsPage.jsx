@@ -211,8 +211,8 @@ export const SettingsPage = ({navigation}) => {
   const [Playback, setPlayback] = useState('320kbps');
   const [Download, setDownload] = useState('Music');
   const [Theme, setThemeState] = useState('Default');
-  const [homeFeedSource, setHomeFeedSource] = useState('YTMusic');
-  const [ytMusicLanguage, setYtMusicLanguage] = useState('en');
+  const [homeFeedSource, setHomeFeedSource] = useState('Saavn');
+  const [ytMusicLanguage, setYtMusicLanguage] = useState('en-IN');
   const [ytMusicCountry, setYtMusicCountry] = useState('IN');
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
   const appVersion = DeviceInfo.getVersion();
@@ -418,9 +418,8 @@ export const SettingsPage = ({navigation}) => {
               title="YTMusic Language"
               icon="translate"
               data={[
-                {label: 'English', value: 'en'},
-                {label: 'Hindi', value: 'hi'},
                 {label: 'English (India)', value: 'en-IN'},
+                {label: 'Hindi', value: 'hi'},
                 {label: 'Tamil', value: 'ta'},
                 {label: 'Telugu', value: 'te'},
                 {label: 'Kannada', value: 'kn'},

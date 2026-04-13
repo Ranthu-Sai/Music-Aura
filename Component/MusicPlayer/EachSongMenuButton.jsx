@@ -11,14 +11,17 @@ export const EachSongMenuButton = ({Onpress}) => {
       }}
       style={{
         padding: 10,
-        backgroundColor: 'rgb(28,28,28)',
+        backgroundColor: 'transparent', // Transparent background for a cleaner look
         borderRadius: 100,
-        marginRight: 20, // nudge slightly left from the screen edge
+        marginRight: 0, // Reset margin since it's now absolutely positioned
+        justifyContent: 'center',
+        alignItems: 'center',
       }}>
       <Entypo
         name={'dots-three-vertical'}
-        size={17}
+        size={18}
         color={theme.colors.text}
+        style={{opacity: 0.6}}
       />
     </Pressable>
   );
