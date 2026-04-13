@@ -20,6 +20,7 @@ import localRecommendationService from '../../Utils/LocalRecommendationService';
 import {CacheManager} from '../../Utils/NavigationCacheManager';
 import {CACHE_TTL, CACHE_KEYS, generateCacheKey} from '../../Utils/CacheConfig';
 import InnertubeClient from '../../Api/InnertubeClient';
+import {GetLanguageValue} from '../../LocalStorage/Languages';
 
 const INITIAL_SECTIONS = 3;
 const SECTIONS_PER_LOAD = 2;
@@ -1100,7 +1101,7 @@ export const YTMusicHomeFeed = forwardRef(({refreshing, onRefreshComplete}, ref)
                 const songLanguage = normalizeLanguage(song?.language);
                 if (songLanguage && songLanguage !== quickPicksLanguageFilter) {
                   setQuickPicksLanguageFilter(songLanguage);
-                  
+
                   // Adaptive recommendation: re-fetch specialized content for this language/vibe
                   // We use the clicked song as a temporary override seed
                   try {

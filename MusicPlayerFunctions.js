@@ -21,7 +21,6 @@ import {
 } from './Utils/ArtworkEnhancer';
 import autoRecommendations from './Utils/AutoRecommendations';
 import skipOperationManager from './Utils/SkipOperationManager';
-import streamFetchManager from './Utils/StreamFetchManager';
 import smartPrefetchManager from './Utils/SmartPrefetchManager';
 import FormatTitleAndArtist from './Utils/FormatTitleAndArtist';
 import ManualSkipFlag from './Utils/ManualSkipFlag';
@@ -403,20 +402,6 @@ async function PlayOneSong(song, options = {}) {
         _needsStream: true,
         isYTMusic: true,
       };
-
-      // Warm stream cache in background; service/PlaybackError path will replace placeholder.
-      streamFetchManager
-        .fetchStream(song.id, async (videoId, signal) => {
-          return await youtubeStreamingService.getStreamUrl(videoId, signal);
-        })
-        .then(streamData => {
-          if (streamData?.url) {
-            skipOperationManager.resetErrorCounter();
-          }
-        })
-        .catch(error => {
-          console.warn('YouTube stream prefetch failed:', error?.message || error);
-        });
     } else {
       // If song has multiple quality URLs, select based on setting
       if (song.downloadUrl && Array.isArray(song.downloadUrl)) {

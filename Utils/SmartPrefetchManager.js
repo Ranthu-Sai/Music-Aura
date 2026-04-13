@@ -383,12 +383,18 @@ class SmartPrefetchManager {
             ManualSkipFlag.suppress();
             await TrackPlayer.add(updatedTrack, safeIndex);
             await TrackPlayer.skip(safeIndex);
-            await TrackPlayer.remove(safeIndex + 1);
+            const queueAfterSwap = await TrackPlayer.getQueue();
+            if (safeIndex + 1 < queueAfterSwap.length) {
+              await TrackPlayer.remove(safeIndex + 1);
+            }
             if (wasPlaying) { await TrackPlayer.play(); }
           } else {
             // SWAP INACTIVE TRACK: Simple insert then remove
             await TrackPlayer.add(updatedTrack, safeIndex);
-            await TrackPlayer.remove(safeIndex + 1);
+            const queueAfterSwap = await TrackPlayer.getQueue();
+            if (safeIndex + 1 < queueAfterSwap.length) {
+              await TrackPlayer.remove(safeIndex + 1);
+            }
           }
         } catch (error) {
           console.error('Error replacing track:', error.message);
@@ -428,11 +434,17 @@ class SmartPrefetchManager {
         ManualSkipFlag.suppress();
         await TrackPlayer.add(updatedTrack, safeIndex);
         await TrackPlayer.skip(safeIndex);
-        await TrackPlayer.remove(safeIndex + 1);
+        const queueAfterSwap = await TrackPlayer.getQueue();
+        if (safeIndex + 1 < queueAfterSwap.length) {
+          await TrackPlayer.remove(safeIndex + 1);
+        }
         if (wasPlaying) { await TrackPlayer.play(); }
       } else {
         await TrackPlayer.add(updatedTrack, safeIndex);
-        await TrackPlayer.remove(safeIndex + 1);
+        const queueAfterSwap = await TrackPlayer.getQueue();
+        if (safeIndex + 1 < queueAfterSwap.length) {
+          await TrackPlayer.remove(safeIndex + 1);
+        }
       }
     } catch (error) {
       console.error('Error in replaceTrackImmediately:', error.message);
@@ -493,8 +505,11 @@ class SmartPrefetchManager {
       // Safe substitution:
       await TrackPlayer.add(updatedTrack, safeIndex);
       await TrackPlayer.skip(safeIndex);
-      await TrackPlayer.remove(safeIndex + 1);
-      
+      const queueAfterSwap = await TrackPlayer.getQueue();
+      if (safeIndex + 1 < queueAfterSwap.length) {
+        await TrackPlayer.remove(safeIndex + 1);
+      }
+
       if (wasPlaying) {
           await TrackPlayer.play();
       }

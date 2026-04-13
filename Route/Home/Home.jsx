@@ -74,7 +74,7 @@ export const Home = () => {
   const {height, width} = Dimensions.get('window');
   const scrollThreshold = height * 0.05;
 
-  const {colors, dark} = useTheme();
+  const {dark} = useTheme();
   const auraValue = useSharedValue(0);
 
   useEffect(() => {
@@ -83,7 +83,7 @@ export const Home = () => {
       -1,
       true,
     );
-  }, []);
+  }, [auraValue]);
 
   const auraStyle1 = useAnimatedStyle(() => ({
     opacity: interpolate(auraValue.value, [0, 1], [0.15, 0.3]),
@@ -158,10 +158,8 @@ export const Home = () => {
 
   const cricketFeverColumns = useMemo(() => {
     const cols = [];
-    if (Array.isArray(cricketFeverPlaylists)) {
-      for (let i = 0; i < cricketFeverPlaylists.length; i += 2) {
-        cols.push(cricketFeverPlaylists.slice(i, i + 2));
-      }
+    for (let i = 0; i < cricketFeverPlaylists.length; i = i + 2) {
+      cols.push(cricketFeverPlaylists.slice(i, i + 2));
     }
     return cols;
   }, [cricketFeverPlaylists]);
@@ -181,13 +179,11 @@ export const Home = () => {
 
   const fetchIndiaSuperhitsPlaylists = useCallback(async () => {
     const playlistIds = [
-      '1134543272', // Hindi
-      '1134548194', // General
-      '1134643225', // Telugu
-      '1134768973', // Bhojpuri
-      '107482563',  // English Top 50
-      '153716',     // Global Hits
-    ]; 
+      '1134543272',
+      '1134548194',
+      '1134643225',
+      '1134768973',
+    ]; // Hindi, General, Telugu, Bhojpuri
     const fetchedPlaylists = [];
 
     for (const id of playlistIds) {
@@ -266,34 +262,22 @@ export const Home = () => {
 
   // Enhanced charts with India Superhits playlists
   const enhancedCharts = useMemo(() => {
-    // Current user languages as array
-    const userLangs = (currentLanguage || 'All').toLowerCase().split(',').map(l => l.trim());
-    const isAll = userLangs.includes('all') || userLangs.length === 0;
-
-    // 1. Filter our hardcoded Superhits playlists
+    // Filter playlists based on current language
     const filteredIndiaSuperhitsPlaylists = indiaSuperhitsPlaylists.filter(
       playlist => {
-        if (isAll) {
-          return playlist.language === 'all';
+        if (currentLanguage === 'All' || !currentLanguage) {
+          return playlist.language === 'all'; // Only show general playlist when all languages selected
         }
+        // Show both language-specific playlist and general playlist
         return (
-          userLangs.includes(playlist.language.toLowerCase()) ||
+          playlist.language === currentLanguage.toLowerCase() ||
           playlist.language === 'all'
         );
       },
     );
 
-    // 2. Filter raw API charts by language title
-    const rawApiCharts = Data?.data?.charts ?? [];
-    const filteredApiCharts = rawApiCharts.filter(chart => {
-      if (isAll) {return true;}
-      const title = (chart.title || chart.name || '').toLowerCase();
-      // Ensure the chart title contains one of the user languages
-      return userLangs.some(lang => title.includes(lang));
-    });
-
-    // Combine them, prioritizing our curated regional superhits
-    return [...filteredIndiaSuperhitsPlaylists, ...filteredApiCharts];
+    const apiCharts = Data?.data?.charts ?? [];
+    return [...filteredIndiaSuperhitsPlaylists, ...apiCharts];
   }, [Data?.data?.charts, currentLanguage, indiaSuperhitsPlaylists]);
 
   // Separate function for loading secondary content
@@ -322,17 +306,12 @@ export const Home = () => {
 
         // Small delay before loading playlist IDs
         setTimeout(async () => {
-          // For Viral/Trending search, we use the first (primary) selected language if multiple are chosen
-          const primaryLang = Languages && Languages !== 'All' 
-            ? Languages.split(',')[0].trim() 
-            : '';
-            
           const [viralSearch, trendingSearch] = await Promise.allSettled([
-            primaryLang
-              ? getSearchPlaylistData(`Viral hits ${primaryLang}`, 1, 1)
+            Languages && Languages !== 'All'
+              ? getSearchPlaylistData(`Viral hits ${Languages}`, 1, 1)
               : Promise.resolve(null),
-            primaryLang
-              ? getSearchPlaylistData(`Trending ${primaryLang}`, 1, 1)
+            Languages && Languages !== 'All'
+              ? getSearchPlaylistData(`Trending ${Languages}`, 1, 1)
               : Promise.resolve(null),
           ]);
 
@@ -367,7 +346,6 @@ export const Home = () => {
             const cricketResults =
               cricketSearch?.data?.results || cricketSearch?.results || [];
 
-            // Keep all IPL state playlists first, then append remaining cricket playlists.
             const mergedResults = [...iplResults, ...cricketResults].filter(
               (item, index, arr) =>
                 item?.id && arr.findIndex(x => x?.id === item.id) === index,
@@ -510,16 +488,20 @@ export const Home = () => {
     setRefreshing(false);
   };
 
-  const getChartId = useCallback(index => {
-    const charts = enhancedCharts; // Use already filtered enhancedCharts
-    if (!Array.isArray(charts) || charts.length === 0) {
+  const getChartId = index => {
+    const chart = Data?.data?.charts?.[index];
+    if (!chart) {
       return null;
     }
 
-    // Since enhancedCharts is already language-filtered, we can just grab items by index
-    // Using modulo ensures we always return something even if index > length
-    return charts[index % charts.length]?.id || null;
-  }, [enhancedCharts]);
+    const title = (chart.title || chart.name || '').toLowerCase();
+    // Skip decade/compilation charts like "2000s" to avoid duplicate Selected Language sections
+    if (title.includes('2000s')) {
+      return null;
+    }
+
+    return chart.id;
+  };
 
   useEffect(() => {
     fetchHomePageData();
@@ -549,6 +531,8 @@ export const Home = () => {
         setHomeFeedSource(activeSource);
         if (activeSource !== 'YTMusic') {
           fetchIndiaSuperhitsPlaylists();
+        } else if (ytMusicFeedRef.current?.refresh) {
+          ytMusicFeedRef.current.refresh();
         }
         fetchHomePageData(true);
       }
@@ -934,7 +918,7 @@ export const Home = () => {
                 <PaddingConatiner>
                   <Spacer />
                   <Spacer />
-                  <Heading text={`Trending ${currentLanguage !== 'All' ? (currentLanguage.includes(',') ? currentLanguage.split(',')[0] : currentLanguage) + ' ' : ''}Songs`} nospace={true} />
+                  <Heading text={`Trending ${currentLanguage !== 'All' ? currentLanguage + ' ' : ''}Songs`} nospace={true} />
                   <Spacer />
                 </PaddingConatiner>
                 <ShimmerHorizontalSongList />

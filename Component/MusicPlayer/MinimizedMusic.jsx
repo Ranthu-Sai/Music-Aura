@@ -60,7 +60,7 @@ const CircularProgress = memo(({size = 56, strokeWidth = 2, colors = ['#1DB954',
   React.useEffect(() => {
     // Guard against NaN or invalid percentages
     const safePct = isNaN(pct) ? 0 : Math.max(0, Math.min(pct, 1));
-    
+
     RNAnimated.timing(anim.current, {
       toValue: safePct,
       duration: 250,

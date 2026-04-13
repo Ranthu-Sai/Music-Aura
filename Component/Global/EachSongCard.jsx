@@ -469,7 +469,7 @@ export const EachSongCard = memo(function EachSongCard({
               )}
             </View>
           </Pressable>
-          
+
           <View style={{position: 'absolute', right: 5, top: '50%', marginTop: -20}}>
             <EachSongMenuButton
               Onpress={() => {

@@ -16,6 +16,8 @@ import smartPrefetchManager from './Utils/SmartPrefetchManager';
 let isPlayerInitialized = false;
 let initializePromise = null;
 let streamResolutionPromise = null;
+let baseListenersRegistered = false;
+let playerStateListenersRegistered = false;
 
 // Queue remote actions to avoid race conditions without relying on timers
 // Legacy actionChain no longer required after making handlers immediate
@@ -114,32 +116,44 @@ export default async function PlaybackService() {
 
         // Critical: Verify indices again before mutating queue
         const finalQueue = await TrackPlayer.getQueue();
-        if (latestIndex < finalQueue.length && finalQueue[latestIndex]?.id === activeTrack.id) {
+        if (
+          latestIndex < finalQueue.length &&
+          finalQueue[latestIndex]?.id === activeTrack.id
+        ) {
           ManualSkipFlag.suppress();
-          
+
           // NON-DISRUPTIVE SWAP: Add before remove to prevent player auto-advance
           // 1. Add the updated track at the TARGET index (pushes old one to index + 1)
           await TrackPlayer.add(updatedTrack, latestIndex);
-          
+
           // 2. Skip to the new track immediately
           await TrackPlayer.skip(latestIndex);
-          
+
           // 3. Remove the old track (now at latestIndex + 1)
-          await TrackPlayer.remove(latestIndex + 1);
+          const queueAfterSwap = await TrackPlayer.getQueue();
+          if (latestIndex + 1 < queueAfterSwap.length) {
+            await TrackPlayer.remove(latestIndex + 1);
+          }
 
           if (wasPlaying) {
             await TrackPlayer.play();
           }
-          
+
           // Prefetch NEXT track stream to ensure seamless continuation
           const nextIndex = latestIndex + 1;
           if (nextIndex < finalQueue.length) {
-              const nextTrack = finalQueue[nextIndex];
-              if (nextTrack && (nextTrack._needsStream || nextTrack.isYTMusic || (typeof nextTrack.url === 'string' && nextTrack.url.startsWith('ytmusic://')))) {
-                  youtubeStreamingService.getStreamUrl(nextTrack.id).catch(() => {});
-              }
+            const nextTrack = finalQueue[nextIndex];
+            if (
+              nextTrack &&
+              (nextTrack._needsStream ||
+                nextTrack.isYTMusic ||
+                (typeof nextTrack.url === 'string' &&
+                  nextTrack.url.startsWith('ytmusic://')))
+            ) {
+              youtubeStreamingService.getStreamUrl(nextTrack.id).catch(() => {});
+            }
           }
-          
+
           return true;
         }
         return false;
@@ -154,8 +168,8 @@ export default async function PlaybackService() {
     return streamResolutionPromise;
   };
 
-  // Register remote handlers synchronously at module level so notification actions work
-  // even when the app is backgrounded or killed
+  // Register remote handlers once so repeated service starts don't stack duplicate listeners.
+  if (!baseListenersRegistered) {
   TrackPlayer.addEventListener(Event.RemotePlay, () => {
     (async () => {
       try {
@@ -363,52 +377,6 @@ export default async function PlaybackService() {
     })();
   });
 
-  // Robust PlaybackError recovery: handle placeholder failure and expired URLs
-  let errorCount = 0;
-  let lastErrorTime = 0;
-  
-  TrackPlayer.addEventListener(Event.PlaybackError, (error) => {
-    (async () => {
-      try {
-        const now = Date.now();
-        // Prevent recursive error loops
-        if (now - lastErrorTime < 2000) {
-            errorCount++;
-        } else {
-            errorCount = 1;
-        }
-        lastErrorTime = now;
-        
-        if (errorCount > 5) {
-            console.warn('PlaybackError loop detected, pausing');
-            await TrackPlayer.pause();
-            return;
-        }
-
-        const activeTrack = await TrackPlayer.getActiveTrack();
-        if (!activeTrack) return;
-
-        const isPlaceholder = typeof activeTrack.url === 'string' && activeTrack.url.startsWith('ytmusic://');
-        
-        // If it failed and is a placeholder, OR it failed and is YTMusic (might be expired URL)
-        if (isPlaceholder || activeTrack.isYTMusic) {
-          // Force fresh fetch for the failed track
-          const resolved = await ensureActiveTrackStreamReady();
-          if (resolved) {
-            await TrackPlayer.play();
-          } else {
-            // If resolution still fails, try skipping to next to avoid being stuck
-            console.warn('PlaybackError: resolution failed, skipping to next');
-            await TrackPlayer.skipToNext();
-            await TrackPlayer.play();
-          }
-        }
-      } catch (e) {
-        console.warn('PlaybackError recovery failed', e);
-      }
-    })();
-  });
-
   // Handle audio ducking — lower volume or pause when ducked, resume when it ends
   TrackPlayer.addEventListener(Event.RemoteDuck, e => {
     (async () => {
@@ -452,6 +420,8 @@ export default async function PlaybackService() {
       }
     })();
   });
+  baseListenersRegistered = true;
+  }
 
   // Initialize player setup asynchronously
   const initializePlayer = async () => {
@@ -502,59 +472,63 @@ export default async function PlaybackService() {
       });
       console.log('[Service] Player options updated');
 
-      // Simple Event-Driven History Tracking
-      TrackPlayer.addEventListener(
-        Event.PlaybackActiveTrackChanged,
-        async event => {
-          if (event.track?.id) {
-            // Just log the track change, HistoryManager handles the "add unique" logic
-            await historyManager.startTracking(event.track);
-          }
-        },
-      );
+      if (!playerStateListenersRegistered) {
+        // Simple Event-Driven History Tracking
+        TrackPlayer.addEventListener(
+          Event.PlaybackActiveTrackChanged,
+          async event => {
+            if (event.track?.id) {
+              // Just log the track change, HistoryManager handles the "add unique" logic
+              await historyManager.startTracking(event.track);
+            }
+          },
+        );
 
-      // Auto-recommendations listeners
-      autoRecommendations.initializeListeners();
+        // Auto-recommendations listeners
+        autoRecommendations.initializeListeners();
 
-      // vivi-music pattern: Handle repeat mode edge cases
-      // Repeat-All: Loop back to start when queue finishes
-      // Repeat-One: Re-seek to same track on auto-advance
-      TrackPlayer.addEventListener(Event.PlaybackState, async event => {
-        try {
-          if (event.state === State.Ended) {
-            const repeatMode = await TrackPlayer.getRepeatMode();
-            if (repeatMode === RepeatMode.Queue) {
-              // Repeat-All: queue ended, loop back to first track
-              const queue = await TrackPlayer.getQueue();
-              if (queue.length > 0) {
-                await TrackPlayer.skip(0);
-                await TrackPlayer.play();
+        // vivi-music pattern: Handle repeat mode edge cases
+        // Repeat-All: Loop back to start when queue finishes
+        // Repeat-One: Re-seek to same track on auto-advance
+        TrackPlayer.addEventListener(Event.PlaybackState, async event => {
+          try {
+            if (event.state === State.Ended) {
+              const repeatMode = await TrackPlayer.getRepeatMode();
+              if (repeatMode === RepeatMode.Queue) {
+                // Repeat-All: queue ended, loop back to first track
+                const queue = await TrackPlayer.getQueue();
+                if (queue.length > 0) {
+                  await TrackPlayer.skip(0);
+                  await TrackPlayer.play();
+                }
               }
             }
+          } catch (err) {
+            // Non-critical
           }
-        } catch (err) {
-          // Non-critical
-        }
-      });
+        });
 
-      TrackPlayer.addEventListener(Event.PlaybackActiveTrackChanged, async event => {
-        try {
-          // If this track change was triggered by a user-initiated skip (prev/next button),
-          // do NOT revert it even in repeat-one mode.
-          if (ManualSkipFlag.consumeIfSuppressed()) {
-            return;
+        TrackPlayer.addEventListener(Event.PlaybackActiveTrackChanged, async event => {
+          try {
+            // If this track change was triggered by a user-initiated skip (prev/next button),
+            // do NOT revert it even in repeat-one mode.
+            if (ManualSkipFlag.consumeIfSuppressed()) {
+              return;
+            }
+            const repeatMode = await TrackPlayer.getRepeatMode();
+            if (repeatMode === RepeatMode.Track && event.lastIndex != null && event.index != null && event.index !== event.lastIndex) {
+              // Repeat-One: player auto-advanced to next track, seek back
+              await TrackPlayer.skip(event.lastIndex);
+              await TrackPlayer.seekTo(0);
+              await TrackPlayer.play();
+            }
+          } catch (err) {
+            // Non-critical
           }
-          const repeatMode = await TrackPlayer.getRepeatMode();
-          if (repeatMode === RepeatMode.Track && event.lastIndex != null && event.index != null && event.index !== event.lastIndex) {
-            // Repeat-One: player auto-advanced to next track, seek back
-            await TrackPlayer.skip(event.lastIndex);
-            await TrackPlayer.seekTo(0);
-            await TrackPlayer.play();
-          }
-        } catch (err) {
-          // Non-critical
-        }
-      });
+        });
+
+        playerStateListenersRegistered = true;
+      }
 
       // Disable headless SmartPrefetchManager to avoid background queue mutations
       // Prefetching will be managed when the app is in foreground via UI flows

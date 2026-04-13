@@ -376,8 +376,8 @@ export const SettingsPage = ({navigation}) => {
               title="Home Feed Source"
               icon="home-variant"
               data={[
-                {label: 'YTMusic', value: 'YTMusic'},
                 {label: 'Saavn', value: 'Saavn'},
+                {label: 'YTMusic', value: 'YTMusic'},
               ]}
               selectedValue={homeFeedSource}
               onSelect={handleHomeFeedSourceChange}

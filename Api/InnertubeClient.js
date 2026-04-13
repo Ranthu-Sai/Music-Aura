@@ -165,21 +165,21 @@ class InnerTubeClient {
       if (ytAuthService.isAuth()) {
         authCookies = await ytAuthService.getCookies();
       }
-      
-      // Check both YTMusic specific and general app language keys
+
+      // Use YTMusic-specific language setting only.
       const storedLang = await AsyncStorage.getItem('ytmusic_language');
-      const appLang = await AsyncStorage.getItem('Language');
       const storedCountry = await AsyncStorage.getItem('ytmusic_country');
 
-      const selectedLang = storedLang || appLang || 'SYSTEM_DEFAULT';
-      
+      const selectedLang = storedLang || 'en-IN';
+
       if (selectedLang && selectedLang !== 'SYSTEM_DEFAULT') {
         const regionalIndianLangs = [
-          'telugu', 'hindi', 'tamil', 'kannada', 'malayalam', 
-          'punjabi', 'bengali', 'bhojpuri', 'gujarati', 'marathi', 'odia', 'assamese'
+          'telugu', 'hindi', 'tamil', 'kannada', 'malayalam',
+          'punjabi', 'bengali', 'bhojpuri', 'gujarati', 'marathi', 'odia', 'assamese',
         ];
-        
+
         const langMap = {
+          'en-in': 'en-IN',
           'telugu': 'te',
           'hindi': 'hi',
           'tamil': 'ta',
@@ -187,14 +187,14 @@ class InnerTubeClient {
           'malayalam': 'ml',
           'punjabi': 'pa',
           'bengali': 'bn',
-          'english': 'en-GB',
+          'english': 'en-IN',
           'marathi': 'mr',
           'gujarati': 'gu',
         };
-        
+
         const primaryLang = selectedLang.toLowerCase().split(',')[0].trim();
-        userLanguage = langMap[primaryLang] || 'en-GB';
-        
+        userLanguage = langMap[primaryLang] || 'en-IN';
+
         // If it's an Indian regional language, force region to IN if not explicitly set
         if (!storedCountry && regionalIndianLangs.includes(primaryLang)) {
           userCountry = 'IN';
@@ -2166,20 +2166,20 @@ class InnerTubeClient {
 
     try {
       const AsyncStorage = require('@react-native-async-storage/async-storage').default;
-      
+
       // Synchronize with app-wide language preference
       const storedLang = await AsyncStorage.getItem('ytmusic_language');
       const appLang = await AsyncStorage.getItem('Language');
       const storedCountry = await AsyncStorage.getItem('ytmusic_country');
 
       const selectedLang = storedLang || appLang || 'SYSTEM_DEFAULT';
-      
+
       if (selectedLang && selectedLang !== 'SYSTEM_DEFAULT') {
         const regionalIndianLangs = [
-          'telugu', 'hindi', 'tamil', 'kannada', 'malayalam', 
-          'punjabi', 'bengali', 'bhojpuri', 'gujarati', 'marathi', 'odia', 'assamese'
+          'telugu', 'hindi', 'tamil', 'kannada', 'malayalam',
+          'punjabi', 'bengali', 'bhojpuri', 'gujarati', 'marathi', 'odia', 'assamese',
         ];
-        
+
         const langMap = {
           'telugu': 'te',
           'hindi': 'hi',
