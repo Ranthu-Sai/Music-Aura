@@ -745,9 +745,34 @@ async function PlayOneSong(song, options = {}) {
 
 async function PlaySongWithRelated(videoId, artwork, songData = {}) {
   try {
+    const normalizedSource = (songData?.source || '').toString().toLowerCase();
+    const normalizedVideoId =
+      songData?.videoId ||
+      songData?.id ||
+      videoId;
+
     // Create song object
+
+    if (song.isYouTubeSong) {
+      try {
+        const streamData = await youtubeStreamingService.getStreamUrl(
+          normalizedVideoId,
+        );
+        if (streamData?.url) {
+          song.url = streamData.url;
+          song.downloadUrl = streamData.url;
+          song.headers = streamData.headers;
+          song.userAgent = streamData.headers?.['User-Agent'];
+          song.artwork = streamData.thumbnail || song.artwork;
+          song.duration = song.duration || streamData.duration || 0;
+          song._needsStream = false;
+        }
+      } catch (streamErr) {
+        console.warn('PlaySongWithRelated: stream prefetch failed', streamErr?.message || streamErr);
+      }
+    }
     const song = {
-      id: videoId,
+      id: normalizedVideoId,
       artwork: artwork,
       title: songData.title || 'Unknown Title',
       artist: songData.artist || 'Unknown Artist',
@@ -759,9 +784,10 @@ async function PlaySongWithRelated(videoId, artwork, songData = {}) {
       // Check explicit source flag first; fall back to ID-length heuristic only
       // when the song has no Saavn-style downloadUrl (Saavn IDs can also be 11 chars)
       isYouTubeSong:
-        songData.source === 'ytmusic' ||
-        (typeof videoId === 'string' &&
-          videoId.length === 11 &&
+        normalizedSource === 'ytmusic' ||
+        songData.isYTMusic === true ||
+        (typeof normalizedVideoId === 'string' &&
+          normalizedVideoId.length === 11 &&
           !songData.downloadUrl &&
           !songData.download_url),
     };
@@ -941,7 +967,7 @@ async function PlaySongWithRelated(videoId, artwork, songData = {}) {
     await PlayOneSong(song, {clearQueue: true});
 
     // Emit event to open queue when song is played from anywhere
-    DeviceEventEmitter.emit('songPlayed', {songId: videoId});
+    DeviceEventEmitter.emit('songPlayed', {songId: normalizedVideoId});
 
     // Build queue based on song type
     if (song.isYouTubeSong) {
@@ -950,14 +976,14 @@ async function PlaySongWithRelated(videoId, artwork, songData = {}) {
         autoRecommendations &&
         typeof autoRecommendations.start === 'function'
       ) {
-        await autoRecommendations.start(videoId);
+        await autoRecommendations.start(normalizedVideoId);
       }
       // Start continuous monitor to refill queue when low
       if (
         queueManager &&
         typeof queueManager.startContinuousQueueMonitor === 'function'
       ) {
-        queueManager.startContinuousQueueMonitor(videoId);
+        queueManager.startContinuousQueueMonitor(normalizedVideoId);
       }
     } else {
       // Build queue for JioSaavn songs using recommendations API
@@ -965,7 +991,7 @@ async function PlaySongWithRelated(videoId, artwork, songData = {}) {
         try {
           const {getRecommendedSongs} = require('./Api/Recommended');
           const preferredLanguage = await GetLanguageValue();
-          const recommendations = await getRecommendedSongs(videoId, {
+          const recommendations = await getRecommendedSongs(normalizedVideoId, {
             artist: songData?.artist || song.artist || '',
             title: songData?.title || song.title || '',
             language: songData?.language || song.language || preferredLanguage || '',
@@ -984,7 +1010,7 @@ async function PlaySongWithRelated(videoId, artwork, songData = {}) {
           // Format and filter songs to ensure they have all required fields
           const formattedSongs = recSongs
             .filter(s => {
-              if (!s || !s.id || s.id === videoId) { return false; }
+              if (!s || !s.id || s.id === normalizedVideoId) { return false; }
               // Filter by user's preferred language if set
               if (preferredLanguage) {
                 const songLang = (s.language || '').toLowerCase();
@@ -1058,7 +1084,7 @@ async function PlaySongWithRelated(videoId, artwork, songData = {}) {
 
                 if (Array.isArray(results) && results.length > 0) {
                   const searchSongs = results
-                    .filter(s => s && s.id && s.id !== videoId)
+                    .filter(s => s && s.id && s.id !== normalizedVideoId)
                     .filter(s => {
                       if (preferredLanguage) {
                         const sLang = (s.language || '').toLowerCase();
@@ -1115,7 +1141,7 @@ async function PlaySongWithRelated(videoId, artwork, songData = {}) {
               if (trendingSongs.length > 0) {
                 // Fetch full details for first 10 trending songs (to get downloadUrl)
                 const songsToFetch = trendingSongs
-                  .filter(s => s && s.id && s.id !== videoId)
+                  .filter(s => s && s.id && s.id !== normalizedVideoId)
                   .slice(0, 10);
 
                 const fallbackSongs = [];
@@ -1553,8 +1579,9 @@ async function AddSongsToQueue(songs) {
   for (const song of songs) {
     const hasValidYouTubeId =
       song.id && typeof song.id === 'string' && song.id.length === 11;
+    const normalizedSource = (song?.source || '').toString().toLowerCase();
     const isYTMusicSource =
-      song.source === 'ytmusic' || song.isYTMusic === true;
+      normalizedSource === 'ytmusic' || song.isYTMusic === true;
 
     let processedSong = {...song};
 
@@ -1903,8 +1930,9 @@ async function PlayNextInQueue(songs) {
     let processedSong = {...song};
     const hasValidYouTubeId =
       song.id && typeof song.id === 'string' && song.id.length === 11;
+    const normalizedSource = (song?.source || '').toString().toLowerCase();
     const isYTMusicSource =
-      song.source === 'ytmusic' || song.isYTMusic === true;
+      normalizedSource === 'ytmusic' || song.isYTMusic === true;
 
     if ((hasValidYouTubeId && !song.isLocalMusic) || isYTMusicSource) {
       const videoId = song.id || song.videoId;

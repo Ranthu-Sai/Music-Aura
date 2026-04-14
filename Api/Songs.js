@@ -259,6 +259,7 @@ async function getSearchSuggestions(query) {
 
 async function getSearchSongData(searchText, page, limit) {
   const baseUrl = 'https://www.jiosaavn.com/api.php';
+  const encodedQuery = encodeURIComponent((searchText || '').trim());
   const defaultParams = {
     ctx: 'wap6dot0',
     api_version: 4,
@@ -270,13 +271,11 @@ async function getSearchSongData(searchText, page, limit) {
   };
 
   const urls = [
-    `https://jiosaavn-api-privatecvc2.vercel.app/search/songs?query=${searchText}&page=${page}&limit=${limit}`,
-    `https://jio-saavan-api.vercel.app/search/songs?query=${searchText}&page=${page}&limit=${limit}`,
+    `https://jiosaavn-api-privatecvc2.vercel.app/search/songs?query=${encodedQuery}&page=${page}&limit=${limit}`,
+    `https://jio-saavan-api.vercel.app/search/songs?query=${encodedQuery}&page=${page}&limit=${limit}`,
     `${baseUrl}?${Object.keys(defaultParams)
       .map(k => `${k}=${defaultParams[k]}`)
-      .join('&')}&${sources.song_search}&q=${encodeURIComponent(
-      searchText,
-    )}&p=${page}`,
+      .join('&')}&${sources.song_search}&q=${encodedQuery}&p=${page}`,
   ];
 
   for (let url of urls) {
@@ -288,6 +287,12 @@ async function getSearchSongData(searchText, page, limit) {
         headers: {},
       };
       const response = await axios.request(config);
+
+      const results = response?.data?.data?.results || response?.data?.results;
+      if (Array.isArray(results) && results.length === 0) {
+        continue;
+      }
+
       return response.data;
     } catch (error) {
       continue;

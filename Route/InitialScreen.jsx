@@ -9,12 +9,14 @@ import Animated, {
 } from 'react-native-reanimated';
 import {View, StatusBar, StyleSheet, Platform, PermissionsAndroid} from 'react-native';
 import {useTheme} from '@react-navigation/native';
-import {useEffect, useCallback} from 'react';
+import {useEffect, useCallback, useRef} from 'react';
 import {GetLanguageValue} from '../LocalStorage/Languages';
 
 export const InitialScreen = ({navigation}) => {
   const theme = useTheme();
   const glowOpacity = useSharedValue(0.6);
+  const hasStartedInitRef = useRef(false);
+  const hasNavigatedRef = useRef(false);
 
   const requestStoragePermission = useCallback(async () => {
     if (Platform.OS !== 'android') {
@@ -34,8 +36,18 @@ export const InitialScreen = ({navigation}) => {
   }, []);
 
   const InitialCall = useCallback(async () => {
+    if (hasNavigatedRef.current) {
+      return;
+    }
+
     await requestStoragePermission();
     const lang = await GetLanguageValue();
+
+    if (hasNavigatedRef.current) {
+      return;
+    }
+
+    hasNavigatedRef.current = true;
     if (lang !== '') {
       navigation.replace('MainRoute');
     } else {
@@ -44,6 +56,11 @@ export const InitialScreen = ({navigation}) => {
   }, [navigation, requestStoragePermission]);
 
   useEffect(() => {
+    if (hasStartedInitRef.current) {
+      return;
+    }
+    hasStartedInitRef.current = true;
+
     // Pulsing glow animation
     glowOpacity.value = withRepeat(
       withTiming(1, {duration: 1500, easing: Easing.inOut(Easing.ease)}),

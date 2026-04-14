@@ -73,6 +73,8 @@ export const Home = () => {
   const activeTrack = useActiveTrack();
   const {height, width} = Dimensions.get('window');
   const scrollThreshold = height * 0.05;
+  const hasHandledInitialFocusRef = useRef(false);
+  const hasRunInitialLoadRef = useRef(false);
 
   const {dark} = useTheme();
   const auraValue = useSharedValue(0);
@@ -504,6 +506,11 @@ export const Home = () => {
   };
 
   useEffect(() => {
+    if (hasRunInitialLoadRef.current) {
+      return;
+    }
+    hasRunInitialLoadRef.current = true;
+
     fetchHomePageData();
 
     // Load current language on mount
@@ -522,6 +529,11 @@ export const Home = () => {
 
   useEffect(() => {
     if (!isFocused) {
+      return;
+    }
+
+    if (!hasHandledInitialFocusRef.current) {
+      hasHandledInitialFocusRef.current = true;
       return;
     }
 

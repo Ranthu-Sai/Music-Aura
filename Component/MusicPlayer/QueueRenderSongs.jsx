@@ -18,7 +18,7 @@ import {useActiveTrack, usePlaybackState} from 'react-native-track-player';
 import TrackPlayer from 'react-native-track-player';
 import {removeFromQueue} from '../../MusicPlayerFunctions';
 
-export const QueueRenderSongs = memo(function QueueRenderSongs({Index}) {
+export const QueueRenderSongs = memo(function QueueRenderSongs({Index, refreshSignal = 0}) {
   const {Queue} = useContext(Context);
   const {ensureMinimumQueue, updateTrack} = useContext(ActionsContext);
   const activeTrack = useActiveTrack();
@@ -49,6 +49,47 @@ export const QueueRenderSongs = memo(function QueueRenderSongs({Index}) {
       });
     }
   }, [ensureMinimumQueue]);
+
+  useEffect(() => {
+    if (!refreshSignal) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const forceRefreshQueue = async () => {
+      try {
+        trackPlayerQueueCache.current = null;
+        trackPlayerQueueCacheTime.current = 0;
+        setDisplayedSongs([]);
+
+        if (ensureMinimumQueue) {
+          await ensureMinimumQueue();
+        }
+
+        if (updateTrack) {
+          await updateTrack();
+        }
+
+        const tracks = await TrackPlayer.getQueue();
+        if (!cancelled && Array.isArray(tracks) && tracks.length > 0) {
+          const initialCount = Math.min(
+            tracks.length,
+            Math.max(15, SONGS_PER_PAGE),
+          );
+          setDisplayedSongs(tracks.slice(0, initialCount));
+        }
+      } catch (error) {
+        console.warn('Queue manual refresh failed:', error?.message || error);
+      }
+    };
+
+    forceRefreshQueue();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [refreshSignal, SONGS_PER_PAGE, ensureMinimumQueue, updateTrack]);
 
   // Fallback hydration: if context queue is temporarily empty on cold start,
   // read directly from TrackPlayer so Queue UI is never blank.
@@ -195,23 +236,62 @@ export const QueueRenderSongs = memo(function QueueRenderSongs({Index}) {
 
   // Load next batch of songs when user scrolls near the end (optimized batching)
   const loadMoreSongs = useCallback(() => {
-    if (isLoadingMore || displayedSongs.length >= Queue.length) {
+    if (isLoadingMore) {
       return;
     }
 
     // PERFORMANCE: Defer loading to prevent blocking scroll
     InteractionManager.runAfterInteractions(() => {
       setIsLoadingMore(true);
-      const startIndex = displayedSongs.length;
-      const endIndex = Math.min(Queue.length, startIndex + SONGS_PER_PAGE);
-      const newSongs = Queue.slice(startIndex, endIndex);
 
-      if (newSongs.length > 0) {
-        setDisplayedSongs(prev => [...prev, ...newSongs]);
-      }
-      setIsLoadingMore(false);
+      const appendNextBatch = async () => {
+        try {
+          let sourceQueue = Array.isArray(Queue) ? Queue : [];
+
+          // If context queue is stale/short, fall back to real TrackPlayer queue.
+          if (sourceQueue.length <= displayedSongs.length) {
+            const now = Date.now();
+            if (
+              trackPlayerQueueCache.current &&
+              now - trackPlayerQueueCacheTime.current < QUEUE_CACHE_TTL
+            ) {
+              sourceQueue = trackPlayerQueueCache.current;
+            } else {
+              const tracks = await TrackPlayer.getQueue();
+              if (Array.isArray(tracks) && tracks.length > 0) {
+                sourceQueue = tracks;
+                trackPlayerQueueCache.current = tracks;
+                trackPlayerQueueCacheTime.current = now;
+              }
+            }
+          }
+
+          const startIndex = displayedSongs.length;
+          const endIndex = Math.min(
+            sourceQueue.length,
+            startIndex + SONGS_PER_PAGE,
+          );
+          const newSongs = sourceQueue.slice(startIndex, endIndex);
+
+          if (newSongs.length > 0) {
+            setDisplayedSongs(prev => [...prev, ...newSongs]);
+          }
+        } catch (error) {
+          console.warn('Queue load-more failed:', error?.message || error);
+        } finally {
+          setIsLoadingMore(false);
+        }
+      };
+
+      appendNextBatch();
     });
-  }, [isLoadingMore, displayedSongs.length, Queue, SONGS_PER_PAGE]);
+  }, [
+    isLoadingMore,
+    displayedSongs.length,
+    Queue,
+    SONGS_PER_PAGE,
+    QUEUE_CACHE_TTL,
+  ]);
 
   const renderFooter = () => {
     if (!isLoadingMore) {
@@ -258,7 +338,7 @@ export const QueueRenderSongs = memo(function QueueRenderSongs({Index}) {
       renderItem={renderItem}
       extraData={{playerStateValue, currentTrackId}}
       onEndReached={loadMoreSongs}
-      onEndReachedThreshold={0.3}
+      onEndReachedThreshold={0.6}
       ListFooterComponent={renderFooter}
       removeClippedSubviews={true}
       initialNumToRender={8}

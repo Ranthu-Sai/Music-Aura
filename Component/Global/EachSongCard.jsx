@@ -192,13 +192,26 @@ export const EachSongCard = memo(function EachSongCard({
     isProcessingRef.current = true;
     setIsLoading(true);
     try {
+      const normalizedSource = (source || item?.source || '')
+        .toString()
+        .toLowerCase();
+      const isYTMusicSource = normalizedSource === 'ytmusic';
+      const resolvedVideoId =
+        item?.videoId ||
+        (typeof id === 'string' && id.length > 0 ? id : null) ||
+        (typeof url === 'string' && url.length === 11 ? url : null) ||
+        (typeof item?.downloadUrl === 'string' && item.downloadUrl.length === 11
+          ? item.downloadUrl
+          : null);
+      const resolvedSongId = isYTMusicSource && resolvedVideoId ? resolvedVideoId : id;
+
       if (typeof onPress === 'function') {
         onPress({
-          id,
+          id: resolvedSongId,
           title: displayTitle,
           artist,
           language,
-          source,
+          source: normalizedSource || source,
           item,
         });
       }
@@ -293,19 +306,28 @@ export const EachSongCard = memo(function EachSongCard({
             : [item.downloadUrl];
         }
         const songToAdd = {
-          id,
+          id: resolvedSongId,
           title: displayTitle,
           artist,
           url,
           duration,
           language,
-          source,
+          source: normalizedSource || source,
           artwork: artworkUri,
           image: artworkUri,
           downloadUrl: downloadUrlValue,
         };
-        await AddSongsToQueue([songToAdd]);
-        await PlaySongWithRelated(id, artworkUri, songToAdd);
+        if (isYTMusicSource && resolvedVideoId) {
+          songToAdd.id = resolvedVideoId;
+          songToAdd.url = resolvedVideoId;
+          songToAdd.downloadUrl = resolvedVideoId;
+          songToAdd.source = 'ytmusic';
+          songToAdd.isYTMusic = true;
+        }
+        if (!isYTMusicSource) {
+          await AddSongsToQueue([songToAdd]);
+        }
+        await PlaySongWithRelated(songToAdd.id, artworkUri, songToAdd);
         await updateTrack();
       } else if (Data && Array.isArray(Data)) {
         // Liked songs or other array-based lists: Play from this song and queue remaining songs
@@ -356,12 +378,15 @@ export const EachSongCard = memo(function EachSongCard({
         await updateTrack();
       } else {
         // Single song mode: Use existing behavior with recommendations
-        await PlaySongWithRelated(id, artworkUri, {
+        await PlaySongWithRelated(resolvedSongId, artworkUri, {
           title: displayTitle,
           artist,
           url,
           duration,
           language,
+          source: normalizedSource || source,
+          isYTMusic: isYTMusicSource,
+          videoId: resolvedVideoId,
         });
         await updateTrack();
       }

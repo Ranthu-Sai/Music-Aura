@@ -30,8 +30,21 @@ let previousVolume = 1.0;
 // Prevent rapid-fire skip operations that can cause queue corruption
 let lastSkipTime = 0;
 const SKIP_DEBOUNCE_MS = 300; // 300ms minimum between skips
+let lastKnownTrackId = null;
+let lastKnownPositionSec = 0;
 
 export default async function PlaybackService() {
+
+  const rememberCurrentPosition = async () => {
+    try {
+      const track = await TrackPlayer.getActiveTrack();
+      const position = Number(await TrackPlayer.getPosition()) || 0;
+      if (track?.id && position >= 0) {
+        lastKnownTrackId = track.id;
+        lastKnownPositionSec = position;
+      }
+    } catch (_) {}
+  };
 
   const ensureActiveTrackStreamReady = async () => {
     if (streamResolutionPromise) {
@@ -57,9 +70,7 @@ export default async function PlaybackService() {
           typeof activeTrack.url === 'string' &&
           activeTrack.url.startsWith('ytmusic://');
         const needsStream =
-          activeTrack._needsStream === true ||
-          activeTrack.isYTMusic === true ||
-          hasPlaceholderUrl;
+          activeTrack._needsStream === true || hasPlaceholderUrl;
 
         if (!needsStream) {
           return false;
@@ -76,6 +87,22 @@ export default async function PlaybackService() {
         const streamData = await youtubeStreamingService.getStreamUrl(videoId);
         if (!streamData || !streamData.url) {
           return false;
+        }
+
+        let currentPosition = 0;
+        try {
+          currentPosition = Number(await TrackPlayer.getPosition()) || 0;
+        } catch (_) {
+          currentPosition = 0;
+        }
+
+        if (
+          currentPosition <= 0 &&
+          activeTrack?.id &&
+          lastKnownTrackId === activeTrack.id &&
+          lastKnownPositionSec > 0
+        ) {
+          currentPosition = lastKnownPositionSec;
         }
 
         // Re-verify position and track ID haven't changed during async call
@@ -135,6 +162,20 @@ export default async function PlaybackService() {
             await TrackPlayer.remove(latestIndex + 1);
           }
 
+          if (currentPosition > 0) {
+            try {
+              const duration = Number(streamData.duration) || Number(activeTrack.duration) || 0;
+              const safePosition = duration > 0 ? Math.min(currentPosition, duration - 0.5) : currentPosition;
+              if (safePosition > 0) {
+                await TrackPlayer.seekTo(safePosition);
+                lastKnownTrackId = videoId;
+                lastKnownPositionSec = safePosition;
+              }
+            } catch (seekErr) {
+              console.warn('Failed to restore playback position after stream swap', seekErr);
+            }
+          }
+
           if (wasPlaying) {
             await TrackPlayer.play();
           }
@@ -176,7 +217,15 @@ export default async function PlaybackService() {
         if (!isPlayerInitialized && initializePromise) {
           try { await initializePromise; } catch {}
         }
+        const activeTrack = await TrackPlayer.getActiveTrack();
+        const resumePosition =
+          activeTrack?.id && lastKnownTrackId === activeTrack.id
+            ? lastKnownPositionSec
+            : 0;
         await ensureActiveTrackStreamReady();
+        if (resumePosition > 0) {
+          try { await TrackPlayer.seekTo(resumePosition); } catch (_) {}
+        }
         await TrackPlayer.play();
       } catch (e) {
         console.warn('RemotePlay handler failed', e);
@@ -190,6 +239,7 @@ export default async function PlaybackService() {
         if (!isPlayerInitialized && initializePromise) {
           try { await initializePromise; } catch {}
         }
+        await rememberCurrentPosition();
         await TrackPlayer.pause();
       } catch (e) {
         console.warn('RemotePause handler failed', e);
@@ -206,8 +256,18 @@ export default async function PlaybackService() {
         }
         const state = await TrackPlayer.getState();
         if (state === State.Playing) {
+          await rememberCurrentPosition();
           await TrackPlayer.pause();
         } else {
+          const activeTrack = await TrackPlayer.getActiveTrack();
+          const resumePosition =
+            activeTrack?.id && lastKnownTrackId === activeTrack.id
+              ? lastKnownPositionSec
+              : 0;
+          await ensureActiveTrackStreamReady();
+          if (resumePosition > 0) {
+            try { await TrackPlayer.seekTo(resumePosition); } catch (_) {}
+          }
           await TrackPlayer.play();
         }
       } catch (e) {
@@ -343,6 +403,14 @@ export default async function PlaybackService() {
 
         await TrackPlayer.seekTo(pos);
 
+        try {
+          const track = await TrackPlayer.getActiveTrack();
+          if (track?.id) {
+            lastKnownTrackId = track.id;
+            lastKnownPositionSec = pos;
+          }
+        } catch (_) {}
+
         // Read back position to encourage notification / media session state update on some devices
         try {
           await TrackPlayer.getPosition();
@@ -354,6 +422,17 @@ export default async function PlaybackService() {
         console.warn('RemoteSeek failed', e2);
       }
     })();
+  });
+
+  TrackPlayer.addEventListener(Event.PlaybackProgressUpdated, async event => {
+    try {
+      const activeTrack = await TrackPlayer.getActiveTrack();
+      const eventPosition = Number(event?.position);
+      if (activeTrack?.id && Number.isFinite(eventPosition) && eventPosition >= 0) {
+        lastKnownTrackId = activeTrack.id;
+        lastKnownPositionSec = eventPosition;
+      }
+    } catch (_) {}
   });
 
   TrackPlayer.addEventListener(Event.RemoteStop, () => {
@@ -439,7 +518,6 @@ export default async function PlaybackService() {
           autoUpdateMetadata: true,
           waitForBuffer: true,
         });
-        console.log('[Service] Player setup completed');
         isPlayerInitialized = true;
       }
 
@@ -469,8 +547,8 @@ export default async function PlaybackService() {
           Capability.SkipToNext,
           Capability.SkipToPrevious,
         ],
+        progressUpdateEventInterval: 1,
       });
-      console.log('[Service] Player options updated');
 
       if (!playerStateListenersRegistered) {
         // Simple Event-Driven History Tracking
