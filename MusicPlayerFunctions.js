@@ -394,14 +394,29 @@ async function PlayOneSong(song, options = {}) {
         !song.isLocalMusic);
 
     if (isYouTubeSong) {
-      // Always queue a placeholder immediately so tap->play works even if app closes instantly.
-      playbackUrl = `ytmusic://${song.id}`;
-      updatedSong = {
-        ...updatedSong,
-        url: playbackUrl,
-        _needsStream: true,
-        isYTMusic: true,
-      };
+      // If the song already has a real stream URL from prefetch, use it
+      if (
+        updatedSong.url &&
+        typeof updatedSong.url === 'string' &&
+        updatedSong.url.trim() !== '' &&
+        !updatedSong.url.startsWith('ytmusic://')
+      ) {
+        playbackUrl = updatedSong.url;
+        updatedSong = {
+          ...updatedSong,
+          _needsStream: false,
+          isYTMusic: true,
+        };
+      } else {
+        // Use placeholder for lazy loading
+        playbackUrl = `ytmusic://${song.id}`;
+        updatedSong = {
+          ...updatedSong,
+          url: playbackUrl,
+          _needsStream: true,
+          isYTMusic: true,
+        };
+      }
     } else {
       // If song has multiple quality URLs, select based on setting
       if (song.downloadUrl && Array.isArray(song.downloadUrl)) {
@@ -745,6 +760,7 @@ async function PlayOneSong(song, options = {}) {
 
 async function PlaySongWithRelated(videoId, artwork, songData = {}) {
   try {
+    songData = songData || {};
     const normalizedSource = (songData?.source || '').toString().toLowerCase();
     const normalizedVideoId =
       songData?.videoId ||
@@ -752,6 +768,26 @@ async function PlaySongWithRelated(videoId, artwork, songData = {}) {
       videoId;
 
     // Create song object
+    const song = {
+      id: normalizedVideoId,
+      artwork: artwork,
+      title: songData.title || 'Unknown Title',
+      artist: songData.artist || 'Unknown Artist',
+      url: songData.url || '',
+      downloadUrl: songData.downloadUrl || undefined, // Accept downloadUrl from caller
+      duration: songData.duration || 0,
+      language: songData.language || 'Unknown',
+      // Mark as YouTube song
+      // Check explicit source flag first; fall back to ID-length heuristic only
+      // when the song has no Saavn-style downloadUrl (Saavn IDs can also be 11 chars)
+      isYouTubeSong:
+        normalizedSource === 'ytmusic' ||
+        songData?.isYTMusic === true ||
+        (typeof normalizedVideoId === 'string' &&
+          normalizedVideoId.length === 11 &&
+          !songData?.downloadUrl &&
+          !songData?.download_url),
+    };
 
     if (song.isYouTubeSong) {
       try {
@@ -771,26 +807,6 @@ async function PlaySongWithRelated(videoId, artwork, songData = {}) {
         console.warn('PlaySongWithRelated: stream prefetch failed', streamErr?.message || streamErr);
       }
     }
-    const song = {
-      id: normalizedVideoId,
-      artwork: artwork,
-      title: songData.title || 'Unknown Title',
-      artist: songData.artist || 'Unknown Artist',
-      url: songData.url || '',
-      downloadUrl: songData.downloadUrl || undefined, // Accept downloadUrl from caller
-      duration: songData.duration || 0,
-      language: songData.language || 'Unknown',
-      // Mark as YouTube song
-      // Check explicit source flag first; fall back to ID-length heuristic only
-      // when the song has no Saavn-style downloadUrl (Saavn IDs can also be 11 chars)
-      isYouTubeSong:
-        normalizedSource === 'ytmusic' ||
-        songData.isYTMusic === true ||
-        (typeof normalizedVideoId === 'string' &&
-          normalizedVideoId.length === 11 &&
-          !songData.downloadUrl &&
-          !songData.download_url),
-    };
 
     // If this is not a YouTube song and URL/download metadata is missing,
     // try to fetch Saavn song details from the API so we can obtain downloadUrl(s).

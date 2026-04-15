@@ -311,6 +311,27 @@ export default async function PlaybackService() {
           return;
         }
 
+        const nextTrack = queue[nextIndex];
+        if (!nextTrack) {
+          return;
+        }
+
+        // Prefetch stream if needed
+        if (smartPrefetchManager.needsStream(nextTrack)) {
+          const cached = smartPrefetchManager.getPrefetchedStream(nextTrack.id);
+          let streamData = cached;
+          if (!streamData) {
+            streamData = await smartPrefetchManager.fetchOnDemand(nextTrack.id);
+          }
+          if (streamData && streamData.url) {
+            await smartPrefetchManager.replaceTrackAndWait(
+              nextIndex,
+              nextTrack,
+              streamData,
+            );
+          }
+        }
+
         await TrackPlayer.skip(nextIndex);
         await TrackPlayer.play();
       } catch (e) {
@@ -332,6 +353,7 @@ export default async function PlaybackService() {
 
         // Suppress repeat-one revert for this user-initiated skip
         ManualSkipFlag.suppress();
+        const queue = await TrackPlayer.getQueue();
         const currentIndex = await TrackPlayer.getActiveTrackIndex();
 
         if (typeof currentIndex !== 'number' || currentIndex < 0) {
@@ -347,7 +369,29 @@ export default async function PlaybackService() {
           return;
         }
 
-        await TrackPlayer.skip(currentIndex - 1);
+        const prevIndex = currentIndex - 1;
+        const prevTrack = queue[prevIndex];
+        if (!prevTrack) {
+          return;
+        }
+
+        // Prefetch stream if needed
+        if (smartPrefetchManager.needsStream(prevTrack)) {
+          const cached = smartPrefetchManager.getPrefetchedStream(prevTrack.id);
+          let streamData = cached;
+          if (!streamData) {
+            streamData = await smartPrefetchManager.fetchOnDemand(prevTrack.id);
+          }
+          if (streamData && streamData.url) {
+            await smartPrefetchManager.replaceTrackAndWait(
+              prevIndex,
+              prevTrack,
+              streamData,
+            );
+          }
+        }
+
+        await TrackPlayer.skip(prevIndex);
         await TrackPlayer.play();
       } catch (e) {
         console.warn('RemotePrevious failed', e);
