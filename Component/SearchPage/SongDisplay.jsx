@@ -15,9 +15,6 @@ const ListFooter = ({footerSource, footerLoadingMore, footerHasMore}) => {
   if (footerLoadingMore) {
     return <ShimmerSearchResults itemCount={3} />;
   }
-  if (footerHasMore && !footerLoadingMore) {
-    return <ShimmerSearchResults itemCount={1} />;
-  }
   return null;
 };
 

@@ -1,428 +1,287 @@
-import React, {useEffect, useRef, useMemo} from 'react';
-import {
-  View,
-  StyleSheet,
-  Animated,
-  Dimensions,
-  ScrollView,
-} from 'react-native';
+import React, {useEffect, useMemo, useRef} from 'react';
+import {Animated, Dimensions, ScrollView, StyleSheet, View} from 'react-native';
 import {useTheme} from '@react-navigation/native';
 import LinearGradient from 'react-native-linear-gradient';
-import {PlaylistRowSkeleton} from './PlaylistRowSkeleton';
-import {QuickPicksSkeleton} from './YTMusic/QuickPicksSkeleton';
+import {
+  ShimmerArtistChips,
+  ShimmerHorizontalList,
+  ShimmerHorizontalSongList,
+  ShimmerTrendingSongsList,
+} from '../Global/ShimmerEffect';
 
-const {width: SCREEN_WIDTH} = Dimensions.get('window');
+const {width: SCREEN_WIDTH, height: SCREEN_HEIGHT} = Dimensions.get('window');
 
-const HeadingSkeleton = ({shimmerOpacity, styles}) => (
-  <View style={styles.headingContainer}>
-    <Animated.View
-      style={[styles.headingSkeleton, {opacity: shimmerOpacity}]}
-    />
-  </View>
-);
-
-// Genre chip skeleton
-const GenreChipSkeleton = ({width, shimmerOpacity, styles}) => (
-  <Animated.View
-    style={[styles.genreChip, {width, opacity: shimmerOpacity}]}
-  />
-);
-
-// Playlist card skeleton
-const PlaylistCardSkeleton = ({cardWidth, cardHeight, imageHeight, shimmerOpacity, styles}) => (
-  <View
-    style={[styles.cardContainer, {width: cardWidth, height: cardHeight}]}>
+const LoadingHeading = ({width, opacity, styles}) => (
+  <View style={styles.headingBlock}>
     <Animated.View
       style={[
-        styles.cardImage,
-        {height: imageHeight, opacity: shimmerOpacity},
+        styles.headingSkeleton,
+        {
+          width,
+          opacity,
+        },
       ]}
     />
-    <View style={styles.cardTextContainer}>
-      <Animated.View
-        style={[styles.cardTitleSkeleton, {opacity: shimmerOpacity}]}
+  </View>
+);
+
+const LoadingAura = ({dark, pulse, styles}) => {
+  const topGlow = pulse.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.14, 0.3],
+  });
+  const bottomGlow = pulse.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.1, 0.24],
+  });
+  const sideGlow = pulse.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.08, 0.18],
+  });
+
+  return (
+    <View style={styles.auraContainer} pointerEvents="none">
+      <LinearGradient
+        colors={dark ? ['#050505', '#0d0d0d'] : ['#f5f8f4', '#ffffff']}
+        style={StyleSheet.absoluteFill}
       />
       <Animated.View
-        style={[styles.cardSubtitleSkeleton, {opacity: shimmerOpacity}]}
+        style={[
+          styles.auraBlob,
+          styles.auraTop,
+          {
+            opacity: topGlow,
+            transform: [
+              {
+                scale: pulse.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [1, 1.08],
+                }),
+              },
+            ],
+            backgroundColor: dark
+              ? 'rgba(29, 185, 84, 0.9)'
+              : 'rgba(29, 185, 84, 0.45)',
+          },
+        ]}
+      />
+      <Animated.View
+        style={[
+          styles.auraBlob,
+          styles.auraBottom,
+          {
+            opacity: bottomGlow,
+            transform: [
+              {
+                scale: pulse.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [1.04, 0.98],
+                }),
+              },
+            ],
+            backgroundColor: dark
+              ? 'rgba(64, 224, 208, 0.8)'
+              : 'rgba(64, 224, 208, 0.4)',
+          },
+        ]}
+      />
+      <Animated.View
+        style={[
+          styles.auraBlob,
+          styles.auraSide,
+          {
+            opacity: sideGlow,
+            transform: [
+              {
+                scale: pulse.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [1, 1.04],
+                }),
+              },
+            ],
+            backgroundColor: dark
+              ? 'rgba(124, 255, 180, 0.65)'
+              : 'rgba(124, 255, 180, 0.3)',
+          },
+        ]}
       />
     </View>
+  );
+};
+
+const LoadingSection = ({titleWidth, children, pulseOpacity, styles}) => (
+  <View style={styles.sectionBlock}>
+    <LoadingHeading width={titleWidth} opacity={pulseOpacity} styles={styles} />
+    {children}
   </View>
 );
 
-// Album card skeleton (square with overlaid text)
-const AlbumCardSkeleton = ({albumCardSize, shimmerOpacity, styles}) => (
-  <View
-    style={[
-      styles.albumCardContainer,
-      {width: albumCardSize, height: albumCardSize},
-    ]}>
-    <Animated.View
-      style={[styles.albumCardImage, {opacity: shimmerOpacity}]}
-    />
-    <LinearGradient
-      start={{x: 0, y: 0}}
-      end={{x: 0, y: 1}}
-      colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.4)', 'rgba(0,0,0,0.7)']}
-      style={styles.albumGradient}>
-      <Animated.View
-        style={[styles.albumTitleSkeleton, {opacity: shimmerOpacity}]}
-      />
-      <Animated.View
-        style={[styles.albumSubtitleSkeleton, {opacity: shimmerOpacity}]}
-      />
-    </LinearGradient>
-  </View>
-);
-
-// Song row skeleton (for HorizontalScrollSongs)
-const SongRowSkeleton = ({shimmerOpacity, styles}) => (
-  <View style={styles.songRowContainer}>
-    {[1, 2, 3, 4].map((_, index) => (
-      <View key={index} style={styles.songRow}>
-        <Animated.View
-          style={[styles.songArtwork, {opacity: shimmerOpacity}]}
-        />
-        <View style={styles.songTextContainer}>
-          <Animated.View
-            style={[
-              styles.songTitleSkeleton,
-              {opacity: shimmerOpacity, width: 80 + Math.random() * 60},
-            ]}
-          />
-          <Animated.View
-            style={[
-              styles.songArtistSkeleton,
-              {opacity: shimmerOpacity, width: 50 + Math.random() * 40},
-            ]}
-          />
-        </View>
-      </View>
-    ))}
-  </View>
-);
-
-// Chart card skeleton (smaller, for Top Charts section)
-const ChartCardSkeleton = ({shimmerOpacity, styles}) => (
-  <View style={styles.chartCard}>
-    <Animated.View style={[styles.chartImage, {opacity: shimmerOpacity}]} />
-    <Animated.View style={[styles.chartTitle, {opacity: shimmerOpacity}]} />
-  </View>
-);
-
-export const HomeSkeletonLoader = ({source = 'Hybrid'}) => {
+export const HomeSkeletonLoader = () => {
   const {dark} = useTheme();
-  const shimmerAnim = useRef(new Animated.Value(0)).current;
+  const pulse = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    // Create smooth infinite shimmer animation
     const animation = Animated.loop(
       Animated.sequence([
-        Animated.timing(shimmerAnim, {
+        Animated.timing(pulse, {
           toValue: 1,
-          duration: 1000,
+          duration: 1100,
           useNativeDriver: true,
         }),
-        Animated.timing(shimmerAnim, {
+        Animated.timing(pulse, {
           toValue: 0,
-          duration: 1000,
+          duration: 1100,
           useNativeDriver: true,
         }),
       ]),
     );
+
     animation.start();
     return () => animation.stop();
-  }, [shimmerAnim]);
+  }, [pulse]);
 
-  // Smooth shimmer opacity interpolation
-  const shimmerOpacity = shimmerAnim.interpolate({
+  const pulseOpacity = pulse.interpolate({
     inputRange: [0, 0.5, 1],
-    outputRange: [0.3, 0.6, 0.3],
+    outputRange: [0.32, 0.64, 0.32],
   });
 
-  const styles = useMemo(() => StyleSheet.create({
-    container: {
-      flex: 1,
-    },
-    contentContainer: {
-      paddingBottom: 180,
-    },
-    routeHeadingPlaceholder: {
-      height: 60,
-    },
-
-    // Genre chips
-    genreContainer: {
-      marginVertical: 10,
-    },
-    genreContent: {
-      paddingHorizontal: 13,
-      gap: 10,
-      flexDirection: 'row',
-    },
-    genreChip: {
-      height: 36,
-      borderRadius: 18,
-      backgroundColor: dark ? '#2a2a2a' : '#e0e0e0',
-    },
-
-    // Section
-    sectionContainer: {
-      marginBottom: 20,
-    },
-    headingContainer: {
-      paddingHorizontal: 13,
-      marginBottom: 12,
-      marginTop: 8,
-    },
-    headingSkeleton: {
-      height: 24,
-      width: 160,
-      borderRadius: 4,
-      backgroundColor: dark ? '#2a2a2a' : '#e0e0e0',
-    },
-
-    // Horizontal scroll
-    horizontalScroll: {
-      paddingLeft: 10,
-    },
-    horizontalScrollContent: {
-      paddingRight: 20,
-      gap: 8,
-      flexDirection: 'row',
-    },
-
-    // Playlist cards
-    cardContainer: {
-      borderRadius: 10,
-      overflow: 'hidden',
-      marginRight: 4,
-    },
-    cardImage: {
-      width: '100%',
-      borderRadius: 10,
-      backgroundColor: dark ? '#2a2a2a' : '#e0e0e0',
-    },
-    cardTextContainer: {
-      paddingHorizontal: 5,
-      paddingVertical: 8,
-    },
-    cardTitleSkeleton: {
-      height: 14,
-      borderRadius: 3,
-      backgroundColor: dark ? '#2a2a2a' : '#e0e0e0',
-      marginBottom: 4,
-    },
-    cardSubtitleSkeleton: {
-      height: 11,
-      borderRadius: 3,
-      backgroundColor: dark ? '#252525' : '#d0d0d0',
-    },
-
-    // Album cards
-    albumCardContainer: {
-      borderRadius: 10,
-      overflow: 'hidden',
-      marginRight: 4,
-    },
-    albumCardImage: {
-      width: '100%',
-      height: '100%',
-      backgroundColor: dark ? '#2a2a2a' : '#e0e0e0',
-    },
-    albumGradient: {
-      position: 'absolute',
-      bottom: 0,
-      left: 0,
-      right: 0,
-      height: '50%',
-      justifyContent: 'flex-end',
-      padding: 8,
-    },
-    albumTitleSkeleton: {
-      height: 14,
-      borderRadius: 3,
-      backgroundColor: 'rgba(255,255,255,0.8)',
-      marginBottom: 4,
-    },
-    albumSubtitleSkeleton: {
-      height: 11,
-      borderRadius: 3,
-      backgroundColor: 'rgba(255,255,255,0.6)',
-    },
-
-    // Song rows
-    songRowContainer: {
-      paddingHorizontal: 13,
-    },
-    songRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingVertical: 8,
-    },
-    songArtwork: {
-      width: 50,
-      height: 50,
-      borderRadius: 6,
-      backgroundColor: dark ? '#2a2a2a' : '#e0e0e0',
-    },
-    songTextContainer: {
-      marginLeft: 12,
-      flex: 1,
-    },
-    songTitleSkeleton: {
-      height: 14,
-      borderRadius: 3,
-      backgroundColor: dark ? '#2a2a2a' : '#e0e0e0',
-      marginBottom: 6,
-    },
-    songArtistSkeleton: {
-      height: 11,
-      borderRadius: 3,
-      backgroundColor: dark ? '#252525' : '#d0d0d0',
-    },
-
-    // Top charts
-    chartCard: {
-      width: 140,
-      marginRight: 12,
-      alignItems: 'center',
-    },
-    chartImage: {
-      width: 140,
-      height: 140,
-      borderRadius: 10,
-      backgroundColor: dark ? '#2a2a2a' : '#e0e0e0',
-      marginBottom: 8,
-    },
-    chartTitle: {
-      height: 12,
-      width: '80%',
-      borderRadius: 3,
-      backgroundColor: dark ? '#2a2a2a' : '#e0e0e0',
-    },
-  }), [dark]);
-
-  // Card dimensions (matching actual card sizes)
-  const cardWidth = Math.max(180, SCREEN_WIDTH * 0.42);
-  const cardHeight = cardWidth * 1.2;
-  const imageHeight = cardWidth * 0.9;
-  const albumCardSize = cardWidth;
-
-  if (source === 'YTMusic') {
-    return (
-      <ScrollView
-        style={styles.container}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.contentContainer}>
-        <View style={styles.routeHeadingPlaceholder} />
-        <QuickPicksSkeleton />
-        <PlaylistRowSkeleton count={4} showHeading={true} />
-        <PlaylistRowSkeleton count={4} showHeading={true} />
-        <PlaylistRowSkeleton count={4} showHeading={true} />
-      </ScrollView>
-    );
-  }
+  const styles = useMemo(
+    () =>
+      StyleSheet.create({
+        container: {
+          flex: 1,
+        },
+        contentContainer: {
+          paddingBottom: 180,
+        },
+        auraContainer: {
+          ...StyleSheet.absoluteFillObject,
+          overflow: 'hidden',
+        },
+        auraBlob: {
+          position: 'absolute',
+          borderRadius: SCREEN_WIDTH,
+        },
+        auraTop: {
+          top: -120,
+          right: -100,
+          width: SCREEN_WIDTH * 0.95,
+          height: SCREEN_WIDTH * 0.95,
+        },
+        auraBottom: {
+          left: -140,
+          bottom: 40,
+          width: SCREEN_WIDTH * 1.05,
+          height: SCREEN_WIDTH * 1.05,
+        },
+        auraSide: {
+          right: -80,
+          top: SCREEN_HEIGHT * 0.32,
+          width: SCREEN_WIDTH * 0.42,
+          height: SCREEN_WIDTH * 0.42,
+        },
+        contentSurface: {
+          flex: 1,
+        },
+        routeBar: {
+          paddingHorizontal: 13,
+          paddingTop: 10,
+          paddingBottom: 8,
+          flexDirection: 'row',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+        },
+        routeTitle: {
+          height: 26,
+          width: 140,
+          borderRadius: 6,
+          backgroundColor: dark ? '#2a2a2a' : '#dfe6df',
+        },
+        routeChip: {
+          height: 26,
+          width: 74,
+          borderRadius: 13,
+          backgroundColor: dark ? '#222' : '#e9efe7',
+        },
+        pillRow: {
+          paddingLeft: 13,
+          marginBottom: 8,
+        },
+        pillScroll: {
+          gap: 10,
+          flexDirection: 'row',
+        },
+        pill: {
+          height: 34,
+          borderRadius: 17,
+          backgroundColor: dark ? '#242424' : '#e5ebe3',
+        },
+        headingBlock: {
+          paddingHorizontal: 13,
+          marginBottom: 12,
+          marginTop: 8,
+        },
+        headingSkeleton: {
+          height: 28,
+          borderRadius: 6,
+          backgroundColor: dark ? '#2a2a2a' : '#dfe6df',
+        },
+        sectionBlock: {
+          marginBottom: 10,
+        },
+      }),
+    [dark],
+  );
 
   return (
-    <ScrollView
-      style={styles.container}
-      showsVerticalScrollIndicator={false}
-      contentContainerStyle={styles.contentContainer}>
-      {/* Route Heading placeholder */}
-      <View style={styles.routeHeadingPlaceholder} />
-
-      {/* Genre chips skeleton */}
+    <View style={styles.container}>
+      <LoadingAura dark={dark} pulse={pulse} styles={styles} />
       <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.genreContainer}
-        contentContainerStyle={styles.genreContent}>
-        <GenreChipSkeleton width={70} shimmerOpacity={shimmerOpacity} styles={styles} />
-        <GenreChipSkeleton width={90} shimmerOpacity={shimmerOpacity} styles={styles} />
-        <GenreChipSkeleton width={65} shimmerOpacity={shimmerOpacity} styles={styles} />
-        <GenreChipSkeleton width={85} shimmerOpacity={shimmerOpacity} styles={styles} />
-        <GenreChipSkeleton width={75} shimmerOpacity={shimmerOpacity} styles={styles} />
-        <GenreChipSkeleton width={95} shimmerOpacity={shimmerOpacity} styles={styles} />
+        style={styles.contentSurface}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.contentContainer}>
+        <View style={styles.routeBar}>
+          <View style={styles.routeTitle} />
+          <View style={styles.routeChip} />
+        </View>
+
+        <View style={styles.pillRow}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.pillScroll}>
+            <View style={[styles.pill, {width: 74}]} />
+            <View style={[styles.pill, {width: 96}]} />
+            <View style={[styles.pill, {width: 68}]} />
+            <View style={[styles.pill, {width: 88}]} />
+            <View style={[styles.pill, {width: 82}]} />
+          </ScrollView>
+        </View>
+
+        <LoadingSection titleWidth={180} pulseOpacity={pulseOpacity} styles={styles}>
+          <ShimmerTrendingSongsList itemCount={6} />
+        </LoadingSection>
+
+        <LoadingSection titleWidth={200} pulseOpacity={pulseOpacity} styles={styles}>
+          <ShimmerHorizontalSongList />
+        </LoadingSection>
+
+        <LoadingSection titleWidth={190} pulseOpacity={pulseOpacity} styles={styles}>
+          <ShimmerHorizontalList itemCount={6} />
+        </LoadingSection>
+
+        <LoadingSection titleWidth={160} pulseOpacity={pulseOpacity} styles={styles}>
+          <ShimmerArtistChips itemCount={8} />
+        </LoadingSection>
+
+        <LoadingSection titleWidth={240} pulseOpacity={pulseOpacity} styles={styles}>
+          <ShimmerHorizontalList itemCount={6} />
+        </LoadingSection>
+
+        <LoadingSection titleWidth={200} pulseOpacity={pulseOpacity} styles={styles}>
+          <ShimmerHorizontalSongList />
+        </LoadingSection>
       </ScrollView>
-
-      {/* Songs section skeleton */}
-      <View style={styles.sectionContainer}>
-        <HeadingSkeleton shimmerOpacity={shimmerOpacity} styles={styles} />
-        <SongRowSkeleton shimmerOpacity={shimmerOpacity} styles={styles} />
-      </View>
-
-      {/* Recommended Playlists skeleton */}
-      <View style={styles.sectionContainer}>
-        <HeadingSkeleton shimmerOpacity={shimmerOpacity} styles={styles} />
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.horizontalScroll}
-          contentContainerStyle={styles.horizontalScrollContent}>
-          <PlaylistCardSkeleton
-            cardWidth={cardWidth}
-            cardHeight={cardHeight}
-            imageHeight={imageHeight}
-            shimmerOpacity={shimmerOpacity}
-            styles={styles}
-          />
-          <PlaylistCardSkeleton
-            cardWidth={cardWidth}
-            cardHeight={cardHeight}
-            imageHeight={imageHeight}
-            shimmerOpacity={shimmerOpacity}
-            styles={styles}
-          />
-          <PlaylistCardSkeleton
-            cardWidth={cardWidth}
-            cardHeight={cardHeight}
-            imageHeight={imageHeight}
-            shimmerOpacity={shimmerOpacity}
-            styles={styles}
-          />
-        </ScrollView>
-      </View>
-
-      {/* Trending Albums skeleton */}
-      <View style={styles.sectionContainer}>
-        <HeadingSkeleton shimmerOpacity={shimmerOpacity} styles={styles} />
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.horizontalScroll}
-          contentContainerStyle={styles.horizontalScrollContent}>
-          <AlbumCardSkeleton
-            albumCardSize={albumCardSize}
-            shimmerOpacity={shimmerOpacity}
-            styles={styles}
-          />
-          <AlbumCardSkeleton
-            albumCardSize={albumCardSize}
-            shimmerOpacity={shimmerOpacity}
-            styles={styles}
-          />
-          <AlbumCardSkeleton
-            albumCardSize={albumCardSize}
-            shimmerOpacity={shimmerOpacity}
-            styles={styles}
-          />
-        </ScrollView>
-      </View>
-
-      {/* Top Charts skeleton */}
-      <View style={styles.sectionContainer}>
-        <HeadingSkeleton shimmerOpacity={shimmerOpacity} styles={styles} />
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.horizontalScroll}
-          contentContainerStyle={styles.horizontalScrollContent}>
-          <ChartCardSkeleton shimmerOpacity={shimmerOpacity} styles={styles} />
-          <ChartCardSkeleton shimmerOpacity={shimmerOpacity} styles={styles} />
-          <ChartCardSkeleton shimmerOpacity={shimmerOpacity} styles={styles} />
-          <ChartCardSkeleton shimmerOpacity={shimmerOpacity} styles={styles} />
-        </ScrollView>
-      </View>
-    </ScrollView>
+    </View>
   );
 };

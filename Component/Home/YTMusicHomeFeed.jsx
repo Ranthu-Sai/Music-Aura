@@ -20,10 +20,10 @@ import localRecommendationService from '../../Utils/LocalRecommendationService';
 import {CacheManager} from '../../Utils/NavigationCacheManager';
 import {CACHE_TTL, CACHE_KEYS, generateCacheKey} from '../../Utils/CacheConfig';
 import InnertubeClient from '../../Api/InnertubeClient';
-import {GetLanguageValue} from '../../LocalStorage/Languages';
+import {GetYtMusicLanguage} from '../../LocalStorage/AppSettings';
 
-const INITIAL_SECTIONS = 3;
-const SECTIONS_PER_LOAD = 2;
+const INITIAL_SECTIONS = 4;
+const SECTIONS_PER_LOAD = 3;
 const {width: SCREEN_WIDTH} = Dimensions.get('window');
 
 const VIDEO_SECTION_TITLES = [
@@ -227,19 +227,60 @@ const buildFallbackSectionsFromSeeds = async seedSongs => {
 
 const normalizeLanguage = value => String(value || '').toLowerCase().trim();
 
+const LANGUAGE_ALIASES = {
+  en: ['en', 'en-in', 'english', 'english (india)'],
+  hi: ['hi', 'hindi'],
+  ta: ['ta', 'tamil'],
+  te: ['te', 'telugu'],
+  kn: ['kn', 'kannada'],
+  ml: ['ml', 'malayalam'],
+  bn: ['bn', 'bengali'],
+};
+
+const getLanguageAliases = language => {
+  const normalized = normalizeLanguage(language);
+  if (!normalized) {
+    return [];
+  }
+
+  const code = normalized.split('-')[0];
+  const mapped = LANGUAGE_ALIASES[code] || [code, normalized];
+  return [...new Set([...mapped, normalized])];
+};
+
+const isLanguageMatch = (songLanguage, activeLanguage) => {
+  const songLang = normalizeLanguage(songLanguage);
+  if (!songLang) {
+    return true;
+  }
+
+  if (['unknown', 'na', 'n/a'].includes(songLang)) {
+    return true;
+  }
+
+  const selectedAliases = getLanguageAliases(activeLanguage);
+  if (selectedAliases.length === 0) {
+    return true;
+  }
+
+  return selectedAliases.some(
+    alias =>
+      songLang === alias ||
+      songLang.includes(alias) ||
+      alias.includes(songLang),
+  );
+};
+
 const QuickPicksSection = ({title, songs, activeLanguage, onSongPress}) => {
   if (!songs || songs.length === 0) {
     return null;
   }
 
   const selectedLanguage = normalizeLanguage(activeLanguage);
-  const visibleSongs = selectedLanguage
-    ? songs.filter(song => normalizeLanguage(song?.language) === selectedLanguage)
+  const filteredSongs = selectedLanguage
+    ? songs.filter(song => isLanguageMatch(song?.language, selectedLanguage))
     : songs;
-
-  if (visibleSongs.length === 0) {
-    return null;
-  }
+  const visibleSongs = filteredSongs.length > 0 ? filteredSongs : songs;
 
   const songsPerColumn = 4;
   const columns = [];
@@ -597,6 +638,57 @@ const stripQuickPicksSections = sections => {
   );
 };
 
+const placeSpeedDialBelowQuickPicks = sections => {
+  if (!Array.isArray(sections) || sections.length < 2) {
+    return Array.isArray(sections) ? sections : [];
+  }
+
+  const ordered = [...sections];
+  const quickPicksIndex = ordered.findIndex(section =>
+    String(section?.title || '').toLowerCase().includes('quick picks'),
+  );
+  const speedDialIndex = ordered.findIndex(section =>
+    String(section?.title || '').toLowerCase().includes('speed dial'),
+  );
+
+  if (quickPicksIndex === -1 || speedDialIndex === -1) {
+    return ordered;
+  }
+
+  const [speedDialSection] = ordered.splice(speedDialIndex, 1);
+  const adjustedQuickPicksIndex = ordered.findIndex(section =>
+    String(section?.title || '').toLowerCase().includes('quick picks'),
+  );
+  ordered.splice(adjustedQuickPicksIndex + 1, 0, speedDialSection);
+  return ordered;
+};
+
+const placeDailyDiscoverAboveQuickPicks = sections => {
+  if (!Array.isArray(sections) || sections.length < 2) {
+    return Array.isArray(sections) ? sections : [];
+  }
+
+  const ordered = [...sections];
+  const quickPicksIndex = ordered.findIndex(section =>
+    String(section?.title || '').toLowerCase().includes('quick picks'),
+  );
+  const dailyDiscoverIndex = ordered.findIndex(section => {
+    const title = String(section?.title || '').toLowerCase();
+    return title.includes('daily discover') || title.includes('daily discovery');
+  });
+
+  if (quickPicksIndex === -1 || dailyDiscoverIndex === -1) {
+    return ordered;
+  }
+
+  const [dailyDiscoverSection] = ordered.splice(dailyDiscoverIndex, 1);
+  const adjustedQuickPicksIndex = ordered.findIndex(section =>
+    String(section?.title || '').toLowerCase().includes('quick picks'),
+  );
+  ordered.splice(adjustedQuickPicksIndex, 0, dailyDiscoverSection);
+  return ordered;
+};
+
   const extractQuickPicksSection = sections => {
     if (!Array.isArray(sections)) {
       return null;
@@ -642,10 +734,9 @@ export const YTMusicHomeFeed = forwardRef(({refreshing, onRefreshComplete}, ref)
   useEffect(() => {
     const initLanguage = async () => {
       try {
-        const lang = await GetLanguageValue();
+        const lang = await GetYtMusicLanguage();
         if (lang && isMounted.current) {
-          const primary = lang.split(',')[0].trim();
-          setQuickPicksLanguageFilter(primary);
+          setQuickPicksLanguageFilter(lang.trim());
         }
       } catch (e) {}
     };
@@ -698,7 +789,7 @@ export const YTMusicHomeFeed = forwardRef(({refreshing, onRefreshComplete}, ref)
 
         if (needsHomeFetch) {
           // Orbit-style fast path: fetch only home sections first for quicker first paint.
-          const homeData = await YouTubeMusicService.getHomeFeed(60, forceRefresh).catch(err => {
+          const homeData = await YouTubeMusicService.getHomeFeed(100, forceRefresh).catch(err => {
             console.warn('Failed to fetch home feed:', err);
             return [];
           });
@@ -1020,9 +1111,12 @@ export const YTMusicHomeFeed = forwardRef(({refreshing, onRefreshComplete}, ref)
     }
   }, [refreshing, fetchHomeData, onRefreshComplete]);
 
-  const visibleSections = sections.slice(0, visibleCount);
-  const hasMoreSections = visibleCount < sections.length;
-  const upcomingSections = sections.slice(
+  const orderedSections = placeSpeedDialBelowQuickPicks(
+    placeDailyDiscoverAboveQuickPicks(sections),
+  );
+  const visibleSections = orderedSections.slice(0, visibleCount);
+  const hasMoreSections = visibleCount < orderedSections.length;
+  const upcomingSections = orderedSections.slice(
     visibleCount,
     visibleCount + SECTIONS_PER_LOAD,
   );
@@ -1043,13 +1137,13 @@ export const YTMusicHomeFeed = forwardRef(({refreshing, onRefreshComplete}, ref)
         setIsLoadingMore(true);
         setTimeout(() => {
           setVisibleCount(prev =>
-            Math.min(prev + SECTIONS_PER_LOAD, sections.length),
+            Math.min(prev + SECTIONS_PER_LOAD, orderedSections.length),
           );
           setIsLoadingMore(false);
         }, 260);
       },
     }),
-    [fetchHomeData, hasMoreSections, isLoadingMore, sections.length],
+    [fetchHomeData, hasMoreSections, isLoadingMore, orderedSections.length],
   );
 
   if (loading) {
@@ -1091,35 +1185,35 @@ export const YTMusicHomeFeed = forwardRef(({refreshing, onRefreshComplete}, ref)
     <View style={styles.container}>
       {visibleSections.map((section, index) => {
         if (section.type === 'songs' && section.songs?.length > 0) {
+          const shouldApplyLanguageFilter = String(section?.title || '')
+            .toLowerCase()
+            .includes('quick picks');
+
           return (
             <QuickPicksSection
               key={`section-${index}`}
               title={section.title}
               songs={section.songs}
-              activeLanguage={quickPicksLanguageFilter}
+              activeLanguage={
+                shouldApplyLanguageFilter ? quickPicksLanguageFilter : ''
+              }
               onSongPress={async (song) => {
-                const songLanguage = normalizeLanguage(song?.language);
-                if (songLanguage && songLanguage !== quickPicksLanguageFilter) {
-                  setQuickPicksLanguageFilter(songLanguage);
-
-                  // Adaptive recommendation: re-fetch specialized content for this language/vibe
-                  // We use the clicked song as a temporary override seed
-                  try {
-                    const nextResult = await YouTubeMusicService.getNext(song?.videoId || song?.id);
-                    if (nextResult && Array.isArray(nextResult.items)) {
-                      setSections(prev => {
-                        return prev.map(s => {
-                          if (s.title === 'Quick Picks') {
-                            const newSongs = dedupeItems([...nextResult.items, ...s.songs]);
-                            return { ...s, songs: newSongs, items: newSongs };
-                          }
-                          return s;
-                        });
+                // Keep user-selected YT Music language locked; only refresh recommendations.
+                try {
+                  const nextResult = await YouTubeMusicService.getNext(song?.videoId || song?.id);
+                  if (nextResult && Array.isArray(nextResult.items)) {
+                    setSections(prev => {
+                      return prev.map(s => {
+                        if (s.title === 'Quick Picks') {
+                          const newSongs = dedupeItems([...nextResult.items, ...s.songs]);
+                          return { ...s, songs: newSongs, items: newSongs };
+                        }
+                        return s;
                       });
-                    }
-                  } catch (e) {
-                    console.warn('Failed to adaptive-update Quick Picks', e);
+                    });
                   }
+                } catch (e) {
+                  console.warn('Failed to adaptive-update Quick Picks', e);
                 }
               }}
             />

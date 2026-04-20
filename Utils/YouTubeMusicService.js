@@ -32,7 +32,7 @@ class YouTubeMusicService {
   }
 
   static async getHomeFeed(limit = 10, forceRefresh = false) {
-    return await InnerTubeClient.getHome(limit);
+    return await InnerTubeClient.getHome(limit, forceRefresh);
   }
 
   static async getPlaylist(playlistId) {

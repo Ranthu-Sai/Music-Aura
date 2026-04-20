@@ -781,6 +781,7 @@ async function PlaySongWithRelated(videoId, artwork, songData = {}) {
       // Check explicit source flag first; fall back to ID-length heuristic only
       // when the song has no Saavn-style downloadUrl (Saavn IDs can also be 11 chars)
       isYouTubeSong:
+        normalizedSource === 'youtube' ||
         normalizedSource === 'ytmusic' ||
         songData?.isYTMusic === true ||
         (typeof normalizedVideoId === 'string' &&

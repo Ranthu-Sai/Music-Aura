@@ -22,6 +22,242 @@ function parseDuration(durationText) {
   return 0;
 }
 
+function getYTMusicSearchSections(data) {
+  const initialSections =
+    data?.contents?.tabbedSearchResultsRenderer?.tabs?.[0]?.tabRenderer
+      ?.content?.sectionListRenderer?.contents;
+  if (Array.isArray(initialSections) && initialSections.length > 0) {
+    return initialSections;
+  }
+
+  const continuationItems =
+    data?.continuationContents?.musicShelfContinuation?.contents;
+  if (Array.isArray(continuationItems) && continuationItems.length > 0) {
+    return [{musicShelfRenderer: {contents: continuationItems}}];
+  }
+
+  return [];
+}
+
+function getYTMusicContinuationToken(data) {
+  const sectionContinuation =
+    data?.contents?.tabbedSearchResultsRenderer?.tabs?.[0]?.tabRenderer
+      ?.content?.sectionListRenderer?.continuations?.[0]?.nextContinuationData
+      ?.continuation;
+  if (sectionContinuation) {
+    return sectionContinuation;
+  }
+
+  const sections = getYTMusicSearchSections(data);
+  for (const section of sections) {
+    const shelfContinuation =
+      section?.musicShelfRenderer?.continuations?.[0]?.nextContinuationData
+        ?.continuation;
+    if (shelfContinuation) {
+      return shelfContinuation;
+    }
+  }
+
+  return (
+    data?.continuationContents?.musicShelfContinuation?.continuations?.[0]
+      ?.nextContinuationData?.continuation || null
+  );
+}
+
+async function fetchYTMusicSearchPageData(searchText, params, page = 1) {
+  const targetPage = Math.max(1, Number(page) || 1);
+  let requestBody = {
+    context: {
+      client: {
+        clientName: 'WEB_REMIX',
+        clientVersion: '1.20241204.01.00',
+        hl: 'en',
+        gl: 'US',
+      },
+    },
+    query: searchText,
+    ...(params ? {params} : {}),
+  };
+
+  let pageData = null;
+
+  for (let currentPage = 1; currentPage <= targetPage; currentPage++) {
+    const response = await axios.post(
+      'https://music.youtube.com/youtubei/v1/search?key=AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30',
+      requestBody,
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+          Origin: 'https://music.youtube.com',
+          Referer: 'https://music.youtube.com/search',
+        },
+      },
+    );
+
+    if (response.status !== 200 || !response.data) {
+      return null;
+    }
+
+    pageData = response.data;
+
+    if (currentPage < targetPage) {
+      const continuation = getYTMusicContinuationToken(pageData);
+      if (!continuation) {
+        return null;
+      }
+      requestBody = {
+        context: {
+          client: {
+            clientName: 'WEB_REMIX',
+            clientVersion: '1.20241204.01.00',
+            hl: 'en',
+            gl: 'US',
+          },
+        },
+        continuation,
+      };
+    }
+  }
+
+  return pageData;
+}
+
+function getYouTubeSearchItems(data) {
+  const sectionContents =
+    data?.contents?.twoColumnSearchResultsRenderer?.primaryContents
+      ?.sectionListRenderer?.contents;
+
+  if (Array.isArray(sectionContents) && sectionContents.length > 0) {
+    const items = [];
+    for (const section of sectionContents) {
+      const itemSection = section?.itemSectionRenderer?.contents;
+      if (Array.isArray(itemSection) && itemSection.length > 0) {
+        items.push(...itemSection);
+      }
+    }
+    if (items.length > 0) {
+      return items;
+    }
+  }
+
+  const continuationItems =
+    data?.continuationContents?.itemSectionContinuation?.contents;
+  if (Array.isArray(continuationItems) && continuationItems.length > 0) {
+    return continuationItems;
+  }
+
+  const appendItems =
+    data?.onResponseReceivedCommands?.[0]?.appendContinuationItemsAction
+      ?.continuationItems;
+  if (Array.isArray(appendItems) && appendItems.length > 0) {
+    const normalized = [];
+    for (const item of appendItems) {
+      if (Array.isArray(item?.itemSectionRenderer?.contents)) {
+        normalized.push(...item.itemSectionRenderer.contents);
+      } else if (item?.videoRenderer) {
+        normalized.push(item);
+      }
+    }
+    return normalized;
+  }
+
+  return [];
+}
+
+function getYouTubeContinuationToken(data) {
+  const fromSectionList =
+    data?.contents?.twoColumnSearchResultsRenderer?.primaryContents
+      ?.sectionListRenderer?.continuations?.[0]?.nextContinuationData
+      ?.continuation;
+  if (fromSectionList) {
+    return fromSectionList;
+  }
+
+  const fromContinuationContents =
+    data?.continuationContents?.itemSectionContinuation?.continuations?.[0]
+      ?.nextContinuationData?.continuation;
+  if (fromContinuationContents) {
+    return fromContinuationContents;
+  }
+
+  const appendItems =
+    data?.onResponseReceivedCommands?.[0]?.appendContinuationItemsAction
+      ?.continuationItems;
+  if (Array.isArray(appendItems)) {
+    for (const item of appendItems) {
+      const token =
+        item?.continuationItemRenderer?.continuationEndpoint
+          ?.continuationCommand?.token;
+      if (token) {
+        return token;
+      }
+    }
+  }
+
+  return null;
+}
+
+async function fetchYouTubeSearchPageData(searchText, page = 1) {
+  const targetPage = Math.max(1, Number(page) || 1);
+  let requestBody = {
+    context: {
+      client: {
+        clientName: 'WEB',
+        clientVersion: '2.20241204.01.00',
+        hl: 'en',
+        gl: 'US',
+      },
+    },
+    query: searchText,
+  };
+
+  let pageData = null;
+
+  for (let currentPage = 1; currentPage <= targetPage; currentPage++) {
+    const response = await axios.post(
+      'https://www.youtube.com/youtubei/v1/search?key=AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8',
+      requestBody,
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+          Origin: 'https://www.youtube.com',
+          Referer: 'https://www.youtube.com/results',
+        },
+      },
+    );
+
+    if (response.status !== 200 || !response.data) {
+      return null;
+    }
+
+    pageData = response.data;
+
+    if (currentPage < targetPage) {
+      const continuation = getYouTubeContinuationToken(pageData);
+      if (!continuation) {
+        return null;
+      }
+      requestBody = {
+        context: {
+          client: {
+            clientName: 'WEB',
+            clientVersion: '2.20241204.01.00',
+            hl: 'en',
+            gl: 'US',
+          },
+        },
+        continuation,
+      };
+    }
+  }
+
+  return pageData;
+}
+
 // Normalize timed lyrics array to ensure each line has id, start_time (ms), and end_time (ms)
 function normalizeTimedLyrics(timed) {
   if (!Array.isArray(timed)) {
@@ -305,40 +541,16 @@ async function getYTSearchSongData(searchText, page, limit) {
   // STRATEGY 1: Try YouTube Music InnerTube API (actual YT Music content)
   // This is the API used by music.youtube.com - returns actual music, not random videos
   try {
-    const response = await axios.post(
-      'https://music.youtube.com/youtubei/v1/search?key=AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30',
-      {
-        context: {
-          client: {
-            clientName: 'WEB_REMIX',
-            clientVersion: '1.20241204.01.00',
-            hl: 'en',
-            gl: 'US',
-          },
-        },
-        query: searchText,
-        params: 'EgWKAQIIAWoKEAMQBBAJEAoQBQ==', // Filter for songs
-      },
-      {
-        headers: {
-          'Content-Type': 'application/json',
-          'User-Agent':
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-          Origin: 'https://music.youtube.com',
-          Referer: 'https://music.youtube.com/search',
-        },
-      },
+    const data = await fetchYTMusicSearchPageData(
+      searchText,
+      'EgWKAQIIAWoKEAMQBBAJEAoQBQ==',
+      page,
     );
 
-    if (response.status === 200) {
-      const data = response.data;
+    if (data) {
+      const contents = getYTMusicSearchSections(data);
 
-      // Parse YouTube Music response structure
-      const contents =
-        data?.contents?.tabbedSearchResultsRenderer?.tabs?.[0]?.tabRenderer
-          ?.content?.sectionListRenderer?.contents;
-
-      if (contents && contents.length > 0) {
+      if (contents.length > 0) {
         const songs = [];
 
         for (const section of contents) {
@@ -525,6 +737,10 @@ async function getYTSearchSongData(searchText, page, limit) {
     // YouTube Music API failed
   }
 
+  if ((Number(page) || 1) > 1) {
+    return {data: {results: []}};
+  }
+
   // Fallback: If no results found with strict filter, try a broader search
   try {
     const broadSearch = await axios.post(
@@ -615,40 +831,16 @@ async function getYTSearchSongData(searchText, page, limit) {
 async function getYTSearchAlbumData(searchText, page, limit) {
   // STRATEGY 1: Try YouTube Music InnerTube API for actual albums
   try {
-    const innerTubeResponse = await fetch(
-      'https://music.youtube.com/youtubei/v1/search?key=AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30',
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'User-Agent':
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-          Origin: 'https://music.youtube.com',
-          Referer: 'https://music.youtube.com/search',
-        },
-        body: JSON.stringify({
-          context: {
-            client: {
-              clientName: 'WEB_REMIX',
-              clientVersion: '1.20241204.01.00',
-              hl: 'en',
-              gl: 'US',
-            },
-          },
-          query: searchText,
-          params: 'EgWKAQIYAWoKEAMQBBAJEAoQBQ==', // Filter for albums
-        }),
-        timeout: 15000,
-      },
+    const data = await fetchYTMusicSearchPageData(
+      searchText,
+      'EgWKAQIYAWoKEAMQBBAJEAoQBQ==',
+      page,
     );
 
-    if (innerTubeResponse.ok) {
-      const data = await innerTubeResponse.json();
-      const contents =
-        data?.contents?.tabbedSearchResultsRenderer?.tabs?.[0]?.tabRenderer
-          ?.content?.sectionListRenderer?.contents;
+    if (data) {
+      const contents = getYTMusicSearchSections(data);
 
-      if (contents && contents.length > 0) {
+      if (contents.length > 0) {
         const albums = [];
 
         for (const section of contents) {
@@ -734,40 +926,16 @@ async function getYTSearchPlaylistData(searchText, page, limit) {
   //   - songCount (optional, used to detect Saavn shape)
   // Also playlist browseId is usually like "VL...". Our getPlaylistData routes VL/RDAMPL/OLAK/PL to YTMusic browse.
   try {
-    const innerTubeResponse = await fetch(
-      'https://music.youtube.com/youtubei/v1/search?key=AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30',
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'User-Agent':
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-          Origin: 'https://music.youtube.com',
-          Referer: 'https://music.youtube.com/search',
-        },
-        body: JSON.stringify({
-          context: {
-            client: {
-              clientName: 'WEB_REMIX',
-              clientVersion: '1.20241204.01.00',
-              hl: 'en',
-              gl: 'US',
-            },
-          },
-          query: searchText,
-          params: 'EgWKAQIoAWoKEAMQBBAJEAoQBQ==', // Filter for playlists
-        }),
-        timeout: 15000,
-      },
+    const data = await fetchYTMusicSearchPageData(
+      searchText,
+      'EgWKAQIoAWoKEAMQBBAJEAoQBQ==',
+      page,
     );
 
-    if (innerTubeResponse.ok) {
-      const data = await innerTubeResponse.json();
-      const contents =
-        data?.contents?.tabbedSearchResultsRenderer?.tabs?.[0]?.tabRenderer
-          ?.content?.sectionListRenderer?.contents;
+    if (data) {
+      const contents = getYTMusicSearchSections(data);
 
-      if (contents && contents.length > 0) {
+      if (contents.length > 0) {
         const playlists = [];
 
         for (const section of contents) {
@@ -1382,109 +1550,71 @@ async function getYTLyricsSongData(
 async function getYTSearchVideoData(searchText, page, limit) {
   // Use YouTube InnerTube API (primary)
   try {
-    const response = await axios.post(
-      'https://www.youtube.com/youtubei/v1/search?key=AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8',
-      {
-        context: {
-          client: {
-            clientName: 'WEB',
-            clientVersion: '2.20241204.01.00',
-            hl: 'en',
-            gl: 'US',
-          },
-        },
-        query: searchText,
-      },
-      {
-        headers: {
-          'Content-Type': 'application/json',
-          'User-Agent':
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-          Origin: 'https://www.youtube.com',
-          Referer: 'https://www.youtube.com/results',
-        },
-      },
-    );
+    const data = await fetchYouTubeSearchPageData(searchText, page);
 
-    if (response.status === 200) {
-      const data = response.data;
+    if (data) {
+      const contents = getYouTubeSearchItems(data);
 
-      // Parse YouTube InnerTube response structure
-      const contents =
-        data?.contents?.twoColumnSearchResultsRenderer?.primaryContents
-          ?.sectionListRenderer?.contents;
-
-      if (contents && contents.length > 0) {
+      if (contents.length > 0) {
         const videos = [];
 
-        for (const section of contents) {
-          const itemSection = section.itemSectionRenderer;
-          if (!itemSection || !itemSection.contents) {
+        for (const item of contents) {
+          const videoRenderer = item.videoRenderer;
+          if (!videoRenderer) {
             continue;
           }
 
-          for (const item of itemSection.contents) {
-            const videoRenderer = item.videoRenderer;
-            if (!videoRenderer) {
-              continue;
-            }
-
-            const videoId = videoRenderer.videoId;
-            if (!videoId) {
-              continue;
-            }
-
-            // Extract title
-            const title = videoRenderer.title?.runs?.[0]?.text || 'Unknown';
-
-            // Extract channel name
-            const channelName =
-              videoRenderer.ownerText?.runs?.[0]?.text || 'Unknown';
-
-            // Extract thumbnail - try multiple paths for robustness
-            const thumbnails =
-              videoRenderer.thumbnail?.thumbnails ||
-              videoRenderer.thumbnails ||
-              [];
-            let thumbnail =
-              thumbnails[thumbnails.length - 1]?.url ||
-              thumbnails[0]?.url ||
-              `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
-
-            // Ensure protocol
-            if (thumbnail.startsWith('//')) {
-              thumbnail = 'https:' + thumbnail;
-            }
-
-            // Upgrade thumbnail quality using YTArtworkUtils
-            thumbnail = YTArtworkUtils.upgradeArtworkQuality(thumbnail);
-            // Use hqdefault for YouTube search results instead of maxresdefault for better compatibility
-            if (thumbnail.includes('i.ytimg.com/vi/')) {
-              thumbnail = thumbnail.replace(
-                /(maxresdefault|sddefault|mqdefault)\.jpg/,
-                'hqdefault.jpg',
-              );
-            }
-
-            // Extract duration from lengthText
-            const durationText = videoRenderer.lengthText?.simpleText;
-            const duration = parseDuration(durationText) || 0;
-
-            videos.push({
-              id: videoId,
-              name: title,
-              image: [{url: thumbnail}, {url: thumbnail}, {url: thumbnail}],
-              artists: {primary: [{name: channelName}]},
-              downloadUrl: videoId,
-              duration: duration,
-              language: 'en',
-              source: 'youtube',
-            });
-
-            if (videos.length >= limit) {
-              break;
-            }
+          const videoId = videoRenderer.videoId;
+          if (!videoId) {
+            continue;
           }
+
+          // Extract title
+          const title = videoRenderer.title?.runs?.[0]?.text || 'Unknown';
+
+          // Extract channel name
+          const channelName =
+            videoRenderer.ownerText?.runs?.[0]?.text || 'Unknown';
+
+          // Extract thumbnail - try multiple paths for robustness
+          const thumbnails =
+            videoRenderer.thumbnail?.thumbnails ||
+            videoRenderer.thumbnails ||
+            [];
+          let thumbnail =
+            thumbnails[thumbnails.length - 1]?.url ||
+            thumbnails[0]?.url ||
+            `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
+
+          // Ensure protocol
+          if (thumbnail.startsWith('//')) {
+            thumbnail = 'https:' + thumbnail;
+          }
+
+          // Upgrade thumbnail quality using YTArtworkUtils
+          thumbnail = YTArtworkUtils.upgradeArtworkQuality(thumbnail);
+          // Use hqdefault for YouTube search results instead of maxresdefault for better compatibility
+          if (thumbnail.includes('i.ytimg.com/vi/')) {
+            thumbnail = thumbnail.replace(
+              /(maxresdefault|sddefault|mqdefault)\.jpg/,
+              'hqdefault.jpg',
+            );
+          }
+
+          // Extract duration from lengthText
+          const durationText = videoRenderer.lengthText?.simpleText;
+          const duration = parseDuration(durationText) || 0;
+
+          videos.push({
+            id: videoId,
+            name: title,
+            image: [{url: thumbnail}, {url: thumbnail}, {url: thumbnail}],
+            artists: {primary: [{name: channelName}]},
+            downloadUrl: videoId,
+            duration: duration,
+            language: 'en',
+            source: 'youtube',
+          });
 
           if (videos.length >= limit) {
             break;

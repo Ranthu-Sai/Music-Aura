@@ -36,6 +36,7 @@ import {
   interpolate,
 } from 'react-native-reanimated';
 import {
+  ShimmerEffect,
   ShimmerAlbumCard,
   ShimmerHorizontalList,
   ShimmerTrendingSongsList,
@@ -45,13 +46,21 @@ import {
 import {ErrorBoundary} from '../../Component/Global/ErrorBoundary';
 import {Spacer} from '../../Component/Global/Spacer';
 import {YTMusicHomeFeed} from '../../Component/Home/YTMusicHomeFeed';
-import {HomeSkeletonLoader} from '../../Component/Home/HomeSkeletonLoader';
 
 // JioSaavn API Fallback URLs (only hosts that support /modules endpoint)
 const JIOSAAVN_API_FALLBACKS = [
   'https://jiosaavn-api-privatecvc2.vercel.app', // Primary fallback
   'https://jio-saavan-api.vercel.app', // Secondary fallback
 ];
+
+const SectionLoadingBlock = ({titleWidth = 180, children}) => (
+  <View style={{marginBottom: 10}}>
+    <View style={{paddingHorizontal: 13, marginBottom: 12, marginTop: 8}}>
+      <ShimmerEffect width={titleWidth} height={28} borderRadius={6} />
+    </View>
+    {children}
+  </View>
+);
 
 export const Home = () => {
   const [Loading, setLoading] = useState(true);
@@ -63,6 +72,7 @@ export const Home = () => {
   const [viralHitsId, setViralHitsId] = useState(null);
   const [trendingLangId, setTrendingLangId] = useState(null);
   const [cricketFeverPlaylists, setCricketFeverPlaylists] = useState([]);
+  const [isCricketFeverLoading, setIsCricketFeverLoading] = useState(true);
   const [languageTopArtists, setLanguageTopArtists] = useState([]);
   const [currentLanguage, setCurrentLanguage] = useState('All');
   const [homeFeedSource, setHomeFeedSource] = useState('Saavn');
@@ -70,6 +80,7 @@ export const Home = () => {
   const isFocused = useIsFocused();
   const refreshTimerRef = useRef(null);
   const ytMusicFeedRef = useRef(null);
+  const ytLoadMoreCooldownRef = useRef(0);
   const activeTrack = useActiveTrack();
   const {height, width} = Dimensions.get('window');
   const scrollThreshold = height * 0.05;
@@ -291,6 +302,7 @@ export const Home = () => {
 
       try {
         setLoadingSecondary(true);
+        setIsCricketFeverLoading(true);
 
         // Load artists (only language-specific latest artists retained)
         try {
@@ -373,9 +385,13 @@ export const Home = () => {
                 type: 'playlist',
               }));
 
-            setCricketFeverPlaylists(mappedCricketPlaylists);
+            if (mappedCricketPlaylists.length > 0) {
+              setCricketFeverPlaylists(mappedCricketPlaylists);
+            }
           } catch (e) {
-            setCricketFeverPlaylists([]);
+            console.warn('Home: Failed to fetch Cricket Fever playlists', e);
+          } finally {
+            setIsCricketFeverLoading(false);
           }
 
           setSecondaryDataLoaded(true);
@@ -383,6 +399,7 @@ export const Home = () => {
         }, 300);
       } catch (e) {
         console.warn('Home: Error loading secondary content', e);
+        setIsCricketFeverLoading(false);
         setLoadingSecondary(false);
       }
     },
@@ -394,6 +411,7 @@ export const Home = () => {
       setViralHitsId,
       setTrendingLangId,
       setCricketFeverPlaylists,
+      setIsCricketFeverLoading,
       setSecondaryDataLoaded,
     ],
   );
@@ -412,6 +430,7 @@ export const Home = () => {
         if (activeHomeFeedSource === 'YTMusic') {
           setLoading(false);
           setLoadingSecondary(false);
+          setIsCricketFeverLoading(false);
           setSecondaryDataLoaded(true);
           setViralHitsId(null);
           setTrendingLangId(null);
@@ -474,6 +493,7 @@ export const Home = () => {
       setViralHitsId,
       setTrendingLangId,
       setCricketFeverPlaylists,
+      setIsCricketFeverLoading,
       setLanguageTopArtists,
       setSecondaryDataLoaded,
     ],
@@ -573,14 +593,6 @@ export const Home = () => {
 
   // Removed duplicate artist fetching - now handled in main fetchHomePageData
 
-  if (Loading && homeFeedSource !== 'YTMusic') {
-    return (
-      <MainWrapper>
-        <HomeSkeletonLoader source={homeFeedSource || 'Saavn'} />
-      </MainWrapper>
-    );
-  }
-
   if (homeFeedSource === 'YTMusic') {
     return (
       <MainWrapper>
@@ -638,9 +650,17 @@ export const Home = () => {
                   const scrollProgress =
                     (contentOffset.y + layoutMeasurement.height) /
                     Math.max(contentSize.height, 1);
+                  const canLoadMore =
+                    contentSize.height > layoutMeasurement.height + 160 &&
+                    contentOffset.y > 120 &&
+                    scrollProgress > 0.70;
 
-                  if (scrollProgress > 0.8 && ytMusicFeedRef.current?.loadMore) {
-                    ytMusicFeedRef.current.loadMore();
+                  if (canLoadMore && ytMusicFeedRef.current?.loadMore) {
+                    const now = Date.now();
+                    if (now - ytLoadMoreCooldownRef.current > 500) {
+                      ytLoadMoreCooldownRef.current = now;
+                      ytMusicFeedRef.current.loadMore();
+                    }
                   }
                 }}
                 scrollEventThrottle={16}
@@ -674,6 +694,54 @@ export const Home = () => {
 
   return (
     <MainWrapper>
+      <View
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          height: height,
+          zIndex: -1,
+        }}>
+        <LinearGradient
+          colors={[dark ? '#0a0a0a' : '#f8f8f8', dark ? '#000000' : '#ffffff']}
+          style={{flex: 1}}
+        />
+        <Animated.View
+          style={[
+            {
+              position: 'absolute',
+              top: -50,
+              right: -50,
+              width: width * 0.8,
+              height: width * 0.8,
+              borderRadius: width * 0.4,
+              backgroundColor: dark
+                ? 'rgba(29, 185, 84, 0.4)'
+                : 'rgba(29, 185, 84, 0.2)',
+              filter: 'blur(80px)',
+            },
+            auraStyle1,
+          ]}
+        />
+        <Animated.View
+          style={[
+            {
+              position: 'absolute',
+              bottom: 100,
+              left: -100,
+              width: width * 0.9,
+              height: width * 0.9,
+              borderRadius: width * 0.45,
+              backgroundColor: dark
+                ? 'rgba(64, 224, 208, 0.3)'
+                : 'rgba(64, 224, 208, 0.15)',
+              filter: 'blur(100px)',
+            },
+            auraStyle2,
+          ]}
+        />
+      </View>
       <Animated.View entering={FadeIn.duration(400)}>
         <ErrorBoundary name="HomeContent">
           <ScrollView
@@ -693,6 +761,34 @@ export const Home = () => {
             }>
             <RouteHeading showSearch={false} showSettings={true} />
             <DisplayTopGenres />
+            {Loading ? (
+              <>
+                <SectionLoadingBlock titleWidth={180}>
+                  <ShimmerTrendingSongsList itemCount={6} />
+                </SectionLoadingBlock>
+
+                <SectionLoadingBlock titleWidth={200}>
+                  <ShimmerHorizontalSongList />
+                </SectionLoadingBlock>
+
+                <SectionLoadingBlock titleWidth={190}>
+                  <ShimmerHorizontalList itemCount={6} />
+                </SectionLoadingBlock>
+
+                <SectionLoadingBlock titleWidth={160}>
+                  <ShimmerArtistChips itemCount={8} />
+                </SectionLoadingBlock>
+
+                <SectionLoadingBlock titleWidth={240}>
+                  <ShimmerHorizontalList itemCount={6} />
+                </SectionLoadingBlock>
+
+                <SectionLoadingBlock titleWidth={200}>
+                  <ShimmerHorizontalSongList />
+                </SectionLoadingBlock>
+              </>
+            ) : (
+              <>
             <PaddingConatiner>
               <Heading text={'Latest Top Songs'} />
             </PaddingConatiner>
@@ -773,16 +869,15 @@ export const Home = () => {
             )}
 
             {/* Latest Artists (language-specific) + Recommended Playlists remain here */}
-            {LoadingSecondary && currentLanguage !== 'All' ? (
-              <>
-                <PaddingConatiner>
-                  <Heading text={'Latest Artists'} />
-                </PaddingConatiner>
-                <ShimmerArtistChips itemCount={8} />
-              </>
-            ) : (
-              languageTopArtists.length > 0 &&
-              currentLanguage !== 'All' && (
+            {currentLanguage !== 'All' &&
+              (LoadingSecondary || languageTopArtists.length === 0 ? (
+                <>
+                  <PaddingConatiner>
+                    <Heading text={'Latest Artists'} />
+                  </PaddingConatiner>
+                  <ShimmerArtistChips itemCount={8} />
+                </>
+              ) : (
                 <>
                   <PaddingConatiner>
                     <Heading text={'Latest Artists'} />
@@ -810,8 +905,7 @@ export const Home = () => {
                     )}
                   />
                 </>
-              )
-            )}
+              ))}
 
             <PaddingConatiner>
               <Heading text={'Recommended Playlists'} />
@@ -877,12 +971,20 @@ export const Home = () => {
                 </PaddingConatiner>
                 <ShimmerHorizontalSongList />
               </>
-            ) : (
-              viralHitsId && (
+            ) : viralHitsId ? (
                 <PaddingConatiner>
                   <HorizontalScrollSongs id={viralHitsId} />
                 </PaddingConatiner>
-              )
+            ) : (
+              <>
+                <PaddingConatiner>
+                  <Spacer />
+                  <Spacer />
+                  <Heading text="Viral Hits" nospace={true} />
+                  <Spacer />
+                </PaddingConatiner>
+                <ShimmerHorizontalSongList />
+              </>
             )}
             <PaddingConatiner>
               <HorizontalScrollSongs id={getChartId(3)} />
@@ -935,14 +1037,22 @@ export const Home = () => {
                 </PaddingConatiner>
                 <ShimmerHorizontalSongList />
               </>
-            ) : (
-              trendingLangId && (
+            ) : trendingLangId ? (
                 <PaddingConatiner>
                   <HorizontalScrollSongs id={trendingLangId} />
                 </PaddingConatiner>
-              )
+            ) : (
+              <>
+                <PaddingConatiner>
+                  <Spacer />
+                  <Spacer />
+                  <Heading text={`Trending ${currentLanguage !== 'All' ? currentLanguage + ' ' : ''}Songs`} nospace={true} />
+                  <Spacer />
+                </PaddingConatiner>
+                <ShimmerHorizontalSongList />
+              </>
             )}
-            {LoadingSecondary ? (
+            {LoadingSecondary || isCricketFeverLoading ? (
               <>
                 <PaddingConatiner>
                   <Heading text={'Cricket Fever'} />
@@ -965,8 +1075,7 @@ export const Home = () => {
                   )}
                 />
               </>
-            ) : (
-              cricketFeverColumns.length > 0 && (
+            ) : cricketFeverColumns.length > 0 ? (
                 <>
                   <PaddingConatiner>
                     <Heading text={'Cricket Fever'} />
@@ -1003,7 +1112,15 @@ export const Home = () => {
                     )}
                   />
                 </>
-              )
+            ) : (
+              <>
+                <PaddingConatiner>
+                  <Heading text={'Cricket Fever'} />
+                </PaddingConatiner>
+                <ShimmerHorizontalList itemCount={4} />
+              </>
+            )}
+              </>
             )}
           </ScrollView>
         </ErrorBoundary>

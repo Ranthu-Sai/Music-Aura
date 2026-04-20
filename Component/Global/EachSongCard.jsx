@@ -196,6 +196,7 @@ export const EachSongCard = memo(function EachSongCard({
         .toString()
         .toLowerCase();
       const isYTMusicSource = normalizedSource === 'ytmusic';
+      const isYouTubeSource = normalizedSource === 'youtube';
       const resolvedVideoId =
         item?.videoId ||
         (typeof id === 'string' && id.length > 0 ? id : null) ||
@@ -324,7 +325,7 @@ export const EachSongCard = memo(function EachSongCard({
           songToAdd.source = 'ytmusic';
           songToAdd.isYTMusic = true;
         }
-        if (!isYTMusicSource) {
+        if (!isYTMusicSource && !isYouTubeSource) {
           await AddSongsToQueue([songToAdd]);
         }
         await PlaySongWithRelated(songToAdd.id, artworkUri, songToAdd);

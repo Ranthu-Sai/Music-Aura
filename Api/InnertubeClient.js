@@ -6,6 +6,7 @@
  */
 
 import {enhanceYTMusicArtwork} from '../Utils/ArtworkEnhancer';
+import {getCachedData, CACHE_GROUPS} from './CacheManager';
 
 const INNERTUBE_API_KEY = 'AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8';
 const INNERTUBE_API_URL = 'https://music.youtube.com/youtubei/v1';
@@ -36,6 +37,10 @@ const WEB_REMIX_CONTEXT = {
     },
   },
 };
+
+// Cache configuration for home feed
+const HOME_FEED_CACHE_KEY = 'ytmusic_home_sections';
+const HOME_FEED_CACHE_TTL_MINUTES = 1440; // 24 hours
 
 class InnerTubeClient {
   /**
@@ -151,9 +156,22 @@ class InnerTubeClient {
   }
 
   /**
-   * Get Home Feed
+   * Get Home Feed with 24-hour caching
    */
-  static async getHome(sectionLimit = 20) {
+  static async getHome(sectionLimit = 100, forceRefresh = false) {
+    return await getCachedData(
+      HOME_FEED_CACHE_KEY,
+      () => this.getHomeWithContinuation(sectionLimit),
+      HOME_FEED_CACHE_TTL_MINUTES,
+      CACHE_GROUPS.HOME,
+      forceRefresh
+    );
+  }
+
+  /**
+   * Internal method - does the actual API fetching with continuation
+   */
+  static async getHomeWithContinuation(sectionLimit = 100) {
     let authCookies = null;
     let userLanguage = 'SYSTEM_DEFAULT';
     let userCountry = 'SYSTEM_DEFAULT';

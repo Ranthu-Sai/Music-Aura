@@ -52,7 +52,7 @@ export const SearchPage = ({navigation}) => {
   const [hasMore, setHasMore] = useState(true);
   const [searchHistory, setSearchHistory] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
-  const [consecutiveDuplicatePages, setConsecutiveDuplicatePages] = useState(0);
+  const [, setConsecutiveDuplicatePages] = useState(0);
 
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -156,41 +156,47 @@ export const SearchPage = ({navigation}) => {
         }
 
         if (data && data.data && Array.isArray(data.data.results)) {
-          if (data.data.results.length === 0) {
+          const incomingResults = data.data.results || [];
+
+          if (incomingResults.length === 0) {
             if (!append) {
               setData({data: {results: []}});
             }
             setHasMore(false);
           } else if (append) {
-            const existingIds = new Set(
-              (Data?.data?.results || []).map(item => item.id),
-            );
-            const newUniqueResults = data.data.results.filter(
-              item => !existingIds.has(item.id),
-            );
+            let newUniqueCount = 0;
 
-            setData(prev => ({
-              ...prev,
-              data: {
-                results: [...(prev?.data?.results || []), ...newUniqueResults],
-              },
-            }));
+            setData(prev => {
+              const existingIds = new Set(
+                (prev?.data?.results || []).map(item => item?.id),
+              );
+              const newUniqueResults = incomingResults.filter(
+                item => item && !existingIds.has(item.id),
+              );
+              newUniqueCount = newUniqueResults.length;
 
-            if (newUniqueResults.length === 0) {
-              const newCount = consecutiveDuplicatePages + 1;
-              setConsecutiveDuplicatePages(newCount);
-              if (newCount >= 10) {
-                setHasMore(false);
-              } else {
-                setHasMore(data.data.results.length > 0);
-              }
+              return {
+                ...prev,
+                data: {
+                  ...prev?.data,
+                  results: [
+                    ...(prev?.data?.results || []),
+                    ...newUniqueResults,
+                  ],
+                },
+              };
+            });
+
+            if (newUniqueCount === 0) {
+              setConsecutiveDuplicatePages(prev => prev + 1);
+              setHasMore(false);
             } else {
               setConsecutiveDuplicatePages(0);
-              setHasMore(data.data.results.length > 0);
+              setHasMore(incomingResults.length > 0);
             }
           } else {
             setData(data);
-            const hasMoreResults = engine !== 1 && data.data.results.length > 0;
+            const hasMoreResults = incomingResults.length > 0;
             setHasMore(hasMoreResults);
 
             // Cache first page results
@@ -228,7 +234,7 @@ export const SearchPage = ({navigation}) => {
   }
 
   const loadMore = () => {
-    if (!LoadingMore && hasMore) {
+    if (!Loading && !LoadingMore && hasMore && SearchText?.trim()) {
       const nextPage = currentPage + 1;
       setCurrentPage(nextPage);
       fetchSearchData(SearchText, nextPage, true);
