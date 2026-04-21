@@ -76,7 +76,6 @@ export const Home = () => {
   const [languageTopArtists, setLanguageTopArtists] = useState([]);
   const [currentLanguage, setCurrentLanguage] = useState('All');
   const [homeFeedSource, setHomeFeedSource] = useState('Saavn');
-  const [secondaryDataLoaded, setSecondaryDataLoaded] = useState(false);
   const isFocused = useIsFocused();
   const refreshTimerRef = useRef(null);
   const ytMusicFeedRef = useRef(null);
@@ -296,10 +295,6 @@ export const Home = () => {
   // Separate function for loading secondary content
   const loadSecondaryContent = useCallback(
     async Languages => {
-      if (secondaryDataLoaded && !refreshing) {
-        return;
-      } // Don't reload if already loaded and not refreshing
-
       try {
         setLoadingSecondary(true);
         setIsCricketFeverLoading(true);
@@ -394,7 +389,6 @@ export const Home = () => {
             setIsCricketFeverLoading(false);
           }
 
-          setSecondaryDataLoaded(true);
           setLoadingSecondary(false);
         }, 300);
       } catch (e) {
@@ -404,15 +398,12 @@ export const Home = () => {
       }
     },
     [
-      secondaryDataLoaded,
-      refreshing,
+      setIsCricketFeverLoading,
       setLoadingSecondary,
       setLanguageTopArtists,
       setViralHitsId,
       setTrendingLangId,
       setCricketFeverPlaylists,
-      setIsCricketFeverLoading,
-      setSecondaryDataLoaded,
     ],
   );
 
@@ -431,13 +422,16 @@ export const Home = () => {
           setLoading(false);
           setLoadingSecondary(false);
           setIsCricketFeverLoading(false);
-          setSecondaryDataLoaded(true);
-          setViralHitsId(null);
-          setTrendingLangId(null);
-          setCricketFeverPlaylists([]);
           setLanguageTopArtists([]);
           return;
         }
+
+        setLoadingSecondary(true);
+        setIsCricketFeverLoading(true);
+        setViralHitsId(null);
+        setTrendingLangId(null);
+        setCricketFeverPlaylists([]);
+        setLanguageTopArtists([]);
 
         const Languages = await GetLanguageValue();
         setCurrentLanguage(Languages || 'All');
@@ -489,13 +483,12 @@ export const Home = () => {
       setData,
       setCurrentLanguage,
       loadSecondaryContent,
+      setLanguageTopArtists,
       setHomeFeedSource,
       setViralHitsId,
       setTrendingLangId,
       setCricketFeverPlaylists,
       setIsCricketFeverLoading,
-      setLanguageTopArtists,
-      setSecondaryDataLoaded,
     ],
   );
 
@@ -563,10 +556,10 @@ export const Home = () => {
         setHomeFeedSource(activeSource);
         if (activeSource !== 'YTMusic') {
           fetchIndiaSuperhitsPlaylists();
+          fetchHomePageData(true);
         } else if (ytMusicFeedRef.current?.refresh) {
           ytMusicFeedRef.current.refresh();
         }
-        fetchHomePageData(true);
       }
     });
   }, [
