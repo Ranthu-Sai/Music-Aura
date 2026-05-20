@@ -10,22 +10,12 @@ const appName = appJson.name;
 import TrackPlayer from 'react-native-track-player';
 import {CacheManager} from './Utils/NavigationCacheManager';
 import smartPrefetchManager from './Utils/SmartPrefetchManager';
-import {hideLogs, showLogs, suppressLogPrefixes} from './Utils/LogControl';
+import {hideLogs} from './Utils/LogControl';
 
 import {PermissionsAndroid, Platform} from 'react-native';
 import DeviceInfo from 'react-native-device-info';
 
-// Logging: keep logs visible in development, hide only in production
-if (__DEV__) {
-  showLogs();
-} else {
-  hideLogs();
-}
-
-// Suppress noisy dev logs from specific modules while keeping other logs
-if (__DEV__) {
-  suppressLogPrefixes(['useDeviceLibrary:', 'LocalTracksMetadataManager:', 'VirtualizedList:']);
-}
+hideLogs();
 
 // Request notification permission for Android 13+
 if (Platform.OS === 'android') {
@@ -35,15 +25,6 @@ if (Platform.OS === 'android') {
       PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS,
     ).catch(() => {});
   }
-}
-
-// Optional extra hard-mute in production (already handled by hideLogs)
-// Keeping for parity but guarded to production only
-if (!__DEV__) {
-  const NOOP = () => {};
-  console.log = NOOP;
-  console.info = NOOP;
-  console.debug = NOOP;
 }
 
 // Clear stream cache on app startup to remove any invalid cached URLs
@@ -56,8 +37,7 @@ try {
   if (smartPrefetchManager && smartPrefetchManager.clearCache) {
     smartPrefetchManager.clearCache();
   }
-} catch (e) {
-  console.warn('Failed to clear stream cache:', e);
+} catch (_) {
 }
 
 // Ignore specific warnings
@@ -69,13 +49,6 @@ LogBox.ignoreLogs([
 const defaultErrorHandler =
   ErrorUtils.getGlobalHandler && ErrorUtils.getGlobalHandler();
 const errorHandler = (error, isFatal) => {
-  try {
-    console.error('Global caught error:', error, 'isFatal:', isFatal);
-    // Optional: send to remote logging here
-    // Removed user-facing error dialog to prevent interruption
-  } catch (logErr) {
-    // ignore logging failure
-  }
   // Do not call the default handler for fatal errors to avoid process termination
   if (!isFatal && typeof defaultErrorHandler === 'function') {
     try {
@@ -94,13 +67,9 @@ try {
     typeof global.addEventListener === 'function'
   ) {
     global.addEventListener('unhandledrejection', evt => {
-      try {
-        console.error('Unhandled promise rejection:', evt.reason || evt);
-        // prevent default behavior
         if (evt && typeof evt.preventDefault === 'function') {
           evt.preventDefault();
         }
-      } catch (e) {}
     });
   }
 } catch (e) {}

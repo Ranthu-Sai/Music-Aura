@@ -12,13 +12,12 @@ import org.schabi.newpipe.extractor.stream.StreamInfo
 
 class StreamModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaModule(reactContext) {
 
-    init {
-        // Initialize NewPipe
+    private fun ensureDownloaderInitialized() {
         if (NewPipeDownloaderInstance.downloader == null) {
-             val client = OkHttpClient.Builder().build()
-             val downloader = NewPipeDownloader(client)
-             NewPipe.init(downloader)
-             NewPipeDownloaderInstance.downloader = downloader
+            val client = OkHttpClient.Builder().build()
+            val downloader = NewPipeDownloader(client)
+            NewPipe.init(downloader)
+            NewPipeDownloaderInstance.downloader = downloader
         }
     }
 
@@ -31,6 +30,8 @@ class StreamModule(reactContext: ReactApplicationContext) : ReactContextBaseJava
         // Run on background thread to prevent UI freeze
         Thread {
             try {
+                ensureDownloaderInitialized()
+
                 // Reinitialize NewPipe to avoid stale cache issues
                 val client = OkHttpClient.Builder()
                     .followRedirects(true)

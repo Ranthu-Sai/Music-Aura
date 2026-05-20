@@ -6,6 +6,7 @@ import {ShimmerEffect} from './ShimmerEffect';
 import React, {memo, useContext, useState, useCallback, useMemo} from 'react';
 import {PlaySongWithRelated} from '../../MusicPlayerFunctions';
 import {ActionsContext} from '../../Context/Context';
+import {getSongData} from '../../Api/Songs';
 import FormatTitleAndArtist from '../../Utils/FormatTitleAndArtist';
 import FormatArtist from '../../Utils/FormatArtists';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -45,6 +46,7 @@ export const EachTrendingSongCard = memo(function EachTrendingSongCard({
   url,
   duration,
   language,
+  source = 'saavn',
 }) {
   const {updateTrack, lyricsCacheRef} = useContext(ActionsContext);
   const [isLoading, setIsLoading] = useState(false);
@@ -62,18 +64,89 @@ export const EachTrendingSongCard = memo(function EachTrendingSongCard({
     }
     setIsLoading(true);
     try {
+      console.log('[Home Trending Tap] pressed', {
+        id,
+        name,
+        source,
+        hasUrl: !!url,
+        urlType: Array.isArray(url) ? 'array' : typeof url,
+      });
+
       if (lyricsCacheRef?.current) {
         lyricsCacheRef.current = {};
       }
+
+      let resolvedDownloadUrl = url || undefined;
+      let resolvedTitle = name || undefined;
+      let resolvedArtist = artistsNames || undefined;
+      let resolvedArtwork = image;
+      let resolvedDuration = duration || undefined;
+
+      try {
+        const songDetails = await getSongData(id);
+        const songInfo =
+          songDetails?.data?.[0] || songDetails?.data?.results?.[0] || songDetails?.data || {};
+
+        const candidateDownload =
+          songInfo?.downloadUrl ||
+          songInfo?.download_url ||
+          songInfo?.downloadUrls ||
+          songInfo?.media?.downloadUrl ||
+          songInfo?.media?.download_url;
+
+        if (Array.isArray(candidateDownload) && candidateDownload.length > 0) {
+          resolvedDownloadUrl = candidateDownload;
+        } else if (typeof candidateDownload === 'string' && candidateDownload) {
+          resolvedDownloadUrl = candidateDownload;
+        }
+
+        resolvedTitle = resolvedTitle || songInfo?.title || songInfo?.name;
+        resolvedArtist =
+          resolvedArtist ||
+          songInfo?.primaryArtists ||
+          songInfo?.primary_artists ||
+          songInfo?.artist ||
+          songInfo?.artists ||
+          songInfo?.subtitle;
+        resolvedDuration =
+          resolvedDuration || songInfo?.duration || songInfo?.length || 0;
+        resolvedArtwork =
+          resolvedArtwork ||
+          songInfo?.image ||
+          songInfo?.thumbnails ||
+          songInfo?.albumCover ||
+          songInfo?.cover;
+      } catch (resolveError) {
+        // Fall back to the API-less path below.
+        console.warn('[Home Trending Tap] resolve failed', {
+          id,
+          message: resolveError?.message || String(resolveError),
+        });
+      }
+
       // For Saavn songs from Home, url is actually the downloadUrl array
       const songData = {
-        downloadUrl: url || undefined,
-        duration: duration || undefined,
+        downloadUrl: resolvedDownloadUrl,
+        duration: resolvedDuration,
         language: language || undefined,
-        title: name || undefined,
-        artist: artistsNames || undefined,
+        title: resolvedTitle,
+        artist: resolvedArtist,
+        artwork: resolvedArtwork,
+        source,
       };
-      await PlaySongWithRelated(id, image, songData);
+      console.log('[Home Trending Tap] resolved payload', {
+        id,
+        source: songData.source,
+        title: songData.title,
+        artist: songData.artist,
+        duration: songData.duration,
+        downloadUrlType: Array.isArray(songData.downloadUrl)
+          ? 'array'
+          : typeof songData.downloadUrl,
+        hasDownloadUrl: !!songData.downloadUrl,
+      });
+
+      await PlaySongWithRelated(id, resolvedArtwork || image, songData);
       await updateTrack();
     } catch (error) {
       console.error('Error playing song:', error);
@@ -91,6 +164,7 @@ export const EachTrendingSongCard = memo(function EachTrendingSongCard({
     language,
     name,
     artistsNames,
+    source,
   ]);
 
   return (

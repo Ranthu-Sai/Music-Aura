@@ -19,7 +19,25 @@ export const HorizontalScrollSongs = React.memo(({id}) => {
     }
     try {
       setLoading(true);
+      console.log('[HorizontalScrollSongs] loading playlist', {id});
       const data = await getPlaylistData(id);
+      console.log('[HorizontalScrollSongs] playlist loaded', {
+        id,
+        hasData: !!data?.data,
+        playlistName: data?.data?.name,
+        songCount: data?.data?.songs?.length || 0,
+        source: data?.data?.source,
+        firstSong: data?.data?.songs?.[0]
+          ? {
+              id: data.data.songs[0].id,
+              hasDownloadUrl: !!data.data.songs[0].downloadUrl,
+              downloadUrlType: Array.isArray(data.data.songs[0].downloadUrl)
+                ? 'array'
+                : typeof data.data.songs[0].downloadUrl,
+              source: data.data.songs[0].source,
+            }
+          : null,
+      });
       setData(data);
     } catch (e) {
       console.warn('HorizontalScrollSongs: Failed to fetch playlist', e);
@@ -38,6 +56,18 @@ export const HorizontalScrollSongs = React.memo(({id}) => {
     () => id && playlistName !== 'Trending Today',
     [id, playlistName],
   );
+
+  useEffect(() => {
+    if (playlistName) {
+      console.log('[HorizontalScrollSongs] render state', {
+        id,
+        playlistName,
+        loading: Loading,
+        songCount: songs.length,
+        source: Data?.data?.source,
+      });
+    }
+  }, [id, playlistName, Loading, songs.length, Data?.data?.source]);
 
   if (!shouldRender) {
     return null;
@@ -66,6 +96,7 @@ export const HorizontalScrollSongs = React.memo(({id}) => {
                   Data={Data}
                   artist={FormatArtist(e?.artists?.primary || e?.primaryArtists)}
                   language={e?.language}
+                  source={'saavn'}
                   playlist={true}
                   artistID={e?.primary_artists_id || e?.primaryArtistsId}
                   duration={e?.duration}
@@ -100,6 +131,7 @@ export const HorizontalScrollSongs = React.memo(({id}) => {
                   isFromPlaylist={true}
                   artist={FormatArtist(e?.artists?.primary || e?.primaryArtists)}
                   language={e?.language}
+                  source={'saavn'}
                   playlist={true}
                   artistID={e?.primary_artists_id || e?.primaryArtistsId}
                   duration={e?.duration}

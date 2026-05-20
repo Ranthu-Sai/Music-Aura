@@ -408,6 +408,7 @@ const ContextState = props => {
                     duration: e.duration,
                     id: e.id,
                     language: e.language || 'en',
+                    source: 'saavn',
                   };
                 }
               })
@@ -639,6 +640,21 @@ const ContextState = props => {
             try {
               console.log('💿 Restoring last played song as fallback');
 
+                  const normalizedLastSong = {
+                    ...lastSong,
+                    source:
+                      lastSong.source ||
+                      (typeof lastSong.url === 'string' &&
+                      lastSong.url.startsWith('ytmusic://')
+                        ? 'ytmusic'
+                        : 'saavn'),
+                    isYTMusic:
+                      lastSong.isYTMusic ||
+                      lastSong.source === 'ytmusic' ||
+                      (typeof lastSong.url === 'string' &&
+                        lastSong.url.startsWith('ytmusic://')),
+                  };
+
               // Ensure the player is initialized before attempting restore
               try {
                 await TrackPlayer.setupPlayer();
@@ -648,26 +664,26 @@ const ContextState = props => {
 
               // Reset player and add the last song
               await TrackPlayer.reset();
-              await TrackPlayer.add([lastSong]);
+                  await TrackPlayer.add([normalizedLastSong]);
 
               // CRITICAL: Skip to track 0 to make it the active track
               // This ensures useActiveTrack() hook picks it up in MinimizedMusic
               await TrackPlayer.skip(0);
 
               // Update state immediately to show in mini player
-              song = lastSong;
-              queue = [lastSong];
-              setCurrentPlaying(lastSong);
+                  song = normalizedLastSong;
+                  queue = [normalizedLastSong];
+                  setCurrentPlaying(normalizedLastSong);
               setIndex(0);
-              setQueue([lastSong]);
+                  setQueue([normalizedLastSong]);
 
-              SetQueueSongs([lastSong]).catch(err =>
+                  SetQueueSongs([normalizedLastSong]).catch(err =>
                 console.warn('Failed to persist fallback queue:', err),
               );
 
               // Auto-fill queue with recommended songs
               console.log('🔄 Auto-filling queue with recommendations...');
-              await AddRecommendedSongs(0, song.id, true);
+                  await AddRecommendedSongs(0, song.id, true);
             } catch (e) {
               console.error('❌ Error restoring last song:', e);
             }

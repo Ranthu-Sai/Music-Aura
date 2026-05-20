@@ -1,5 +1,8 @@
 // Minimal log control utilities
 const ORIGINAL = {
+  log: console.log,
+  info: console.info,
+  debug: console.debug,
   warn: console.warn,
   error: console.error,
 };
@@ -9,9 +12,15 @@ let _suppressPrefixes = [];
 
 export function applyHideLogs(hide = false) {
   if (hide) {
+    console.log = _noop;
+    console.info = _noop;
+    console.debug = _noop;
     console.warn = _noop;
     console.error = _noop;
   } else {
+    console.log = ORIGINAL.log || console.log;
+    console.info = ORIGINAL.info || console.info;
+    console.debug = ORIGINAL.debug || console.debug;
     console.warn = ORIGINAL.warn || console.warn;
     console.error = ORIGINAL.error || console.error;
     _wrapWithSuppression();
@@ -19,6 +28,9 @@ export function applyHideLogs(hide = false) {
 }
 
 function _wrapWithSuppression() {
+  console.log = ORIGINAL.log || console.log;
+  console.info = ORIGINAL.info || console.info;
+  console.debug = ORIGINAL.debug || console.debug;
   console.warn = ORIGINAL.warn || console.warn;
   console.error = ORIGINAL.error || console.error;
 
@@ -37,6 +49,9 @@ function _wrapWithSuppression() {
     } catch (_) {}
   };
 
+  console.log = wrap(ORIGINAL.log || console.log);
+  console.info = wrap(ORIGINAL.info || console.info);
+  console.debug = wrap(ORIGINAL.debug || console.debug);
   console.warn = wrap(ORIGINAL.warn || console.warn);
   console.error = wrap(ORIGINAL.error || console.error);
 }

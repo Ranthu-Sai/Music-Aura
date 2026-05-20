@@ -53,6 +53,25 @@ const JIOSAAVN_API_FALLBACKS = [
   'https://jio-saavan-api.vercel.app', // Secondary fallback
 ];
 
+async function parseJsonResponseSafely(response) {
+  const contentType = response.headers?.get?.('content-type') || '';
+  const bodyText = await response.text();
+
+  if (!bodyText) {
+    return null;
+  }
+
+  if (contentType.includes('application/json')) {
+    return JSON.parse(bodyText);
+  }
+
+  try {
+    return JSON.parse(bodyText);
+  } catch {
+    return null;
+  }
+}
+
 const SectionLoadingBlock = ({titleWidth = 180, children}) => (
   <View style={{marginBottom: 10}}>
     <View style={{paddingHorizontal: 13, marginBottom: 12, marginTop: 8}}>
@@ -209,7 +228,14 @@ export const Home = () => {
 
         try {
           const response = await fetch(`${apiBase}/playlists?id=${id}`);
-          const data = await response.json();
+          if (!response.ok) {
+            continue;
+          }
+
+          const data = await parseJsonResponseSafely(response);
+          if (!data) {
+            continue;
+          }
 
           // Support multiple response shapes: { status, results } or { status, data }
           let playlist = null;
@@ -256,10 +282,16 @@ export const Home = () => {
             success = true;
           }
         } catch (error) {
-          console.warn(
-            `Failed to fetch playlist ${id} from ${apiBase}:`,
-            error,
-          );
+          const isExpectedParseFallbackError =
+            error instanceof SyntaxError ||
+            String(error?.message || error).includes('JSON Parse error');
+
+          if (!isExpectedParseFallbackError) {
+            console.warn(
+              `Failed to fetch playlist ${id} from ${apiBase}:`,
+              error,
+            );
+          }
           // Continue to next API fallback
         }
       }

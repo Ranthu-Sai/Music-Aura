@@ -380,8 +380,29 @@ const useSongDetails = track => {
           });
         }
       } catch (err) {
-        console.error('Error fetching song details:', err);
-        setError('Failed to load song details. Please check your connection.');
+        const albumValue =
+          typeof track.album === 'object' ? track.album?.name : track.album;
+        const albumName =
+          albumValue && albumValue !== track.title
+            ? cleanText(albumValue)
+            : 'N/A';
+
+        setSongDetails({
+          basicInfo: [
+            {label: 'Title', value: cleanText(track.title) || 'Unknown Track'},
+            {label: 'Artist', value: cleanText(track.artist) || 'Unknown Artist'},
+            {label: 'Album', value: albumName},
+            {label: 'Duration', value: formatDuration(track.duration)},
+          ],
+          additionalInfo: [
+            {label: 'Status', value: 'Using local track data'},
+            {label: 'ID', value: track.id || 'N/A'},
+            {
+              label: 'Source',
+              value: track.isLocal ? 'Local File' : 'Streaming',
+            },
+          ],
+        });
       } finally {
         setLoading(false);
       }

@@ -19,6 +19,10 @@ async function retryWithBackoff(fn, maxRetries = 3, baseDelay = 1000) {
   }
 }
 
+function isExpectedModulesApiFallbackError(error) {
+  return error?.response?.status === 402;
+}
+
 // Track failed songs to avoid duplicate warnings
 const failedStreamingUrls = new Set();
 
@@ -141,10 +145,12 @@ export async function getTrendingArtists(language = null) {
             }
           }
         } catch (apiError) {
-          console.warn(
-            `Module API ${apiBase} failed for artists:`,
-            apiError.message,
-          );
+          if (!isExpectedModulesApiFallbackError(apiError)) {
+            console.warn(
+              `Module API ${apiBase} failed for artists:`,
+              apiError.message,
+            );
+          }
           continue;
         }
       }
@@ -294,10 +300,12 @@ export async function getLanguageTopArtists(language) {
           }
         }
       } catch (apiError) {
-        console.warn(
-          `Modules API ${apiBase} failed for language ${language}:`,
-          apiError.message,
-        );
+        if (!isExpectedModulesApiFallbackError(apiError)) {
+          console.warn(
+            `Modules API ${apiBase} failed for language ${language}:`,
+            apiError.message,
+          );
+        }
         continue;
       }
     }

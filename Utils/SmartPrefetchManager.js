@@ -622,12 +622,31 @@ class SmartPrefetchManager {
       return false;
     }
 
+    const normalizedSource = (track.source || '').toString().toLowerCase();
+    const hasDirectDownload =
+      !!track.downloadUrl || !!track.download_url || !!track.url;
+
+    // Explicit Saavn/local tracks should never be treated as YouTube stream placeholders.
+    if (
+      normalizedSource === 'saavn' ||
+      normalizedSource === 'local' ||
+      normalizedSource === 'file'
+    ) {
+      return false;
+    }
+
+    if (normalizedSource === 'youtube' || normalizedSource === 'ytmusic') {
+      const url = track.url || '';
+      return !url || url.startsWith('ytmusic://') || url.includes('music.youtube.com');
+    }
+
     // Check if it's a YouTube track needing stream
     const isYTMusic =
       track.id &&
       typeof track.id === 'string' &&
       track.id.length === 11 &&
-      !track.isLocalMusic;
+      !track.isLocalMusic &&
+      !hasDirectDownload;
 
     if (!isYTMusic) {
       return false;

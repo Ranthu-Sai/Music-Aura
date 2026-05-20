@@ -195,6 +195,20 @@ export const EachSongCard = memo(function EachSongCard({
       const normalizedSource = (source || item?.source || '')
         .toString()
         .toLowerCase();
+
+      console.log('[EachSongCard] tap', {
+        id,
+        title: displayTitle,
+        source: normalizedSource || source,
+        isFromPlaylist: !!isFromPlaylist,
+        dataMode: Data?.data?.songs
+          ? 'playlist'
+          : Data?.data?.results
+          ? 'search'
+          : Array.isArray(Data)
+          ? 'array'
+          : 'single',
+      });
       const isYTMusicSource = normalizedSource === 'ytmusic';
       const isYouTubeSource = normalizedSource === 'youtube';
       const resolvedVideoId =
@@ -272,6 +286,7 @@ export const EachSongCard = memo(function EachSongCard({
 
           return {
             url: download,
+            downloadUrl: e?.downloadUrl || download,
             title: FormatTitleAndArtist(e?.name || e?.title),
             artist: FormatTitleAndArtist(FormatArtist(e?.artists?.primary || e?.primaryArtists)),
             artwork: Array.isArray(e?.image)
@@ -284,8 +299,24 @@ export const EachSongCard = memo(function EachSongCard({
             id: e?.id,
             language: e?.language,
             artistID: e?.primary_artists_id || e?.primaryArtistsId,
-            source: e?.source || Data.data.source,
+            source: e?.source || Data.data.source || 'saavn',
           };
+        });
+
+        console.log('[EachSongCard] playlist queue payload', {
+          clickedId: id,
+          queueLength: ForMusicPlayer.length,
+          source: Data.data.source || 'saavn',
+          firstTrack: ForMusicPlayer[0]
+            ? {
+                id: ForMusicPlayer[0].id,
+                urlType: Array.isArray(ForMusicPlayer[0].url)
+                  ? 'array'
+                  : typeof ForMusicPlayer[0].url,
+                hasDownloadUrl: !!ForMusicPlayer[0].downloadUrl,
+                source: ForMusicPlayer[0].source,
+              }
+            : null,
         });
 
         // Play from the clicked song using startSongId
@@ -326,6 +357,16 @@ export const EachSongCard = memo(function EachSongCard({
           songToAdd.isYTMusic = true;
         }
         if (!isYTMusicSource && !isYouTubeSource) {
+          console.log('[EachSongCard] search queue payload', {
+            id: songToAdd.id,
+            source: songToAdd.source,
+            urlType: Array.isArray(songToAdd.url)
+              ? 'array'
+              : typeof songToAdd.url,
+            downloadUrlType: Array.isArray(songToAdd.downloadUrl)
+              ? 'array'
+              : typeof songToAdd.downloadUrl,
+          });
           await AddSongsToQueue([songToAdd]);
         }
         await PlaySongWithRelated(songToAdd.id, artworkUri, songToAdd);
@@ -362,6 +403,7 @@ export const EachSongCard = memo(function EachSongCard({
 
           return {
             url: download,
+            downloadUrl: e?.downloadUrl || download,
             title: FormatTitleAndArtist(e?.title || e?.name),
             artist: FormatTitleAndArtist(e?.artist),
             artwork: e?.artwork || e?.image,
@@ -370,7 +412,7 @@ export const EachSongCard = memo(function EachSongCard({
             id: e?.id,
             language: e?.language,
             artistID: e?.artistID || e?.primary_artists_id,
-            source: e?.source,
+            source: e?.source || 'saavn',
           };
         });
 
@@ -411,6 +453,7 @@ export const EachSongCard = memo(function EachSongCard({
     artworkUri,
     displayTitle,
     index,
+    isFromPlaylist,
     source,
     item,
   ]);

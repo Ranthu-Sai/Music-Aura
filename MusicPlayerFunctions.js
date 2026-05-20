@@ -767,6 +767,17 @@ async function PlaySongWithRelated(videoId, artwork, songData = {}) {
       songData?.id ||
       videoId;
 
+    console.log('[PlaySongWithRelated] start', {
+      videoId: normalizedVideoId,
+      source: normalizedSource,
+      hasUrl: !!songData?.url,
+      urlType: Array.isArray(songData?.url) ? 'array' : typeof songData?.url,
+      hasDownloadUrl: !!songData?.downloadUrl,
+      downloadUrlType: Array.isArray(songData?.downloadUrl)
+        ? 'array'
+        : typeof songData?.downloadUrl,
+    });
+
     // Create song object
     const song = {
       id: normalizedVideoId,
@@ -881,6 +892,19 @@ async function PlaySongWithRelated(videoId, artwork, songData = {}) {
         } else if (candidateUrl) {
           song.url = candidateUrl;
         }
+
+        console.log('[PlaySongWithRelated] after Saavn lookup', {
+          id: song.id,
+          source: normalizedSource,
+          isYouTubeSong: song.isYouTubeSong,
+          urlType: Array.isArray(song.url) ? 'array' : typeof song.url,
+          hasUrl: !!song.url,
+          downloadUrlType: Array.isArray(song.downloadUrl)
+            ? 'array'
+            : typeof song.downloadUrl,
+          hasDownloadUrl: !!song.downloadUrl,
+        });
+
         // If we found duration/title/artist from API, merge to improve metadata
         if (songInfo) {
           song.title = song.title || songInfo.title || songInfo.name;
@@ -981,6 +1005,17 @@ async function PlaySongWithRelated(videoId, artwork, songData = {}) {
 
     // Do not reset before playback start.
     // Immediate app close after tap can kill notification between reset and new track add.
+    console.log('[PlaySongWithRelated] calling PlayOneSong', {
+      id: song.id,
+      source: song.source,
+      isYouTubeSong: song.isYouTubeSong,
+      finalUrlType: Array.isArray(song.url) ? 'array' : typeof song.url,
+      hasFinalUrl: !!song.url,
+      finalDownloadUrlType: Array.isArray(song.downloadUrl)
+        ? 'array'
+        : typeof song.downloadUrl,
+      hasFinalDownloadUrl: !!song.downloadUrl,
+    });
     await PlayOneSong(song, {clearQueue: true});
 
     // Emit event to open queue when song is played from anywhere
@@ -1243,19 +1278,106 @@ async function AddPlaylist(songs, startSongId = null) {
       return;
     }
 
+    console.log('[AddPlaylist] start', {
+      songCount: songs.length,
+      startSongId,
+      firstSong: songs[0]
+        ? {
+            id: songs[0].id,
+            source: songs[0].source,
+            urlType: Array.isArray(songs[0].url)
+              ? 'array'
+              : typeof songs[0].url,
+            hasDownloadUrl: !!songs[0].downloadUrl,
+          }
+        : null,
+    });
+
     // Ensure player is initialized before proceeding
     if (!isPlayerInitialized) {
       await setupPlayer();
     }
 
+    const isPlayableSaavnUrl = value => {
+      if (typeof value !== 'string' || !value) {
+        return false;
+      }
+      return /aac\.saavncdn\.com|\.mp4(\?|$)|\.m4a(\?|$)|\.aac(\?|$)/i.test(
+        value,
+      );
+    };
+
+    // Normalize Saavn songs whose downloadUrl/url still points at the song page
+    // instead of the direct CDN audio URL.
+    const normalizedTracks = await Promise.all(
+      songs.map(async song => {
+        const normalizedSource = (song?.source || '').toString().toLowerCase();
+        const candidateUrl =
+          Array.isArray(song?.downloadUrl)
+            ? song.downloadUrl.find(d => d?.url || d?.link) || song.downloadUrl[0]
+            : song?.downloadUrl;
+
+        const looksPlayable =
+          Array.isArray(song?.downloadUrl) || isPlayableSaavnUrl(candidateUrl?.url || candidateUrl?.link || candidateUrl || song?.url);
+
+        if (
+          normalizedSource === 'saavn' &&
+          !looksPlayable &&
+          song?.id
+        ) {
+          try {
+            const {getSongData} = require('./Api/Songs');
+            const resolved = await getSongData(song.id);
+            const resolvedSong = resolved?.data?.[0] || resolved?.data || {};
+            const resolvedDownload =
+              resolvedSong?.downloadUrl ||
+              resolvedSong?.download_url ||
+              resolvedSong?.downloadUrls ||
+              resolvedSong?.media?.downloadUrl ||
+              resolvedSong?.media?.download_url;
+
+            if (Array.isArray(resolvedDownload) && resolvedDownload.length > 0) {
+              return {
+                ...song,
+                downloadUrl: resolvedDownload,
+                url:
+                  resolvedDownload[0]?.url ||
+                  resolvedDownload[0]?.link ||
+                  song.url,
+              };
+            }
+
+            if (typeof resolvedDownload === 'string' && isPlayableSaavnUrl(resolvedDownload)) {
+              return {
+                ...song,
+                downloadUrl: resolvedDownload,
+                url: resolvedDownload,
+              };
+            }
+          } catch (resolveError) {
+            console.warn('[AddPlaylist] failed to resolve Saavn stream URL', {
+              id: song.id,
+              message: resolveError?.message || String(resolveError),
+            });
+          }
+        }
+
+        return song;
+      }),
+    );
+
     // Keep all songs in the queue but remember which index to start from
-    let tracksToAdd = [...songs];
+    let tracksToAdd = [...normalizedTracks];
     let startIndex = 0;
 
     if (startSongId) {
       const foundIndex = songs.findIndex(
         s => s.id === startSongId || s.videoId === startSongId,
       );
+      console.log('[AddPlaylist] start song lookup', {
+        startSongId,
+        foundIndex,
+      });
       if (foundIndex !== -1) {
         startIndex = foundIndex;
       } else {
@@ -1375,26 +1497,90 @@ async function AddPlaylist(songs, startSongId = null) {
     const INITIAL_BATCH_SIZE = 20;
     const initialBatch = processedSongs.slice(0, INITIAL_BATCH_SIZE);
 
+    console.log('[AddPlaylist] processed songs ready', {
+      processedCount: processedSongs.length,
+      startIndex,
+      initialBatchCount: initialBatch.length,
+      firstProcessed: processedSongs[0]
+        ? {
+            id: processedSongs[0].id,
+            source: processedSongs[0].source,
+            urlType: Array.isArray(processedSongs[0].url)
+              ? 'array'
+              : typeof processedSongs[0].url,
+            hasUrl: !!processedSongs[0].url,
+          }
+        : null,
+    });
+
+    console.log('[AddPlaylist] initial batch preview', {
+      firstInitial: initialBatch[0]
+        ? {
+            id: initialBatch[0].id,
+            source: initialBatch[0].source,
+            title: initialBatch[0].title,
+            urlType: Array.isArray(initialBatch[0].url)
+              ? 'array'
+              : typeof initialBatch[0].url,
+            hasUrl: !!initialBatch[0].url,
+            urlPreview:
+              typeof initialBatch[0].url === 'string'
+                ? initialBatch[0].url.slice(0, 60)
+                : null,
+            downloadUrlType: Array.isArray(initialBatch[0].downloadUrl)
+              ? 'array'
+              : typeof initialBatch[0].downloadUrl,
+          }
+        : null,
+    });
+
     // If player already has the same track playing, avoid unnecessary reset which can cause queue churn
     try {
       const currentIndex = await TrackPlayer.getActiveTrackIndex();
       const queue = await TrackPlayer.getQueue();
       const currentTrack = (typeof currentIndex === 'number' && currentIndex >= 0) ? queue[currentIndex] : null;
+      console.log('[AddPlaylist] current queue state', {
+        currentIndex,
+        queueLength: queue.length,
+        currentTrackId: currentTrack?.id,
+        currentTrackUrlType: Array.isArray(currentTrack?.url)
+          ? 'array'
+          : typeof currentTrack?.url,
+        currentTrackSource: currentTrack?.source,
+      });
       if (currentTrack && startSongId && (currentTrack.id === startSongId || currentTrack.id === (songs[startIndex] && songs[startIndex].id))) {
         // Already playing the requested track — ensure playing state and return
+        console.log('[AddPlaylist] already on requested track, calling play()');
         await TrackPlayer.play();
       } else {
+        console.log('[AddPlaylist] resetting and starting playback', {
+          startIndex,
+          initialBatchLength: initialBatch.length,
+        });
         await TrackPlayer.reset();
         await TrackPlayer.add(initialBatch);
 
         // Skip to the song user clicked on if startIndex is within initial batch
         if (startIndex < INITIAL_BATCH_SIZE) {
+          console.log('[AddPlaylist] skipping to startIndex', {startIndex});
           await TrackPlayer.skip(startIndex);
           // Small delay to ensure track is loaded before playing (prevents multiple loads)
           await new Promise(resolve => setTimeout(resolve, 100));
         }
 
+        console.log('[AddPlaylist] calling TrackPlayer.play()');
         await TrackPlayer.play();
+        const postPlayTrack = await TrackPlayer.getActiveTrack();
+        const postPlayState = await TrackPlayer.getPlaybackState();
+        console.log('[AddPlaylist] play() resolved', {
+          postPlayTrackId: postPlayTrack?.id,
+          postPlayTrackSource: postPlayTrack?.source,
+          postPlayTrackUrlType: Array.isArray(postPlayTrack?.url)
+            ? 'array'
+            : typeof postPlayTrack?.url,
+          postPlayTrackHasUrl: !!postPlayTrack?.url,
+          postPlayState: postPlayState?.state,
+        });
       }
     } catch (err) {
       // If any error, fallback to reset + add + play
@@ -1402,10 +1588,23 @@ async function AddPlaylist(songs, startSongId = null) {
       await TrackPlayer.reset();
       await TrackPlayer.add(initialBatch);
       if (startIndex < INITIAL_BATCH_SIZE) {
+        console.log('[AddPlaylist] fallback skip to startIndex', {startIndex});
         await TrackPlayer.skip(startIndex);
         await new Promise(resolve => setTimeout(resolve, 100));
       }
+      console.log('[AddPlaylist] fallback calling TrackPlayer.play()');
       await TrackPlayer.play();
+      const fallbackPostPlayTrack = await TrackPlayer.getActiveTrack();
+      const fallbackPostPlayState = await TrackPlayer.getPlaybackState();
+      console.log('[AddPlaylist] fallback play() resolved', {
+        postPlayTrackId: fallbackPostPlayTrack?.id,
+        postPlayTrackSource: fallbackPostPlayTrack?.source,
+        postPlayTrackUrlType: Array.isArray(fallbackPostPlayTrack?.url)
+          ? 'array'
+          : typeof fallbackPostPlayTrack?.url,
+        postPlayTrackHasUrl: !!fallbackPostPlayTrack?.url,
+        postPlayState: fallbackPostPlayState?.state,
+      });
     }
 
     // Signal that this is a playlist/album playback (disable auto-recommendations)
@@ -1599,10 +1798,17 @@ async function AddSongsToQueue(songs) {
     const normalizedSource = (song?.source || '').toString().toLowerCase();
     const isYTMusicSource =
       normalizedSource === 'ytmusic' || song.isYTMusic === true;
+    const isExplicitSaavnSource =
+      normalizedSource === 'saavn' ||
+      normalizedSource === 'local' ||
+      normalizedSource === 'file';
 
     let processedSong = {...song};
 
-    if ((hasValidYouTubeId && !song.isLocalMusic) || isYTMusicSource) {
+    if (
+      !isExplicitSaavnSource &&
+      ((hasValidYouTubeId && !song.isLocalMusic) || isYTMusicSource)
+    ) {
       // ...existing code...
       const videoId = song.id || song.videoId;
       processedSong = {
@@ -1950,8 +2156,15 @@ async function PlayNextInQueue(songs) {
     const normalizedSource = (song?.source || '').toString().toLowerCase();
     const isYTMusicSource =
       normalizedSource === 'ytmusic' || song.isYTMusic === true;
+    const isExplicitSaavnSource =
+      normalizedSource === 'saavn' ||
+      normalizedSource === 'local' ||
+      normalizedSource === 'file';
 
-    if ((hasValidYouTubeId && !song.isLocalMusic) || isYTMusicSource) {
+    if (
+      !isExplicitSaavnSource &&
+      ((hasValidYouTubeId && !song.isLocalMusic) || isYTMusicSource)
+    ) {
       const videoId = song.id || song.videoId;
       processedSong = {
         ...processedSong,

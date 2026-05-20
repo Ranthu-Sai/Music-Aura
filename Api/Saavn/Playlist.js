@@ -165,6 +165,10 @@ async function getPlaylistData(id) {
         };
         const response = await axios.request(config);
 
+        if (response.data?.data && !response.data.data.source) {
+          response.data.data.source = 'saavn';
+        }
+
         let responseData = response.data;
 
         // If the Saavn playlist reports a songCount larger than the returned songs,
