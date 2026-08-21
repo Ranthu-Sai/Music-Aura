@@ -6,8 +6,8 @@ jest.mock('react-native-reanimated', () =>
   require('react-native-reanimated/mock'),
 );
 
-// Silence the useNativeDriver warning
-jest.mock('react-native/Libraries/Animated/NativeAnimatedHelper');
+// Silence the useNativeDriver warning (RN 0.86 path)
+jest.mock('react-native/src/private/animated/NativeAnimatedHelper');
 
 // Mock vector icons to simple components
 jest.mock('react-native-vector-icons/Entypo', () => 'Icon');

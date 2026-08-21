@@ -17,7 +17,7 @@ function getAnalyticsIfAvailable(): FirebaseAnalyticsTypes.Module | null {
     // Try getting analytics without providing an app (works with many package versions).
     analyticsInstance = getAnalytics();
     return analyticsInstance;
-  } catch (error) {
+  } catch {
     // Fallback: if the imported module is callable, call it to obtain an app.
     try {
       if (typeof (getApp as any) === 'function') {
@@ -25,7 +25,7 @@ function getAnalyticsIfAvailable(): FirebaseAnalyticsTypes.Module | null {
         analyticsInstance = getAnalytics(app as any);
         return analyticsInstance;
       }
-    } catch (e) {
+    } catch {
       // ignore and fall through
     }
 
@@ -68,7 +68,7 @@ class AnalyticsService {
         return;
       }
       await instance.setAnalyticsCollectionEnabled(enabled);
-    } catch (error) {
+    } catch {
       // Silent error handling for analytics
     }
   };
@@ -88,7 +88,7 @@ class AnalyticsService {
         screen_name: screenName,
         screen_class: screenClass || screenName,
       });
-    } catch (error) {
+    } catch {
       // Silent error handling for analytics
     }
   };
@@ -105,7 +105,7 @@ class AnalyticsService {
         return;
       }
       await instance.logEvent(eventName, params);
-    } catch (error) {
+    } catch {
       // Silent error handling for analytics
     }
   };
@@ -122,7 +122,7 @@ class AnalyticsService {
         return;
       }
       await instance.setUserProperty(name, value);
-    } catch (error) {
+    } catch {
       // Silent error handling for analytics
     }
   };
@@ -220,3 +220,4 @@ class AnalyticsService {
 
 // Export a singleton instance
 export const analyticsService = new AnalyticsService();
+
