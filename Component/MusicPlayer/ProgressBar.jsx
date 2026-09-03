@@ -1,4 +1,3 @@
-import Slider from '@react-native-community/slider';
 import React, {useEffect, useMemo, useRef, useState, memo} from 'react';
 import {Dimensions, View} from 'react-native';
 import {useTheme} from '@react-navigation/native';
@@ -74,48 +73,79 @@ export const ProgressBar = memo(() => {
     ? Math.max(0, Math.min(sliderValue, accurateDuration || 0))
     : Math.max(0, Math.min(position || 0, accurateDuration || 0));
 
+  const updateSliderFromEvent = event => {
+    const maxValue = accurateDuration || 0;
+    const locationX = event.nativeEvent.locationX;
+    const value = maxValue > 0 ? (locationX / width) * maxValue : 0;
+    setIsSliding(true);
+    setSliderValue(Math.max(0, Math.min(value, maxValue)));
+  };
+
+  const completeSliderFromEvent = async event => {
+    const maxValue = accurateDuration || 0;
+    const locationX = event.nativeEvent.locationX;
+    const target = Math.max(
+      0,
+      Math.min(maxValue > 0 ? (locationX / width) * maxValue : 0, maxValue),
+    );
+    try {
+      setSliderValue(target);
+      await TrackPlayer.seekTo(target);
+      if (wasPlaying) {
+        await TrackPlayer.play();
+      }
+    } catch (e) {
+      // no-op
+    } finally {
+      setTimeout(() => setIsSliding(false), 80);
+    }
+  };
+
   return (
     <>
-      <Slider
-        style={{width: width, height: 40}}
-        minimumValue={0}
-        maximumValue={Math.max(accurateDuration || 0, 1)}
-        value={clampedSliderValue}
-        onValueChange={value => {
-          setIsSliding(true);
-          setSliderValue(value ?? 0);
-        }}
-        onSlidingStart={() => {
+      <View
+        style={{width, height: 40, justifyContent: 'center'}}
+        onStartShouldSetResponder={() => true}
+        onMoveShouldSetResponder={() => true}
+        onResponderGrant={event => {
           const playing =
             playbackState?.state === 3 ||
             playbackState === 3 ||
             playbackState?.state === 'playing';
           setWasPlaying(Boolean(playing));
-          setIsSliding(true);
+          updateSliderFromEvent(event);
         }}
-        onSlidingComplete={async value => {
-          try {
-            const target = Math.max(
-              0,
-              Math.min(value ?? 0, accurateDuration || 0),
-            );
-            setSliderValue(target);
-            await TrackPlayer.seekTo(target);
-            if (wasPlaying) {
-              await TrackPlayer.play();
-            }
-          } catch (e) {
-            // no-op
-          } finally {
-            setTimeout(() => setIsSliding(false), 80);
-          }
-        }}
-        minimumTrackTintColor={theme.colors.text}
-        maximumTrackTintColor={
-          theme.dark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.2)'
-        }
-        thumbTintColor={theme.colors.text}
-      />
+        onResponderMove={updateSliderFromEvent}
+        onResponderRelease={completeSliderFromEvent}>
+        <View
+          style={{
+            height: 4,
+            borderRadius: 2,
+            backgroundColor: theme.dark
+              ? 'rgba(255,255,255,0.2)'
+              : 'rgba(0,0,0,0.2)',
+          }}>
+          <View
+            style={{
+              width: `${accurateDuration ? (clampedSliderValue / accurateDuration) * 100 : 0}%`,
+              height: 4,
+              borderRadius: 2,
+              backgroundColor: theme.colors.text,
+            }}
+          />
+        </View>
+        <View
+          style={{
+            position: 'absolute',
+            left: `${accurateDuration ? (clampedSliderValue / accurateDuration) * 100 : 0}%`,
+            marginLeft: -7,
+            width: 14,
+            height: 14,
+            borderRadius: 7,
+            backgroundColor: theme.colors.text,
+          }}
+        />
+      </View>
       <View
         style={{
           flexDirection: 'row',

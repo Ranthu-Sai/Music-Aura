@@ -66,6 +66,7 @@ react {
     //   A list of extra flags to pass to the 'bundle' commands.
     //   See https://github.com/react-native-community/cli/blob/main/docs/commands.md#bundle
     extraPackagerArgs = ["--dev", "false", "--minify", "true", "--reset-cache"]
+        autolinkLibrariesWithApp()
 
     /* Hermes Commands */
     //   The hermes compiler command to run. By default it is 'hermesc'
@@ -150,8 +151,6 @@ android {
     buildTypes {
         debug {
             signingConfig signingConfigs.debug
-            // Use release signing for debug builds to avoid scan prompt
-            signingConfig signingConfigs.release
         }
         release {
             // Caution! In production, you need to generate your own keystore file.
@@ -208,8 +207,6 @@ dependencies {
     // The version of react-native is set by the React Native Gradle Plugin
     implementation fileTree(dir: "libs", include: ["*.jar"])
     implementation("com.facebook.react:react-android")
-    // Only include Flipper in debug builds; exclude from release to save size
-    debugImplementation("com.facebook.react:flipper-integration")
     implementation ('com.facebook.fresco:fresco:2.0.0')
     implementation ('com.facebook.fresco:animated-gif:2.0.0')
     
@@ -259,8 +256,6 @@ configurations.all {
     exclude group: 'com.android.support', module: 'support-compat'
     exclude group: 'com.android.support', module: 'support-v4'
 }
-
-apply from: file("../../node_modules/@react-native-community/cli-platform-android/native_modules.gradle"); applyNativeModulesAppBuildGradle(project)
 
 apply plugin: 'com.google.gms.google-services'
 
