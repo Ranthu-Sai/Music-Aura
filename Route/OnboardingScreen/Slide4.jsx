@@ -167,7 +167,6 @@ const styles = StyleSheet.create({
     height: width * 0.9,
     borderRadius: (width * 0.9) / 2,
     backgroundColor: 'rgba(71, 118, 230, 0.1)',
-    filter: 'blur(80px)',
   },
   centerSection: {
     flex: 1,

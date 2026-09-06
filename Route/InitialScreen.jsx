@@ -40,18 +40,26 @@ export const InitialScreen = ({navigation}) => {
       return;
     }
 
-    await requestStoragePermission();
-    const lang = await GetLanguageValue();
+    try {
+      await requestStoragePermission();
+      const lang = await GetLanguageValue();
 
-    if (hasNavigatedRef.current) {
-      return;
-    }
+      if (hasNavigatedRef.current) {
+        return;
+      }
 
-    hasNavigatedRef.current = true;
-    if (lang !== '') {
-      navigation.replace('MainRoute');
-    } else {
-      navigation.replace('Onboarding');
+      hasNavigatedRef.current = true;
+      if (lang && lang !== '') {
+        navigation.replace('MainRoute');
+      } else {
+        navigation.replace('Onboarding');
+      }
+    } catch (err) {
+      console.warn('InitialCall error, navigating to MainRoute fallback:', err);
+      if (!hasNavigatedRef.current) {
+        hasNavigatedRef.current = true;
+        navigation.replace('MainRoute');
+      }
     }
   }, [navigation, requestStoragePermission]);
 
@@ -70,7 +78,7 @@ export const InitialScreen = ({navigation}) => {
 
     const timer = setTimeout(() => {
       InitialCall();
-    }, 2000);
+    }, 300);
     return () => clearTimeout(timer);
   }, [InitialCall, glowOpacity]);
 

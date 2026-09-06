@@ -637,7 +637,6 @@ export const Home = () => {
                 height: width * 0.8,
                 borderRadius: width * 0.4,
                 backgroundColor: dark ? 'rgba(29, 185, 84, 0.4)' : 'rgba(29, 185, 84, 0.2)',
-                filter: 'blur(80px)',
               },
               auraStyle1,
             ]}
@@ -652,7 +651,6 @@ export const Home = () => {
                 height: width * 0.9,
                 borderRadius: width * 0.45,
                 backgroundColor: dark ? 'rgba(64, 224, 208, 0.3)' : 'rgba(64, 224, 208, 0.15)',
-                filter: 'blur(100px)',
               },
               auraStyle2,
             ]}
@@ -744,7 +742,6 @@ export const Home = () => {
               backgroundColor: dark
                 ? 'rgba(29, 185, 84, 0.4)'
                 : 'rgba(29, 185, 84, 0.2)',
-              filter: 'blur(80px)',
             },
             auraStyle1,
           ]}
@@ -761,7 +758,6 @@ export const Home = () => {
               backgroundColor: dark
                 ? 'rgba(64, 224, 208, 0.3)'
                 : 'rgba(64, 224, 208, 0.15)',
-              filter: 'blur(100px)',
             },
             auraStyle2,
           ]}

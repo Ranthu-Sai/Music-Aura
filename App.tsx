@@ -1,12 +1,13 @@
 import {NavigationContainer, DefaultTheme} from '@react-navigation/native';
 import {RootRoute} from './Route/RootRoute';
 import {createNativeStackNavigator} from '@react-navigation/native-stack';
-import {Dimensions} from 'react-native';
+import {useWindowDimensions} from 'react-native';
 import ContextState from './Context/ContextState';
 import {ThemeContext} from './Context/Context';
 import {GestureHandlerRootView} from 'react-native-gesture-handler';
 import {BottomSheetModalProvider} from '@gorhom/bottom-sheet';
 import {PaperProvider, MD3DarkTheme, MD3LightTheme} from 'react-native-paper';
+import {SafeAreaProvider} from 'react-native-safe-area-context';
 import {RouteOnboarding} from './Route/OnboardingScreen/RouteOnboarding';
 import {InitialScreen} from './Route/InitialScreen';
 // import CodePush from "react-native-code-push";
@@ -16,8 +17,15 @@ import LoginScreen from './Component/Auth/LoginScreen';
 const Stack = createNativeStackNavigator();
 
 function ThemedNavigation() {
-  const width = Dimensions.get('window').width;
-  const {currentThemeColors} = useContext(ThemeContext);
+  const {width} = useWindowDimensions();
+  const contextTheme = useContext(ThemeContext);
+  const currentThemeColors = contextTheme?.currentThemeColors || {
+    primary: '#1DB954',
+    background: '#000000',
+    secondaryBackground: '#121212',
+    text: '#FFFFFF',
+    secondaryText: '#B3B3B3',
+  };
   const isLight = currentThemeColors.background === '#FFFFFF';
   const paperTheme = {
     ...(isLight ? MD3LightTheme : MD3DarkTheme),
@@ -45,8 +53,8 @@ function ThemedNavigation() {
       textSecondary: currentThemeColors.secondaryText,
       white: 'white',
       spacing: 10,
-      headingSize: width * 0.085,
-      fontSize: width * 0.045,
+      headingSize: Math.min(width * 0.085, 36),
+      fontSize: Math.min(width * 0.045, 18),
       disabled: 'rgb(131,131,131)',
       background: currentThemeColors.background,
     },
@@ -75,11 +83,13 @@ function App() {
   useEffect(() => {}, []);
   return (
     <GestureHandlerRootView style={{flex: 1}}>
-      <ContextState>
-        <BottomSheetModalProvider>
-          <ThemedNavigation />
-        </BottomSheetModalProvider>
-      </ContextState>
+      <SafeAreaProvider>
+        <ContextState>
+          <BottomSheetModalProvider>
+            <ThemedNavigation />
+          </BottomSheetModalProvider>
+        </ContextState>
+      </SafeAreaProvider>
     </GestureHandlerRootView>
   );
 }

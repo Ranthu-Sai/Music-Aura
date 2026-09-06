@@ -15,7 +15,7 @@ export const LikedSongPage = () => {
     const Songs = await GetLikedSongs();
     const Temp = [];
 
-    for (const [, value] of Object.entries(Songs.songs)) {
+    for (const [, value] of Object.entries(Songs?.songs || {})) {
       Temp[value.count] = value;
     }
     const Final = [];

@@ -73,23 +73,25 @@ class SmartPrefetchManager {
     // Record initialization time
     this.initializationTime = Date.now();
 
-    // FIXED: Listen to PlaybackState instead of track change
-    TrackPlayer.addEventListener(
-      Event.PlaybackState,
-      this._handlePlaybackState.bind(this),
-    );
+    if (typeof TrackPlayer.addEventListener === 'function') {
+      // FIXED: Listen to PlaybackState instead of track change
+      TrackPlayer.addEventListener(
+        Event.PlaybackState,
+        this._handlePlaybackState.bind(this),
+      );
 
-    // Listen for track changes to cancel pending prefetches
-    TrackPlayer.addEventListener(
-      Event.PlaybackActiveTrackChanged,
-      this._handleTrackChanged.bind(this),
-    );
+      // Listen for track changes to cancel pending prefetches
+      TrackPlayer.addEventListener(
+        Event.PlaybackActiveTrackChanged,
+        this._handleTrackChanged.bind(this),
+      );
 
-    // CRITICAL: Listen for playback errors to handle auto-completion failures
-    TrackPlayer.addEventListener(
-      Event.PlaybackError,
-      this._handlePlaybackError.bind(this),
-    );
+      // CRITICAL: Listen for playback errors to handle auto-completion failures
+      TrackPlayer.addEventListener(
+        Event.PlaybackError,
+        this._handlePlaybackError.bind(this),
+      );
+    }
 
     this.isInitialized = true;
     this.errorHandlerRegistered = true;

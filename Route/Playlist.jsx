@@ -48,6 +48,52 @@ export const Playlist = ({route}) => {
     ? image
     : '';
 
+  // Helper to fetch streaming urls for a range
+  const fetchStreamingUrlsForRange = useCallback(async (startIndex, opts = {isInitial: false, prefetch: false}) => {
+    if (!Data?.data?.songs) {return;}
+    if (opts.prefetch && (isFetchingMore || isResolvingInitial)) {return;}
+    if (!opts.prefetch) {
+      if (opts.isInitial && isResolvingInitial) {return;}
+      if (!opts.isInitial && isFetchingMore) {return;}
+    }
+
+    const songs = Data.data.songs;
+    const batch = songs.slice(startIndex, startIndex + pageSize);
+
+    // Nothing to do
+    if (!batch || batch.length === 0) {return;}
+    if (batch.every(s => s.downloadUrl && s.hasStreaming)) {return;}
+
+    if (!opts.prefetch) {
+      if (opts.isInitial) {setIsResolvingInitial(true);}
+      else {setIsFetchingMore(true);}
+    }
+
+    try {
+      const updated = await Promise.all(batch.map(async s => {
+        if (s.downloadUrl && s.hasStreaming) {return s;}
+        const urls = await getSongStreamingUrl(s.id);
+        return {...s, downloadUrl: urls || s.encrypted_media_url, hasStreaming: !!urls};
+      }));
+
+      setData(prev => {
+        if (!prev?.data?.songs) {return prev;}
+        const newSongs = [...prev.data.songs];
+        for (let i = 0; i < updated.length; i++) {
+          newSongs[startIndex + i] = updated[i];
+        }
+        return {...prev, data: {...prev.data, songs: newSongs}};
+      });
+    } catch (e) {
+      console.warn('Failed to fetch streaming urls for playlist batch', e);
+    } finally {
+      if (!opts.prefetch) {
+        if (opts.isInitial) {setIsResolvingInitial(false);}
+        else {setIsFetchingMore(false);}
+      }
+    }
+  }, [Data, isFetchingMore, isResolvingInitial, pageSize, setData, setIsFetchingMore, setIsResolvingInitial]);
+
   const fetchPlaylistData = useCallback(async () => {
     try {
       setLoading(true);
@@ -115,12 +161,10 @@ export const Playlist = ({route}) => {
       setLoading(false);
     }
   }, [id, fetchStreamingUrlsForRange]);
+
   useEffect(() => {
     fetchPlaylistData();
-
   }, [fetchPlaylistData]);
-
-
 
   // Ensure we show at least `pageSize` rows: pad with skeletons if there are fewer initial songs
   const displayData = useMemo(() => {
@@ -129,52 +173,6 @@ export const Playlist = ({route}) => {
     const pads = Array.from({length: Math.max(0, pageSize - real.length)}).map((_, i) => ({__placeholder: true, key: `pad-${i}`}));
     return [...real, ...pads];
   }, [Data?.data?.songs, pageSize]);
-
-  // Helper to fetch streaming urls for a range
-  const fetchStreamingUrlsForRange = useCallback(async (startIndex, opts = {isInitial: false, prefetch: false}) => {
-    if (!Data?.data?.songs) {return;}
-    if (opts.prefetch && (isFetchingMore || isResolvingInitial)) {return;}
-    if (!opts.prefetch) {
-      if (opts.isInitial && isResolvingInitial) {return;}
-      if (!opts.isInitial && isFetchingMore) {return;}
-    }
-
-    const songs = Data.data.songs;
-    const batch = songs.slice(startIndex, startIndex + pageSize);
-
-    // Nothing to do
-    if (!batch || batch.length === 0) {return;}
-    if (batch.every(s => s.downloadUrl && s.hasStreaming)) {return;}
-
-    if (!opts.prefetch) {
-      if (opts.isInitial) {setIsResolvingInitial(true);}
-      else {setIsFetchingMore(true);}
-    }
-
-    try {
-      const updated = await Promise.all(batch.map(async s => {
-        if (s.downloadUrl && s.hasStreaming) {return s;}
-        const urls = await getSongStreamingUrl(s.id);
-        return {...s, downloadUrl: urls || s.encrypted_media_url, hasStreaming: !!urls};
-      }));
-
-      setData(prev => {
-        if (!prev?.data?.songs) {return prev;}
-        const newSongs = [...prev.data.songs];
-        for (let i = 0; i < updated.length; i++) {
-          newSongs[startIndex + i] = updated[i];
-        }
-        return {...prev, data: {...prev.data, songs: newSongs}};
-      });
-    } catch (e) {
-      console.warn('Failed to fetch streaming urls for playlist batch', e);
-    } finally {
-      if (!opts.prefetch) {
-        if (opts.isInitial) {setIsResolvingInitial(false);}
-        else {setIsFetchingMore(false);}
-      }
-    }
-  }, [Data, isFetchingMore, isResolvingInitial, pageSize, setData, setIsFetchingMore, setIsResolvingInitial]);
 
   const ListHeader = useCallback(() => (
     <>

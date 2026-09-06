@@ -15,7 +15,7 @@ export const LikedPlaylistPage = () => {
   async function getAllLikedSongs() {
     const Playlists = await GetLikedPlaylist();
     const Temp = [];
-    for (const [, value] of Object.entries(Playlists.playlist)) {
+    for (const [, value] of Object.entries(Playlists?.playlist || {})) {
       Temp[value.count] = value;
     }
     setLikedPlaylist(Temp);

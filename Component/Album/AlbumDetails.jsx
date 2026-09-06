@@ -213,9 +213,9 @@ export const AlbumDetails = ({
       <View style={styles.topSection}>
         {/* Cover Image */}
         <FastImage
-          source={{uri: albumImage, priority: FastImage.priority.high}}
+          source={{uri: albumImage, priority: FastImage?.priority?.high || 'high'}}
           style={styles.coverImage}
-          resizeMode={FastImage.resizeMode.cover}
+          resizeMode={FastImage?.resizeMode?.cover || 'cover'}
         />
 
         {/* Content Section */}

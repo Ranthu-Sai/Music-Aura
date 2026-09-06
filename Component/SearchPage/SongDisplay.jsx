@@ -174,7 +174,12 @@ export default function SongDisplay({
               index={displayData.data.results.findIndex(x => x.id === item.id)}
               activeTrackId={activeTrack?.id}
               isPlaying={
-                playbackState.state === 'playing' || playbackState.state === 3
+                (typeof playbackState === 'object' && playbackState !== null
+                  ? playbackState.state
+                  : playbackState) === 'playing' ||
+                (typeof playbackState === 'object' && playbackState !== null
+                  ? playbackState.state
+                  : playbackState) === 3
               }
             />
           );

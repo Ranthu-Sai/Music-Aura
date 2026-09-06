@@ -453,7 +453,11 @@ const ContextState = props => {
       if (event.paused) {
         // Another app is playing audio - pause our music
         const playbackState = await TrackPlayer.getPlaybackState();
-        if (playbackState.state === 'playing') {
+        const stateVal =
+          typeof playbackState === 'object' && playbackState !== null
+            ? playbackState.state
+            : playbackState;
+        if (stateVal === 'playing' || stateVal === 3) {
           wasPlayingBeforeInterruption.current = true;
           await TrackPlayer.pause();
         }

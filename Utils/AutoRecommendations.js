@@ -238,10 +238,12 @@ class AutoRecommendations {
     }, 300); // 300ms debounce for auto-recommendations
 
     // Listen for track changes
-    TrackPlayer.addEventListener(
-      Event.PlaybackActiveTrackChanged,
-      debouncedTrackHandler,
-    );
+    if (typeof TrackPlayer.addEventListener === 'function') {
+      TrackPlayer.addEventListener(
+        Event.PlaybackActiveTrackChanged,
+        debouncedTrackHandler,
+      );
+    }
   }
 }
 

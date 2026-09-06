@@ -85,14 +85,15 @@ class ProgressiveQueueLoader {
       this.trackChangeListener.remove();
     }
 
-    this.trackChangeListener = TrackPlayer.addEventListener(
-      Event.PlaybackActiveTrackChanged,
-      async event => {
-        if (!this.isActive || this.loadedCount >= this.totalCount) {
-          return;
-        }
+    if (typeof TrackPlayer.addEventListener === 'function') {
+      this.trackChangeListener = TrackPlayer.addEventListener(
+        Event.PlaybackActiveTrackChanged,
+        async event => {
+          if (!this.isActive || this.loadedCount >= this.totalCount) {
+            return;
+          }
 
-        const currentIndex = event.index;
+          const currentIndex = event.index;
         if (currentIndex === undefined || currentIndex === null) {
           return;
         }
@@ -106,6 +107,7 @@ class ProgressiveQueueLoader {
         }
       },
     );
+    }
   }
 
   /**

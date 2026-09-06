@@ -7,16 +7,24 @@ import {usePlaybackState, State} from 'react-native-track-player';
 export const PlayPauseButton = ({isFullScreen, size, color}) => {
   const theme = useTheme();
   const playbackState = usePlaybackState();
-  const playerState = playbackState.state;
+  const stateVal =
+    typeof playbackState === 'object' && playbackState !== null
+      ? playbackState.state
+      : playbackState;
 
   const iconSize = size || (isFullScreen ? 28 : 25);
   const iconColor =
     color ||
     (isFullScreen ? (theme.dark ? 'black' : 'white') : theme.colors.text);
 
-  const isPlaying = playerState === State.Playing;
+  const isPlaying =
+    stateVal === State.Playing || stateVal === 'playing' || stateVal === 3;
   const isBuffering =
-    playerState === State.Buffering || playerState === State.Loading;
+    stateVal === State.Buffering ||
+    stateVal === State.Loading ||
+    stateVal === 'buffering' ||
+    stateVal === 'loading' ||
+    stateVal === 6;
 
   return (
     <>

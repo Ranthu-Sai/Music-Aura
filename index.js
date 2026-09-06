@@ -18,13 +18,15 @@ import DeviceInfo from 'react-native-device-info';
 hideLogs();
 
 // Request notification permission for Android 13+
-if (Platform.OS === 'android') {
-  const systemVersion = parseFloat(DeviceInfo.getSystemVersion());
-  if (systemVersion >= 13) {
-    PermissionsAndroid.request(
-      PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS,
-    ).catch(() => {});
-  }
+if (Platform.OS === 'android' && PermissionsAndroid.PERMISSIONS?.POST_NOTIFICATIONS) {
+  try {
+    const systemVersion = parseFloat(DeviceInfo.getSystemVersion() || '0');
+    if (systemVersion >= 13) {
+      PermissionsAndroid.request(
+        PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS,
+      ).catch(() => {});
+    }
+  } catch (_) {}
 }
 
 // Clear stream cache on app startup to remove any invalid cached URLs
@@ -49,10 +51,11 @@ LogBox.ignoreLogs([
 const defaultErrorHandler =
   ErrorUtils.getGlobalHandler && ErrorUtils.getGlobalHandler();
 const errorHandler = (error, isFatal) => {
-  // Do not call the default handler for fatal errors to avoid process termination
-  if (!isFatal && typeof defaultErrorHandler === 'function') {
+  console.warn('[GlobalErrorHandler] Exception caught:', error, 'isFatal:', isFatal);
+  if (typeof defaultErrorHandler === 'function') {
     try {
-      defaultErrorHandler(error, isFatal);
+      // Pass false for isFatal to prevent abrupt native process termination
+      defaultErrorHandler(error, false);
     } catch (_) {
       // swallow
     }

@@ -136,7 +136,7 @@ const SectionGridCard = ({item}) => {
         <FastImage
           source={{uri: thumbnail}}
           style={styles.gridImage}
-          resizeMode={FastImage.resizeMode.cover}
+          resizeMode={FastImage?.resizeMode?.cover || 'cover'}
         />
       ) : (
         <View style={[styles.gridImage, {backgroundColor: '#2a2a2a'}]} />
@@ -168,7 +168,7 @@ const VideoSectionCard = ({item, onPress}) => {
         <FastImage
           source={{uri: thumbnail}}
           style={styles.videoImage}
-          resizeMode={FastImage.resizeMode.cover}
+          resizeMode={FastImage?.resizeMode?.cover || 'cover'}
         />
       ) : (
         <View style={[styles.videoImage, {backgroundColor: '#2a2a2a'}]} />
@@ -318,7 +318,7 @@ export const ArtistPage = () => {
             <FastImage
               source={{uri: displayImage}}
               style={styles.heroImage}
-              resizeMode={FastImage.resizeMode.cover}
+              resizeMode={FastImage?.resizeMode?.cover || 'cover'}
             />
           ) : (
             <View style={[styles.heroImage, {backgroundColor: colors.card}]} />

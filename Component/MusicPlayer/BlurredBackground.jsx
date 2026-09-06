@@ -7,8 +7,8 @@ const BlurredBackground = ({uri, blurRadius = 18, overlayColors}) => {
   const source = useMemo(
     () => ({
       uri: uri,
-      priority: FastImage.priority.high,
-      cache: FastImage.cacheControl.immutable,
+      priority: FastImage?.priority?.high || 'high',
+      cache: FastImage?.cacheControl?.immutable || 'immutable',
     }),
     [uri],
   );
@@ -22,7 +22,7 @@ const BlurredBackground = ({uri, blurRadius = 18, overlayColors}) => {
       <FastImage
         source={source}
         style={{flex: 1}}
-        resizeMode={FastImage.resizeMode.cover}
+        resizeMode={FastImage?.resizeMode?.cover || 'cover'}
         blurRadius={blurRadius}
       />
       {Array.isArray(overlayColors) && overlayColors.length > 0 && (

@@ -64,3 +64,15 @@
 # This is a known harmless warning from some Fresco builds; add targeted dontwarn rules
 -dontwarn com.facebook.imagepipeline.image.CloseableAnimatedImage
 -dontwarn com.facebook.imagepipeline.image.CloseableImage
+
+# Keep TrackPlayer and KotlinAudio native modules & services
+-keep class com.doublesymmetry.trackplayer.** { *; }
+-keep class com.doublesymmetry.kotlinaudio.** { *; }
+-keep class com.google.android.exoplayer2.** { *; }
+-keep class androidx.media3.** { *; }
+
+# Keep custom native modules and @ReactMethod annotations
+-keep class com.musicaura.** { *; }
+-keepclassmembers class * extends com.facebook.react.bridge.ReactContextBaseJavaModule {
+   @com.facebook.react.bridge.ReactMethod *;
+}

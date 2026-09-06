@@ -164,15 +164,15 @@ const ArtworkSection = memo(({artwork, width, pan}) => {
         <FastImage
           source={{
             uri: artwork,
-            priority: FastImage.priority.high,
-            cache: FastImage.cacheControl.immutable,
+            priority: FastImage?.priority?.high || 'high',
+            cache: FastImage?.cacheControl?.immutable || 'immutable',
           }}
           style={{
             width: '100%',
             height: '100%',
             renderToHardwareTextureAndroid: true,
           }}
-          resizeMode={FastImage.resizeMode.cover}
+          resizeMode={FastImage?.resizeMode?.cover || 'cover'}
         />
       </View>
     </GestureDetector>

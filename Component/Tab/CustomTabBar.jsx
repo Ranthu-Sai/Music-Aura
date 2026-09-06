@@ -67,7 +67,9 @@ export default function CustomTabBar({state, descriptors, navigation}) {
   ].includes(currentRouteName);
 
   useEffect(() => {
-    setIndex(0);
+    if (typeof setIndex === 'function') {
+      setIndex(0);
+    }
   }, [setIndex]);
 
   return (

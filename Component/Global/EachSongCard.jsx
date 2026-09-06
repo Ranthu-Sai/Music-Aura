@@ -15,9 +15,13 @@ import {EachSongMenuButton} from '../MusicPlayer/EachSongMenuButton';
 const SongStatusImage = memo(({id, artworkUri}) => {
   const currentPlaying = useActiveTrack();
   const playerState = usePlaybackState();
+  const stateVal =
+    typeof playerState === 'object' && playerState !== null
+      ? playerState.state
+      : playerState;
 
   const isCurrentSong = id === currentPlaying?.id;
-  const isPlaying = playerState.state === 'playing' || playerState.state === 3; // State.Playing
+  const isPlaying = stateVal === 'playing' || stateVal === 3; // State.Playing
 
   const source = useMemo(() => {
     if (isCurrentSong && isPlaying) {
@@ -38,7 +42,7 @@ const SongStatusImage = memo(({id, artworkUri}) => {
       )}
       <FastImage
         source={source}
-        resizeMode={FastImage.resizeMode.cover}
+        resizeMode={FastImage?.resizeMode?.cover || 'cover'}
         onLoadEnd={() => setLoaded(true)}
         style={{
           height: 60,

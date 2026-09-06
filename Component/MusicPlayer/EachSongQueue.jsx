@@ -223,7 +223,7 @@ const EachSongQueueComponent = ({
                 ? {uri: resolved}
                 : require('../../Images/Logo.jpg')
             }
-            resizeMode={FastImage.resizeMode.cover}
+            resizeMode={FastImage?.resizeMode?.cover || 'cover'}
             style={styles.image}
           />
         </View>

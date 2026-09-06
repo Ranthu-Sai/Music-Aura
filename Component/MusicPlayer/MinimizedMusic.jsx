@@ -244,7 +244,7 @@ export const MinimizedMusic = memo(({setIndex, color}) => {
                       return YTArtworkUtils.upgradeArtworkQuality(art);
                     })(),
                   }}
-                  resizeMode={FastImage.resizeMode.cover}
+                  resizeMode={FastImage?.resizeMode?.cover || 'cover'}
                   style={{
                     height: 46,
                     width: 46,

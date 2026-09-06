@@ -344,10 +344,12 @@ class QueueManager {
         }
       };
       debugLog('📡 Starting continuous queue monitor');
-      this.trackChangeSubscription = TrackPlayer.addEventListener(
-        'playback-active-track-changed',
-        this._onTrackChange.bind(this),
-      );
+      if (typeof TrackPlayer.addEventListener === 'function') {
+        this.trackChangeSubscription = TrackPlayer.addEventListener(
+          'playback-active-track-changed',
+          this._onTrackChange.bind(this),
+        );
+      }
     }
   }
 

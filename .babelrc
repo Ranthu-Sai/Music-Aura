@@ -1,6 +1,0 @@
-{
-  "presets": [["module:@react-native/babel-preset", { "jsxRuntime": "automatic" }]],
-  "plugins": [
-    "react-native-reanimated/plugin"
-  ]
-}
