@@ -1,4 +1,3 @@
-import Modal from 'react-native-modal';
 import {
   Dimensions,
   Pressable,
@@ -6,6 +5,7 @@ import {
   View,
   Share,
   Alert,
+  Modal,
 } from 'react-native';
 import FastImage from 'react-native-fast-image';
 import {PlainText} from './PlainText';
@@ -83,21 +83,26 @@ export const EachSongMenuModal = ({Visible, setVisible}) => {
 
   return (
     <Modal
-      onBackButtonPress={() => setVisible({visible: false})}
-      onSwipeComplete={() => setVisible({visible: false})}
-      onBackdropPress={() => setVisible({visible: false})}
-      swipeDirection={['up', 'left', 'right', 'down']}
-      isVisible={Visible.visible}
-      style={{
-        justifyContent: 'flex-end',
-        margin: 0,
-      }}>
-      <View
+      transparent
+      animationType="fade"
+      visible={!!Visible.visible}
+      onRequestClose={() => setVisible({visible: false})}>
+      <Pressable
         style={{
-          backgroundColor: 'rgb(18,18,18)',
-          elevation: 10,
-        }}>
-        <Spacer />
+          flex: 1,
+          backgroundColor: 'rgba(0,0,0,0.6)',
+          justifyContent: 'flex-end',
+        }}
+        onPress={() => setVisible({visible: false})}>
+        <Pressable
+          style={{
+            backgroundColor: 'rgb(18,18,18)',
+            borderTopLeftRadius: 20,
+            borderTopRightRadius: 20,
+            elevation: 10,
+          }}
+          onPress={e => e.stopPropagation()}>
+          <Spacer />
         <View
           style={{
             flexDirection: 'row',
@@ -433,7 +438,8 @@ export const EachSongMenuModal = ({Visible, setVisible}) => {
         <Spacer />
         <Spacer />
         <Spacer />
-      </View>
+        </Pressable>
+      </Pressable>
     </Modal>
   );
 };

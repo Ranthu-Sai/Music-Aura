@@ -1,4 +1,4 @@
-import {View, Pressable} from 'react-native';
+import {View, Pressable, Animated as RNAnimated, Easing} from 'react-native';
 import React, {memo, useMemo} from 'react';
 import {PlainText} from '../Global/PlainText';
 import {MarqueeText} from '../Global/MarqueeText';
@@ -6,7 +6,6 @@ import Animated, {FadeIn, runOnJS} from 'react-native-reanimated';
 import {
   GestureDetector,
   Gesture,
-  GestureHandlerRootView,
 } from 'react-native-gesture-handler';
 import {PlayPauseButton} from './PlayPauseButton';
 import {NextSongButton} from './NextSongButton';
@@ -25,7 +24,6 @@ import {PlayNextSong, PlayPreviousSong} from '../../MusicPlayerFunctions';
 
 import FormatTitleAndArtist from '../../Utils/FormatTitleAndArtist';
 
-const RNAnimated = require('react-native').Animated; // native Animated for value interpolation and Animated.View
 const AnimatedFastImage = RNAnimated.createAnimatedComponent(FastImage);
 
 // MiniProgressBar removed — bottom horizontal progress bar has been removed per request
@@ -64,7 +62,7 @@ const CircularProgress = memo(({size = 56, strokeWidth = 2, colors = ['#1DB954',
     RNAnimated.timing(anim.current, {
       toValue: safePct,
       duration: 250,
-      easing: require('react-native').Easing.linear,
+      easing: Easing.linear,
       useNativeDriver: false,
     }).start();
   }, [pct]);
@@ -105,15 +103,18 @@ const CircularProgress = memo(({size = 56, strokeWidth = 2, colors = ['#1DB954',
 export const MinimizedMusic = memo(({setIndex, color}) => {
 
   const pan = React.useMemo(() => Gesture.Pan()
-    .minDistance(20)
+    .minDistance(15)
     .onFinalize(e => {
       'worklet';
       if (e.translationX > 80) {
         runOnJS(PlayPreviousSong)();
       } else if (e.translationX < -80) {
         runOnJS(PlayNextSong)();
-      } else if (Math.abs(e.translationX) < 20) {
-        // Only open full player if tap (minimal movement)
+      } else if (e.translationY < -30) {
+        // Swipe up opens full player
+        runOnJS(setIndex)(1);
+      } else if (Math.abs(e.translationX) < 20 && Math.abs(e.translationY) < 20) {
+        // Tap opens full player
         runOnJS(setIndex)(1);
       }
     }), [setIndex]);
@@ -144,7 +145,7 @@ export const MinimizedMusic = memo(({setIndex, color}) => {
         RNAnimated.timing(rotateAnim.current, {
           toValue: 1,
           duration: 8000,
-          easing: require('react-native').Easing.linear,
+          easing: Easing.linear,
           useNativeDriver: true,
         }),
       );
@@ -173,8 +174,8 @@ export const MinimizedMusic = memo(({setIndex, color}) => {
   const progressColor = '#3B82F6'; // Blue progress bar per request (replaced white with blue)
 
   return (
-    <GestureHandlerRootView
-      style={{height: 90, backgroundColor: 'transparent'}}>
+    <View
+      style={{backgroundColor: 'transparent'}}>
       <LinearGradient
         colors={gradientColors}
         start={{x: 0, y: 0}}
@@ -297,6 +298,6 @@ export const MinimizedMusic = memo(({setIndex, color}) => {
         {/* Bottom progress bar removed — perimeter circular progress is used instead */}
       </View>
       </LinearGradient>
-    </GestureHandlerRootView>
+    </View>
   );
 });

@@ -281,16 +281,50 @@ export const EachSongCard = memo(function EachSongCard({
           console.warn('Failed to fetch missing streaming urls before playing playlist', e);
         }
 
+        // Fetch full 320kbps streaming data for the clicked song immediately
+        let clickedDownloadUrl = null;
+        try {
+          const {getSongData} = require('../../Api/Songs');
+          const songDetails = await getSongData(id);
+          const songInfo =
+            songDetails?.data?.[0] ||
+            songDetails?.data?.results?.[0] ||
+            songDetails?.data ||
+            {};
+          const candidateDownload =
+            songInfo?.downloadUrl ||
+            songInfo?.download_url ||
+            songInfo?.downloadUrls ||
+            songInfo?.media?.downloadUrl ||
+            songInfo?.media?.download_url;
+          if (Array.isArray(candidateDownload) && candidateDownload.length > 0) {
+            clickedDownloadUrl = candidateDownload;
+          } else if (typeof candidateDownload === 'string' && candidateDownload) {
+            clickedDownloadUrl = candidateDownload;
+          }
+        } catch (resolveErr) {
+          console.warn('[EachSongCard] clicked song resolve error', resolveErr);
+        }
+
         const quality = await getIndexQuality();
         const ForMusicPlayer = Data.data.songs.map((e, i) => {
+          let songDownload = e?.downloadUrl;
+          if (e?.id === id && clickedDownloadUrl) {
+            songDownload = clickedDownloadUrl;
+          }
           // Handle the case where downloadUrl might be a single URL or an array
-          const download = Array.isArray(e?.downloadUrl)
-            ? e?.downloadUrl[quality]?.url || e?.downloadUrl[quality]?.link || e?.downloadUrl[0]?.url || e?.downloadUrl[0]?.link
-            : e?.downloadUrl;
+          const download = Array.isArray(songDownload)
+            ? songDownload[quality]?.url ||
+              songDownload[quality]?.link ||
+              songDownload[4]?.url ||
+              songDownload[4]?.link ||
+              songDownload[0]?.url ||
+              songDownload[0]?.link
+            : songDownload;
 
           return {
             url: download,
-            downloadUrl: e?.downloadUrl || download,
+            downloadUrl: songDownload || download,
             title: FormatTitleAndArtist(e?.name || e?.title),
             artist: FormatTitleAndArtist(FormatArtist(e?.artists?.primary || e?.primaryArtists)),
             artwork: Array.isArray(e?.image)
@@ -491,6 +525,8 @@ export const EachSongCard = memo(function EachSongCard({
           <Pressable
             onPress={AddSongToPlayer}
             disabled={isLoading}
+            delayPressIn={0}
+            hitSlop={{top: 5, bottom: 5, left: 5, right: 5}}
             style={{
               flexDirection: 'row',
               gap: 12,

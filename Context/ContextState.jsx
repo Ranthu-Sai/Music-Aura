@@ -1,6 +1,6 @@
 import Context, {ThemeContext, ActionsContext} from './Context';
 import {useEffect, useState, useMemo, useCallback, useRef} from 'react';
-import {DeviceEventEmitter} from 'react-native';
+import {DeviceEventEmitter, InteractionManager} from 'react-native';
 import TrackPlayer, {
   Event,
   useTrackPlayerEvents,
@@ -735,7 +735,7 @@ const ContextState = props => {
         const tracks = await TrackPlayer.getQueue();
 
         if (tracks.length < MIN_QUEUE_SIZE) {
-          await AddRecommendedSongs(0, song.id, true);
+          AddRecommendedSongs(0, song.id, true).catch(() => {});
         }
       }
     } catch (error) {
@@ -854,10 +854,19 @@ const ContextState = props => {
   }, []);
 
   useEffect(() => {
-    InitialSetup();
     loadFontSize();
     loadTheme();
     loadLyricsSettings();
+
+    // Defer heavy audio engine and queue initialization until after initial screen render
+    const task = InteractionManager.runAfterInteractions(() => {
+      InitialSetup();
+    });
+    return () => {
+      if (task && task.cancel) {
+        task.cancel();
+      }
+    };
     // Deliberately empty dependency array so setup is not re-run on queue updates
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -891,6 +900,7 @@ const ContextState = props => {
       openQueue,
       closeQueue,
       ensureMinimumQueue,
+      AddRecommendedSongs,
       lyricsCacheRef,
       lyricsSettings,
       setLyricsSettings,
@@ -907,6 +917,7 @@ const ContextState = props => {
       openQueue,
       closeQueue,
       ensureMinimumQueue,
+      AddRecommendedSongs,
       lyricsCacheRef,
       lyricsSettings,
       refreshLyrics,

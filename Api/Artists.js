@@ -29,26 +29,30 @@ const failedStreamingUrls = new Set();
 // Helper to get streaming URL from JioSaavn API
 async function getStreamingUrl(songId) {
   try {
-    const response = await retryWithBackoff(
-      () =>
-        axios.get(
-          `https://jiosaavn-api-privatecvc2.vercel.app/songs?id=${songId}`,
-          {timeout: 15000}, // Increased timeout for slower networks
-        ),
-      2, // Reduced retries for streaming URLs to avoid delays
-      1000,
-    );
+    const {getSongData} = require('./Songs');
+    const songDetails = await getSongData(songId);
+    const songInfo =
+      songDetails?.data?.[0] ||
+      songDetails?.data?.results?.[0] ||
+      songDetails?.data ||
+      {};
+    const candidateDownload =
+      songInfo?.downloadUrl ||
+      songInfo?.download_url ||
+      songInfo?.downloadUrls ||
+      songInfo?.media?.downloadUrl ||
+      songInfo?.media?.download_url;
 
-    if (response.data?.data?.[0]?.downloadUrl) {
-      const downloadUrls = response.data.data[0].downloadUrl;
-      // Return array of URLs with quality options
-      return downloadUrls;
+    if (Array.isArray(candidateDownload) && candidateDownload.length > 0) {
+      return candidateDownload;
+    }
+    if (typeof candidateDownload === 'string' && candidateDownload) {
+      return candidateDownload;
     }
   } catch (error) {
     // Only log unique failures to avoid spam
     if (!failedStreamingUrls.has(songId)) {
       failedStreamingUrls.add(songId);
-      // Silently fail for network errors - normal in poor connectivity
     }
   }
 

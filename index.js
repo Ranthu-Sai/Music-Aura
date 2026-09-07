@@ -17,16 +17,18 @@ import DeviceInfo from 'react-native-device-info';
 
 hideLogs();
 
-// Request notification permission for Android 13+
+// Defer notification permission request for Android 13+ so it does not block startup
 if (Platform.OS === 'android' && PermissionsAndroid.PERMISSIONS?.POST_NOTIFICATIONS) {
-  try {
-    const systemVersion = parseFloat(DeviceInfo.getSystemVersion() || '0');
-    if (systemVersion >= 13) {
-      PermissionsAndroid.request(
-        PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS,
-      ).catch(() => {});
-    }
-  } catch (_) {}
+  setTimeout(() => {
+    try {
+      const systemVersion = parseFloat(DeviceInfo.getSystemVersion() || '0');
+      if (systemVersion >= 13) {
+        PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS,
+        ).catch(() => {});
+      }
+    } catch (_) {}
+  }, 3000);
 }
 
 // Clear stream cache on app startup to remove any invalid cached URLs

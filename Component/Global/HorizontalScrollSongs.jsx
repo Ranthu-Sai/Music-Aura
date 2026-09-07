@@ -85,6 +85,8 @@ export const HorizontalScrollSongs = React.memo(({id}) => {
       {!Loading && songs.length > 0 && (
         <ScrollView
           horizontal={true}
+          nestedScrollEnabled={true}
+          keyboardShouldPersistTaps="handled"
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={{paddingLeft: 13, paddingRight: 15}}>
           <View>

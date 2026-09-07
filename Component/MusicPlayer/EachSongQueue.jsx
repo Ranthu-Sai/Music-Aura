@@ -1,8 +1,10 @@
 import {
   Pressable,
   View,
+  Text,
   TouchableOpacity,
   InteractionManager,
+  StyleSheet,
 } from 'react-native';
 import FastImage from 'react-native-fast-image';
 import {PlainText} from '../Global/PlainText';
@@ -57,8 +59,7 @@ const resolveArtworkUri = image => {
   return null;
 };
 
-// Static styles for better performance
-const styles = {
+const styles = StyleSheet.create({
   pressable: {
     flexDirection: 'row',
     gap: 12,
@@ -73,12 +74,14 @@ const styles = {
     flexDirection: 'row',
     gap: 12,
     alignItems: 'center',
-    paddingVertical: 8,
-    paddingLeft: 6,
+    paddingVertical: 9,
+    paddingLeft: 8,
     paddingRight: 10,
-    borderRadius: 12,
+    borderRadius: 14,
     marginVertical: 4,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: 'rgba(29, 185, 84, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(29, 185, 84, 0.38)',
   },
   imageContainer: {position: 'relative'},
   image: {
@@ -89,7 +92,19 @@ const styles = {
   },
   textContainer: {flex: 1},
   downloadButton: {padding: 8},
-};
+  nowPlayingTag: {
+    backgroundColor: '#1DB954',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  nowPlayingTagText: {
+    color: '#000000',
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+  },
+});
 
 const EachSongQueueComponent = ({
   song,
@@ -123,13 +138,13 @@ const EachSongQueueComponent = ({
 
   // Check if this is the currently playing track
   const isCurrentTrack = id === currentTrackId;
-  const isPlaying = playerState === 'playing' && isCurrentTrack;
+  const isPlaying =
+    (playerState === 'playing' || playerState === 3) && isCurrentTrack;
   const resolved = useMemo(() => resolveArtworkUri(imageSource), [imageSource]);
   const swipeableRef = useRef(null);
   const skipInProgressRef = useRef(false);
 
   const handlePress = useCallback(async () => {
-    // Prevent multiple simultaneous skip attempts
     if (skipInProgressRef.current) {
       return;
     }
@@ -137,9 +152,11 @@ const EachSongQueueComponent = ({
     skipInProgressRef.current = true;
     try {
       const currentQueue = await TrackPlayer.getQueue();
-      // Search more carefully - compare both id and track position
       const actualIndex = currentQueue.findIndex(
-        (track, idx) => track?.id === id || (idx === index && track?.id),
+        (track, idx) =>
+          track?.id === id ||
+          (song?._originalIndex !== undefined && idx === song._originalIndex) ||
+          (idx === index && track?.id),
       );
 
       if (actualIndex !== -1 && actualIndex !== null) {
@@ -152,7 +169,7 @@ const EachSongQueueComponent = ({
     } finally {
       skipInProgressRef.current = false;
     }
-  }, [id, index]);
+  }, [id, index, song?._originalIndex]);
 
   const handleRemovePress = useCallback(() => {
     swipeableRef.current?.close();
@@ -160,45 +177,41 @@ const EachSongQueueComponent = ({
   }, [index, id, onRemove]);
 
   const renderRightActions = useCallback(
-    (progress, dragX) => {
-      return (
-        <TouchableOpacity
-          onPress={handleRemovePress}
-          style={{
-            width: 80,
-            backgroundColor: '#FF3B30',
-            justifyContent: 'center',
-            alignItems: 'center',
-          }}>
-          <MaterialCommunityIcons
-            name="delete-outline"
-            size={28}
-            color="white"
-          />
-        </TouchableOpacity>
-      );
-    },
+    () => (
+      <TouchableOpacity
+        onPress={handleRemovePress}
+        style={{
+          width: 80,
+          backgroundColor: '#FF3B30',
+          justifyContent: 'center',
+          alignItems: 'center',
+        }}>
+        <MaterialCommunityIcons
+          name="delete-outline"
+          size={28}
+          color="white"
+        />
+      </TouchableOpacity>
+    ),
     [handleRemovePress],
   );
 
   const handleDownload = useCallback(() => {
-    // PERFORMANCE: Defer heavy download operation
     InteractionManager.runAfterInteractions(() => {
       DownloadSong(song);
     });
   }, [song]);
 
-  // Memoize style based on isCurrentTrack
   const pressableStyle = useMemo(
     () => (isCurrentTrack ? styles.pressableActive : styles.pressable),
     [isCurrentTrack],
   );
 
-  // Memoize text style based on isCurrentTrack
   const textStyle = useMemo(
     () => ({
       color: isCurrentTrack ? '#1DB954' : 'white',
       fontWeight: isCurrentTrack ? 'bold' : 'normal',
+      flexShrink: 1,
     }),
     [isCurrentTrack],
   );
@@ -229,7 +242,19 @@ const EachSongQueueComponent = ({
         </View>
 
         <View style={styles.textContainer}>
-          <PlainText text={title} style={textStyle} numberOfLines={1} />
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 6,
+            }}>
+            {isCurrentTrack && (
+              <View style={styles.nowPlayingTag}>
+                <Text style={styles.nowPlayingTagText}>PLAYING</Text>
+              </View>
+            )}
+            <PlainText text={title} style={textStyle} numberOfLines={1} />
+          </View>
           <SmallText text={artist} numberOfLines={1} />
         </View>
 
@@ -243,11 +268,12 @@ const EachSongQueueComponent = ({
   );
 };
 
-// Custom memo with MINIMAL comparison - only check song.id (fastest)
+// Custom memo with comparison
 export const EachSongQueue = memo(
   EachSongQueueComponent,
   (prev, next) =>
     prev.song?.id === next.song?.id &&
     prev.playerState === next.playerState &&
-    prev.currentTrackId === next.currentTrackId,
+    prev.currentTrackId === next.currentTrackId &&
+    prev.song?._originalIndex === next.song?._originalIndex,
 );

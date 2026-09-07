@@ -820,8 +820,8 @@ async function PlaySongWithRelated(videoId, artwork, songData = {}) {
       }
     }
 
-    // If this is not a YouTube song and URL/download metadata is missing,
-    // try to fetch Saavn song details from the API so we can obtain downloadUrl(s).
+    // If this is not a YouTube song and 320kbps URL is missing,
+    // fetch full Saavn song details from the API so we get the highest quality 320kbps audio.
     const isUrlMissing =
       !song.url ||
       (typeof song.url === 'string' && song.url.trim() === '') ||
@@ -830,7 +830,16 @@ async function PlaySongWithRelated(videoId, artwork, songData = {}) {
       !song.downloadUrl ||
       (Array.isArray(song.downloadUrl) && song.downloadUrl.length === 0);
 
-    if (!song.isYouTubeSong && isUrlMissing && isDownloadUrlMissing) {
+    const has320k =
+      Array.isArray(song.downloadUrl) &&
+      song.downloadUrl.some(
+        d =>
+          d?.quality === '320kbps' ||
+          (d?.url && d.url.includes('_320')) ||
+          (d?.link && d.link.includes('_320')),
+      );
+
+    if (!song.isYouTubeSong && (!has320k || isUrlMissing || isDownloadUrlMissing)) {
       try {
         const {getSongData} = require('./Api/Songs');
         const apiResp = await getSongData(song.id);
@@ -1405,6 +1414,7 @@ async function AddPlaylist(songs, startSongId = null) {
       tracksToAdd.map(async (song, index) => {
         let playbackUrl = song.url;
         let updatedSong = {...song};
+        const normalizedSource = (song?.source || 'saavn').toString().toLowerCase();
 
         // Check if this is a YouTube song
         const isYouTubeSong =
@@ -1457,21 +1467,67 @@ async function AddPlaylist(songs, startSongId = null) {
             updatedSong.currentPlayingQuality = currentQuality;
           }
         } else {
-          // Standard file/download URL logic
+          // Standard file/download URL logic - ensure 320kbps high quality stream
+          const isStartIndex = index === startIndex;
+          const has320 =
+            Array.isArray(song.downloadUrl) &&
+            song.downloadUrl.some(
+              d =>
+                d?.quality === '320kbps' ||
+                (d?.url && d.url.includes('_320')) ||
+                (d?.link && d.link.includes('_320')),
+            );
+
+          // For starting song, upgrade to 320kbps if not already present
+          if (isStartIndex && !has320 && song.id && normalizedSource === 'saavn') {
+            try {
+              const {getSongData} = require('./Api/Songs');
+              const resolved = await getSongData(song.id);
+              const resolvedSong = resolved?.data?.[0] || resolved?.data?.results?.[0] || resolved?.data || {};
+              const resolvedDownload =
+                resolvedSong?.downloadUrl ||
+                resolvedSong?.download_url ||
+                resolvedSong?.downloadUrls;
+              if (Array.isArray(resolvedDownload) && resolvedDownload.length > 0) {
+                song.downloadUrl = resolvedDownload;
+                updatedSong.downloadUrl = resolvedDownload;
+              }
+            } catch (err) {
+              console.warn('[AddPlaylist] failed to upgrade start song to 320kbps', err);
+            }
+          }
+
           if (song.downloadUrl && Array.isArray(song.downloadUrl)) {
             const preferred = song.downloadUrl[qualityIndex];
-            const fallback = song.downloadUrl.find(d => d?.url || d?.link);
-            updatedSong.url =
-              preferred?.url || preferred?.link ||
-              fallback?.url || fallback?.link ||
+            const fallback =
+              song.downloadUrl[4] ||
+              song.downloadUrl.find(d => d?.url || d?.link) ||
+              song.downloadUrl[0];
+            const chosen =
+              preferred?.url ||
+              preferred?.link ||
+              fallback?.url ||
+              fallback?.link ||
               song.url;
+            updatedSong.url = chosen;
+            playbackUrl = chosen;
           } else if (song.download_url && Array.isArray(song.download_url)) {
             const preferred = song.download_url[qualityIndex];
-            const fallback = song.download_url.find(d => d?.url || d?.link);
-            updatedSong.url =
-              preferred?.url || preferred?.link ||
-              fallback?.url || fallback?.link ||
+            const fallback =
+              song.download_url[4] ||
+              song.download_url.find(d => d?.url || d?.link) ||
+              song.download_url[0];
+            const chosen =
+              preferred?.url ||
+              preferred?.link ||
+              fallback?.url ||
+              fallback?.link ||
               song.url;
+            updatedSong.url = chosen;
+            playbackUrl = chosen;
+          } else if (typeof song.downloadUrl === 'string' && song.downloadUrl) {
+            playbackUrl = song.downloadUrl;
+            updatedSong.url = song.downloadUrl;
           }
         }
 

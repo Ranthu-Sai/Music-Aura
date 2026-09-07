@@ -45,8 +45,10 @@ export const RootRoute = () => {
           tabBarActiveTintColor: theme.colors.primary,
           headerShown: false,
           tabBarStyle: {
-            backgroundColor: theme.colors.background,
-            borderColor: 'rgba(28,27,27,0)',
+            backgroundColor: 'transparent',
+            borderColor: 'transparent',
+            borderTopWidth: 0,
+            elevation: 0,
           },
         }}>
         <Tab.Screen

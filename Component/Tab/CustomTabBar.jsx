@@ -73,7 +73,7 @@ export default function CustomTabBar({state, descriptors, navigation}) {
   }, [setIndex]);
 
   return (
-    <>
+    <View style={styles.wrapper}>
       {!hidePlayer && <BottomSheetMusic color={bottomColor} />}
       <View style={styles.mainContainer}>
         {state.routes.map((route, index) => {
@@ -154,11 +154,15 @@ export default function CustomTabBar({state, descriptors, navigation}) {
           );
         })}
       </View>
-    </>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  wrapper: {
+    backgroundColor: 'transparent',
+    width: '100%',
+  },
   mainContainer: {
     flexDirection: 'row',
     height: 70,

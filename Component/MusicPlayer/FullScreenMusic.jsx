@@ -8,6 +8,7 @@ import {
   TextInput,
   BackHandler,
   Share,
+  Platform,
 } from 'react-native';
 import FastImage from 'react-native-fast-image';
 import React, {
@@ -23,7 +24,6 @@ import {Heading} from '../Global/Heading';
 import {SmallText} from '../Global/SmallText';
 import {PlainText} from '../Global/PlainText';
 import {PlayPauseButton} from './PlayPauseButton';
-import {Spacer} from '../Global/Spacer';
 import {NextSongButton} from './NextSongButton';
 import {PreviousSongButton} from './PreviousSongButton';
 import {RepeatMode} from 'react-native-track-player';
@@ -150,16 +150,21 @@ const PlaybackRateButton = memo(({rate, setRate}) => {
   );
 });
 
-const ArtworkSection = memo(({artwork, width, pan}) => {
+const ArtworkSection = memo(({artwork, size, pan}) => {
   return (
     <GestureDetector gesture={pan}>
       <View
         style={{
-          width: width * 0.85,
-          height: width * 0.85,
-          borderRadius: 30,
-          elevation: 6,
+          width: size,
+          height: size,
+          borderRadius: 28,
+          elevation: 10,
+          shadowColor: '#000',
+          shadowOffset: {width: 0, height: 6},
+          shadowOpacity: 0.45,
+          shadowRadius: 14,
           overflow: 'hidden',
+          backgroundColor: '#181818',
         }}>
         <FastImage
           source={{
@@ -245,7 +250,7 @@ export const FullScreenMusic = memo(({color, Index, setIndex}) => {
     return g;
   }, [setIndex]);
 
-  const {width} = Dimensions.get('window');
+  const {width, height} = Dimensions.get('window');
   const currentPlaying = useActiveTrack();
   const {lyricsCacheRef, lyricsSettings, refreshLyrics} = useContext(ActionsContext);
   const navigation = useNavigation();
@@ -256,6 +261,7 @@ export const FullScreenMusic = memo(({color, Index, setIndex}) => {
   const [Loading, setLoading] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [lyricsFetchInProgress, setLyricsFetchInProgress] = useState(false);
+  const [isQueueVisible, setIsQueueVisible] = useState(false);
   const queueBottomSheetRef = useRef(null);
   // Repeat modal removed: repeat toggles on icon press now
 
@@ -1083,48 +1089,64 @@ export const FullScreenMusic = memo(({color, Index, setIndex}) => {
               </Pressable>
             </Modal>
 
-            <Spacer height={20} />
-            <ArtworkSection artwork={resolvedArtwork} width={width} pan={pan} />
+            {/* Main Balanced Content Area */}
+            <View
+              style={{
+                flex: 1,
+                width: '100%',
+                alignItems: 'center',
+                justifyContent: 'space-evenly',
+                paddingVertical: 6,
+              }}>
+              <ArtworkSection
+                artwork={resolvedArtwork}
+                size={Math.min(width * 0.84, height * 0.38)}
+                pan={pan}
+              />
 
-            <Spacer height={30} />
-            <InfoSection
-              title={currentPlaying?.title}
-              artist={currentPlaying?.artist}
-            />
+              <View style={{width: '100%', alignItems: 'center'}}>
+                <InfoSection
+                  title={currentPlaying?.title}
+                  artist={currentPlaying?.artist}
+                />
+              </View>
 
-            <Spacer height={10} />
-            <ProgressBar />
-            <SleepTimerBadge
-              sleepTime={sleepTime}
-              sleepTimerRef={sleepTimerRef}
-              onTimerEnd={() => setSleepTime(0)}
-            />
+              <View style={{width: '100%', alignItems: 'center'}}>
+                <ProgressBar />
+                <SleepTimerBadge
+                  sleepTime={sleepTime}
+                  sleepTimerRef={sleepTimerRef}
+                  onTimerEnd={() => setSleepTime(0)}
+                />
+              </View>
 
-            <Spacer height={25} />
-            <ControlsSection
-              onOpenRepeatOptions={onToggleRepeat}
-            />
+              <ControlsSection
+                onOpenRepeatOptions={onToggleRepeat}
+              />
+            </View>
 
             {/* Bottom Action Pill Bar */}
-            <Spacer height={10} />
             <View
               style={{
                 flexDirection: 'row',
                 justifyContent: 'space-between',
                 alignItems: 'center',
                 width: '90%',
-                paddingHorizontal: 20,
-                paddingVertical: 14,
+                paddingHorizontal: 22,
+                paddingVertical: 13,
+                marginBottom: Platform.OS === 'android' ? 22 : 36,
                 backgroundColor: theme.dark
                   ? 'rgba(255,255,255,0.08)'
                   : 'rgba(0,0,0,0.06)',
                 borderRadius: 25,
                 borderWidth: 1,
                 borderColor: theme.dark
-                  ? 'rgba(255,255,255,0.05)'
+                  ? 'rgba(255,255,255,0.06)'
                   : 'rgba(0,0,0,0.08)',
               }}>
-              <TouchableOpacity onPress={() => setShowSleepModal(true)}>
+              <TouchableOpacity
+                onPress={() => setShowSleepModal(true)}
+                hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}>
                 <MaterialCommunityIcons
                   name="timer-outline"
                   size={24}
@@ -1137,7 +1159,9 @@ export const FullScreenMusic = memo(({color, Index, setIndex}) => {
                 setRate={setPlaybackRate}
               />
 
-              <TouchableOpacity onPress={handleInfoModalOpen}>
+              <TouchableOpacity
+                onPress={handleInfoModalOpen}
+                hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}>
                 <MaterialCommunityIcons
                   name="information-outline"
                   size={24}
@@ -1146,11 +1170,16 @@ export const FullScreenMusic = memo(({color, Index, setIndex}) => {
               </TouchableOpacity>
 
               <TouchableOpacity
-                onPress={() => queueBottomSheetRef.current?.open()}>
+                activeOpacity={0.7}
+                hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}
+                onPress={() => {
+                  setIsQueueVisible(true);
+                  queueBottomSheetRef.current?.open();
+                }}>
                 <MaterialCommunityIcons
                   name="playlist-music-outline"
                   size={26}
-                  color={theme.colors.text}
+                  color={isQueueVisible ? '#1DB954' : theme.colors.text}
                 />
               </TouchableOpacity>
             </View>
@@ -1158,7 +1187,11 @@ export const FullScreenMusic = memo(({color, Index, setIndex}) => {
         </View>
       </View>
 
-      <QueueBottomSheet ref={queueBottomSheetRef} />
+      <QueueBottomSheet
+        ref={queueBottomSheetRef}
+        visible={isQueueVisible}
+        onClose={() => setIsQueueVisible(false)}
+      />
       <SongInfoModal
         visible={isInfoModalVisible}
         onDismiss={() => setIsInfoModalVisible(false)}
