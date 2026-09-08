@@ -21,18 +21,43 @@ export const ProgressBar = memo(() => {
   const [isSliding, setIsSliding] = useState(false);
   const [sliderValue, setSliderValue] = useState(0);
   const [wasPlaying, setWasPlaying] = useState(false);
-  const stableDurationRef = useRef(0);
 
-  // Keep slider in sync when not actively dragging
+  // Stable references for gesture and playback coordination
+  const stableDurationRef = useRef(0);
+  const sliderValueRef = useRef(0);
+  const isSlidingRef = useRef(false);
+  const lastSeekTimeRef = useRef(0);
+  const touchAreaRef = useRef(null);
+  const barLayoutRef = useRef({pageX: 0, width: BAR_WIDTH});
+
+  const updateSliderValue = val => {
+    const safeVal = Number.isFinite(val) ? Math.max(0, val) : 0;
+    sliderValueRef.current = safeVal;
+    setSliderValue(safeVal);
+  };
+
+  // Keep slider in sync with playback when not dragging and not recovering from a seek
   useEffect(() => {
-    if (!isSliding && Number.isFinite(position)) {
-      setSliderValue(Math.max(0, position));
+    if (isSliding || isSlidingRef.current) {
+      return;
+    }
+
+    // Ignore temporary stale position reports right after seeking (ExoPlayer buffering)
+    if (Date.now() - lastSeekTimeRef.current < 800) {
+      if (Math.abs((position || 0) - sliderValueRef.current) > 3) {
+        return;
+      }
+    }
+
+    if (Number.isFinite(position)) {
+      updateSliderValue(Math.max(0, position));
     }
   }, [position, isSliding]);
 
   // Reset on track change
   useEffect(() => {
-    setSliderValue(0);
+    updateSliderValue(0);
+    isSlidingRef.current = false;
     setIsSliding(false);
     stableDurationRef.current = 0;
   }, [currentTrack?.id]);
@@ -41,9 +66,7 @@ export const ProgressBar = memo(() => {
   useEffect(() => {
     const d = Number.isFinite(duration) ? duration : 0;
     if (d > 0) {
-      if (stableDurationRef.current === 0) {
-        stableDurationRef.current = d;
-      } else if (d >= stableDurationRef.current - 1) {
+      if (stableDurationRef.current === 0 || d >= stableDurationRef.current - 1) {
         stableDurationRef.current = Math.max(stableDurationRef.current, d);
       }
     }
@@ -64,7 +87,7 @@ export const ProgressBar = memo(() => {
       ? currentTrack.duration
       : stableDurationRef.current > 0
       ? stableDurationRef.current
-      : Number.isFinite(duration)
+      : Number.isFinite(duration) && duration > 0
       ? duration
       : 0;
 
@@ -77,53 +100,115 @@ export const ProgressBar = memo(() => {
       ? Math.max(0, Math.min(100, (clampedSliderValue / accurateDuration) * 100))
       : 0;
 
-  const updateSliderFromEvent = event => {
-    const maxValue = accurateDuration || 0;
-    const locationX = Math.max(0, Math.min(event.nativeEvent.locationX, BAR_WIDTH));
-    const value = maxValue > 0 ? (locationX / BAR_WIDTH) * maxValue : 0;
-    setIsSliding(true);
-    setSliderValue(Math.max(0, Math.min(value, maxValue)));
+  const measureBar = () => {
+    if (touchAreaRef.current) {
+      touchAreaRef.current.measure((x, y, measuredWidth, height, pageX) => {
+        if (measuredWidth > 0) {
+          barLayoutRef.current = {
+            pageX: pageX || 0,
+            width: measuredWidth || BAR_WIDTH,
+          };
+        }
+      });
+    }
   };
 
-  const completeSliderFromEvent = async event => {
+  const getPositionFromEvent = event => {
     const maxValue = accurateDuration || 0;
-    const locationX = Math.max(0, Math.min(event.nativeEvent.locationX, BAR_WIDTH));
-    const target = Math.max(
-      0,
-      Math.min(maxValue > 0 ? (locationX / BAR_WIDTH) * maxValue : 0, maxValue),
-    );
+    if (maxValue <= 0) {
+      return 0;
+    }
+
+    const barWidth = barLayoutRef.current.width || BAR_WIDTH;
+    let localX = 0;
+
+    // Use absolute screen pageX if available to avoid coordinate jumps from nested views
+    if (
+      typeof event?.nativeEvent?.pageX === 'number' &&
+      barLayoutRef.current.pageX > 0
+    ) {
+      localX = event.nativeEvent.pageX - barLayoutRef.current.pageX;
+    } else if (typeof event?.nativeEvent?.locationX === 'number') {
+      localX = event.nativeEvent.locationX;
+    }
+
+    const clampedX = Math.max(0, Math.min(localX, barWidth));
+    return (clampedX / barWidth) * maxValue;
+  };
+
+  const handleTouchGrant = event => {
+    measureBar();
+    const playing =
+      playbackState?.state === 3 ||
+      playbackState === 3 ||
+      playbackState?.state === 'playing';
+    setWasPlaying(Boolean(playing));
+
+    isSlidingRef.current = true;
+    setIsSliding(true);
+
+    const target = getPositionFromEvent(event);
+    updateSliderValue(target);
+  };
+
+  const handleTouchMove = event => {
+    if (!isSlidingRef.current) {
+      return;
+    }
+    const target = getPositionFromEvent(event);
+    updateSliderValue(target);
+  };
+
+  const handleTouchRelease = async event => {
+    // Determine the intended seek position:
+    // If event has valid coordinates, compute them; otherwise use sliderValueRef (last scrubbed point)
+    let target = sliderValueRef.current;
+    if (event && event.nativeEvent) {
+      const releasePos = getPositionFromEvent(event);
+      if (Number.isFinite(releasePos) && releasePos > 0) {
+        target = releasePos;
+      }
+    }
+
+    const maxValue = accurateDuration || 0;
+    const safeTarget = Math.max(0, Math.min(target, maxValue));
+
+    updateSliderValue(safeTarget);
+    lastSeekTimeRef.current = Date.now();
+
     try {
-      setSliderValue(target);
-      await TrackPlayer.seekTo(target);
+      await TrackPlayer.seekTo(safeTarget);
       if (wasPlaying) {
         await TrackPlayer.play();
       }
     } catch (e) {
-      // no-op
+      console.warn('TrackPlayer.seekTo failed:', e);
     } finally {
-      setTimeout(() => setIsSliding(false), 80);
+      // Keep isSliding true briefly while player buffers the new position
+      setTimeout(() => {
+        isSlidingRef.current = false;
+        setIsSliding(false);
+      }, 350);
     }
   };
 
   return (
     <View style={styles.container}>
-      {/* Reduced-width Touch & Progress Track */}
+      {/* Touch & Progress Track */}
       <View
+        ref={touchAreaRef}
         style={[styles.touchArea, {width: BAR_WIDTH}]}
+        hitSlop={{top: 14, bottom: 14, left: 0, right: 0}}
+        onLayout={measureBar}
         onStartShouldSetResponder={() => true}
         onMoveShouldSetResponder={() => true}
-        onResponderGrant={event => {
-          const playing =
-            playbackState?.state === 3 ||
-            playbackState === 3 ||
-            playbackState?.state === 'playing';
-          setWasPlaying(Boolean(playing));
-          updateSliderFromEvent(event);
-        }}
-        onResponderMove={updateSliderFromEvent}
-        onResponderRelease={completeSliderFromEvent}>
-        {/* Strong Background Track */}
+        onResponderGrant={handleTouchGrant}
+        onResponderMove={handleTouchMove}
+        onResponderRelease={handleTouchRelease}
+        onResponderTerminate={handleTouchRelease}>
+        {/* Background Track - pointerEvents="none" prevents event target hijacking */}
         <View
+          pointerEvents="none"
           style={[
             styles.trackBackground,
             {
@@ -134,6 +219,7 @@ export const ProgressBar = memo(() => {
           ]}>
           {/* Active Filled Track */}
           <View
+            pointerEvents="none"
             style={[
               styles.trackActive,
               {
@@ -144,8 +230,9 @@ export const ProgressBar = memo(() => {
           />
         </View>
 
-        {/* Strong Tactile Thumb Indicator */}
+        {/* Tactile Thumb Indicator - pointerEvents="none" so touch targets the bar */}
         <View
+          pointerEvents="none"
           style={[
             styles.thumb,
             {

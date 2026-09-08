@@ -85,7 +85,7 @@ export const Slide1 = ({navigation}) => {
             </Animated.View>
 
             <Animated.View entering={FadeInDown.delay(60).duration(300)}>
-              <Text style={styles.title}>Music Aura</Text>
+              <Text style={styles.title}>Chinni</Text>
             </Animated.View>
 
             <Animated.View entering={FadeInDown.delay(120).duration(300)}>

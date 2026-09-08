@@ -37,7 +37,7 @@ export const TopHeader = memo(({showHeader}) => {
             <PaddingConatiner>
               <SpaceBetween>
                 <View style={{flex: 1}}>
-                  <Heading text={'Music Aura'} />
+                  <Heading text={'Chinni'} />
                 </View>
                 {/* Search icon removed as requested */}
                 <Pressable

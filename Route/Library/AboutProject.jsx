@@ -95,7 +95,7 @@ export const AboutProject = ({navigation}) => {
 
         <View style={styles.communityRow}>
           <CommunityCard
-            title="Music Aura"
+            title="Chinni"
             subTitle="Explore the codebase."
             icon="github"
             gradient={['#2c3e50', '#000000']}

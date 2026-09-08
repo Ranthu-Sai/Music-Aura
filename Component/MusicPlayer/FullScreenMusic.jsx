@@ -1068,7 +1068,7 @@ export const FullScreenMusic = memo(({color, Index, setIndex}) => {
                       setShowMenu(false);
                       try {
                         await Share.share({
-                          message: `Check out this song: ${currentPlaying?.title || 'Unknown'} by ${currentPlaying?.artist || 'Unknown Artist'}\nShared from Music Aura`,
+                          message: `Check out this song: ${currentPlaying?.title || 'Unknown'} by ${currentPlaying?.artist || 'Unknown Artist'}\nShared from Chinni`,
                         });
                       } catch (e) {
                         // ignore

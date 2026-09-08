@@ -7,6 +7,7 @@ import {
   Text,
   StatusBar,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import Animated, {
   FadeIn,
   useSharedValue,
@@ -111,7 +112,7 @@ export const Slide4 = ({navigation}) => {
             </Animated.View>
             <Animated.View entering={FadeIn.delay(600).duration(800)}>
               <Text style={styles.description}>
-                Dive into a personalized world of melodies.{'\n'}Your Music Aura
+                Dive into a personalized world of melodies.{'\n'}Your Chinni
                 is ready to shine.
               </Text>
             </Animated.View>
@@ -125,7 +126,12 @@ export const Slide4 = ({navigation}) => {
             <TouchableOpacity
               style={styles.getStartedButton}
               activeOpacity={0.8}
-              onPress={() => navigation.replace('MainRoute')}>
+              onPress={async () => {
+                try {
+                  await AsyncStorage.setItem('has_completed_onboarding', 'true');
+                } catch (_) {}
+                navigation.replace('MainRoute');
+              }}>
               <LinearGradient
                 colors={['#1DB954', '#1ed760']}
                 start={{x: 0, y: 0}}

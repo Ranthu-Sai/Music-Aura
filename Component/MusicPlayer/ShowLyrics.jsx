@@ -322,7 +322,7 @@ export const ShowLyrics = ({
       const songArtist = currentSong?.artist || 'Unknown Artist';
 
       await Share.share({
-        message: `Lyrics for ${songTitle} by ${songArtist}:\n\n${lyricsText}\n\nShared from Music Aura`,
+        message: `Lyrics for ${songTitle} by ${songArtist}:\n\n${lyricsText}\n\nShared from Chinni`,
         title: `Lyrics: ${songTitle}`,
       });
     } catch (error) {

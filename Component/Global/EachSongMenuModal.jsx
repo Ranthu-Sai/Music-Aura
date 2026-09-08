@@ -59,7 +59,7 @@ export const EachSongMenuModal = ({Visible, setVisible}) => {
   const onShare = async () => {
     try {
       await Share.share({
-        message: `Check out this song: ${Visible.title} by ${Visible.artist}\nShared from Music Aura`,
+        message: `Check out this song: ${Visible.title} by ${Visible.artist}\nShared from Chinni`,
       });
       setVisible({visible: false});
     } catch (error) {

@@ -7,8 +7,9 @@ import {ThemeContext} from './Context/Context';
 import {GestureHandlerRootView} from 'react-native-gesture-handler';
 import {BottomSheetModalProvider} from '@gorhom/bottom-sheet';
 import {PaperProvider, MD3DarkTheme, MD3LightTheme} from 'react-native-paper';
-import {SafeAreaProvider} from 'react-native-safe-area-context';
+import {SafeAreaProvider, initialWindowMetrics} from 'react-native-safe-area-context';
 import {RouteOnboarding} from './Route/OnboardingScreen/RouteOnboarding';
+import {InitialScreen} from './Route/InitialScreen';
 // import CodePush from "react-native-code-push";
 import React, {useEffect, useContext} from 'react';
 import LoginScreen from './Component/Auth/LoginScreen';
@@ -63,11 +64,12 @@ function ThemedNavigation() {
     <PaperProvider theme={paperTheme}>
       <NavigationContainer theme={MyTheme}>
         <Stack.Navigator
-          initialRouteName="Onboarding"
+          initialRouteName="Initial"
           screenOptions={{
             headerShown: false,
             contentStyle: {backgroundColor: currentThemeColors.background},
           }}>
+          <Stack.Screen name="Initial" component={InitialScreen} />
           <Stack.Screen name="Onboarding" component={RouteOnboarding} />
           <Stack.Screen name="MainRoute" component={RootRoute} />
           <Stack.Screen name="LoginScreen" component={LoginScreen} />
@@ -82,7 +84,7 @@ function App() {
   useEffect(() => {}, []);
   return (
     <GestureHandlerRootView style={{flex: 1}}>
-      <SafeAreaProvider>
+      <SafeAreaProvider initialMetrics={initialWindowMetrics}>
         <ContextState>
           <BottomSheetModalProvider>
             <ThemedNavigation />
